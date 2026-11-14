@@ -5,6 +5,8 @@ import type { ModuleContext } from '@wadeck-app/app-core-sdk';
 export interface RouteRequest {
   params?: Record<string, string>;
   query?: Record<string, string | string[] | undefined>;
+  /** The parsed JSON body of a write request (undefined when none was sent). */
+  body?: unknown;
 }
 
 /** What a route returns: the HTTP status and the JSON body. */
@@ -30,6 +32,8 @@ export class RequestError extends Error {
 export interface RouteKit {
   /** Registers a route; every error thrown by `run` becomes its HTTP answer. */
   route(method: string, subPath: string, run: (req: RouteRequest) => Promise<RouteAnswer>): void;
+  /** The persistent folder of the module (ctx.dataDir): pins and seen markers live there. */
+  readonly dataDir: string;
 }
 
 type Reply = { code(status: number): { send(body: unknown): unknown } };
@@ -66,6 +70,7 @@ function inline(failure: { status: number; body: Record<string, unknown> }): { s
 
 export function createRouteKit(ctx: ModuleContext, writeStderr: (text: string) => void = (text) => void process.stderr.write(text)): RouteKit {
   return {
+    dataDir: ctx.dataDir,
     route(method, subPath, run) {
       ctx.registerRoute(method, subPath, async (req, reply) => {
         const out = reply as unknown as Reply;

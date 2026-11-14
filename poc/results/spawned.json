@@ -159,5 +159,14 @@
     "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 9ebea635-2825-458c-ad4b-d6832835032e --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-m0-d2-priority.json --max-turns 40 --allowedTools Bash",
     "exitedAt": "2026-11-14T22:39:07.664Z",
     "exitCode": 0
+  },
+  {
+    "label": "m4-reply-e2e",
+    "pid": 62108,
+    "sessionId": "43f92ff1-cd51-474d-bdba-b3234f824974",
+    "startedAt": "2026-11-14T23:13:51.594Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 43f92ff1-cd51-474d-bdba-b3234f824974 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-m4-reply-e2e.json",
+    "exitedAt": "2026-11-14T23:14:12.586Z",
+    "exitCode": 0
   }
 ]

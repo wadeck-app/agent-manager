@@ -23,3 +23,4 @@ Status: each file marks claims `[V]` (lead re-read the source), `agent report` (
 - Hooks and Claude Code docs: https://code.claude.com/docs/en/hooks (the agent read only the first 100k of 293k chars), `.../terminal-config.md`, `.../common-workflows`, `.../remote-control.md`, channels docs.
 - Anything marked `agent report` or `UNVERIFIED` must be re-read before it drives a decision.
 - [m0-measurements.md](m0-measurements.md) -- first M0 batch: real hook durations, node cold start (shim 503 ms vs direct 45-63 ms), socket msg_id and priority; raw files in poc/results
+- [ui-inspiration.md](ui-inspiration.md) -- herdr Agents panel (image + docs), survey of 20+ interfaces with V/P/U marks, state model implied by herdr, variant concepts A-J, recommendation; reference image in assets/herdr-agents-panel.png

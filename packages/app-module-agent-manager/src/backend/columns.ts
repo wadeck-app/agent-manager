@@ -12,7 +12,7 @@ export function sessionColumns(rows: readonly SessionRow[]): DslNode[] {
     { key: 'statusGroup', label: 'Status', nowrap: true, badge: { busy: 'info', idle: 'success', other: 'warning' } },
     { key: 'statusDetail', label: 'Detail', muted: true, nowrap: true },
     { key: 'statusUpdatedAt', label: 'Status since', format: 'datetime', nowrap: true },
-    { key: 'pid', label: 'PID', mono: true },
+    { key: 'pid', label: 'PID', mono: true, nowrap: true },
     { key: 'harness', label: 'Harness', nowrap: true, badge: harnessBadges(rows) },
     { key: 'aliveText', label: 'Alive', nowrap: true, badge: { alive: 'success', dead: 'danger' } },
   ];

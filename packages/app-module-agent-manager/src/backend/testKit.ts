@@ -25,10 +25,10 @@ interface Route {
 }
 
 /** A module context that only records the routes, and `call` runs one the way app-core's router does (method, segments, decoded params). */
-export function makeModule(): { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[] } {
+export function makeModule(setup: { dataDir?: string } = {}): { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[] } {
   const routes: Route[] = [];
   const ctx = {
-    dataDir: tmpdir(),
+    dataDir: setup.dataDir ?? tmpdir(),
     registerRoute: (method: string, subPath: string, handler: Route['handler']) => {
       routes.push({ method, segments: subPath.split('/').filter(Boolean), handler });
     },

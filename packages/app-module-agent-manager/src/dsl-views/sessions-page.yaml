@@ -2,7 +2,8 @@
 # M1b is a deliberately partial slice: registry only, pid-only liveness. The note below says so on the page itself.
 # The dead sessions (process gone, registry file left) are hidden unless the filter says otherwise; the filter is the URL parameter ?show=all.
 # The list is polled every 5 s. A failing source would blank the whole page, so the route answers errors as data (inlineErrors: errorText).
-# The two layouts of the list are an A/B test (id sessions-layout) wired here, on the real page: `table` is the initial one.
+# The layouts of the list (table, cards, herdr) are an A/B test (id sessions-layout) wired here, on the real page: `table` is the initial one.
+# The herdr layout writes through two actions (pin, seen); the route answers a 4xx with a message and a hint, shown as a toast.
 $sources:
   sessions:
     url: GET /api/modules/agent-manager/sessions
@@ -10,6 +11,16 @@ $sources:
     params:
       inlineErrors: 'true'
       show: $urlParam.show
+
+$actions:
+  pinSession:
+    url: POST /api/modules/agent-manager/sessions/{sessionId}/pin
+    reloadSources: true
+    errorPrefix: Could not change the pin
+  markSeen:
+    url: POST /api/modules/agent-manager/sessions/{sessionId}/seen
+    reloadSources: true
+    errorPrefix: Could not mark the session seen
 
 $type: PageContent
 sections:
@@ -76,3 +87,16 @@ sections:
           items:
             - $type: ExtensionSlot
               items: $sources.sessions.cards
+      herdr:
+        label: Herdr
+        hint: "Sidebar panel like herdr: groups Pinned, Needs you, Done, Working, Idle with counts; folder in bold, session name muted, time in state and a status icon per row; pin and mark-seen buttons. Built by the route."
+        view:
+          $type: VerticalStack
+          gap: gap-1
+          items:
+            - $type: Badge
+              $if: $sources.sessions.herdrError
+              label: $sources.sessions.herdrError
+              variant: danger
+            - $type: ExtensionSlot
+              items: $sources.sessions.herdr

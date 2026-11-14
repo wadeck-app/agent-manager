@@ -74,6 +74,12 @@ A CLI (`agent-manager`, decision 18) wired into Claude Code global hooks, feedin
 
 | 42 | The daemon dedupes replies itself (socket `msg_id` does not dedupe: 2 turns observed) and never auto-resends | Derived | 2026-11-14 | `research/m0-measurements.md` D1 [V] |
 | 43 | Reply priority defaults to `next`; `now` aborts the running tool call (observed, n=1) so the UI requires an explicit confirmation for it; `later` runs as an extra turn | Derived | 2026-11-14 | `research/m0-measurements.md` D2 (agent report, suggestive) |
+| 44 | State model refined from herdr: groups Pinned (overlay; pinned rows leave their state group but keep their state icon), Needs you (registry status waiting, red), Done (idle after a finished turn and not yet seen, blue), Working (busy or shell, amber), Idle (seen, neutral); any unmapped status is shown visibly as Other, never hidden; time in state = now - statusUpdatedAt in compact form. Supersedes the state list of decision 14 where they differ | Derived | 2026-11-15 | `research/ui-inspiration.md` sections 1 and 4 (herdr docs V; pinned-row derivation V by the lead from the screenshot counts 2+1+1+4+7 = 15) |
+| 45 | `seenAt` and pins are stored server-side in the module data dir, global (not per browser) because the user is single; a session is marked seen by opening it, replying, or the explicit action; reversible by switching to per-browser | Derived | 2026-11-15 | herdr keeps seen per client (V); a single user on one machine needs no per-client copy |
+| 46 | Sort within groups: Needs you and Done oldest first (longest waiting on top), Working and Idle most recent first, Pinned in pin order; the UI explains it | Derived | 2026-11-15 | herdr's sort is undocumented; this one puts the longest wait on top |
+| 47 | Variants roadmap for the A/B `sessions-layout`: table, cards, herdr (built first), then board (F), triage inbox (B), split tabs (C), project tree (D), status tiles (E), dense table (G), master-detail with log and reply pane (H, default direction together with A), command palette (I), tagged batch (J, needs a confirmation per row because of the mass-approval risk); first comparisons A vs D, A vs B, A vs G | Derived | 2026-11-15 | `research/ui-inspiration.md` section 5 and 6; user asked for several variants inspired by herdr and other apps |
+| 48 | Keyboard model planned: `b/w/i/d` filter by group (herdr), `/` search, `j/k` move, `Cmd+K` palette, snooze, digit decision keys on Needs you rows (Linear triage idea) | Derived | 2026-11-15 | herdr keyboard docs (V), Linear Inbox and Triage (V) |
+| 49 | Notifications reuse the state model: separate request (needs you) and done sounds and toasts, no toast for the focused tab, tab-title counter of needs-you plus done; extends decision 35 | Derived | 2026-11-15 | herdr configuration docs (V), Warp notifications (V) |
 
 ## Open Questions
 
@@ -87,6 +93,7 @@ A CLI (`agent-manager`, decision 18) wired into Claude Code global hooks, feedin
 | Q6 | State model and sub-agent tracking | Medium | Resolved provisionally (derived, decision 14) |
 | Q7 | Main screen layout and variants | High | Resolved provisionally (derived, decision 15) |
 | Q8 | w-guardrails rule denying curl to the reply route (cross-repo, D-B) | Medium | Open (pending the user) |
+| Q9 | `seenAt` global vs per browser and pin ordering: derived (decisions 45, 46), user may overturn | Low | Resolved provisionally (derived) |
 
 ## Modules / Sub-files
 

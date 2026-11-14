@@ -19,5 +19,5 @@
     "types": ["vitest/globals", "node"]
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts", "src/testFixtures.ts"]
+  "exclude": ["src/**/*.test.ts", "src/**/testFixtures.ts", "src/reply/testSupport.ts"]
 }

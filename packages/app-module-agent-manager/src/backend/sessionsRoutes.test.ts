@@ -34,8 +34,8 @@ function deadPid(): number {
 }
 
 describe('GET /sessions', () => {
-  it('is registered, with /summary, and nothing else: M1b has no write route', () => {
-    expect(makeModule().routes.sort()).toEqual(['GET /sessions', 'GET /summary']);
+  it('registers the two read routes and the two user-state write routes, nothing else', () => {
+    expect(makeModule().routes.sort()).toEqual(['GET /sessions', 'GET /summary', 'POST /sessions/:sessionId/pin', 'POST /sessions/:sessionId/seen']);
   });
 
   it('answers the alive session with the derived texts and the generation time', async () => {

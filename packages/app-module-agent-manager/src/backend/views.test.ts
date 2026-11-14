@@ -127,7 +127,7 @@ describe('dsl-views', () => {
     const calls = [...urlsOf(file, '$sources'), ...urlsOf(file, '$actions')].filter((c) => c.url.startsWith('/api/modules/agent-manager'));
     expect(calls.length, `${file} has no call to the module: a view that reads nothing is a mistake here`).toBeGreaterThan(0);
     for (const call of calls) {
-      expect(routes, `${file} ${call.name}: ${call.method} ${call.path}`).toContain(`${call.method} ${shape(call.path)}`);
+      expect(routes.map((route) => route.replace(/:[A-Za-z]+/g, ':ref')), `${file} ${call.name}: ${call.method} ${call.path}`).toContain(`${call.method} ${shape(call.path)}`);
     }
   });
 
@@ -173,13 +173,13 @@ describe('the Agents page', () => {
     expect(note).toContain('M1b: sessions from the Claude Code registry only (pid-only liveness). Hooks, transcripts, replies: planned');
   });
 
-  it('wires the A/B test sessions-layout on the real page, with a table (initial) and a cards variant', () => {
+  it('wires the A/B test sessions-layout on the real page, with a table (initial), a cards and a herdr variant', () => {
     const tests = sections().filter((s) => s['$type'] === 'AbTest');
     expect(tests).toHaveLength(1);
     const test = tests[0] as { id: string; initial: string; variants: Record<string, { label: string; hint: string; view: { $type: string } }> };
     expect(test.id).toBe('sessions-layout');
     expect(test.initial).toBe('table');
-    expect(Object.keys(test.variants)).toEqual(['table', 'cards']);
+    expect(Object.keys(test.variants)).toEqual(['table', 'cards', 'herdr']);
     expect(test.variants['table']?.view.$type).toBe('DataTable');
     for (const variant of Object.values(test.variants)) {
       expect(variant.label).toEqual(expect.any(String));

@@ -20,5 +20,19 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./reply": {
+      "types": "./dist/reply/index.d.ts",
+      "default": "./dist/reply/index.js"
+    },
+    "./transcript": {
+      "types": "./dist/transcript/index.d.ts",
+      "default": "./dist/transcript/index.js"
+    }
   }
 }

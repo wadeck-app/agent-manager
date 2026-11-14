@@ -1,5 +1,5 @@
 // violations-suppress: ts/no-barrel-index package entry point (package.json main/types): its exports are the package's public API consumed by app-module-agent-manager
-// Public barrel for @wadeck-app/agent-manager-core.
+// Public barrel for @wadeck-app/agent-manager-core. The reply and transcript APIs are subpath exports (package.json exports): @wadeck-app/agent-manager-core/reply and /transcript.
 export { getErrorMessage } from './errors.js';
 export { isPidAlive } from './pidAlive.js';
 export { lastDirectory } from './folder.js';
@@ -7,3 +7,4 @@ export { readSessionRegistry, sortByStatusUpdatedDesc } from './readSessionRegis
 export type { ReadOptions } from './readSessionRegistry.js';
 export { SESSIONS_DIR_ENV, resolveSessionsDir } from './sessionsDir.js';
 export type { LivenessCheck, RegistryError, RegistryErrorCode, RegistryResult, Session, StatusGroup, UnreadableFile } from './session.js';
+export { DurationError, parseDuration } from './duration.js';
