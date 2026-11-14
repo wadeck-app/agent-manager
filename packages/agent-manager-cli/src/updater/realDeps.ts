@@ -1,5 +1,8 @@
-import { cacheFilePath, execNpm, readCache, readState, runUpdater, stateFilePath, writeState } from '@wadeck-app/shared-updater';
+import { appendLog, cacheFilePath, execNpm, readCache, readState, runUpdater, stateFilePath, writeState } from '@wadeck-app/shared-updater';
+import { registerWithAppCore } from '../AppCoreRegistration.js';
+import { hasStagedModule } from '../appModuleStaging.js';
 import { defaultConfigDir } from '../configDir.js';
+import { readAppModuleVersion } from '../registerAfterUpdate.js';
 import type { UpdaterDeps } from './runAgentManagerUpdater.js';
 
 // Imported by the updater bundle (500 KB guard): the real wiring, nothing of the CLI runtime.
@@ -26,5 +29,7 @@ export function realUpdaterDeps(env: NodeJS.ProcessEnv, configDir: string, versi
     now: () => Date.now(),
     stdout: (line) => process.stdout.write(`${line}\n`),
     stderr: (line) => process.stderr.write(`${line}\n`),
+    appendLog: (level, text) => appendLog(configDir, level, text),
+    appModule: { readVersion: readAppModuleVersion, register: registerWithAppCore, isRegistered: () => hasStagedModule(configDir) },
   };
 }

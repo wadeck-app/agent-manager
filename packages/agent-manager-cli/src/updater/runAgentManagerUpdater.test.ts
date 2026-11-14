@@ -22,6 +22,9 @@ function deps(version: string): { deps: UpdaterDeps; stderr: string[]; runUpdate
       now: () => 0,
       stdout: () => undefined,
       stderr: (line) => stderr.push(line),
+      appendLog: () => undefined,
+      // No app-module in these fakes: the app-module behaviour is in runAgentManagerUpdater.appModule.test.ts
+      appModule: { readVersion: () => ({ absent: true }), register: async () => undefined, isRegistered: () => false },
     },
   };
 }

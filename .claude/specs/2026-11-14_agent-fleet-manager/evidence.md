@@ -116,3 +116,15 @@ Mark `[V]` when I re-read the source myself; otherwise `agent report`.
 ## Pending
 
 - Four research agents running: sibling CLIs, app-core, hooks + w-guardrails, market survey. Results are `agent report` until verified.
+
+## Global install [V] (2026-11-14, authorised by the user)
+
+- `npm install -g @wadeck-app/agent-manager-cli` -> 2 packages in 2 s; `agent-manager -v` = 2026.11.14-005-9cbe0412 (the docs commit 9cbe041 also published, so `latest` moved from 004 to 005: every push to main publishes)
+- `cli self-check` ok; `UPDATER_MANUAL=1 agent-manager cli update` -> up to date; `start` still fails explicitly
+- Not yet exercised: a real update from an older to a newer version (needs the next publish)
+
+## M1b code review (code-review medium, 10 findings)
+
+- Mostly in staging/registration code ported from project-cli, kept for parity: leftover `<ver>.partial-<pid>` folder counted as a staged module (`appModuleStaging.ts`), prune can delete a concurrent run's partial folder, a same-version staged copy is reused without content comparison, unregister deletes staged copies on `deferred`/`unconfirmed`, `npm root -g` failure only logged in the updater, `cp -r` nesting in `copy-binaries.sh` on rerun
+- Own code: `alive` is pid-only so a reused pid shows a dead session as alive (documented in the page note; M2 adds the procStart check, decision 30)
+- Not fixed in this slice; to be sent to project-owner as facts and tracked for the next milestone

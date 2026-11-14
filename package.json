@@ -7,11 +7,12 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace=packages/agent-manager-cli",
-    "test": "vitest run --config test-support/vitest.config.ts && npm run test --workspace=packages/agent-manager-cli",
+    "build": "npm run build --workspace=packages/agent-manager-core && npm run build --workspace=packages/agent-manager-cli && npm run build --workspace=packages/app-module-agent-manager",
+    "test": "vitest run --config test-support/vitest.config.ts && npm run test --workspace=packages/agent-manager-core && npm run test --workspace=packages/agent-manager-cli && npm run test --workspace=packages/app-module-agent-manager",
     "bundle": "npm run bundle --workspace=packages/agent-manager-cli",
     "build-launcher": "npm run build-launcher --workspace=packages/agent-manager-cli",
-    "clean": "npm run clean --workspace=packages/agent-manager-cli",
+    "clean": "npm run clean --workspace=packages/agent-manager-core && npm run clean --workspace=packages/agent-manager-cli && npm run clean --workspace=packages/app-module-agent-manager",
+    "check": "npm run check --workspace=packages/app-module-agent-manager",
     "preversion": "npm test"
   },
   "devDependencies": {

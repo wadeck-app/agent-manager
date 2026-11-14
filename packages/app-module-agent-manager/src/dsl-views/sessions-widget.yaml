@@ -1,0 +1,44 @@
+$sources:
+  summary:
+    url: GET /api/modules/agent-manager/summary
+    poll: 5s
+    params:
+      inlineErrors: 'true'
+
+# Dashboard tile: the alive Claude Code sessions by status (counts of the registry, pid-only liveness: see the page). Four tiles on one row, each
+# leading to the page. When the registry cannot be read the tiles give way to the reason: a row of zeros would say "no session".
+$type: VerticalStack
+fill: true
+gap: gap-2
+items:
+  - $type: HorizontalStack
+    $if: $sources.summary.ok
+    gap: gap-2
+    fill: true
+    align: items-stretch
+    itemSizes: [flex, flex, flex, flex]
+    items:
+      - $type: StatTile
+        label: Busy
+        fill: true
+        value: $sources.summary.busy
+        href: "/modules/agent-manager/agents"
+      - $type: StatTile
+        label: Idle
+        fill: true
+        value: $sources.summary.idle
+        href: "/modules/agent-manager/agents"
+      - $type: StatTile
+        label: Other
+        fill: true
+        value: $sources.summary.other
+        href: "/modules/agent-manager/agents"
+      - $type: StatTile
+        label: Alive
+        fill: true
+        value: $sources.summary.alive
+        href: "/modules/agent-manager/agents"
+  - $type: Badge
+    $if: $sources.summary.errorText
+    label: $sources.summary.errorText
+    variant: danger

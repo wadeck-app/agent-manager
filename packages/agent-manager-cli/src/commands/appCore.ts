@@ -1,21 +1,41 @@
 // agent-manager cli register | unregister -- tell app-core where the agent-manager app-module lives, or remove it.
-// NOT IMPLEMENTED in the M1 skeleton (there is no app-module yet): each command fails explicitly, never succeeds silently.
-import type { Command } from '../command.js';
-import { CliError } from '../errors.js';
+import { type AppCoreAttempt, attemptStagedRegistration, attemptUnregistration } from '../AppCoreRegistration.js';
+import { resolveAppModuleManifest } from '../appModuleManifest.js';
+import type { Command, CommandOutput } from '../command.js';
+import { CliError, getErrorMessage } from '../errors.js';
 
-export const APP_MODULE_NOT_IMPLEMENTED = 'app-core module not implemented yet (planned M1b)';
-
-function notImplemented(name: string, summary: string): Command {
-  return {
-    name,
-    summary: `${summary} (not implemented yet: fails with an error)`,
-    args: [],
-    options: {},
-    run: () => {
-      throw new CliError(`${APP_MODULE_NOT_IMPLEMENTED}: 'agent-manager ${name}' did nothing. This build is the M1 skeleton: there is no app-module to register`);
-    },
-  };
+/**
+ * Exit 0 when app-core took it, or is absent / not running (`deferred`, `skipped`: nothing to fix, said clearly). `unconfirmed`
+ * (app-core is up but did not answer in time, it may have applied the call) is exit 0 too: nothing is known to be wrong, and a
+ * script that needs certainty tests `status` in --json. Exit 1 with the reason when app-core refuses or the call fails.
+ */
+function outputOf(attempt: AppCoreAttempt): CommandOutput {
+  if (!attempt.ok) {
+    throw new CliError(attempt.message);
+  }
+  return { json: { ok: true, status: attempt.status, message: attempt.message }, lines: [attempt.message] };
 }
 
-export const registerCommand = notImplemented('cli register', 'Show the agent-manager pages in app-core');
-export const unregisterCommand = notImplemented('cli unregister', 'Remove the agent-manager pages from app-core');
+export const registerCommand: Command = {
+  name: 'cli register',
+  summary: 'Show the Agents pages in app-core (M1b: the sessions of the Claude Code registry only). This is the first registration: only this command does it; updates then keep it current',
+  args: [],
+  options: {},
+  run: async () => {
+    let manifestPath: string;
+    try {
+      manifestPath = resolveAppModuleManifest();
+    } catch (error) {
+      throw new CliError(getErrorMessage(error));
+    }
+    return outputOf(await attemptStagedRegistration(manifestPath));
+  },
+};
+
+export const unregisterCommand: Command = {
+  name: 'cli unregister',
+  summary: 'Remove the Agents pages from app-core, and stop the updates from registering them again',
+  args: [],
+  options: {},
+  run: async () => outputOf(await attemptUnregistration()),
+};

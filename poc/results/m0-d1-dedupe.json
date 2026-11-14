@@ -1,0 +1,43 @@
+{
+  "test": "msg_id dedupe",
+  "turnsBudgetUsed": 2,
+  "frame": {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": "M0 dedupe probe. Reply with exactly the single word ack-D1"
+    },
+    "msgV": 1,
+    "msg_id": "poc-d1-fb09a2ce",
+    "priority": "next",
+    "session_id": "b31dfe23-e1fb-444e-b0b2-d8799cda4d3c"
+  },
+  "sendGapMs": 202,
+  "resultsAfterWait": 2,
+  "userLinesWithMarker": 2,
+  "assistantAnswers": 4,
+  "transcript": [
+    {
+      "ts": "2026-11-14T22:37:14.631Z",
+      "role": "user",
+      "text": "Another Claude session sent a message:\nM0 dedupe probe. Reply with exactly the single word ack-D1\n\nThis came f"
+    },
+    {
+      "ts": "2026-11-14T22:37:17.375Z",
+      "role": "assistant",
+      "text": "ack-D1"
+    },
+    {
+      "ts": "2026-11-14T22:37:17.396Z",
+      "role": "user",
+      "text": "Another Claude session sent a message:\nM0 dedupe probe. Reply with exactly the single word ack-D1\n\nThis came f"
+    },
+    {
+      "ts": "2026-11-14T22:37:18.673Z",
+      "role": "assistant",
+      "text": "ack-D1"
+    }
+  ],
+  "exitCode": 0,
+  "stderr": ""
+}

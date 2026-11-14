@@ -120,7 +120,10 @@ isolate_env() {
   export XDG_CONFIG_HOME="$root/xdg"
   export HOME="$root/home"
   export USERPROFILE="$root/home"
-  mkdir -p "$npm_config_prefix" "$XDG_CONFIG_HOME/agent-manager" "$HOME"
+  # app-core's own config folder: `agent-manager cli register` leaves its pending registration there when app-core is not running. It is a folder of the
+  # temp root, never the real ~/.config/app-core: the real app-core (and its registry of modules) must not be reachable from any step.
+  export APP_CORE_CONFIG_DIR="$root/app-core"
+  mkdir -p "$npm_config_prefix" "$XDG_CONFIG_HOME/agent-manager" "$HOME" "$APP_CORE_CONFIG_DIR"
   echo "autoUpdate: false" > "$XDG_CONFIG_HOME/agent-manager/config.yml"
   # The CLI honors this variable before XDG_CONFIG_HOME: pin it to the isolated folder, whatever the caller exported.
   export AGENT_MANAGER_CONFIG_DIR="$XDG_CONFIG_HOME/agent-manager"
@@ -133,6 +136,8 @@ isolate_env() {
   esac
   export PATH="$bin_dir:$PATH"
   echo "isolated environment in $root"
+  # Nothing listens on this port: a run of the CLI can never reach the app-core of the user (port 4850 or the one it wrote), whatever the step.
+  pick_free_port
 }
 
 # --- running the CLI ------------------------------------------------------------------------------------------------
@@ -220,3 +225,26 @@ install_global() {
   fail "npm install -g $spec did not succeed after 6 attempts"
 }
 
+
+# --- the app-module -------------------------------------------------------------------------------------------------
+
+VERIFY_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# The folder npm installed the package in.
+installed_package_dir() {
+  echo "$(npm root -g)/@wadeck-app/agent-manager-cli"
+}
+
+assert_file() {
+  local what="$1" file="$2"
+  [ -f "$file" ] || fail "$what: the file $file does not exist"
+  echo "ok: $what exists ($file)"
+}
+
+# A port where nothing listens, exported as APP_CORE_PORT: app-core is certainly "not running" for the next command.
+pick_free_port() {
+  local port
+  port="$(node "$VERIFY_LIB_DIR/free-port.mjs")" || fail "cannot find a free port"
+  export APP_CORE_PORT="$port"
+  echo "app-core is not running: APP_CORE_PORT=$port (nothing listens there)"
+}

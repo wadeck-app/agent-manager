@@ -72,6 +72,9 @@ A CLI (`agent-manager`, decision 18) wired into Claude Code global hooks, feedin
 | 40 | Default daemon port 47930 (siblings use 47823, 47900, 47910-11, 47920-21), override `AGENT_MANAGER_DAEMON_PORT`; exit codes defined per command in a table like queue | Derived | 2026-11-14 | R-19 |
 | 41 | A Claude Code mod (`turn.start`, `tool.call`, `session.send` API) is evaluated at M0 as an alternative state source behind an interface; moving API risk noted | Derived | 2026-11-14 | R-18 |
 
+| 42 | The daemon dedupes replies itself (socket `msg_id` does not dedupe: 2 turns observed) and never auto-resends | Derived | 2026-11-14 | `research/m0-measurements.md` D1 [V] |
+| 43 | Reply priority defaults to `next`; `now` aborts the running tool call (observed, n=1) so the UI requires an explicit confirmation for it; `later` runs as an extra turn | Derived | 2026-11-14 | `research/m0-measurements.md` D2 (agent report, suggestive) |
+
 ## Open Questions
 
 | # | Question | Priority | Status |

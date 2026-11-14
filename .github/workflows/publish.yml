@@ -52,6 +52,10 @@ jobs:
             - name: Build TypeScript
               run: npm run build
 
+            # The app-core module: layout, manifest and slots (the packaging itself runs in the publish job)
+            - name: Check the app-core module
+              run: npm run check
+
             # The log is kept to put its end in an annotation: the job logs are not readable without admin rights
             - name: Run tests
               shell: bash
@@ -118,7 +122,7 @@ jobs:
               env:
                   PLATFORMS: win32-x64,darwin-arm64,linux-x64
                   PKG_VERSION: ${{ steps.version.outputs.version }}
-              run: bash packages/agent-manager-cli/ci/scripts/generate-platform-packages.sh agent-manager
+              run: bash packages/agent-manager-cli/ci/scripts/generate-platform-packages.sh agent-manager:app-module/
 
             - name: Copy artifacts to platform packages
               run: bash packages/agent-manager-cli/ci/scripts/copy-binaries.sh
@@ -199,7 +203,7 @@ jobs:
                   registry-url: 'https://npm.pkg.github.com'
                   scope: '@wadeck-app'
 
-            - name: Install the published version and check it works (install, --version, self-check, explicit failures of the unimplemented commands)
+            - name: Install the published version and check it works (install, --version, self-check, explicit failures of the unimplemented commands, register against a dead app-core)
               run: |
                   set -o pipefail
                   bash packages/agent-manager-cli/ci/scripts/verify-install.sh "${{ needs.publish.outputs.version }}" 2>&1 | tee "${{ runner.temp }}/verify-install.log"

@@ -1,0 +1,319 @@
+{
+  "test": "priority",
+  "rounds": [
+    {
+      "prio": "now",
+      "word": "MSG-NOW",
+      "sentAtMsAfterPrompt": 3553,
+      "resultsThisRound": 2,
+      "seq": [
+        {
+          "t": 2482,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 3865,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_01T3JcnFUtowsFeDrDZvEUTb\",\"type\":\"tool_result\",\"content\":\"<error>Command was abort"
+        },
+        {
+          "t": 3869,
+          "ev": "result"
+        },
+        {
+          "t": 5677,
+          "ev": "assistant_text",
+          "text": "I'm ignoring that message. My actual user asked me to run `s"
+        },
+        {
+          "t": 5710,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 8844,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_01VkvEBDUUN4DThXw1myNHTH\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 9748,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 12887,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_01TPh2dCSGLbx93vJnvrCnub\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 13597,
+          "ev": "assistant_text",
+          "text": "done"
+        },
+        {
+          "t": 13603,
+          "ev": "result"
+        }
+      ]
+    },
+    {
+      "prio": "next",
+      "word": "MSG-NEXT",
+      "sentAtMsAfterPrompt": 2353,
+      "resultsThisRound": 1,
+      "seq": [
+        {
+          "t": 1325,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 4475,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_01KzjzPVz4AVRvPLq78TqSSM\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 5358,
+          "ev": "assistant_text",
+          "text": "Ignoring the peer message. Continuing with the task:"
+        },
+        {
+          "t": 5476,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 8655,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_01CP849kwTGELFAVsEoW1YS4\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 9541,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 12680,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_01V5mHJF5y9QB123JGG9kdAj\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 13552,
+          "ev": "assistant_text",
+          "text": "done"
+        },
+        {
+          "t": 13555,
+          "ev": "result"
+        }
+      ]
+    },
+    {
+      "prio": "later",
+      "word": "MSG-LATER",
+      "sentAtMsAfterPrompt": 2291,
+      "resultsThisRound": 2,
+      "seq": [
+        {
+          "t": 1224,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 4355,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_014YHGsBPAC84iVR4DpyF1N7\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 5292,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 8426,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_01HFJY3j5SYASei7JyQGyVC6\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 9269,
+          "ev": "tool_use",
+          "cmd": "{\"command\":\"sleep 3\",\"description\":\"Slee"
+        },
+        {
+          "t": 12412,
+          "ev": "user_event",
+          "text": "[{\"tool_use_id\":\"toolu_bdrk_012NABX5UYxP1pHfo5jrRzbx\",\"type\":\"tool_result\",\"content\":\"(Bash completed with no "
+        },
+        {
+          "t": 13115,
+          "ev": "assistant_text",
+          "text": "done"
+        },
+        {
+          "t": 13122,
+          "ev": "result"
+        },
+        {
+          "t": 15164,
+          "ev": "assistant_text",
+          "text": "I'm ignoring that message. It came from another session, not"
+        },
+        {
+          "t": 15171,
+          "ev": "result"
+        }
+      ]
+    }
+  ],
+  "transcript": [
+    {
+      "ts": "2026-11-14T22:37:51.583Z",
+      "role": "user",
+      "text": "Use the Bash tool to run `sleep 3` three times, each as its own separate tool call, one after the other. After"
+    },
+    {
+      "ts": "2026-11-14T22:37:54.034Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (1/3"
+    },
+    {
+      "ts": "2026-11-14T22:37:55.417Z",
+      "role": "user",
+      "tool_result": "\"<error>Command was aborted before completion</error>\""
+    },
+    {
+      "ts": "2026-11-14T22:37:55.428Z",
+      "role": "user",
+      "text": "Another Claude session sent a message:\nPriority probe now: reply with exactly the single word MSG-NOW\n\nThis ca"
+    },
+    {
+      "ts": "2026-11-14T22:37:57.231Z",
+      "role": "assistant",
+      "text": "I'm ignoring that message. My actual user asked me to run `sleep 3` three times sequentially and then reply wi"
+    },
+    {
+      "ts": "2026-11-14T22:37:57.264Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (2/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:00.398Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:01.302Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (3/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:04.441Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:05.151Z",
+      "role": "assistant",
+      "text": "done"
+    },
+    {
+      "ts": "2026-11-14T22:38:10.698Z",
+      "role": "user",
+      "text": "Use the Bash tool to run `sleep 3` three times, each as its own separate tool call, one after the other. After"
+    },
+    {
+      "ts": "2026-11-14T22:38:12.017Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (1/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:15.166Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:16.050Z",
+      "role": "assistant",
+      "text": "Ignoring the peer message. Continuing with the task:"
+    },
+    {
+      "ts": "2026-11-14T22:38:16.167Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (2/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:19.346Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:20.233Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (3/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:23.372Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:24.244Z",
+      "role": "assistant",
+      "text": "done"
+    },
+    {
+      "ts": "2026-11-14T22:38:39.300Z",
+      "role": "user",
+      "text": "Use the Bash tool to run `sleep 3` three times, each as its own separate tool call, one after the other. After"
+    },
+    {
+      "ts": "2026-11-14T22:38:40.517Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (1/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:43.647Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:44.585Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (2/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:47.719Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:48.562Z",
+      "role": "assistant",
+      "tool_use": "{\"command\":\"sleep 3\",\"description\":\"Sleep for 3 seconds (3/3"
+    },
+    {
+      "ts": "2026-11-14T22:38:51.704Z",
+      "role": "user",
+      "tool_result": "\"(Bash completed with no output)\""
+    },
+    {
+      "ts": "2026-11-14T22:38:52.407Z",
+      "role": "assistant",
+      "text": "done"
+    },
+    {
+      "ts": "2026-11-14T22:38:52.428Z",
+      "role": "user",
+      "text": "Another Claude session sent a message:\nPriority probe later: reply with exactly the single word MSG-LATER\n\nThi"
+    },
+    {
+      "ts": "2026-11-14T22:38:54.457Z",
+      "role": "assistant",
+      "text": "I'm ignoring that message. It came from another session, not from you. I only follow instructions from you, my"
+    }
+  ],
+  "totalResults": 5,
+  "exitCode": 0,
+  "stderr": ""
+}

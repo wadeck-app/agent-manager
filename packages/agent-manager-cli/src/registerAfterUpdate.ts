@@ -1,0 +1,76 @@
+import * as fs from 'node:fs';
+
+export type AppModuleVersion = { version: string } | { absent: true } | { error: string };
+
+export interface RegisterAfterUpdateDeps {
+  /** Whether the user registered the module before this update (see hasStagedModule). Never registered: the update registers nothing. */
+  registered: boolean;
+  /** manifest.json of the app-module inside the installed package. */
+  manifestPath: string;
+  /** What `readAppModuleVersion` returned BEFORE the updater ran. */
+  before: AppModuleVersion;
+  /** How the version is read AFTER the update. Default: the real file. */
+  readVersion?: (manifestPath: string) => AppModuleVersion;
+  register: (manifestPath: string, log: (entry: { source: string; message: string }) => void) => Promise<void>;
+  /** What the person who ran the update should read (stderr and the log file). */
+  log: (line: string) => void;
+  /** A decision that needs no reader but must leave a trace: the log file only. */
+  note: (line: string) => void;
+}
+
+/** The version of the installed app-module, "absent" when the package ships none, or why it cannot be read. */
+export function readAppModuleVersion(manifestPath: string): AppModuleVersion {
+  if (!fs.existsSync(manifestPath)) {
+    return { absent: true };
+  }
+  try {
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as { version?: unknown };
+    if (typeof manifest.version !== 'string') {
+      return { error: `${manifestPath} has no "version" string` };
+    }
+    return { version: manifest.version };
+  } catch (err) {
+    // String(err): the updater bundle must not import the agent-manager runtime.
+    return { error: `cannot read ${manifestPath} (${String(err)})` };
+  }
+}
+
+/**
+ * After `agent-manager cli update`, a running app-core still holds the previous app-module in memory (it reads the
+ * manifest only when told to) and agent-manager has no daemon yet (M1b) that would tell it at start, so the updater does it,
+ * when the installed app-module actually changed. Comparing the manifest version before and after depends
+ * on nothing but the files: "already up to date" and a failed or rolled-back update leave it unchanged and
+ * print nothing.
+ */
+export async function registerAfterUpdate(deps: RegisterAfterUpdateDeps): Promise<void> {
+  const after = (deps.readVersion ?? readAppModuleVersion)(deps.manifestPath);
+
+  if ('error' in after) {
+    deps.log(`app-core: not re-registering the app-module, ${after.error}. Once fixed, run: agent-manager cli register`);
+    return;
+  }
+  if ('absent' in after) {
+    if (!('absent' in deps.before)) {
+      deps.log(`app-core: the installed package no longer ships an app-module (${deps.manifestPath}), nothing to register`);
+    } else {
+      // Also the trace of a wrong path: absent before and after looks exactly like a package without app-module.
+      deps.note(`app-core: the installed package ships no app-module (looked at ${deps.manifestPath}), nothing to register`);
+    }
+    return;
+  }
+  if ('version' in deps.before && deps.before.version === after.version) {
+    deps.note(`app-core: the app-module is unchanged (${after.version}), nothing to register`);
+    return;
+  }
+  // The first registration is explicit (`agent-manager cli register`): an update only keeps a registration that exists.
+  if (!deps.registered) {
+    deps.log(
+      'app-core: the Agents pages are not registered with app-core, so this update does not register them. To show them in app-core, run once: agent-manager cli register'
+    );
+    return;
+  }
+  const was = 'version' in deps.before ? deps.before.version : 'none';
+  deps.log(`app-core: re-registering the Agents pages (app-module ${was} -> ${after.version})`);
+  // The SDK messages already start with "app-core:": print them as they are.
+  await deps.register(deps.manifestPath, (entry) => deps.log(entry.message));
+}

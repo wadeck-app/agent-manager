@@ -1,4 +1,4 @@
-// agent-manager start | stop | status -- the daemon lifecycle. NOT IMPLEMENTED in the M1 skeleton: each command fails explicitly, never succeeds silently.
+// agent-manager start | stop | status -- the daemon lifecycle. NOT IMPLEMENTED (M1b is the partial slice with the sessions overview in app-core only): each command fails explicitly, never succeeds silently.
 import type { Command } from '../command.js';
 import { CliError } from '../errors.js';
 
@@ -11,7 +11,7 @@ function notImplemented(name: string, summary: string): Command {
     args: [],
     options: {},
     run: () => {
-      throw new CliError(`${DAEMON_NOT_IMPLEMENTED}: 'agent-manager ${name}' did nothing. This build is the M1 skeleton: no daemon, hooks or UI yet`);
+      throw new CliError(`${DAEMON_NOT_IMPLEMENTED}: 'agent-manager ${name}' did nothing. This build is the M1b partial slice: no daemon, hooks, transcripts or replies yet; only the sessions overview of the Claude Code registry exists, in app-core ('agent-manager cli register')`);
     },
   };
 }

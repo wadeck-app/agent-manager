@@ -2,7 +2,7 @@
 
 Follows and answers Claude Code sessions (CLI `agent-manager`, web UI as an app-core module). Family-A CLI like `queue`, `task`, `project`.
 
-**Status: M1 skeleton only: daemon, hooks, UI not implemented.** `start`, `stop`, `status`, `cli register`, `cli unregister` fail with "not implemented yet (planned M1b)". Plan: `.claude/plans/2026-11-14_agent-manager-v1.md`.
+**Status: M1b partial slice: only a Sessions overview in app-core, fed by the Claude Code registry (`~/.claude/sessions`, pid-only liveness: the `procStart` pid-reuse check is not implemented). No daemon, hooks, transcripts, replies or SSE.** `cli register` / `cli unregister` work; `start`, `stop`, `status` still fail with "daemon not implemented yet". Plan: `.claude/plans/2026-11-14_agent-manager-v1.md`.
 
 ## Agent reference docs
 
@@ -21,6 +21,8 @@ Spec folder: `.claude/specs/2026-11-14_agent-fleet-manager/`.
 
 | Path | Role |
 |---|---|
+| `packages/agent-manager-core` | pure model (private): `readSessionRegistry`, liveness, no console/exit |
+| `packages/app-module-agent-manager` | app-core module `agent-manager` (title Agents): routes `/sessions`, `/summary`, page `/agents`, A/B test `sessions-layout`; `npm run check`, `npm run bundle` (needs `APP_CORE_PORT` on a dead port) |
 | `packages/agent-manager-cli` | source package (private). CI publishes the generated `@wadeck-app/agent-manager-cli` (dist wrapper + `-win32-x64`, `-darwin-arm64`, `-linux-x64`) |
 | `packages/agent-manager-cli/ci/` | bundle, Go launcher build, platform package generation, install/update checks |
 | `test-support/` | test isolation: redirects HOME, XDG, `AGENT_MANAGER_CONFIG_DIR`, app-core; guard fails a run that changes the real config folder |

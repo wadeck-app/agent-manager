@@ -1,0 +1,85 @@
+# Agents (nav /agents): the Claude Code sessions of this machine, read from the Claude Code session registry (~/.claude/sessions/<pid>.json).
+# M1b is a deliberately partial slice: registry only, pid-only liveness. The note below says so on the page itself.
+# The dead sessions (process gone, registry file left) are hidden unless the filter says otherwise; the filter is the URL parameter ?show=all.
+# The list is polled every 5 s. A failing source would blank the whole page, so the route answers errors as data (inlineErrors: errorText).
+# The two layouts of the list are an A/B test (id sessions-layout) wired here, on the real page: `table` is the initial one.
+$sources:
+  sessions:
+    url: GET /api/modules/agent-manager/sessions
+    poll: 5s
+    params:
+      inlineErrors: 'true'
+      show: $urlParam.show
+
+$type: PageContent
+sections:
+  - $type: PageHeader
+    title: Agents
+    subtitle: The Claude Code sessions running on this machine, most recent status change first.
+  - $type: Card
+    padding: sm
+    items:
+      - $type: Markdown
+        text: 'M1b: sessions from the Claude Code registry only (pid-only liveness). Hooks, transcripts, replies: planned'
+  # What went wrong, in boxes of their own: nothing is hidden behind an empty list.
+  - $type: Badge
+    $if: $sources.sessions.errorText
+    label: $sources.sessions.errorText
+    variant: danger
+  - $type: Badge
+    $if: $sources.sessions.unreadableText
+    label: $sources.sessions.unreadableText
+    variant: warning
+  - $type: HorizontalStack
+    $if: $sources.sessions.ok
+    gap: gap-3
+    align: items-center
+    items:
+      - $type: CompactSelect
+        urlParam: show
+        ariaLabel: Sessions to show
+        placeholder: Alive sessions
+        options:
+          - { value: alive, label: Alive sessions }
+          - { value: all, label: Alive and dead sessions }
+      - $type: Badge
+        $if: $sources.sessions.hiddenText
+        label: $sources.sessions.hiddenText
+        variant: info
+        tone: subtle
+  - $type: Badge
+    $if: $sources.sessions.emptyText
+    label: $sources.sessions.emptyText
+    variant: info
+  - $type: AbTest
+    $if: $sources.sessions.ok
+    id: sessions-layout
+    label: Sessions layout
+    initial: table
+    variants:
+      table:
+        label: Table
+        hint: One row per session with every field in a column, the status as a coloured badge, the time of the last status change.
+        view:
+          $type: DataTable
+          rows: $sources.sessions.sessions
+          rowKey: sessionId
+          emptyMessage: No session to show
+          columns:
+            - { key: 'displayName', label: 'Session', nowrap: true, title: '{sessionId}' }
+            - { key: 'folder', label: 'Folder', nowrap: true, title: '{cwd}' }
+            - { key: 'statusGroup', label: 'Status', nowrap: true, badge: { busy: info, idle: success, other: warning } }
+            - { key: 'statusDetail', label: 'Detail', muted: true, nowrap: true }
+            - { key: 'statusUpdatedAt', label: 'Status since', format: 'datetime', nowrap: true }
+            - { key: 'pid', label: 'PID', mono: true }
+            - { key: 'version', label: 'Claude Code', mono: true, nowrap: true }
+            - { key: 'aliveText', label: 'Alive', nowrap: true, badge: { alive: success, dead: danger } }
+      cards:
+        label: Cards
+        hint: One card per session, the time of the last status change as "5 minutes ago". The cards are built by the route (the DSL has no repeater outside the table).
+        view:
+          $type: VerticalStack
+          gap: gap-3
+          items:
+            - $type: ExtensionSlot
+              items: $sources.sessions.cards

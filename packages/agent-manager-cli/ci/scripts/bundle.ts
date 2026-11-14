@@ -1,11 +1,12 @@
 /**
  * Bundles the agent-manager CLI and its updater into self-contained CommonJS files (the shared libraries are inlined).
  * Bundles directly from the TypeScript sources (no prior tsc build required).
- * Output: dist-bundle/agent-manager.cjs and dist-bundle/agent-manager-updater.cjs
+ * Output: dist-bundle/agent-manager.cjs, dist-bundle/agent-manager-updater.cjs and dist-bundle/app-module/ (the packaged app-module-agent-manager)
  * Usage:  BUNDLE_VERSION=<version> npx tsx ci/scripts/bundle.ts
  */
 import { build } from 'esbuild';
-import { statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { cpSync, existsSync, rmSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,6 +38,19 @@ await Promise.all([
   build({ ...options, entryPoints: [path.join(root, 'src/main.ts')], outfile: path.join(root, 'dist-bundle/agent-manager.cjs') }),
   build({ ...options, entryPoints: [path.join(root, 'src/agent-manager-updater-entry.ts')], outfile: updaterFile }),
 ]);
+
+// The app-module is built by its own package: `npm run bundle` there runs `app-core-cli package` (backend bundle, views, packaged
+// manifest stamped with BUNDLE_VERSION). Only the resulting dist-module/ is copied next to agent-manager.cjs, where `agent-manager cli register`
+// and the updater look for it.
+const appModuleDir = path.join(root, '../app-module-agent-manager');
+const appModuleOutDir = path.join(root, 'dist-bundle/app-module');
+execSync('npm run bundle', { cwd: appModuleDir, env: { ...process.env, BUNDLE_VERSION: version }, stdio: 'inherit', windowsHide: true });
+const packagedModule = path.join(appModuleDir, 'dist-module');
+if (!existsSync(path.join(packagedModule, 'manifest.json'))) {
+  throw new Error(`app-module-agent-manager produced no ${packagedModule}/manifest.json: run "npm run bundle" in packages/app-module-agent-manager and read its output.`);
+}
+rmSync(appModuleOutDir, { recursive: true, force: true });
+cpSync(packagedModule, appModuleOutDir, { recursive: true });
 
 const updaterSize = statSync(updaterFile).size;
 if (updaterSize > MAX_UPDATER_SIZE) {

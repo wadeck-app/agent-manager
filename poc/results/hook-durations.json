@@ -1,0 +1,100 @@
+{
+  "files": 18,
+  "skippedForCap": 22,
+  "candidatesConsidered": 40,
+  "totalBytes": 104715235,
+  "lines": 32561,
+  "hookSuccessLines": 2239,
+  "parseErrors": 0,
+  "mtimeOldest": "2026-11-14T22:21:37.444Z",
+  "mtimeNewest": "2026-11-14T22:35:57.957Z",
+  "projects": {
+    "subagents": 12,
+    "C--Workspace-Tooling--test-factory": 1,
+    "C--Workspace-Tooling-app-core": 1,
+    "C--Workspace-Tooling-project": 1,
+    "C--Workspace-Tooling-agent-manager": 1,
+    "C--Workspace-Tooling-queue": 1,
+    "C--Users-Wadeck--claude": 1
+  },
+  "perEventCommand": [
+    {
+      "key": "PostToolUse | on-post-tool-use.js",
+      "kind": "node",
+      "n": 1933,
+      "median": 110,
+      "p95": 559,
+      "max": 7303
+    },
+    {
+      "key": "Stop | on-stop.js",
+      "kind": "node",
+      "n": 180,
+      "median": 520,
+      "p95": 1285,
+      "max": 14868
+    },
+    {
+      "key": "PreToolUse | PreBashForbiddenCommands.js",
+      "kind": "node",
+      "n": 62,
+      "median": 83,
+      "p95": 109,
+      "max": 520
+    },
+    {
+      "key": "PreToolUse | pre-tool-use.js",
+      "kind": "node",
+      "n": 60,
+      "median": 118,
+      "p95": 206,
+      "max": 936
+    },
+    {
+      "key": "SessionStart | on-session-start.js",
+      "kind": "node",
+      "n": 2,
+      "median": 147,
+      "p95": 239,
+      "max": 239
+    },
+    {
+      "key": "SessionStart | role-after-compact.js",
+      "kind": "node",
+      "n": 2,
+      "median": 86,
+      "p95": 104,
+      "max": 104
+    }
+  ],
+  "perEventKind": [
+    {
+      "key": "PostToolUse | node",
+      "n": 1933,
+      "median": 110,
+      "p95": 559,
+      "max": 7303
+    },
+    {
+      "key": "Stop | node",
+      "n": 180,
+      "median": 520,
+      "p95": 1285,
+      "max": 14868
+    },
+    {
+      "key": "PreToolUse | node",
+      "n": 122,
+      "median": 105,
+      "p95": 200,
+      "max": 936
+    },
+    {
+      "key": "SessionStart | node",
+      "n": 4,
+      "median": 104,
+      "p95": 239,
+      "max": 239
+    }
+  ]
+}

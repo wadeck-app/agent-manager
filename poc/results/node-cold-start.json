@@ -1,0 +1,90 @@
+{
+  "node": "v24.22.1",
+  "configDir": "C:\\Users\\Wadeck\\AppData\\Local\\Temp\\am-cold-C9QTsm",
+  "payloadBytes": 1013,
+  "results": [
+    {
+      "label": "empty-hook (node empty-hook.cjs)",
+      "wallMs": {
+        "n": 20,
+        "min": 42.9,
+        "median": 45.1,
+        "p95": 54.8,
+        "max": 67.1
+      },
+      "raw": [
+        46,
+        43.6,
+        45.1,
+        45.8,
+        49.5,
+        47,
+        44.7,
+        50.1,
+        67.1,
+        54.8,
+        48.6,
+        43.3,
+        45.1,
+        43.3,
+        44,
+        43.4,
+        45.5,
+        42.9,
+        44.2,
+        44.9
+      ],
+      "lastStdout": "",
+      "lastStderr": ""
+    },
+    {
+      "label": "global shim (agent-manager -v)",
+      "wallMs": {
+        "n": 10,
+        "min": 453.7,
+        "median": 502.8,
+        "p95": 745,
+        "max": 745
+      },
+      "raw": [
+        480.8,
+        453.7,
+        548.6,
+        505.6,
+        490,
+        502.8,
+        613.6,
+        745,
+        654.1,
+        481.3
+      ],
+      "lastStdout": "2026.11.14-005-9cbe0412",
+      "lastStderr": ""
+    },
+    {
+      "label": "bundle (node agent-manager.cjs -v)",
+      "wallMs": {
+        "n": 10,
+        "min": 57.6,
+        "median": 62.9,
+        "p95": 70.6,
+        "max": 70.6
+      },
+      "raw": [
+        62.9,
+        57.6,
+        64.4,
+        68.9,
+        70.6,
+        58.4,
+        64,
+        60,
+        64.4,
+        62.1
+      ],
+      "lastStdout": "2026.11.14-005-9cbe0412",
+      "lastStderr": ""
+    }
+  ],
+  "emptyHookMaxRssKB": "67616"
+}

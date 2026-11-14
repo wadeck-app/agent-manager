@@ -40,10 +40,12 @@ describe('run', () => {
     expect(result.out).toBe('');
   });
 
-  it.each(['cli register', 'cli unregister'])('%s fails explicitly: exit 1 and the not-implemented message', async (name) => {
-    const result = await h.cli(name.split(' '));
-    expect(result.code).toBe(1);
-    expect(result.err).toContain('app-core module not implemented yet (planned M1b)');
+  // cli register / unregister are real since M1b (see commands/appCore.test.ts): they are never run here, a run must not reach any app-core.
+  it('no longer reports cli register and cli unregister as not implemented', async () => {
+    const result = await h.cli(['--help']);
+    expect(result.out).not.toContain('app-core module not implemented yet');
+    expect(result.out).toMatch(/agent-manager cli register +Show the Agents pages in app-core/);
+    expect(result.out).toMatch(/agent-manager cli unregister +Remove the Agents pages from app-core/);
   });
 
   it('cli update refuses a development build with the sibling message, before touching anything', async () => {

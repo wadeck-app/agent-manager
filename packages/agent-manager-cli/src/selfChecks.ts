@@ -1,5 +1,8 @@
 import { getErrorMessage } from './errors.js';
 import type { SelfCheckResult } from '@wadeck-app/shared-cli';
+import { APP_CORE_MODULE_ID } from './AppCoreRegistration.js';
+import { checkStagedModules } from './appModuleStaging.js';
+import { defaultConfigDir } from './configDir.js';
 import { parseDuration } from './duration.js';
 import { currentVersion } from './version.js';
 
@@ -30,6 +33,10 @@ export function selfChecks(): Check[] {
       if (parsed !== 3_930_000) {
         throw new Error(`parseDuration('1h5m30s') returned ${parsed}, expected 3930000`);
       }
+    }),
+    // Read only: when the user registered the app-module, the staged copy app-core loads at its next start must be readable.
+    check('Staged app-module (when registered)', () => {
+      checkStagedModules(defaultConfigDir(process.env), APP_CORE_MODULE_ID);
     }),
   ];
 }

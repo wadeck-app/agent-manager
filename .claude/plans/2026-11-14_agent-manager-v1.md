@@ -49,6 +49,8 @@ Parked and not planned: v2 (bypass UI), v3 (MCP questions), v4 (OpenCode/Codex).
 
 ### M1 -- Skeleton, daemon, module registration
 
+**M1b was delivered as a PARTIAL slice (2026-11-14): `agent-manager-core` registry reader + `app-module-agent-manager` (Sessions overview, A/B `sessions-layout`) + real `cli register` / `cli unregister` + updater re-registration + CI/verify wiring. Still missing from the M1 row below: daemon (`createDaemon`, `status`, `start`, `stop`), hooks, SSE notify path, `doctor`, service/sdk/plugin packages, architecture test, real-server integration test, `procStart` liveness (decision 30), Windows ACL check. Not verified: `verify-install.sh` / `verify-update.sh` (need a published version), CI.**
+
 | Item | Detail |
 |---|---|
 | Work | monorepo (core, service, sdk, cli, app-module, claude-plugin); typed `Command` dispatcher; **CI publish pipeline copied from the siblings (decision 28): `npm install -g @wadeck-app/agent-manager-cli` works, first CI run and registry check**; `createDaemon` with token and port file (default port 47930, decision 40); **Windows ACL check of `health_token` (T-10)**; per-command exit-code table; module-backend-to-daemon SSE notify path with a module reload mid-stream test (decision 34); `status`, `start`, `stop`, `cli self-check`; empty module registered through `registerModule` (best-effort); `doctor` v0; duration parser (decision 26) |

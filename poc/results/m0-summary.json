@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-14",
+  "A_hook_durations": {
+    "script": "poc/scripts/mine-hook-durations.js",
+    "raw": "poc/results/hook-durations.json",
+    "sample": { "files": 18, "of_most_recent": 40, "MB_read": 99.9, "cap_MB": 100, "skipped_for_cap": 22, "hook_success_lines": 2239, "parse_errors": 0, "mtime_span": "2026-11-14T22:21:37Z to 22:35:57Z (live sessions, ~14 min)", "projects": "agent-manager, app-core, project, queue, test-factory, .claude, plus 12 subagent transcripts" },
+    "bias": "only the most recently modified (live, large) transcripts fit the 100 MB cap; 22 of 40 skipped; one 14-minute window; no powershell or bash hooks present in the sample, node hooks only; only successful hooks (hook_success), failures and async hooks not counted",
+    "ms": {
+      "PostToolUse node (on-post-tool-use.js)": { "n": 1933, "median": 110, "p95": 559, "max": 7303 },
+      "Stop node (on-stop.js)": { "n": 180, "median": 520, "p95": 1285, "max": 14868 },
+      "PreToolUse node (PreBashForbiddenCommands.js)": { "n": 62, "median": 83, "p95": 109, "max": 520 },
+      "PreToolUse node (pre-tool-use.js)": { "n": 60, "median": 118, "p95": 206, "max": 936 },
+      "SessionStart node (on-session-start.js)": { "n": 2, "median": 147, "p95": 239, "max": 239 },
+      "SessionStart node (role-after-compact.js)": { "n": 2, "median": 86, "p95": 104, "max": 104 }
+    }
+  },
+  "B_node_cold_start_ms": {
+    "script": "poc/scripts/node-cold-start.js",
+    "raw": "poc/results/node-cold-start.json",
+    "node": "v24.22.1",
+    "empty_hook": { "n": 20, "min": 42.9, "median": 45.1, "p95": 54.8, "max": 67.1, "peakRSS_KB_one_run": 67616 },
+    "global_shim_agent_manager_v": { "n": 10, "min": 453.7, "median": 502.8, "p95": 745, "max": 745, "note": "spawned via cmd.exe /c agent-manager.cmd; config dir temp, autoUpdate false" },
+    "bundle_node_cjs_v": { "n": 10, "min": 57.6, "median": 62.9, "p95": 70.6, "max": 70.6, "note": "AGENT_MANAGER_CONFIG_DIR temp, autoUpdate false" },
+    "not_measured": "CPU time per call; peak working set only for the empty hook (from inside the child, maxRSS), not for shim or bundle; 1 KB payload piped via spawnSync; machine had ~14 live sessions (noise)"
+  },
+  "C_registry_watch": { "script": "poc/scripts/registry-watch.js", "starter": "poc/scripts/start-watch.js", "pid": 35472, "output": "poc/results/registry-watch.ndjson", "stop": "create poc/results/registry-watch.stop", "verified": "43 lines, 23 change events in first ~3 min" },
+  "D_socket_fields": {
+    "d1_msg_id_dedupe": { "n": 1, "observed": "same full frame (msgV:1, msg_id, priority next, session_id) sent twice, 200 ms apart: 2 turns, 2 identical user lines, 2 results. msg_id does NOT dedupe.", "raw": "poc/results/m0-d1-dedupe.json" },
+    "d2_priority": {
+      "n": "1 per priority, same session, 3 rounds",
+      "now": "the running Bash tool call was aborted (tool_result 'Command was aborted before completion'), message injected right after, a result event emitted, the model then resumed the original task",
+      "next": "delivered after the current tool call finished, before the next tool call; no separate turn (1 result for the round)",
+      "later": "delivered after the whole turn ended ('done'), as its own extra turn (2 results)",
+      "caveat": "Haiku ignored the payload each time (treats peer messages as untrusted), so consumption timing is read from tool-call order and the model's text. For next the injected user line was not in the transcript user lines I parsed; only the model's remark proves delivery.",
+      "raw": "poc/results/m0-d2-priority.json, m0-d2-stdout.txt"
+    },
+    "model_turns_used": "about 7 results (2 + 5), budget 12",
+    "sessions": "2 headless, run one after the other, both exited code 0"
+  },
+  "not_done_or_notes": [
+    "added poc/package.json {type: commonjs} because root package.json has type module and the old PoC .js scripts failed to load",
+    "poc/scripts/show-d2.js helper left in place: rm was blocked by w-guardrails, not bypassed",
+    "no interactive-session checks, no permission-dialog status observation yet (watcher is collecting data), no process start time work"
+  ]
+}

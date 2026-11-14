@@ -1,0 +1,172 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { checkStagedModules, hasStagedModule, pruneStagedModules, removeStagedModules, stageAppModule, stagedModulesRoot } from './appModuleStaging.js';
+import { removeTempDir } from './testHelpers.js';
+
+let root: string;
+let configDir: string;
+let sourceDir: string;
+
+function writeModule(dir: string, version: string, extra = 'backend v1'): string {
+  fs.mkdirSync(path.join(dir, 'views'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({ version }));
+  fs.writeFileSync(path.join(dir, 'backend.js'), extra);
+  fs.writeFileSync(path.join(dir, 'views', 'projects.json'), '{}');
+  return path.join(dir, 'manifest.json');
+}
+
+beforeEach(() => {
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-manager-staging-'));
+  configDir = path.join(root, 'config');
+  sourceDir = path.join(root, 'npm', 'app-module');
+});
+
+afterEach(() => {
+  removeTempDir(root);
+});
+
+describe('stageAppModule', () => {
+  it('copies the whole module to <config dir>/app-module/<version>/ and returns the staged manifest', () => {
+    const source = writeModule(sourceDir, '2026.10.18-131-abc');
+    const staged = stageAppModule(source, configDir);
+    const target = path.join(configDir, 'app-module', '2026.10.18-131-abc');
+    expect(staged).toEqual({ manifestPath: path.join(target, 'manifest.json'), stamp: '2026.10.18-131-abc' });
+    expect(fs.readFileSync(path.join(target, 'backend.js'), 'utf8')).toBe('backend v1');
+    expect(fs.existsSync(path.join(target, 'views', 'projects.json'))).toBe(true);
+  });
+
+  it('survives the removal of the npm folder (the point of staging)', () => {
+    const source = writeModule(sourceDir, '1.0.0');
+    const { manifestPath } = stageAppModule(source, configDir);
+    removeTempDir(path.join(root, 'npm'));
+    expect(fs.existsSync(manifestPath)).toBe(true);
+  });
+
+  it('is idempotent: a complete staged copy is kept as it is', () => {
+    const source = writeModule(sourceDir, '1.0.0');
+    const first = stageAppModule(source, configDir);
+    fs.writeFileSync(path.join(path.dirname(first.manifestPath), 'marker.txt'), 'kept');
+    const second = stageAppModule(source, configDir);
+    expect(second).toEqual(first);
+    expect(fs.existsSync(path.join(path.dirname(first.manifestPath), 'marker.txt'))).toBe(true);
+  });
+
+  it('replaces an incomplete target (no manifest) and leaves no .partial folder behind', () => {
+    const source = writeModule(sourceDir, '1.0.0');
+    const target = path.join(configDir, 'app-module', '1.0.0');
+    fs.mkdirSync(target, { recursive: true });
+    fs.writeFileSync(path.join(target, 'junk.txt'), 'x');
+    stageAppModule(source, configDir);
+    expect(fs.existsSync(path.join(target, 'junk.txt'))).toBe(false);
+    expect(fs.existsSync(path.join(target, 'manifest.json'))).toBe(true);
+    expect(fs.readdirSync(path.join(configDir, 'app-module'))).toEqual(['1.0.0']);
+  });
+
+  it('fails loudly, naming the manifest, when the source manifest does not exist', () => {
+    const missing = path.join(sourceDir, 'manifest.json');
+    expect(() => stageAppModule(missing, configDir)).toThrow(missing);
+  });
+
+  it('fails loudly when the manifest has no version (nothing to name the copy by)', () => {
+    fs.mkdirSync(sourceDir, { recursive: true });
+    fs.writeFileSync(path.join(sourceDir, 'manifest.json'), '{}');
+    expect(() => stageAppModule(path.join(sourceDir, 'manifest.json'), configDir)).toThrow(/version/);
+  });
+
+  it.each(['../evil', 'a/b', '.hidden', 'a b'])('refuses the version "%s" as a folder name', version => {
+    const source = writeModule(sourceDir, version);
+    expect(() => stageAppModule(source, configDir)).toThrow(/not a usable version/);
+    expect(fs.existsSync(stagedModulesRoot(configDir))).toBe(false);
+  });
+
+  it('names source and destination when the copy fails', () => {
+    const source = writeModule(sourceDir, '1.0.0');
+    // A FILE where the config dir should be: the copy cannot be created.
+    fs.writeFileSync(configDir, 'not a directory');
+    let message = '';
+    try {
+      stageAppModule(source, configDir);
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain(sourceDir);
+    expect(message).toContain(path.join(configDir, 'app-module', '1.0.0'));
+    expect(message).toContain('agent-manager cli register');
+  });
+});
+
+describe('pruneStagedModules', () => {
+  it('removes every staged version but the kept one and returns how many went', () => {
+    for (const version of ['1.0.0', '1.1.0', '2.0.0']) {
+      stageAppModule(writeModule(path.join(root, `src-${version}`), version), configDir);
+    }
+    expect(pruneStagedModules(configDir, '2.0.0')).toBe(2);
+    expect(fs.readdirSync(stagedModulesRoot(configDir))).toEqual(['2.0.0']);
+  });
+
+  it('is 0 when nothing was ever staged', () => {
+    expect(pruneStagedModules(configDir, '1.0.0')).toBe(0);
+  });
+});
+
+describe('the signal "this module was registered": a staged copy', () => {
+  it('is absent before any registration: no folder, an empty folder, a folder without manifest', () => {
+    const config = path.join(root, 'signal');
+    expect(hasStagedModule(config)).toBe(false);
+    fs.mkdirSync(path.join(config, 'app-module'), { recursive: true });
+    expect(hasStagedModule(config)).toBe(false);
+    fs.mkdirSync(path.join(config, 'app-module', '1.0.0'), { recursive: true });
+    expect(hasStagedModule(config)).toBe(false);
+  });
+
+  it('is present once a copy is staged, and gone once the copies are removed (unregister)', () => {
+    const config = path.join(root, 'signal2');
+    const src = path.join(root, 'npm', 'app-module');
+    fs.mkdirSync(src, { recursive: true });
+    fs.writeFileSync(path.join(src, 'manifest.json'), JSON.stringify({ version: '3.0.0' }));
+    stageAppModule(path.join(src, 'manifest.json'), config);
+    expect(hasStagedModule(config)).toBe(true);
+    removeStagedModules(config);
+    expect(hasStagedModule(config)).toBe(false);
+    expect(fs.existsSync(path.join(config, 'app-module'))).toBe(false);
+  });
+
+  it('removing when there is nothing is not an error', () => {
+    expect(() => removeStagedModules(path.join(root, 'never'))).not.toThrow();
+  });
+});
+
+describe('checkStagedModules (the self-check of a registered install)', () => {
+  function stage(version: string, manifest: unknown): string {
+    const dir = path.join(configDir, 'app-module', version);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'manifest.json'), typeof manifest === 'string' ? manifest : JSON.stringify(manifest));
+    return path.join(dir, 'manifest.json');
+  }
+
+  it('passes, saying so, when the module was never registered (nothing to check)', () => {
+    expect(checkStagedModules(configDir, 'agent-manager')).toContain('not registered');
+  });
+
+  it('passes when every staged manifest has the module id and its folder name as version', () => {
+    stage('1.0.0', { id: 'agent-manager', version: '1.0.0' });
+    stage('2.0.0', { id: 'agent-manager', version: '2.0.0' });
+    expect(checkStagedModules(configDir, 'agent-manager')).toBe('staged app-module readable (1.0.0, 2.0.0)');
+  });
+
+  it('fails naming the file and the command to run when a staged manifest is not JSON', () => {
+    const manifest = stage('1.0.0', '{"id": ');
+    expect(() => checkStagedModules(configDir, 'agent-manager')).toThrow(`${manifest} cannot be read`);
+    expect(() => checkStagedModules(configDir, 'agent-manager')).toThrow('agent-manager cli register');
+  });
+
+  it('fails when the id or the version does not match (a manifest of another module, or edited by hand)', () => {
+    stage('1.0.0', { id: 'project', version: '1.0.0' });
+    expect(() => checkStagedModules(configDir, 'agent-manager')).toThrow('expected id "agent-manager"');
+    removeStagedModules(configDir);
+    stage('1.0.0', { id: 'agent-manager', version: '9.9.9' });
+    expect(() => checkStagedModules(configDir, 'agent-manager')).toThrow('expected id "agent-manager" and version "1.0.0"');
+  });
+});
