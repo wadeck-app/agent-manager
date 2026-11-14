@@ -106,6 +106,13 @@ Mark `[V]` when I re-read the source myself; otherwise `agent report`.
 - Inherited from `ci-templates`: `generate-platform-packages.sh` documented default PLATFORMS (all three) differs from the code default and from `copy-binaries.sh`; the workflow always sets `PLATFORMS` explicitly, so CI is unaffected
 - These belong to the sibling owners (project-owner, ci-templates): facts to send once CI is green
 
+## M1 publish result [V]
+
+- CI run `CI / Publish` on `6205a96` succeeded in 2m28s: https://github.com/wadeck-app/agent-manager/actions/runs/43648197694 (`queue wait ci` exit 0)
+- [V] Registry: `npm view @wadeck-app/agent-manager-cli versions dist-tags --registry=https://npm.pkg.github.com` -> `2026.11.14-004-6205a965`, tag `latest`
+- [V] `bash packages/agent-manager-cli/ci/scripts/verify-install.sh 2026.11.14-004-6205a965` on this Windows machine (isolated temp prefix/HOME/config, autoUpdate false): install, `--version`, `cli self-check`, explicit failures of `start`/`stop`/`status`/`cli register`, Go launcher path all passed; nothing global touched
+- Not done: `npm install -g` on the user's machine (left to the user); `verify-update` skipped on the first publish (no previous version)
+
 ## Pending
 
 - Four research agents running: sibling CLIs, app-core, hooks + w-guardrails, market survey. Results are `agent report` until verified.
