@@ -280,7 +280,9 @@ describe('routes: GET /sessions (herdr) and the pin and seen routes', () => {
     writeFileSync(notAFolder, 'x');
     const page = (await makeModule({ dataDir: notAFolder }).call('GET', '/sessions')).body;
     expect(page.ok).toBe(true);
-    expect(page.herdrError).toContain('first-seen markers could not be saved');
+    // On Windows the read finds no file and the write then fails ("could not be saved"); on Linux and macOS the read already fails with ENOTDIR
+    // ("cannot be read"). Either way the problem is reported, with the file and a hint, and never ignored.
+    expect(page.herdrError).toMatch(/first-seen markers could not be saved|cannot be read/);
     expect(page.herdrError).toContain('agents-user-state.json');
     expect(page.sessions).toHaveLength(1);
     expect(titles(page)).toEqual(['Idle 1']);
