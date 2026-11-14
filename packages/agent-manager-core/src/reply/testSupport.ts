@@ -26,7 +26,8 @@ export interface FakePipe {
 
 export async function startFakePipe(): Promise<FakePipe> {
   const name = `agent-manager-test-${randomUUID()}`;
-  const path = process.platform === 'win32' ? `\\\\.\\pipe\\${name}` : join(tmpdir(), `${name}.sock`);
+  // A unix socket path is limited to about 104 bytes on macOS (sun_path) and the macOS temp folder alone is ~50 characters: the unix name is short.
+  const path = process.platform === 'win32' ? `\\\\.\\pipe\\${name}` : join(tmpdir(), `am-${name.slice(-8)}.sock`);
   const lines: string[] = [];
   const sockets = new Set<Socket>();
   const pipe: FakePipe = { path, lines, connections: 0, close: () => Promise.resolve() };
