@@ -80,6 +80,10 @@ function registerSessions(kit: RouteKit): void {
       herdr = herdrGroups(buildGroups(shown, user, now), shown, now);
     } catch (error) {
       herdrError = error instanceof UserStateError ? `${getErrorMessage(error)}. ${error.hint}` : `The herdr layout failed: ${getErrorMessage(error)}`;
+      if (error instanceof UserStateError) {
+        // The sessions stay listed with no pins and no seen markers (nothing is written, so the unreadable file is never overwritten); the error is shown.
+        herdr = herdrGroups(buildGroups(shown, { pinned: [], seen: {} }, now), shown, now);
+      }
     }
     return ok({
       ok: true,

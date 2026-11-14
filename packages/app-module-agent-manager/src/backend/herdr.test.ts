@@ -368,7 +368,8 @@ describe('routes: GET /sessions (herdr) and the pin and seen routes', () => {
     const { call } = makeModule({ dataDir: data });
     const page = (await call('GET', '/sessions')).body;
     expect(page.ok).toBe(true);
-    expect(page.herdr).toEqual([]);
+    // the session stays listed (no pins, no seen markers) while the error is shown
+    expect(titles(page)).toEqual(['Working 1']);
     expect(page.herdrError).toContain('agents-user-state.json');
     expect(page.cards).toHaveLength(1);
     const write = await call('POST', `/sessions/${ID(1)}/pin`, { body: { pinned: true } });
