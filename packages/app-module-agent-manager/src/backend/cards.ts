@@ -31,9 +31,8 @@ export function sessionCard(row: SessionRow): DslNode {
     headline.push({ $type: 'Badge', label: 'dead', variant: 'danger', tone: 'subtle' });
   }
   const facts: DslNode[] = [tag(row.folder), tag(`pid ${row.pid}`)];
-  if (row.version !== undefined) {
-    facts.push(tag(`Claude Code ${row.version}`));
-  }
+  // The harness as a badge, like the Harness column of the table: green for the most recent version seen, orange for an older one.
+  facts.push({ $type: 'Badge', label: literal(row.harness), variant: row.harnessVariant, tone: 'subtle' });
   const items: DslNode[] = [
     { $type: 'HorizontalStack', gap: 'gap-2', align: 'items-center', items: headline },
     { $type: 'HorizontalStack', gap: 'gap-2', align: 'items-center', items: facts },

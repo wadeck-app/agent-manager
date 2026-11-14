@@ -8,15 +8,61 @@ export interface SessionRow extends Session {
   statusDetail: string;
   /** "alive" or "dead" (pid-only check). */
   aliveText: 'alive' | 'dead';
+  /** The harness with its version, as shown in the Harness column: "Claude Code 2.1.325" ("Claude Code" when the registry has no version). */
+  harness: string;
+  /** Badge variant of the harness: success for the most recent version seen on this machine, warning for an older one, default when the version is unknown. */
+  harnessVariant: HarnessVariant;
 }
 
-export function presentSession(session: Session): SessionRow {
+export type HarnessVariant = 'success' | 'warning' | 'default';
+
+/** Dotted numeric comparison ("2.1.325" > "2.1.322"); a part that is not a number is compared as text. */
+export function compareVersions(a: string, b: string): number {
+  const left = a.split('.');
+  const right = b.split('.');
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    const l = left[index] ?? '0';
+    const r = right[index] ?? '0';
+    const ln = Number(l);
+    const rn = Number(r);
+    const diff = Number.isNaN(ln) || Number.isNaN(rn) ? l.localeCompare(r) : ln - rn;
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+  return 0;
+}
+
+/** The most recent Claude Code version among the sessions (alive or not: hiding the dead ones must not move the baseline), undefined when none has one. */
+export function latestVersion(sessions: readonly Session[]): string | undefined {
+  let latest: string | undefined;
+  for (const session of sessions) {
+    if (session.version !== undefined && (latest === undefined || compareVersions(session.version, latest) > 0)) {
+      latest = session.version;
+    }
+  }
+  return latest;
+}
+
+export function presentSession(session: Session, latest?: string): SessionRow {
+  const known = session.version !== undefined;
   return {
     ...session,
     displayName: session.name ?? session.folder,
     statusDetail: session.waitingFor === undefined ? session.status : `${session.status}: ${session.waitingFor}`,
     aliveText: session.alive ? 'alive' : 'dead',
+    harness: known ? `Claude Code ${session.version}` : 'Claude Code',
+    harnessVariant: !known ? 'default' : session.version === latest ? 'success' : 'warning',
   };
+}
+
+/** The `badge` map of the Harness column: cell text -> variant (a DataTable badge map is keyed by the cell value, the values are only known at run time). */
+export function harnessBadges(rows: readonly SessionRow[]): Record<string, HarnessVariant> {
+  const map: Record<string, HarnessVariant> = {};
+  for (const row of rows) {
+    map[row.harness] = row.harnessVariant;
+  }
+  return map;
 }
 
 export interface Summary {

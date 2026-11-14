@@ -38,9 +38,9 @@ sections:
       - $type: CompactSelect
         urlParam: show
         ariaLabel: Sessions to show
+        # As in the queue module: the placeholder is the entry for the unset parameter (the default, alive sessions); the options hold only the other values, so no label appears twice.
         placeholder: Alive sessions
         options:
-          - { value: alive, label: Alive sessions }
           - { value: all, label: Alive and dead sessions }
       - $type: Badge
         $if: $sources.sessions.hiddenText
@@ -65,15 +65,8 @@ sections:
           rows: $sources.sessions.sessions
           rowKey: sessionId
           emptyMessage: No session to show
-          columns:
-            - { key: 'displayName', label: 'Session', nowrap: true, title: '{sessionId}' }
-            - { key: 'folder', label: 'Folder', nowrap: true, title: '{cwd}' }
-            - { key: 'statusGroup', label: 'Status', nowrap: true, badge: { busy: info, idle: success, other: warning } }
-            - { key: 'statusDetail', label: 'Detail', muted: true, nowrap: true }
-            - { key: 'statusUpdatedAt', label: 'Status since', format: 'datetime', nowrap: true }
-            - { key: 'pid', label: 'PID', mono: true }
-            - { key: 'version', label: 'Claude Code', mono: true, nowrap: true }
-            - { key: 'aliveText', label: 'Alive', nowrap: true, badge: { alive: success, dead: danger } }
+          # Built by the route: the Harness badge map (green for the most recent version, orange for an older one) depends on the versions found on this machine.
+          columns: $sources.sessions.tableColumns
       cards:
         label: Cards
         hint: One card per session, the time of the last status change as "5 minutes ago". The cards are built by the route (the DSL has no repeater outside the table).

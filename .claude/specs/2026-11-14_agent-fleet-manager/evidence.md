@@ -128,3 +128,11 @@ Mark `[V]` when I re-read the source myself; otherwise `agent report`.
 - Mostly in staging/registration code ported from project-cli, kept for parity: leftover `<ver>.partial-<pid>` folder counted as a staged module (`appModuleStaging.ts`), prune can delete a concurrent run's partial folder, a same-version staged copy is reused without content comparison, unregister deletes staged copies on `deferred`/`unconfirmed`, `npm root -g` failure only logged in the updater, `cp -r` nesting in `copy-binaries.sh` on rerun
 - Own code: `alive` is pid-only so a reused pid shows a dead session as alive (documented in the page note; M2 adds the procStart check, decision 30)
 - Not fixed in this slice; to be sent to project-owner as facts and tracked for the next milestone
+
+## M1b installed and verified on the real app-core [V] (2026-11-15)
+
+- `queue wait ci` exit 0 on `49b64ae`; registry latest `2026.11.14-006-49b64ae2`
+- `UPDATER_MANUAL=1 agent-manager cli update` -> updated 005 -> 006, self-check ok incl. "Staged app-module"; `agent-manager cli register` -> "module agent-manager registered (app-core on port 4850)"
+- agent-browser (named session, headless) on http://127.0.0.1:4850/modules/agent-manager/agents: nav tab "Agents" present, table with 15 rows listing the live sessions including `agent-manager-owner` pid 47240 busy; `errors` and `console` empty; screenshot `poc/results/agents-cards.png`
+- CORRECTED 2026-11-15 (user: "FACT beats hypothesis"): my earlier statement that the real app-core "runs without --ab-tests" was an unverified guess and wrong as an explanation of the user's setup. Facts [V]: on http://127.0.0.1:4850 (served shell) the dock is not shown; on http://localhost:5173/modules/agent-manager/agents?ab.sessions-layout=table (vite dev shell, hot reload) the dock is present ("Fold the A/B tests", "Hide Sessions layout", buttons Table and Cards); clicking Cards removes the `<table>` (count 1 -> 0) and clicking Table restores it (0 -> 1); no page errors. Screenshots `poc/results/agents-5173-table.png`, `agents-5173-cards.png`. Gating therefore depends on the shell served (dev vs served), not on a flag I verified
+- Observed defect to fix: the "Sessions to show" dropdown lists "Alive sessions" twice (snapshot options: Alive sessions, Alive sessions, Alive and dead sessions)

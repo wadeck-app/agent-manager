@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { literal, sessionCard } from './cards.js';
-import { emptyText, hiddenDeadText, presentSession, summarize, unreadableText } from './present.js';
+import { compareVersions, emptyText, harnessBadges, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText } from './present.js';
 import type { Session } from '@wadeck-app/agent-manager-core';
 
 function session(overrides: Partial<Session> = {}): Session {
@@ -30,7 +30,8 @@ describe('sessionCard', () => {
     expect(json).toContain('"label":"shop-owner"');
     expect(json).toContain('"label":"waiting: permission prompt","variant":"warning"');
     expect(json).toContain('"label":"pid 1"');
-    expect(json).toContain('"label":"Claude Code 2.1.323"');
+    // No latest version is passed here, so this version counts as an older one: orange (the green case is in the harness tests below).
+    expect(json).toContain('"label":"Claude Code 2.1.323","variant":"warning"');
     expect(json).toContain('{"$type":"DateText","value":42,"relative":true}');
     expect(json).not.toContain('"dead"');
   });
@@ -40,12 +41,40 @@ describe('sessionCard', () => {
     expect(json).toContain('"label":"shop"');
     expect(json).toContain('"label":"dead","variant":"danger"');
     expect(json).not.toContain('DateText');
-    expect(json).not.toContain('Claude Code');
+    // No version in the registry: the harness is shown without one, neither green nor orange.
+    expect(json).toContain('"label":"Claude Code","variant":"default"');
   });
 
   it('never lets a session name be evaluated as an expression', () => {
     const json = JSON.stringify(sessionCard(presentSession(session({ name: '$sources.sessions.cards' }))));
     expect(json).not.toContain('"label":"$');
+  });
+});
+
+describe('harness badge', () => {
+  it('marks the most recent version seen green and every older one orange', () => {
+    const sessions = [session({ version: '2.1.325' }), session({ version: '2.1.322' }), session({ version: '2.1.321', alive: false }), session({ version: undefined })];
+    const latest = latestVersion(sessions);
+    const rows = sessions.map((s) => presentSession(s, latest));
+    expect(latest).toBe('2.1.325');
+    expect(rows.map((r) => [r.harness, r.harnessVariant])).toEqual([
+      ['Claude Code 2.1.325', 'success'],
+      ['Claude Code 2.1.322', 'warning'],
+      ['Claude Code 2.1.321', 'warning'],
+      ['Claude Code', 'default'],
+    ]);
+    expect(harnessBadges(rows)).toEqual({ 'Claude Code 2.1.325': 'success', 'Claude Code 2.1.322': 'warning', 'Claude Code 2.1.321': 'warning', 'Claude Code': 'default' });
+  });
+
+  it('compares versions numerically, not as text', () => {
+    expect(compareVersions('2.1.325', '2.1.322')).toBeGreaterThan(0);
+    expect(compareVersions('2.1.9', '2.1.10')).toBeLessThan(0);
+    expect(compareVersions('2.1', '2.1.0')).toBe(0);
+    expect(latestVersion([session({ version: '2.1.9' }), session({ version: '2.1.10' })])).toBe('2.1.10');
+  });
+
+  it('is not moved by hidden dead sessions: the latest comes from every session of the registry', () => {
+    expect(latestVersion([session({ version: '2.1.330', alive: false }), session({ version: '2.1.322' })])).toBe('2.1.330');
   });
 });
 

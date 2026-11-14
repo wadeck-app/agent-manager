@@ -1,6 +1,7 @@
 import { readSessionRegistry, resolveSessionsDir, sortByStatusUpdatedDesc } from '@wadeck-app/agent-manager-core';
 import { sessionCards } from './cards.js';
-import { emptyText, hiddenDeadText, presentSession, summarize, unreadableText } from './present.js';
+import { sessionColumns } from './columns.js';
+import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText } from './present.js';
 import { RequestError, type RouteKit, ok, queryValue } from './routeKit.js';
 
 const SHOW_VALUES = ['alive', 'all'] as const;
@@ -35,7 +36,8 @@ function registerSessions(kit: RouteKit): void {
       return ok({ ok: false, show, dir, generatedAt, sessions: [], cards: [], unreadable: [], error: registry.error, errorText, summary: null });
     }
     const all = sortByStatusUpdatedDesc(registry.sessions);
-    const shown = (show === 'all' ? all : all.filter((session) => session.alive)).map(presentSession);
+    const latest = latestVersion(all);
+    const shown = (show === 'all' ? all : all.filter((session) => session.alive)).map((session) => presentSession(session, latest));
     const hiddenDead = all.length - shown.length;
     return ok({
       ok: true,
@@ -43,6 +45,8 @@ function registerSessions(kit: RouteKit): void {
       dir,
       generatedAt,
       sessions: shown,
+      latestVersion: latest,
+      tableColumns: sessionColumns(shown),
       cards: sessionCards(shown),
       unreadable: registry.unreadable,
       unreadableText: unreadableText(registry.unreadable),

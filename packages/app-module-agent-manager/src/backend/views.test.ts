@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 import { sessionCard } from './cards.js';
+import { sessionColumns } from './columns.js';
 import { presentSession } from './present.js';
 import { makeModule } from './testKit.js';
 
@@ -194,10 +195,15 @@ describe('the Agents page', () => {
   });
 
   it('shows the status as a badge with semantic variants, never a raw colour, and dates through the shell formatter', () => {
-    const text = readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8');
-    expect(text).toContain("format: 'datetime'");
-    expect(text).toContain('badge: { busy: info, idle: success, other: warning }');
-    expect(text).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgb\(|bg-[a-z]+-\d{3}/);
+    // The columns are built by the route (the Harness badge map depends on the versions found on this machine): the view only points at them.
+    const page = readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8');
+    expect(page).toContain('columns: $sources.sessions.tableColumns');
+    const columns = sessionColumns([]);
+    const byKey = Object.fromEntries(columns.map((column) => [String(column.key), column]));
+    expect(byKey.statusUpdatedAt?.format).toBe('datetime');
+    expect(byKey.statusGroup?.badge).toEqual({ busy: 'info', idle: 'success', other: 'warning' });
+    expect(byKey.harness?.label).toBe('Harness');
+    expect(JSON.stringify(columns) + page).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgb\(|bg-[a-z]+-\d{3}/);
   });
 
   it('surfaces the errors and the unreadable files as badges, not as an empty list', () => {
