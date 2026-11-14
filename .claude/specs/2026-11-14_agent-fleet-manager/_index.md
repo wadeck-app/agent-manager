@@ -1,13 +1,13 @@
 # Spec: Agent Fleet Manager
 
 **Created:** 2026-11-14
-**Version:** v0.1
-**Status:** In Review -- v0.2 -- 7/7 questions resolved (4 provisional); `architecture.md` and the v1 plan written, awaiting user review
+**Version:** v0.3
+**Status:** In Review -- v0.3 -- 7/7 questions resolved (4 provisional); design review 1 applied (decisions 29-41); D-B pending the user; awaiting user review
 **Iteration:** 1
 
 ## Summary
 
-A CLI (`agent-manager`, name TBC) wired into Claude Code global hooks, feeding a web UI (app-core app-module) that shows the state of all agents, lets the user browse logs with collapsed tool calls, reply to agents, and follow sub-agents. Later: w-guardrails bypass management (v2), structured-question MCP server (v3), OpenCode/Codex adapters (v4). Patterns follow the sibling CLIs `queue`, `task`, `project`.
+A CLI (`agent-manager`, decision 18) wired into Claude Code global hooks, feeding a web UI (app-core app-module) that shows the state of all agents, lets the user browse logs with collapsed tool calls, reply to agents, and follow sub-agents. Later: w-guardrails bypass management (v2), structured-question MCP server (v3), OpenCode/Codex adapters (v4). Patterns follow the sibling CLIs `queue`, `task`, `project`.
 
 ## Phasing
 
@@ -49,10 +49,28 @@ A CLI (`agent-manager`, name TBC) wired into Claude Code global hooks, feeding a
 | 19 | The reply transport is configurable and switchable in one click or key (global default, per-session override, CLI `transports`), each with live measured latency; the default is proposed, not imposed | Decided | 2026-11-14 | User request: switch quickly to see the differences |
 | 20 | Repo: `origin` = https://github.com/wadeck-app/agent-manager (exists, empty); the CI publish pipeline is pre-approved by the user | Decided | 2026-11-14 | [V] `git remote -v`, `git ls-remote origin` empty; user: CI approved when the repo and requirements were given |
 | 21 | Retention: 90 days and 200 MB per data category (event history, logs, uploads), like queue's history | Derived | 2026-11-14 | User gave 90 d / 200 MB for logs; I extend it to uploads (pasted images saved to disk) |
-| 22 | Confirmation window 15 s: after it a reply shows "unconfirmed" (not failed) and keeps being watched; mailbox expiry 15 min: a reply held for a hook transport that no session picked up is discarded and shown as expired, with one-click resend; both configurable | Derived | 2026-11-14 | Busy sessions take replies between tool calls so a short hard failure would be wrong; stale replies are T-06 |
+| 22 | Confirmation window 15 s: after it a reply shows "unconfirmed" (not failed) and keeps being watched; mailbox expiry 15 min: a reply held for a hook transport that no session picked up is discarded and shown as expired, with one-click resend; both configurable | Superseded by Decision #26 (window); mailbox part kept in #27 | 2026-11-14 | Busy sessions take replies between tool calls so a short hard failure would be wrong; stale replies are T-06 |
 | 23 | Overlap with the w-warp and herdr hooks is ignored (different purpose) | Decided | 2026-11-14 | User answer |
 | 25 | Hooks follow the w-warp/herdr lessons: fail-open, sub-agent events tagged by agent_id and excluded from main-session state, no sleeps in hooks | Derived | 2026-11-14 | `research/w-warp-herdr-hooks.md` (agent report; real log counts: 256k sub-agent PostToolUse) |
 | 24 | The hooks design must be informed by the existing w-warp and herdr hooks (payload fields, state mapping, sub-agent detection, spawn cost, bugs fixed); study in progress, findings go to `research/` before the design is changed | Decided | 2026-11-14 | User expectation; my first pass only listed their events, nobody had read their scripts |
+
+| 26 | Confirmation window is configurable, default 0 = no timeout (a reply stays "sent, unconfirmed" until it is seen in the transcript or the user dismisses it); durations are accepted as `30s`, `15m`, `5h`, `1d`, `1h5m30s`. Supersedes the 15 s of decision 22 | Decided | 2026-11-14 | User answer |
+| 27 | Mailbox expiry keeps 15 min as default, same duration syntax, configurable (hook transports only) | Derived | 2026-11-14 | User: "do as you see fit" |
+| 28 | The CI/publish pipeline is part of v1 M1, not later: `npm install -g @wadeck-app/agent-manager-cli` must work like the other CLIs (family A, GitHub Packages) | Decided | 2026-11-14 | User: CI was requested in the spec's business requirements |
+
+| 29 | Hooks scope: register only low-volume events (SessionStart, SessionEnd, UserPromptSubmit, Stop, StopFailure, Notification, PermissionRequest, PermissionDenied, SubagentStart, SubagentStop); no PreToolUse; PostToolUse not registered by default (the transcript tailer provides tool activity; opt-in per session when not tailed); hooks call `node <absolute>/hook.cjs` directly, not the npm shim, absolute paths only (no `%USERPROFILE%`); the tailer skips `attachment` and `api-request-blob` lines by prefix without `JSON.parse`; M0 reads existing `hook_success.durationMs` for free. Refines decisions 2, 13, 16 | Derived | 2026-11-14 | R-01, R-08, R-14 (`research/design-review-1.md`) |
+| 30 | The registry (`fs.watch` on `~/.claude/sessions`) is the primary source for busy/idle, liveness and name; hooks only for waiting-permission, sub-agents and errors; `procStart` is a Windows FILETIME (reviewer-verified, about 6 s from `startedAt`); M0 tests whether registry `status` changes during a permission dialog, and how to read process start time or use a named-pipe connect probe | Derived | 2026-11-14 | R-02 |
+| 31 | Agent-to-agent injection hardening (new threat T-08): mutating routes require `Sec-Fetch-Site: same-origin` plus a per-page-load CSRF header; per-target rate limit; the origin marker states origin, not trust; residual risk documented honestly (a same-user process can still fetch the page); a w-guardrails rule denying curl to `127.0.0.1:4850/api/modules/agent-manager` is a cross-repo request pending the user (D-B in `decisions-pending.md`) | Derived | 2026-11-14 | R-03, R-07 |
+| 32 | Uploads: base64 inside JSON, at most 700 KB per request (app-core body limit 1 MiB, JSON only, no multipart), client-side canvas downscale or re-encode; no app-core change | Derived | 2026-11-14 | R-04 |
+| 33 | Delivery with window 0: a soft hint "probably not delivered, fix: ..." after 15 s when the session is idle and the transcript did not grow (configurable `hintAfter`), and an intermediate "queued in session" state from `queue-operation` lines; hook-transport confirmation differs (a reminder is not a user line; how it appears is UNVERIFIED) | Derived | 2026-11-14 | R-05 |
+| 34 | Daemon-to-module path: the module backend opens an SSE client to the daemon and fans out to browsers; one SSE per browser through a leader tab (Web Locks) relaying with `BroadcastChannel`; no `<audio>` and no workers (CSP); test module reload mid-stream | Derived | 2026-11-14 | R-11, R-09 |
+| 35 | Notifications: tab title and favicon badge (favicon from a module route), optional daemon OS toast, emit `agent.session.waiting` through queue-sdk best-effort, rule "only when not focused" | Derived | 2026-11-14 | R-10, R-19 |
+| 36 | Session state carries a bounded `permission_summary` (tool, command or file preview, at most 200 chars) | Derived | 2026-11-14 | R-12 |
+| 37 | Socket frames send `msg_id`, `session_id` and a user-selectable priority (now/next/later); M0 tests `msg_id` dedupe | Derived | 2026-11-14 | R-13 |
+| 38 | UX additions planned: search over transcripts, cost and context from `message.usage`, Edit diffs/TodoWrite/thinking rendering, registry name and `permissionMode`, stuck badge, per-session composer drafts in localStorage, jump-to-terminal via herdr when available; sub-agent model adds `fork-context-ref`, `isFork`, `background`, `spawnDepth`, `model`; approve/deny of permission prompts from the UI parked as a v1.5 question | Derived | 2026-11-14 | R-16, R-17 |
+| 39 | Daemon start purges history/logs/uploads (90 days, 200 MB); `doctor --fix`; hook argv carries the plugin version; plugin release path decided at M2 | Derived | 2026-11-14 | R-15 |
+| 40 | Default daemon port 47930 (siblings use 47823, 47900, 47910-11, 47920-21), override `AGENT_MANAGER_DAEMON_PORT`; exit codes defined per command in a table like queue | Derived | 2026-11-14 | R-19 |
+| 41 | A Claude Code mod (`turn.start`, `tool.call`, `session.send` API) is evaluated at M0 as an alternative state source behind an interface; moving API risk noted | Derived | 2026-11-14 | R-18 |
 
 ## Open Questions
 
@@ -65,6 +83,7 @@ A CLI (`agent-manager`, name TBC) wired into Claude Code global hooks, feeding a
 | Q5 | Hook installation | Medium | Resolved (derived, decision 13) |
 | Q6 | State model and sub-agent tracking | Medium | Resolved provisionally (derived, decision 14) |
 | Q7 | Main screen layout and variants | High | Resolved provisionally (derived, decision 15) |
+| Q8 | w-guardrails rule denying curl to the reply route (cross-repo, D-B) | Medium | Open (pending the user) |
 
 ## Modules / Sub-files
 
@@ -81,4 +100,5 @@ A CLI (`agent-manager`, name TBC) wired into Claude Code global hooks, feeding a
 | Version | Date | Summary |
 |---|---|---|
 | v0.1 | 2026-11-14 | Initial spec created; phasing fixed by the user |
+| v0.3 | 2026-11-14 | Design review 1 persisted (`research/design-review-1.md`); decisions 18-41; threats T-08..T-11; stale text synced (status, plan, architecture header, threat model) |
 | v0.2 | 2026-11-14 | Research persisted (`research/`), PoC measured, decisions 1-17, `architecture.md`, v1 plan (`.claude/plans/2026-11-14_agent-manager-v1.md`), threats T-01..T-07 |
