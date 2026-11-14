@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -32,7 +32,9 @@ function session(n: number, overrides: Partial<Session> = {}): Session {
   };
 }
 
-const NO_USER = { pinned: [], seen: {} };
+// Every test session was first seen long ago (the baseline the module writes); a status change since then is what makes a session Done.
+const BASELINE: Record<string, number> = Object.fromEntries(Array.from({ length: 10 }, (_v, i) => [ID(i + 1), NOW - 600 * MIN]));
+const NO_USER = { pinned: [], seen: BASELINE };
 
 describe('stateOf: the mapping of the registry values', () => {
   it.each([
@@ -46,13 +48,15 @@ describe('stateOf: the mapping of the registry values', () => {
     [{ status: 'compacting' }, 'other'],
     [{ status: 'busy', alive: false }, 'ended'],
   ] as [Partial<Session>, string][])('%j is %s', (overrides, expected) => {
-    expect(stateOf(session(1, overrides), {}, NOW)).toBe(expected);
+    expect(stateOf(session(1, overrides), BASELINE, NOW)).toBe(expected);
   });
 
   it('Done ends at the window, and when the user saw it after the last status change; a newer status change makes it Done again', () => {
     const finished = session(1, { statusUpdatedAt: NOW - 5 * MIN });
-    expect(stateOf({ ...finished, statusUpdatedAt: NOW - DONE_WINDOW_MS }, {}, NOW)).toBe('done');
-    expect(stateOf({ ...finished, statusUpdatedAt: NOW - DONE_WINDOW_MS - 1 }, {}, NOW)).toBe('idle');
+    expect(stateOf({ ...finished, statusUpdatedAt: NOW - DONE_WINDOW_MS }, BASELINE, NOW)).toBe('done');
+    expect(stateOf({ ...finished, statusUpdatedAt: NOW - DONE_WINDOW_MS - 1 }, BASELINE, NOW)).toBe('idle');
+    // no record yet (first poll, or the baseline write failed): never Done
+    expect(stateOf(finished, {}, NOW)).toBe('idle');
     expect(stateOf(finished, { [ID(1)]: NOW - MIN }, NOW)).toBe('idle');
     // seen before the status changed again: a new finished turn
     expect(stateOf(finished, { [ID(1)]: NOW - 10 * MIN }, NOW)).toBe('done');
@@ -74,7 +78,7 @@ describe('buildGroups', () => {
   ];
 
   it('lists the non-empty groups in the order Pinned, Needs you, Done, Working, Idle, then Other and Ended; none is hidden', () => {
-    const groups = buildGroups(sessions, { pinned: [ID(7)], seen: {} }, NOW);
+    const groups = buildGroups(sessions, { pinned: [ID(7)], seen: BASELINE }, NOW);
     expect(groups.map((g) => g.label)).toEqual(['Pinned', 'Needs you', 'Done', 'Working', 'Idle', 'Other', 'Ended']);
     expect(groups.map((g) => g.id)).toEqual([...GROUP_ORDER]);
     expect(groups.flatMap((g) => g.entries).length).toBe(sessions.length);
@@ -87,7 +91,7 @@ describe('buildGroups', () => {
   });
 
   it('a pinned session is listed once, in Pinned, with the state of its own; the state group count does not include it', () => {
-    const groups = buildGroups(sessions, { pinned: [ID(7), ID(5)], seen: {} }, NOW);
+    const groups = buildGroups(sessions, { pinned: [ID(7), ID(5)], seen: BASELINE }, NOW);
     const pinned = groups.find((g) => g.id === 'pinned');
     expect(pinned?.entries.map((e) => [e.session.pid, e.state])).toEqual([
       [5, 'needs-you'],
@@ -103,7 +107,7 @@ describe('buildGroups', () => {
 });
 
 describe('the DSL nodes', () => {
-  const row = (s: Session, state = stateOf(s, {}, NOW), pinned = false) => herdrRow({ session: s, state, pinned }, presentSession(s, '2.1.0'), NOW);
+  const row = (s: Session, state = stateOf(s, BASELINE, NOW), pinned = false) => herdrRow({ session: s, state, pinned }, presentSession(s, '2.1.0'), NOW);
 
   it('a name or folder that starts with $ or ! is shown, not evaluated: no string of the nodes starts with them', () => {
     for (const text of ['$sources.secret', '!$sources.x', '  $x', '!']) {
@@ -177,7 +181,7 @@ describe('the DSL nodes', () => {
     const walker = (await import('@wadeck-app/dsl-renderer/build/unknownKeys')) as { findUnknownKeys: (doc: unknown, known: unknown) => { severity: string; message: string; nodePath: string }[] };
     const known: unknown = JSON.parse(readFileSync(require.resolve('@wadeck-app/dsl-ui/known-keys.json'), 'utf8'));
     const all = [session(1, { status: 'waiting' }), session(2, { statusUpdatedAt: NOW - MIN }), session(3, { status: 'busy' }), session(4), session(5, { status: 'x' }), session(6, { alive: false }), session(7, { name: undefined })];
-    const groups = buildGroups(all, { pinned: [ID(4)], seen: {} }, NOW);
+    const groups = buildGroups(all, { pinned: [ID(4)], seen: BASELINE }, NOW);
     const nodes = herdrGroups(groups, all.map((s) => presentSession(s, '2.1.0')), NOW);
     const errors = known === undefined ? [] : walker.findUnknownKeys({ $type: 'PageContent', sections: nodes }, known).filter((d) => d.severity === 'error');
     expect(errors, errors.map((d) => `${d.nodePath} ${d.message}`).join('\n')).toEqual([]);
@@ -209,11 +213,16 @@ describe('routes: GET /sessions (herdr) and the pin and seen routes', () => {
   };
   const titles = (body: { herdr: { title: string }[] }): string[] => body.herdr.map((g) => g.title);
 
+  const stateFile = (): { pinned: string[]; seen: Record<string, number> } => JSON.parse(readFileSync(join(data, 'agents-user-state.json'), 'utf8'));
+  // A session that was first seen long enough ago, then changed status: the baseline is older than the status change.
+  const baseline = (ids: string[], at: number): void => writeFileSync(join(data, 'agents-user-state.json'), JSON.stringify({ pinned: [], seen: Object.fromEntries(ids.map((id) => [id, at])) }));
+
   it('groups the registry: needs you, done, ended (show=all), and back to idle once seen', async () => {
     const dead = deadPid();
     put(process.pid, { status: 'waiting', waitingFor: 'permission prompt', statusUpdatedAt: Date.now() - 10_000 });
     put(process.ppid, { status: 'idle', statusUpdatedAt: Date.now() - 2 * MIN });
     put(dead, { status: 'busy' });
+    baseline([ID(process.pid), ID(process.ppid), ID(dead)], Date.now() - 60 * MIN);
     const { call } = makeModule({ dataDir: data });
     const before = (await call('GET', '/sessions?show=all')).body;
     expect(before.herdrError).toBe('');
@@ -225,6 +234,68 @@ describe('routes: GET /sessions (herdr) and the pin and seen routes', () => {
     expect(titles(after)).toEqual(['Needs you 1', 'Idle 1', 'Ended 1']);
     // the seen marker is a file of the module data folder
     expect(JSON.parse(readFileSync(join(data, 'agents-user-state.json'), 'utf8')).seen[ID(process.ppid)]).toEqual(expect.any(Number));
+  });
+
+  it('a new session gets a baseline once and is not Done; busy -> idle after it is Done; marking it seen makes it Idle', async () => {
+    put(process.pid, { status: 'idle', statusUpdatedAt: Date.now() - 2 * MIN });
+    const { call } = makeModule({ dataDir: data });
+    const first = (await call('GET', '/sessions')).body;
+    expect(first.herdrError).toBe('');
+    expect(titles(first)).toEqual(['Idle 1']);
+    const written = stateFile();
+    expect(written.seen[ID(process.pid)]).toEqual(expect.any(Number));
+    // a second poll does not rewrite the file
+    const before = statSync(join(data, 'agents-user-state.json'));
+    const text = readFileSync(join(data, 'agents-user-state.json'), 'utf8');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(titles((await call('GET', '/sessions')).body)).toEqual(['Idle 1']);
+    expect(readFileSync(join(data, 'agents-user-state.json'), 'utf8')).toBe(text);
+    expect(statSync(join(data, 'agents-user-state.json')).mtimeMs).toBe(before.mtimeMs);
+    // busy, then idle again after the baseline: finished since the user last looked
+    put(process.pid, { status: 'busy', statusUpdatedAt: Date.now() });
+    expect(titles((await call('GET', '/sessions')).body)).toEqual(['Working 1']);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    put(process.pid, { status: 'idle', statusUpdatedAt: Date.now() });
+    expect(titles((await call('GET', '/sessions')).body)).toEqual(['Done 1']);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect((await call('POST', `/sessions/${ID(process.pid)}/seen`)).status).toBe(200);
+    expect(titles((await call('GET', '/sessions')).body)).toEqual(['Idle 1']);
+  });
+
+  it('the new ids of one poll are written in a single write; pins are kept', async () => {
+    put(process.pid, { status: 'idle' });
+    put(process.ppid, { status: 'busy' });
+    writeFileSync(join(data, 'agents-user-state.json'), JSON.stringify({ pinned: [ID(process.pid)], seen: {} }));
+    const { call } = makeModule({ dataDir: data });
+    await call('GET', '/sessions');
+    const written = stateFile();
+    expect(Object.keys(written.seen).sort()).toEqual([ID(process.pid), ID(process.ppid)].sort());
+    expect(written.pinned).toEqual([ID(process.pid)]);
+  });
+
+  it('a failed baseline write is reported on the page (herdrError) and does not break the poll', async () => {
+    put(process.pid, { status: 'idle' });
+    // the data folder is a file: it cannot be created
+    const notAFolder = join(data, 'file');
+    writeFileSync(notAFolder, 'x');
+    const page = (await makeModule({ dataDir: notAFolder }).call('GET', '/sessions')).body;
+    expect(page.ok).toBe(true);
+    expect(page.herdrError).toContain('first-seen markers could not be saved');
+    expect(page.herdrError).toContain('agents-user-state.json');
+    expect(page.sessions).toHaveLength(1);
+    expect(titles(page)).toEqual(['Idle 1']);
+  });
+
+  it('entries of sessions that left the registry are pruned, at most once per hour', async () => {
+    put(process.pid, { status: 'idle', statusUpdatedAt: Date.now() - 2 * MIN });
+    baseline([ID(process.pid), ID(999_001)], Date.now() - 60 * MIN);
+    const { call } = makeModule({ dataDir: data });
+    await call('GET', '/sessions');
+    expect(Object.keys(stateFile().seen)).toEqual([ID(process.pid)]);
+    // a stale entry added right after is kept: the next prune is an hour away
+    baseline([ID(process.pid), ID(999_002)], Date.now() - 60 * MIN);
+    await call('GET', '/sessions');
+    expect(Object.keys(stateFile().seen).sort()).toEqual([ID(process.pid), ID(999_002)].sort());
   });
 
   it('pin and unpin: the session moves to Pinned and back, the pin survives in the data folder', async () => {

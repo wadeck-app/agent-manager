@@ -127,7 +127,12 @@ export async function writeUserState(dataDir: string, state: UserState): Promise
 let queue: Promise<unknown> = Promise.resolve();
 export function updateUserState(dataDir: string, change: (state: UserState) => UserState): Promise<UserState> {
   const run = queue.then(async () => {
-    const next = change(await readUserState(dataDir));
+    const current = await readUserState(dataDir);
+    const next = change(current);
+    // The same object back means "nothing to change": no write.
+    if (next === current) {
+      return current;
+    }
     if (next.pinned.length > MAX_ENTRIES || Object.keys(next.seen).length > MAX_ENTRIES) {
       throw new RequestError(409, `Too many pinned or seen sessions (limit ${MAX_ENTRIES})`, 'Unpin some sessions.');
     }

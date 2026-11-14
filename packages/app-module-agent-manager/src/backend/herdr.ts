@@ -31,7 +31,7 @@ function lookOf(state: AgentState, detail: string): StateLook {
     case 'needs-you':
       return { title: `Needs you (${detail})`, icon: { $type: 'Badge', label: '!', variant: 'danger', tone: 'solid', size: 'sm' } };
     case 'done':
-      return { title: 'Done, not seen yet', icon: { $type: 'Badge', label: DOT, variant: 'info', tone: 'subtle', size: 'sm' } };
+      return { title: 'Done, finished since you last looked', icon: { $type: 'Badge', label: DOT, variant: 'info', tone: 'subtle', size: 'sm' } };
     case 'working':
       return { title: `Working (${detail})`, icon: { $type: 'Spinner', size: 'sm' } };
     case 'idle':

@@ -89,7 +89,7 @@ sections:
               items: $sources.sessions.cards
       herdr:
         label: Herdr
-        hint: "Sidebar panel like herdr: groups Pinned, Needs you, Done, Working, Idle with counts; folder in bold, session name muted, time in state and a status icon per row; pin and mark-seen buttons. Built by the route."
+        hint: "Sidebar panel like herdr: groups Pinned, Needs you, Done, Working, Idle with counts; folder in bold, session name muted, time in state and a status icon per row; pin and mark-seen buttons. Done = finished since you last looked (first seen sessions start as seen). Built by the route."
         view:
           $type: VerticalStack
           gap: gap-1

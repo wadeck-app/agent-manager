@@ -21,12 +21,16 @@ function showOf(query: Parameters<typeof queryValue>[0]): Show {
   return value as Show;
 }
 
+/** Entries of the seen map whose session left the registry are dropped at most this often. */
+const PRUNE_EVERY_MS = 60 * 60 * 1000;
+
 /**
  * GET /sessions[?show=alive|all]: the sessions of the Claude Code registry, most recent status change first, dead ones hidden unless show=all.
  * Always 200 when the route itself worked: a registry that cannot be read is `ok: false` with `error` and `errorText` (never an empty list that
  * looks like "no sessions"); the files that could not be read are in `unreadable`.
  */
 function registerSessions(kit: RouteKit): void {
+  let lastPruneAt = 0;
   kit.route('GET', '/sessions', async (req) => {
     const show = showOf(req.query);
     const now = Date.now();
@@ -46,7 +50,33 @@ function registerSessions(kit: RouteKit): void {
     let herdr: ReturnType<typeof herdrGroups> = [];
     let herdrError = '';
     try {
-      const user = await readUserState(kit.dataDir);
+      let user = await readUserState(kit.dataDir);
+      // Baseline: a session first seen now starts as seen, one write for all the new ids of this poll; the prune rides on it, once an hour.
+      const ids = new Set(all.map((session) => session.sessionId.toLowerCase()));
+      const missing = [...ids].filter((id) => user.seen[id] === undefined);
+      const pruneDue = now - lastPruneAt >= PRUNE_EVERY_MS;
+      const stale = pruneDue ? Object.keys(user.seen).filter((id) => !ids.has(id)) : [];
+      if (missing.length > 0 || stale.length > 0) {
+        try {
+          user = await updateUserState(kit.dataDir, (current) => {
+            const seen = Object.fromEntries(Object.entries(current.seen).filter(([id]) => !stale.includes(id)));
+            let changed = Object.keys(seen).length !== Object.keys(current.seen).length;
+            for (const id of missing) {
+              if (seen[id] === undefined) {
+                seen[id] = now;
+                changed = true;
+              }
+            }
+            return changed ? { ...current, seen } : current;
+          });
+          if (pruneDue) {
+            lastPruneAt = now;
+          }
+        } catch (error) {
+          // The page still works with the state as read (the unrecorded sessions are Idle); the failure is shown, never ignored.
+          herdrError = `The first-seen markers could not be saved: ${getErrorMessage(error)}${error instanceof UserStateError ? `. ${error.hint}` : ''}`;
+        }
+      }
       herdr = herdrGroups(buildGroups(shown, user, now), shown, now);
     } catch (error) {
       herdrError = error instanceof UserStateError ? `${getErrorMessage(error)}. ${error.hint}` : `The herdr layout failed: ${getErrorMessage(error)}`;
@@ -97,9 +127,6 @@ async function guarded<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-/** Seen markers older than this are dropped when a marker is written: a session finished that long ago is Idle anyway (DONE_WINDOW_MS). */
-const SEEN_KEEP_MS = 7 * 24 * 60 * 60 * 1000;
-
 /**
  * POST /sessions/:sessionId/pin {"pinned": boolean}: pins or unpins a session (idempotent). Any well-formed session id is accepted, known or not:
  * a pin must be removable after the session ended.
@@ -127,10 +154,7 @@ function registerUserState(kit: RouteKit): void {
       throw new RequestError(404, `No session ${sessionId} in the registry ${dir}`, 'It may have been removed since the page was loaded: wait for the next refresh (5 s).');
     }
     await guarded(() =>
-      updateUserState(kit.dataDir, (current) => {
-        const seen = Object.fromEntries(Object.entries(current.seen).filter(([, at]) => now - at < SEEN_KEEP_MS));
-        return { ...current, seen: { ...seen, [sessionId]: now } };
-      }),
+      updateUserState(kit.dataDir, (current) => ({ ...current, seen: { ...current.seen, [sessionId]: now } })),
     );
     return ok({ ok: true, sessionId, seenAt: new Date(now).toISOString() });
   });

@@ -4,7 +4,7 @@ import type { UserState } from './userState.js';
 /**
  * How long after the end of a turn an unseen idle session is "Done" rather than "Idle". The registry has no "turn finished" flag: a session that went
  * busy -> idle is seen in the watcher log (poc/results/registry-watch.ndjson) only as a status change, so "Done" is derived: idle, its status changed
- * less than this long ago, and the user has not marked it seen since.
+ * less than this long ago, after the moment the module first saw it or the user marked it seen.
  */
 export const DONE_WINDOW_MS = 30 * 60 * 1000;
 
@@ -27,7 +27,7 @@ export const GROUP_LABEL: Record<GroupId, string> = {
 };
 
 /**
- * waiting -> needs-you (whatever it waits for); busy and shell -> working; idle -> done when finished recently and unseen, else idle.
+ * waiting -> needs-you (whatever it waits for); busy and shell -> working; idle -> done when its status changed after the last time the user saw it (the baseline written when the module first saw it, or Mark seen) and within the window, else idle.
  * A dead session (its process is gone) is `ended`, whatever its last registry status says. Any other status is `other`: shown in its own group
  * with its raw status, never dropped.
  */
@@ -48,8 +48,9 @@ export function stateOf(session: Session, seen: Readonly<Record<string, number>>
   if (since === undefined || now - since > DONE_WINDOW_MS) {
     return 'idle';
   }
+  // No record yet: the module has not seen this session before (the baseline is written by the next poll), it was not finished "while you were away".
   const seenAt = seen[session.sessionId.toLowerCase()];
-  return seenAt !== undefined && seenAt >= since ? 'idle' : 'done';
+  return seenAt !== undefined && since > seenAt ? 'done' : 'idle';
 }
 
 export interface AgentEntry {
