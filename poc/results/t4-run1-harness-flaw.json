@@ -1,0 +1,110 @@
+{
+  "phases": [],
+  "continuations": [
+    {
+      "i": 1,
+      "hookDetectMs": 61,
+      "firstEventMs": 74,
+      "firstEventType": "user",
+      "assistantMs": 1045,
+      "resultMs": 16223,
+      "answered": true,
+      "answer": " | ack-T4-1",
+      "hookRSS_KB": 67776,
+      "nextHookStopHookActive": true
+    },
+    {
+      "i": 2,
+      "firstEventMs": null,
+      "firstEventType": null,
+      "assistantMs": null,
+      "resultMs": null,
+      "answered": false,
+      "answer": ""
+    }
+  ],
+  "turn0": {
+    "sendToHookStartMs": 1942,
+    "stop_hook_active": false,
+    "resultEventBeforeHookStart": false
+  },
+  "expiry1": {
+    "stop_hook_active": true,
+    "waitedMs": 15085,
+    "eventsAfterExpiry": [
+      "result/success@+15"
+    ],
+    "registryStatus": "idle",
+    "sessionAlive": true
+  },
+  "expiry2": {
+    "stop_hook_active": true,
+    "assistantToHookStartMs": 1274,
+    "resultEventToHookStartMs": -15037,
+    "waitedMs": 15028,
+    "registryStatus": "idle",
+    "answer": " | ack-T4-sock |  | ack-T4-2"
+  },
+  "exitCode": 0,
+  "stderr": "",
+  "hookLog": [
+    {
+      "at": 1794689697533,
+      "pid": 31604,
+      "ev": "start",
+      "stop_hook_active": false,
+      "last": "ack-T4-0",
+      "maxWaitMs": 15000
+    },
+    {
+      "at": 1794689701611,
+      "pid": 31604,
+      "ev": "found",
+      "waitedMs": 4081,
+      "maxRSS_KB": 67776
+    },
+    {
+      "at": 1794689702676,
+      "pid": 28048,
+      "ev": "start",
+      "stop_hook_active": true,
+      "last": "ack-T4-1",
+      "maxWaitMs": 15000
+    },
+    {
+      "at": 1794689717758,
+      "pid": 28048,
+      "ev": "expired",
+      "waitedMs": 15085
+    },
+    {
+      "at": 1794689766482,
+      "pid": 13764,
+      "ev": "start",
+      "stop_hook_active": false,
+      "last": "ack-T4-sock",
+      "maxWaitMs": 15000
+    },
+    {
+      "at": 1794689766699,
+      "pid": 13764,
+      "ev": "found",
+      "waitedMs": 219,
+      "maxRSS_KB": 67736
+    },
+    {
+      "at": 1794689767676,
+      "pid": 49404,
+      "ev": "start",
+      "stop_hook_active": true,
+      "last": "ack-T4-2",
+      "maxWaitMs": 15000
+    },
+    {
+      "at": 1794689782701,
+      "pid": 49404,
+      "ev": "expired",
+      "waitedMs": 15028
+    }
+  ]
+}

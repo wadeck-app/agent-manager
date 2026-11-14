@@ -1,0 +1,137 @@
+[
+  {
+    "label": "t1",
+    "pid": 66728,
+    "sessionId": "618001ad-a9df-4668-9ac2-570e7584d8f2",
+    "startedAt": "2026-11-14T20:49:02.480Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 618001ad-a9df-4668-9ac2-570e7584d8f2 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t1.json",
+    "exitedAt": "2026-11-14T20:49:56.072Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t2",
+    "pid": 29944,
+    "sessionId": "7fa986e7-489e-4219-8c24-02e3f7dbf5d5",
+    "startedAt": "2026-11-14T20:50:22.256Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 7fa986e7-489e-4219-8c24-02e3f7dbf5d5 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t2.json --allowedTools Read",
+    "exitedAt": "2026-11-14T20:51:51.104Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t3",
+    "pid": 44196,
+    "sessionId": "276c322b-d940-4f6b-8ed4-280638dcc9c9",
+    "startedAt": "2026-11-14T20:52:55.025Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 276c322b-d940-4f6b-8ed4-280638dcc9c9 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t3.json",
+    "exitedAt": "2026-11-14T20:54:07.801Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t4",
+    "pid": 7892,
+    "sessionId": "6d77c7ff-b953-4605-bd5b-f2839bb62747",
+    "startedAt": "2026-11-14T20:54:43.230Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 6d77c7ff-b953-4605-bd5b-f2839bb62747 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t4.json",
+    "exitedAt": "2026-11-14T20:56:24.268Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t4",
+    "pid": 65028,
+    "sessionId": "bf6d28f0-b3f8-4b74-918b-878d76a3b8fd",
+    "startedAt": "2026-11-14T20:56:43.678Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id bf6d28f0-b3f8-4b74-918b-878d76a3b8fd --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t4.json",
+    "exitedAt": "2026-11-14T20:57:48.110Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t5-without-n1-1",
+    "pid": 64948,
+    "sessionId": "1f5ea63b-a5b3-47c1-aaf4-dcafa003d66e",
+    "startedAt": "2026-11-14T20:58:03.419Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 1f5ea63b-a5b3-47c1-aaf4-dcafa003d66e --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t5-without-n1-1.json",
+    "exitedAt": "2026-11-14T20:58:38.062Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t5-with-n1-1",
+    "pid": 33924,
+    "sessionId": "58c37243-d64d-48f1-a509-7b3301468923",
+    "startedAt": "2026-11-14T20:58:40.268Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 58c37243-d64d-48f1-a509-7b3301468923 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t5-with-n1-1.json",
+    "exitedAt": "2026-11-14T20:59:46.089Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t5-without-n2-1",
+    "pid": 43848,
+    "sessionId": "7e002cd4-083b-4c73-9e4c-7a0715d753f7",
+    "startedAt": "2026-11-14T20:59:31.629Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 7e002cd4-083b-4c73-9e4c-7a0715d753f7 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t5-without-n2-1.json",
+    "exitedAt": "2026-11-14T21:00:06.451Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t5-without-n2-2",
+    "pid": 53220,
+    "sessionId": "5932f813-08f9-4efc-a652-0183eb2dca2b",
+    "startedAt": "2026-11-14T20:59:32.138Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 5932f813-08f9-4efc-a652-0183eb2dca2b --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t5-without-n2-2.json",
+    "exitedAt": "2026-11-14T21:00:06.663Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t5-with-n2-1",
+    "pid": 55720,
+    "sessionId": "3a255d2a-32bc-4d63-833a-ccc60c271976",
+    "startedAt": "2026-11-14T21:00:08.850Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 3a255d2a-32bc-4d63-833a-ccc60c271976 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t5-with-n2-1.json",
+    "exitedAt": "2026-11-14T21:01:15.175Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t5-with-n2-2",
+    "pid": 31692,
+    "sessionId": "0656b062-38c1-4f30-9cac-fe30b95e7abd",
+    "startedAt": "2026-11-14T21:00:09.366Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 0656b062-38c1-4f30-9cac-fe30b95e7abd --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t5-with-n2-2.json",
+    "exitedAt": "2026-11-14T21:01:30.251Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t6-without-1",
+    "pid": 63296,
+    "sessionId": "f9f52c9b-abf9-468b-b849-bc9722dcc521",
+    "startedAt": "2026-11-14T21:01:49.357Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id f9f52c9b-abf9-468b-b849-bc9722dcc521 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t6-without-1.json",
+    "exitedAt": "2026-11-14T21:02:03.126Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t6-without-2",
+    "pid": 60104,
+    "sessionId": "2a6a4b9e-de13-49b7-a687-12bc8a318549",
+    "startedAt": "2026-11-14T21:02:03.214Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 2a6a4b9e-de13-49b7-a687-12bc8a318549 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t6-without-2.json",
+    "exitedAt": "2026-11-14T21:02:17.269Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t6-with-1",
+    "pid": 22860,
+    "sessionId": "7e67dcf0-2e3c-4254-a337-18ae4387369c",
+    "startedAt": "2026-11-14T21:02:17.359Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 7e67dcf0-2e3c-4254-a337-18ae4387369c --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t6-with-1.json",
+    "exitedAt": "2026-11-14T21:03:02.935Z",
+    "exitCode": 0
+  },
+  {
+    "label": "t6-with-2",
+    "pid": 1844,
+    "sessionId": "74f7f50c-1ef8-4dec-aa23-f16f13ebb466",
+    "startedAt": "2026-11-14T21:03:03.005Z",
+    "args": "-p --input-format stream-json --output-format stream-json --verbose --include-partial-messages --session-id 74f7f50c-1ef8-4dec-aa23-f16f13ebb466 --model haiku --max-budget-usd 1 --max-turns 6 --permission-mode default --settings C:\\Workspace_Tooling\\agent-manager\\poc\\results\\settings-t6-with-2.json",
+    "exitedAt": "2026-11-14T21:03:48.289Z",
+    "exitCode": 0
+  }
+]

@@ -1,0 +1,10 @@
+{"at":1794689817138,"pid":66412,"ev":"start","stop_hook_active":false,"last":"ack-T4-0","maxWaitMs":15000}
+{"at":1794689821415,"pid":66412,"ev":"found","waitedMs":4279,"maxRSS_KB":67648}
+{"at":1794689822647,"pid":12084,"ev":"start","stop_hook_active":true,"last":"ack-T4-1","maxWaitMs":15000}
+{"at":1794689827113,"pid":12084,"ev":"found","waitedMs":4469,"maxRSS_KB":67852}
+{"at":1794689828283,"pid":51264,"ev":"start","stop_hook_active":true,"last":"ack-T4-2","maxWaitMs":15000}
+{"at":1794689832572,"pid":51264,"ev":"found","waitedMs":4291,"maxRSS_KB":67748}
+{"at":1794689833577,"pid":26252,"ev":"start","stop_hook_active":true,"last":"ack-T4-3","maxWaitMs":15000}
+{"at":1794689848601,"pid":26252,"ev":"expired","waitedMs":15027}
+{"at":1794689851491,"pid":48488,"ev":"start","stop_hook_active":false,"last":"ack-T4-sock","maxWaitMs":15000}
+{"at":1794689866538,"pid":48488,"ev":"expired","waitedMs":15049}

@@ -1,0 +1,23 @@
+{
+  "crossSessionInbound": "accept",
+  "enabledPlugins": {
+    "w-warp@local-marketplace": false,
+    "w-command-log@local-marketplace": false,
+    "w-block-worktree@local-marketplace": false,
+    "w-guardrails@local-marketplace": false,
+    "w-roles@local-marketplace": false
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Workspace_Tooling/agent-manager/poc/scripts/hotwait.js\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

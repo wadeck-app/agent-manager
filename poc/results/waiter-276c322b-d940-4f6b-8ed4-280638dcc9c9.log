@@ -1,0 +1,37 @@
+{"at":1794689579035,"pid":60220,"ev":"start","event":"SessionStart","startupMs":5}
+{"at":1794689579250,"pid":60220,"ev":"hb","maxRSS_KB":67848,"cpuUs":15000}
+{"at":1794689581282,"pid":60220,"ev":"hb","maxRSS_KB":67848,"cpuUs":15000}
+{"at":1794689582103,"pid":60220,"ev":"wake","text":"T3 hook message 1. Reply with exactly the single word ack-T3-1","maxRSS_KB":67848,"cpuUs":15000,"waitedMs":3073}
+{"at":1794689584437,"pid":28284,"ev":"start","event":"Stop","stop_hook_active":true,"startupMs":4}
+{"at":1794689584652,"pid":28284,"ev":"hb","maxRSS_KB":67728,"cpuUs":30000}
+{"at":1794689586666,"pid":28284,"ev":"hb","maxRSS_KB":67728,"cpuUs":30000}
+{"at":1794689588485,"pid":28284,"ev":"wake","text":"T3 hook message 2. Reply with exactly the single word ack-T3-2","maxRSS_KB":67728,"cpuUs":30000,"waitedMs":4052}
+{"at":1794689589691,"pid":58692,"ev":"start","event":"Stop","stop_hook_active":true,"startupMs":4}
+{"at":1794689589894,"pid":58692,"ev":"hb","maxRSS_KB":67704,"cpuUs":30000}
+{"at":1794689591938,"pid":58692,"ev":"hb","maxRSS_KB":67704,"cpuUs":30000}
+{"at":1794689593782,"pid":58692,"ev":"wake","text":"T3 hook message 3. Reply with exactly the single word ack-T3-3","maxRSS_KB":67704,"cpuUs":30000,"waitedMs":4096}
+{"at":1794689595001,"pid":23472,"ev":"start","event":"Stop","stop_hook_active":true,"startupMs":3}
+{"at":1794689595213,"pid":23472,"ev":"hb","maxRSS_KB":67680,"cpuUs":15000}
+{"at":1794689597234,"pid":23472,"ev":"hb","maxRSS_KB":67680,"cpuUs":15000}
+{"at":1794689599258,"pid":23472,"ev":"hb","maxRSS_KB":67680,"cpuUs":15000}
+{"at":1794689601302,"pid":23472,"ev":"hb","maxRSS_KB":67680,"cpuUs":15000}
+{"at":1794689603324,"pid":23472,"ev":"hb","maxRSS_KB":67680,"cpuUs":15000}
+{"at":1794689605344,"pid":23472,"ev":"hb","maxRSS_KB":67680,"cpuUs":15000}
+{"at":1794689607371,"pid":23472,"ev":"hb","maxRSS_KB":67724,"cpuUs":15000}
+{"at":1794689609422,"pid":23472,"ev":"hb","maxRSS_KB":67724,"cpuUs":15000}
+{"at":1794689611481,"pid":23472,"ev":"hb","maxRSS_KB":67724,"cpuUs":15000}
+{"at":1794689613518,"pid":23472,"ev":"hb","maxRSS_KB":67792,"cpuUs":15000}
+{"at":1794689625016,"pid":28260,"ev":"start","event":"Stop","stop_hook_active":false,"startupMs":4}
+{"at":1794689625222,"pid":28260,"ev":"hb","maxRSS_KB":67776,"cpuUs":30000}
+{"at":1794689625223,"pid":28260,"ev":"wake","text":"T3 stale message after expiry. Reply with exactly the single word ack-T3-stale","maxRSS_KB":67776,"cpuUs":30000,"waitedMs":211}
+{"at":1794689626335,"pid":54072,"ev":"start","event":"Stop","stop_hook_active":true,"startupMs":3}
+{"at":1794689626552,"pid":54072,"ev":"hb","maxRSS_KB":67784,"cpuUs":31000}
+{"at":1794689628574,"pid":54072,"ev":"hb","maxRSS_KB":67784,"cpuUs":31000}
+{"at":1794689630606,"pid":54072,"ev":"hb","maxRSS_KB":67784,"cpuUs":31000}
+{"at":1794689632651,"pid":54072,"ev":"hb","maxRSS_KB":67788,"cpuUs":31000}
+{"at":1794689634681,"pid":54072,"ev":"hb","maxRSS_KB":67788,"cpuUs":46000}
+{"at":1794689636724,"pid":54072,"ev":"hb","maxRSS_KB":67796,"cpuUs":46000}
+{"at":1794689638772,"pid":54072,"ev":"hb","maxRSS_KB":67804,"cpuUs":46000}
+{"at":1794689640795,"pid":54072,"ev":"hb","maxRSS_KB":67824,"cpuUs":46000}
+{"at":1794689642824,"pid":54072,"ev":"hb","maxRSS_KB":67848,"cpuUs":46000}
+{"at":1794689644844,"pid":54072,"ev":"hb","maxRSS_KB":67928,"cpuUs":46000}

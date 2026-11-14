@@ -1,0 +1,2795 @@
+{
+  "baseline": [
+    {
+      "label": "baseline-1",
+      "sender": {
+        "startedAt": 1794689441662,
+        "beforeConnect": 1794689441668,
+        "connectedAt": 1794689441669,
+        "wroteAt": 1794689441671,
+        "endAt": 1794689441973,
+        "wallMs": 311,
+        "wallMsWithoutGrace": 9,
+        "maxRSS_KB": 69180,
+        "bytes": 109
+      },
+      "tools": [],
+      "answer": " | Blue.",
+      "correct": true,
+      "firstEventMs": 321,
+      "toolUseMs": null,
+      "resultMs": 2426,
+      "timeline": [
+        {
+          "tag": "command_lifecycle",
+          "ms": 321,
+          "lastMs": 321,
+          "count": 1
+        },
+        {
+          "tag": "system/init",
+          "ms": 321,
+          "lastMs": 321,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 321,
+          "lastMs": 321,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 1512,
+          "lastMs": 1512,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 1512,
+          "lastMs": 1512,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1512,
+          "lastMs": 1512,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1512,
+          "lastMs": 1512,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1641,
+          "lastMs": 1641,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1641,
+          "lastMs": 1641,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1642,
+          "lastMs": 1642,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1642,
+          "lastMs": 1642,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1644,
+          "lastMs": 1644,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1644,
+          "lastMs": 1644,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1646,
+          "lastMs": 1646,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1646,
+          "lastMs": 1646,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1648,
+          "lastMs": 1648,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1648,
+          "lastMs": 1648,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1651,
+          "lastMs": 1651,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1651,
+          "lastMs": 1651,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1651,
+          "lastMs": 1651,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1651,
+          "lastMs": 1651,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1651,
+          "lastMs": 1651,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1651,
+          "lastMs": 1651,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1804,
+          "lastMs": 1804,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1804,
+          "lastMs": 1804,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1804,
+          "lastMs": 1804,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1804,
+          "lastMs": 1804,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1805,
+          "lastMs": 1805,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1805,
+          "lastMs": 1805,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1805,
+          "lastMs": 1805,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1805,
+          "lastMs": 1805,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1805,
+          "lastMs": 1805,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1805,
+          "lastMs": 1805,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1813,
+          "lastMs": 1813,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1813,
+          "lastMs": 1813,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1813,
+          "lastMs": 1813,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1813,
+          "lastMs": 1813,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1813,
+          "lastMs": 1813,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1813,
+          "lastMs": 1813,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1897,
+          "lastMs": 1897,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1897,
+          "lastMs": 1897,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1900,
+          "lastMs": 1900,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1900,
+          "lastMs": 1900,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1901,
+          "lastMs": 1901,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1901,
+          "lastMs": 1901,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1903,
+          "lastMs": 1903,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1903,
+          "lastMs": 1903,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1908,
+          "lastMs": 1908,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1908,
+          "lastMs": 1908,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1908,
+          "lastMs": 1908,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1908,
+          "lastMs": 1908,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1908,
+          "lastMs": 1908,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1908,
+          "lastMs": 1908,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1909,
+          "lastMs": 1909,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1909,
+          "lastMs": 1909,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2042,
+          "lastMs": 2042,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2042,
+          "lastMs": 2042,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2044,
+          "lastMs": 2044,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2044,
+          "lastMs": 2044,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2044,
+          "lastMs": 2044,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2044,
+          "lastMs": 2044,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2045,
+          "lastMs": 2045,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2045,
+          "lastMs": 2045,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2046,
+          "lastMs": 2046,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2046,
+          "lastMs": 2046,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2047,
+          "lastMs": 2047,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2047,
+          "lastMs": 2047,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2048,
+          "lastMs": 2048,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2048,
+          "lastMs": 2048,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2048,
+          "lastMs": 2048,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2048,
+          "lastMs": 2048,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2190,
+          "lastMs": 2190,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2190,
+          "lastMs": 2190,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2193,
+          "lastMs": 2193,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2193,
+          "lastMs": 2193,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2194,
+          "lastMs": 2194,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2194,
+          "lastMs": 2194,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2195,
+          "lastMs": 2195,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2195,
+          "lastMs": 2195,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2197,
+          "lastMs": 2197,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2197,
+          "lastMs": 2197,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2198,
+          "lastMs": 2198,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2198,
+          "lastMs": 2198,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2199,
+          "lastMs": 2199,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2199,
+          "lastMs": 2199,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2200,
+          "lastMs": 2200,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2200,
+          "lastMs": 2200,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2294,
+          "lastMs": 2294,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2294,
+          "lastMs": 2294,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2296,
+          "lastMs": 2296,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2296,
+          "lastMs": 2296,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2308,
+          "lastMs": 2308,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2308,
+          "lastMs": 2308,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2308,
+          "lastMs": 2308,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2308,
+          "lastMs": 2308,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2308,
+          "lastMs": 2308,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2308,
+          "lastMs": 2308,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2309,
+          "lastMs": 2309,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2309,
+          "lastMs": 2309,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2309,
+          "lastMs": 2309,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2309,
+          "lastMs": 2309,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2309,
+          "lastMs": 2309,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2309,
+          "lastMs": 2309,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2403,
+          "lastMs": 2403,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2404,
+          "lastMs": 2404,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2404,
+          "lastMs": 2404,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2404,
+          "lastMs": 2404,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2406,
+          "lastMs": 2406,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2406,
+          "lastMs": 2406,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2406,
+          "lastMs": 2406,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2406,
+          "lastMs": 2406,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2406,
+          "lastMs": 2406,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2406,
+          "lastMs": 2406,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2407,
+          "lastMs": 2407,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2407,
+          "lastMs": 2407,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 2409,
+          "lastMs": 2409,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2409,
+          "lastMs": 2409,
+          "count": 1
+        },
+        {
+          "tag": "assistant[\"thinking\"]",
+          "ms": 2411,
+          "lastMs": 2411,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 2411,
+          "lastMs": 2411,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 2411,
+          "lastMs": 2411,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2411,
+          "lastMs": 2411,
+          "count": 1
+        },
+        {
+          "tag": "assistant[\"text\"]",
+          "ms": 2417,
+          "lastMs": 2417,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 2417,
+          "lastMs": 2417,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 2418,
+          "lastMs": 2418,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 2420,
+          "lastMs": 2420,
+          "count": 1
+        },
+        {
+          "tag": "result/success",
+          "ms": 2426,
+          "lastMs": 2426,
+          "count": 1
+        },
+        {
+          "tag": "command_lifecycle",
+          "ms": 2428,
+          "lastMs": 2428,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "baseline-2",
+      "sender": {
+        "startedAt": 1794689447676,
+        "beforeConnect": 1794689447682,
+        "connectedAt": 1794689447683,
+        "wroteAt": 1794689447684,
+        "endAt": 1794689447988,
+        "wallMs": 312,
+        "wallMsWithoutGrace": 8,
+        "maxRSS_KB": 69160,
+        "bytes": 109
+      },
+      "tools": [],
+      "answer": " | Blue.",
+      "correct": true,
+      "firstEventMs": 320,
+      "toolUseMs": null,
+      "resultMs": 1524,
+      "timeline": [
+        {
+          "tag": "command_lifecycle",
+          "ms": 320,
+          "lastMs": 320,
+          "count": 1
+        },
+        {
+          "tag": "system/init",
+          "ms": 320,
+          "lastMs": 320,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 320,
+          "lastMs": 320,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 765,
+          "lastMs": 765,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 765,
+          "lastMs": 765,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 765,
+          "lastMs": 765,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 765,
+          "lastMs": 765,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 846,
+          "lastMs": 846,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 846,
+          "lastMs": 846,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 846,
+          "lastMs": 846,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 846,
+          "lastMs": 846,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 850,
+          "lastMs": 850,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 850,
+          "lastMs": 850,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 851,
+          "lastMs": 851,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 851,
+          "lastMs": 851,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 852,
+          "lastMs": 852,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 852,
+          "lastMs": 852,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1001,
+          "lastMs": 1001,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1001,
+          "lastMs": 1001,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1004,
+          "lastMs": 1004,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1005,
+          "lastMs": 1005,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1006,
+          "lastMs": 1006,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1006,
+          "lastMs": 1006,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1006,
+          "lastMs": 1006,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1147,
+          "lastMs": 1147,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1147,
+          "lastMs": 1147,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1147,
+          "lastMs": 1147,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1148,
+          "lastMs": 1148,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1151,
+          "lastMs": 1151,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1151,
+          "lastMs": 1151,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1152,
+          "lastMs": 1152,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1152,
+          "lastMs": 1152,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1152,
+          "lastMs": 1152,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1152,
+          "lastMs": 1152,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1154,
+          "lastMs": 1154,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1154,
+          "lastMs": 1154,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1250,
+          "lastMs": 1250,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1250,
+          "lastMs": 1250,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1252,
+          "lastMs": 1252,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1252,
+          "lastMs": 1252,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1252,
+          "lastMs": 1252,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1252,
+          "lastMs": 1252,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1253,
+          "lastMs": 1253,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1253,
+          "lastMs": 1253,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1253,
+          "lastMs": 1253,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1253,
+          "lastMs": 1253,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1254,
+          "lastMs": 1254,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1254,
+          "lastMs": 1254,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1255,
+          "lastMs": 1255,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1255,
+          "lastMs": 1255,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1256,
+          "lastMs": 1256,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1256,
+          "lastMs": 1256,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1441,
+          "lastMs": 1441,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1441,
+          "lastMs": 1441,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1441,
+          "lastMs": 1441,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1441,
+          "lastMs": 1441,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1447,
+          "lastMs": 1447,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1447,
+          "lastMs": 1447,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1453,
+          "lastMs": 1453,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1453,
+          "lastMs": 1453,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1454,
+          "lastMs": 1454,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1454,
+          "lastMs": 1454,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1456,
+          "lastMs": 1456,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1456,
+          "lastMs": 1456,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1458,
+          "lastMs": 1458,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1458,
+          "lastMs": 1458,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1458,
+          "lastMs": 1458,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1458,
+          "lastMs": 1458,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1501,
+          "lastMs": 1501,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1501,
+          "lastMs": 1501,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1502,
+          "lastMs": 1502,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1502,
+          "lastMs": 1502,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1503,
+          "lastMs": 1503,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1503,
+          "lastMs": 1503,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1503,
+          "lastMs": 1503,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1503,
+          "lastMs": 1503,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1504,
+          "lastMs": 1504,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1504,
+          "lastMs": 1504,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1504,
+          "lastMs": 1504,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1505,
+          "lastMs": 1505,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1507,
+          "lastMs": 1507,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1507,
+          "lastMs": 1507,
+          "count": 1
+        },
+        {
+          "tag": "assistant[\"thinking\"]",
+          "ms": 1507,
+          "lastMs": 1507,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1508,
+          "lastMs": 1508,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 1508,
+          "lastMs": 1508,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1508,
+          "lastMs": 1508,
+          "count": 1
+        },
+        {
+          "tag": "assistant[\"text\"]",
+          "ms": 1513,
+          "lastMs": 1513,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1513,
+          "lastMs": 1513,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 1515,
+          "lastMs": 1515,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 1521,
+          "lastMs": 1521,
+          "count": 1
+        },
+        {
+          "tag": "result/success",
+          "ms": 1524,
+          "lastMs": 1524,
+          "count": 1
+        },
+        {
+          "tag": "command_lifecycle",
+          "ms": 1525,
+          "lastMs": 1525,
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "path": [
+    {
+      "label": "path-magenta",
+      "sender": {
+        "startedAt": 1794689452765,
+        "beforeConnect": 1794689452770,
+        "connectedAt": 1794689452771,
+        "wroteAt": 1794689452772,
+        "endAt": 1794689453081,
+        "wallMs": 316,
+        "wallMsWithoutGrace": 7,
+        "maxRSS_KB": 69156,
+        "bytes": 203
+      },
+      "tools": [
+        "Read"
+      ],
+      "answer": " |  | Magenta.",
+      "correct": true,
+      "firstEventMs": 325,
+      "toolUseMs": 1392,
+      "resultMs": 2143,
+      "timeline": [
+        {
+          "tag": "command_lifecycle",
+          "ms": 325,
+          "lastMs": 325,
+          "count": 1
+        },
+        {
+          "tag": "system/init",
+          "ms": 325,
+          "lastMs": 325,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 325,
+          "lastMs": 325,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 712,
+          "lastMs": 712,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 712,
+          "lastMs": 712,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 712,
+          "lastMs": 712,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 713,
+          "lastMs": 713,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 959,
+          "lastMs": 959,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 960,
+          "lastMs": 960,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 993,
+          "lastMs": 993,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 993,
+          "lastMs": 993,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 993,
+          "lastMs": 993,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 993,
+          "lastMs": 993,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 993,
+          "lastMs": 993,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 994,
+          "lastMs": 994,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 995,
+          "lastMs": 995,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 995,
+          "lastMs": 995,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 996,
+          "lastMs": 996,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1149,
+          "lastMs": 1149,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1149,
+          "lastMs": 1149,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1150,
+          "lastMs": 1150,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1151,
+          "lastMs": 1151,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1151,
+          "lastMs": 1151,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1152,
+          "lastMs": 1152,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1152,
+          "lastMs": 1152,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1153,
+          "lastMs": 1153,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1154,
+          "lastMs": 1154,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1154,
+          "lastMs": 1154,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1154,
+          "lastMs": 1154,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1156,
+          "lastMs": 1156,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1156,
+          "lastMs": 1156,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1313,
+          "lastMs": 1313,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1313,
+          "lastMs": 1313,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1314,
+          "lastMs": 1314,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1314,
+          "lastMs": 1314,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1315,
+          "lastMs": 1315,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1315,
+          "lastMs": 1315,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1316,
+          "lastMs": 1316,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1316,
+          "lastMs": 1316,
+          "count": 2
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1318,
+          "lastMs": 1318,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1318,
+          "lastMs": 1318,
+          "count": 1
+        },
+        {
+          "tag": "assistant[\"thinking\"]",
+          "ms": 1319,
+          "lastMs": 1319,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1319,
+          "lastMs": 1319,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 1320,
+          "lastMs": 1320,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1320,
+          "lastMs": 1390,
+          "count": 13
+        },
+        {
+          "tag": "assistant[\"tool_use:Read\"]",
+          "ms": 1392,
+          "lastMs": 1392,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1396,
+          "lastMs": 1396,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 1413,
+          "lastMs": 1413,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 1413,
+          "lastMs": 1413,
+          "count": 1
+        },
+        {
+          "tag": "user[\"tool_result\"]",
+          "ms": 1425,
+          "lastMs": 1425,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 1430,
+          "lastMs": 1430,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 2136,
+          "lastMs": 2136,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 2136,
+          "lastMs": 2136,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2136,
+          "lastMs": 2136,
+          "count": 2
+        },
+        {
+          "tag": "assistant[\"text\"]",
+          "ms": 2137,
+          "lastMs": 2137,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 2137,
+          "lastMs": 2137,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 2139,
+          "lastMs": 2139,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 2141,
+          "lastMs": 2141,
+          "count": 1
+        },
+        {
+          "tag": "result/success",
+          "ms": 2143,
+          "lastMs": 2143,
+          "count": 1
+        },
+        {
+          "tag": "command_lifecycle",
+          "ms": 2144,
+          "lastMs": 2144,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "path-orange",
+      "sender": {
+        "startedAt": 1794689458500,
+        "beforeConnect": 1794689458506,
+        "connectedAt": 1794689458507,
+        "wroteAt": 1794689458508,
+        "endAt": 1794689458817,
+        "wallMs": 317,
+        "wallMsWithoutGrace": 8,
+        "maxRSS_KB": 69232,
+        "bytes": 202
+      },
+      "tools": [
+        "Read"
+      ],
+      "answer": " |  | Orange.",
+      "correct": true,
+      "firstEventMs": 326,
+      "toolUseMs": 1329,
+      "resultMs": 2084,
+      "timeline": [
+        {
+          "tag": "command_lifecycle",
+          "ms": 326,
+          "lastMs": 326,
+          "count": 1
+        },
+        {
+          "tag": "system/init",
+          "ms": 326,
+          "lastMs": 326,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 326,
+          "lastMs": 326,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 842,
+          "lastMs": 842,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 843,
+          "lastMs": 843,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 843,
+          "lastMs": 843,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 843,
+          "lastMs": 843,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 935,
+          "lastMs": 935,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 935,
+          "lastMs": 935,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 938,
+          "lastMs": 938,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 938,
+          "lastMs": 938,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 941,
+          "lastMs": 941,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 941,
+          "lastMs": 941,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 942,
+          "lastMs": 942,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 942,
+          "lastMs": 942,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 944,
+          "lastMs": 944,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 944,
+          "lastMs": 944,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 946,
+          "lastMs": 946,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 946,
+          "lastMs": 946,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 946,
+          "lastMs": 946,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 946,
+          "lastMs": 946,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 948,
+          "lastMs": 948,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 948,
+          "lastMs": 948,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1083,
+          "lastMs": 1083,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1083,
+          "lastMs": 1083,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1084,
+          "lastMs": 1084,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1084,
+          "lastMs": 1084,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1085,
+          "lastMs": 1085,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1085,
+          "lastMs": 1085,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1085,
+          "lastMs": 1085,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1085,
+          "lastMs": 1085,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1085,
+          "lastMs": 1085,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1085,
+          "lastMs": 1085,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1086,
+          "lastMs": 1086,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1087,
+          "lastMs": 1087,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1087,
+          "lastMs": 1087,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1087,
+          "lastMs": 1087,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1089,
+          "lastMs": 1089,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1089,
+          "lastMs": 1089,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1226,
+          "lastMs": 1226,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1226,
+          "lastMs": 1226,
+          "count": 2
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1227,
+          "lastMs": 1227,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1227,
+          "lastMs": 1227,
+          "count": 1
+        },
+        {
+          "tag": "assistant[\"thinking\"]",
+          "ms": 1228,
+          "lastMs": 1228,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1228,
+          "lastMs": 1228,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 1229,
+          "lastMs": 1229,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1230,
+          "lastMs": 1327,
+          "count": 13
+        },
+        {
+          "tag": "assistant[\"tool_use:Read\"]",
+          "ms": 1329,
+          "lastMs": 1329,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1330,
+          "lastMs": 1330,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 1345,
+          "lastMs": 1345,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 1346,
+          "lastMs": 1346,
+          "count": 1
+        },
+        {
+          "tag": "user[\"tool_result\"]",
+          "ms": 1352,
+          "lastMs": 1352,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 1355,
+          "lastMs": 1355,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 2072,
+          "lastMs": 2072,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 2073,
+          "lastMs": 2073,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 2073,
+          "lastMs": 2073,
+          "count": 2
+        },
+        {
+          "tag": "assistant[\"text\"]",
+          "ms": 2079,
+          "lastMs": 2079,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 2079,
+          "lastMs": 2079,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 2080,
+          "lastMs": 2080,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 2082,
+          "lastMs": 2082,
+          "count": 1
+        },
+        {
+          "tag": "result/success",
+          "ms": 2084,
+          "lastMs": 2084,
+          "count": 1
+        },
+        {
+          "tag": "command_lifecycle",
+          "ms": 2085,
+          "lastMs": 2085,
+          "count": 1
+        }
+      ]
+    },
+    {
+      "label": "path-cyan",
+      "sender": {
+        "startedAt": 1794689464160,
+        "beforeConnect": 1794689464165,
+        "connectedAt": 1794689464166,
+        "wroteAt": 1794689464167,
+        "endAt": 1794689464473,
+        "wallMs": 313,
+        "wallMsWithoutGrace": 7,
+        "maxRSS_KB": 69200,
+        "bytes": 200
+      },
+      "tools": [
+        "Read"
+      ],
+      "answer": " |  | Cyan.",
+      "correct": true,
+      "firstEventMs": 322,
+      "toolUseMs": 1159,
+      "resultMs": 1990,
+      "timeline": [
+        {
+          "tag": "command_lifecycle",
+          "ms": 322,
+          "lastMs": 322,
+          "count": 1
+        },
+        {
+          "tag": "system/init",
+          "ms": 322,
+          "lastMs": 322,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 322,
+          "lastMs": 322,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 758,
+          "lastMs": 758,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 758,
+          "lastMs": 758,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 758,
+          "lastMs": 758,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 758,
+          "lastMs": 758,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 847,
+          "lastMs": 847,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 848,
+          "lastMs": 848,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 849,
+          "lastMs": 849,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 849,
+          "lastMs": 849,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 849,
+          "lastMs": 849,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 849,
+          "lastMs": 849,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 850,
+          "lastMs": 850,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 850,
+          "lastMs": 850,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1000,
+          "lastMs": 1000,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1000,
+          "lastMs": 1000,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1002,
+          "lastMs": 1002,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1003,
+          "lastMs": 1003,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1003,
+          "lastMs": 1003,
+          "count": 1
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1003,
+          "lastMs": 1003,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1003,
+          "lastMs": 1004,
+          "count": 2
+        },
+        {
+          "tag": "system/thinking_tokens",
+          "ms": 1143,
+          "lastMs": 1143,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1143,
+          "lastMs": 1143,
+          "count": 1
+        },
+        {
+          "tag": "assistant[\"thinking\"]",
+          "ms": 1144,
+          "lastMs": 1144,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1145,
+          "lastMs": 1145,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 1145,
+          "lastMs": 1145,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1145,
+          "lastMs": 1158,
+          "count": 12
+        },
+        {
+          "tag": "assistant[\"tool_use:Read\"]",
+          "ms": 1159,
+          "lastMs": 1159,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1161,
+          "lastMs": 1161,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 1173,
+          "lastMs": 1173,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 1173,
+          "lastMs": 1173,
+          "count": 1
+        },
+        {
+          "tag": "user[\"tool_result\"]",
+          "ms": 1191,
+          "lastMs": 1191,
+          "count": 1
+        },
+        {
+          "tag": "system/status",
+          "ms": 1194,
+          "lastMs": 1194,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_start",
+          "ms": 1983,
+          "lastMs": 1983,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_start",
+          "ms": 1983,
+          "lastMs": 1983,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_delta",
+          "ms": 1983,
+          "lastMs": 1983,
+          "count": 2
+        },
+        {
+          "tag": "assistant[\"text\"]",
+          "ms": 1984,
+          "lastMs": 1984,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/content_block_stop",
+          "ms": 1984,
+          "lastMs": 1984,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_delta",
+          "ms": 1986,
+          "lastMs": 1986,
+          "count": 1
+        },
+        {
+          "tag": "stream_event/message_stop",
+          "ms": 1988,
+          "lastMs": 1988,
+          "count": 1
+        },
+        {
+          "tag": "result/success",
+          "ms": 1990,
+          "lastMs": 1990,
+          "count": 1
+        },
+        {
+          "tag": "command_lifecycle",
+          "ms": 1991,
+          "lastMs": 1991,
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "array": {
+    "sender": {
+      "startedAt": 1794689469720,
+      "beforeConnect": 1794689469726,
+      "connectedAt": 1794689469726,
+      "wroteAt": 1794689469727,
+      "endAt": 1794689470040,
+      "wallMs": 320,
+      "wallMsWithoutGrace": 7,
+      "maxRSS_KB": 69260,
+      "bytes": 496
+    },
+    "turnStarted": false,
+    "firstEventType": null,
+    "resultMs": null,
+    "answer": "",
+    "sawYellow": false,
+    "timeline": [],
+    "eventCountSince": 0
+  },
+  "exitCode": 0
+}

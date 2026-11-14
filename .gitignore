@@ -1,0 +1,4 @@
+.claude/logs/
+.claude/session/
+*.pid
+node_modules/

@@ -1,0 +1,34 @@
+[
+  {
+    "withWaiter": false,
+    "k": 1,
+    "waiterPid": null,
+    "exitAfterMs": 110,
+    "exitCode": 0,
+    "waiterGoneAfterMs": null
+  },
+  {
+    "withWaiter": false,
+    "k": 2,
+    "waiterPid": null,
+    "exitAfterMs": 110,
+    "exitCode": 0,
+    "waiterGoneAfterMs": null
+  },
+  {
+    "withWaiter": true,
+    "k": 1,
+    "waiterPid": 7468,
+    "exitAfterMs": 31597,
+    "exitCode": 0,
+    "waiterGoneAfterMs": 30181
+  },
+  {
+    "withWaiter": true,
+    "k": 2,
+    "waiterPid": 10408,
+    "exitAfterMs": 31593,
+    "exitCode": 0,
+    "waiterGoneAfterMs": 30293
+  }
+]

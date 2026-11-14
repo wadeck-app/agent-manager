@@ -1,0 +1,186 @@
+{
+  "samples": [
+    {
+      "i": 1,
+      "sender": {
+        "startedAt": 1794689368696,
+        "beforeConnect": 1794689368702,
+        "connectedAt": 1794689368702,
+        "wroteAt": 1794689368703,
+        "endAt": 1794689369014,
+        "wallMs": 318,
+        "wallMsWithoutGrace": 7,
+        "maxRSS_KB": 69180,
+        "bytes": 123
+      },
+      "latencyToTranscriptMs": 2316,
+      "latencyToFirstStreamEventMs": 338,
+      "firstEventType": "command_lifecycle",
+      "latencyToAssistantMs": 2296,
+      "latencyToResultMs": 2316,
+      "answered": true,
+      "answer": " | ack-T1-1"
+    },
+    {
+      "i": 2,
+      "sender": {
+        "startedAt": 1794689375087,
+        "beforeConnect": 1794689375094,
+        "connectedAt": 1794689375095,
+        "wroteAt": 1794689375097,
+        "endAt": 1794689375398,
+        "wallMs": 311,
+        "wallMsWithoutGrace": 10,
+        "maxRSS_KB": 69196,
+        "bytes": 123
+      },
+      "latencyToTranscriptMs": 1207,
+      "latencyToFirstStreamEventMs": 325,
+      "firstEventType": "command_lifecycle",
+      "latencyToAssistantMs": 1158,
+      "latencyToResultMs": 1176,
+      "answered": true,
+      "answer": " | ack-T1-2"
+    },
+    {
+      "i": 3,
+      "sender": {
+        "startedAt": 1794689380356,
+        "beforeConnect": 1794689380362,
+        "connectedAt": 1794689380363,
+        "wroteAt": 1794689380364,
+        "endAt": 1794689380671,
+        "wallMs": 315,
+        "wallMsWithoutGrace": 8,
+        "maxRSS_KB": 69376,
+        "bytes": 123
+      },
+      "latencyToTranscriptMs": 1163,
+      "latencyToFirstStreamEventMs": 325,
+      "firstEventType": "command_lifecycle",
+      "latencyToAssistantMs": 1109,
+      "latencyToResultMs": 1132,
+      "answered": true,
+      "answer": " | ack-T1-3"
+    },
+    {
+      "i": 4,
+      "sender": {
+        "startedAt": 1794689385569,
+        "beforeConnect": 1794689385575,
+        "connectedAt": 1794689385575,
+        "wroteAt": 1794689385576,
+        "endAt": 1794689385890,
+        "wallMs": 321,
+        "wallMsWithoutGrace": 7,
+        "maxRSS_KB": 69224,
+        "bytes": 123
+      },
+      "latencyToTranscriptMs": 1166,
+      "latencyToFirstStreamEventMs": 331,
+      "firstEventType": "command_lifecycle",
+      "latencyToAssistantMs": 1155,
+      "latencyToResultMs": 1170,
+      "answered": true,
+      "answer": " | ack-T1-4"
+    },
+    {
+      "i": 5,
+      "sender": {
+        "startedAt": 1794689390833,
+        "beforeConnect": 1794689390842,
+        "connectedAt": 1794689390843,
+        "wroteAt": 1794689390845,
+        "endAt": 1794689391162,
+        "wallMs": 329,
+        "wallMsWithoutGrace": 12,
+        "maxRSS_KB": 69224,
+        "bytes": 123
+      },
+      "latencyToTranscriptMs": 1113,
+      "latencyToFirstStreamEventMs": 446,
+      "firstEventType": "command_lifecycle",
+      "latencyToAssistantMs": 1089,
+      "latencyToResultMs": 1138,
+      "answered": true,
+      "answer": " | ack-T1-5"
+    }
+  ],
+  "registry": {
+    "spawnPid": 66728,
+    "registryPid": 66728,
+    "keys": [
+      "asksForConvertedSkills",
+      "cwd",
+      "entrypoint",
+      "kind",
+      "messagingSocketPath",
+      "name",
+      "nameSince",
+      "nameSource",
+      "peerFeatures",
+      "peerProtocol",
+      "pid",
+      "pidDomain",
+      "procStart",
+      "sessionId",
+      "startedAt",
+      "version"
+    ]
+  },
+  "idle": {
+    "processes": 2,
+    "wsMB": 229.37109375,
+    "privMB": 435.75390625,
+    "procs": [
+      "claude.exe:66728",
+      "conhost.exe:49356"
+    ]
+  },
+  "summary": {
+    "transcript": {
+      "n": 5,
+      "min": 1113,
+      "median": 1166,
+      "max": 2316
+    },
+    "firstEvent": {
+      "n": 5,
+      "min": 325,
+      "median": 331,
+      "max": 446
+    },
+    "assistant": {
+      "n": 5,
+      "min": 1089,
+      "median": 1155,
+      "max": 2296
+    },
+    "result": {
+      "n": 5,
+      "min": 1132,
+      "median": 1170,
+      "max": 2316
+    },
+    "senderWallMs": {
+      "n": 5,
+      "min": 311,
+      "median": 318,
+      "max": 329
+    },
+    "senderWallNoGraceMs": {
+      "n": 5,
+      "min": 7,
+      "median": 8,
+      "max": 12
+    },
+    "senderMaxRSS_KB": {
+      "n": 5,
+      "min": 69180,
+      "median": 69224,
+      "max": 69376
+    }
+  },
+  "exitCode": 0,
+  "stderr": ""
+}

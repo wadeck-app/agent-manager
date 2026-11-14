@@ -1,0 +1,149 @@
+[
+  {
+    "withWaiter": false,
+    "n": 1,
+    "rows": [
+      {
+        "label": "t5-without-n1-1",
+        "processes": 2,
+        "names": "claude.exe,conhost.exe",
+        "nodeProcs": 0,
+        "wsMB": 225.9296875,
+        "privMB": 418.88671875,
+        "claudePrivMB": 412.48828125,
+        "claudeWsMB": 213.59375,
+        "nodeWsMB": 0,
+        "nodePrivMB": 0
+      }
+    ],
+    "waiterLogs": null,
+    "exitCodes": [
+      0
+    ],
+    "leftoverWaiterPids": [],
+    "totalPrivMB": 418.88671875,
+    "totalWsMB": 225.9296875
+  },
+  {
+    "withWaiter": true,
+    "n": 1,
+    "rows": [
+      {
+        "label": "t5-with-n1-1",
+        "processes": 6,
+        "names": "claude.exe,conhost.exe,bash.exe,conhost.exe,bash.exe,node.exe",
+        "nodeProcs": 1,
+        "wsMB": 319.55859375,
+        "privMB": 468.8203125,
+        "claudePrivMB": 428.44140625,
+        "claudeWsMB": 215.01953125,
+        "nodeWsMB": 66.83203125,
+        "nodePrivMB": 20.4609375
+      }
+    ],
+    "waiterLogs": [
+      {
+        "maxRSS_KB": 68468,
+        "cpuUs": 61000,
+        "hbCount": 15
+      }
+    ],
+    "exitCodes": [
+      null
+    ],
+    "leftoverWaiterPids": [
+      48864
+    ],
+    "totalPrivMB": 468.8203125,
+    "totalWsMB": 319.55859375
+  },
+  {
+    "withWaiter": false,
+    "n": 2,
+    "rows": [
+      {
+        "label": "t5-without-n2-1",
+        "processes": 2,
+        "names": "claude.exe,conhost.exe",
+        "nodeProcs": 0,
+        "wsMB": 226.02734375,
+        "privMB": 428.1953125,
+        "claudePrivMB": 421.8046875,
+        "claudeWsMB": 213.6953125,
+        "nodeWsMB": 0,
+        "nodePrivMB": 0
+      },
+      {
+        "label": "t5-without-n2-2",
+        "processes": 2,
+        "names": "claude.exe,conhost.exe",
+        "nodeProcs": 0,
+        "wsMB": 229.59375,
+        "privMB": 443.55078125,
+        "claudePrivMB": 437.171875,
+        "claudeWsMB": 217.26171875,
+        "nodeWsMB": 0,
+        "nodePrivMB": 0
+      }
+    ],
+    "waiterLogs": null,
+    "exitCodes": [
+      0,
+      0
+    ],
+    "leftoverWaiterPids": [],
+    "totalPrivMB": 871.74609375,
+    "totalWsMB": 455.62109375
+  },
+  {
+    "withWaiter": true,
+    "n": 2,
+    "rows": [
+      {
+        "label": "t5-with-n2-1",
+        "processes": 6,
+        "names": "claude.exe,conhost.exe,bash.exe,conhost.exe,bash.exe,node.exe",
+        "nodeProcs": 1,
+        "wsMB": 319.05078125,
+        "privMB": 472.3046875,
+        "claudePrivMB": 432.28515625,
+        "claudeWsMB": 214.7421875,
+        "nodeWsMB": 66.578125,
+        "nodePrivMB": 20.07421875
+      },
+      {
+        "label": "t5-with-n2-2",
+        "processes": 6,
+        "names": "claude.exe,conhost.exe,bash.exe,conhost.exe,bash.exe,node.exe",
+        "nodeProcs": 1,
+        "wsMB": 321.9765625,
+        "privMB": 487.078125,
+        "claudePrivMB": 446.93359375,
+        "claudeWsMB": 217.67578125,
+        "nodeWsMB": 66.6015625,
+        "nodePrivMB": 20.23828125
+      }
+    ],
+    "waiterLogs": [
+      {
+        "maxRSS_KB": 68220,
+        "cpuUs": 46000,
+        "hbCount": 16
+      },
+      {
+        "maxRSS_KB": 68236,
+        "cpuUs": 46000,
+        "hbCount": 15
+      }
+    ],
+    "exitCodes": [
+      null,
+      null
+    ],
+    "leftoverWaiterPids": [
+      47300
+    ],
+    "totalPrivMB": 959.3828125,
+    "totalWsMB": 641.02734375
+  }
+]
