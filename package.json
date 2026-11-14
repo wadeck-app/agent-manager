@@ -1,0 +1,24 @@
+{
+  "name": "@wadeck-app/agent-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace=packages/agent-manager-cli",
+    "test": "vitest run --config test-support/vitest.config.ts && npm run test --workspace=packages/agent-manager-cli",
+    "bundle": "npm run bundle --workspace=packages/agent-manager-cli",
+    "build-launcher": "npm run build-launcher --workspace=packages/agent-manager-cli",
+    "clean": "npm run clean --workspace=packages/agent-manager-cli",
+    "preversion": "npm test"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.0",
+    "vitest": "^4.0.14"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

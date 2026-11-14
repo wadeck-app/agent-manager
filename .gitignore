@@ -2,3 +2,15 @@
 .claude/session/
 *.pid
 node_modules/
+dist/
+dist-bundle/
+dist-types/
+*.tsbuildinfo
+*.log
+# Protected directory for secrets (.env.local, credentials, tokens)
+_secrets_/
+# Git Bash (MSYS2) crash dumps
+*.stackdump
+# Go launcher binaries and the packages generated for publishing (ci/scripts)
+launcher-go/
+packages/agent-manager-cli-*/

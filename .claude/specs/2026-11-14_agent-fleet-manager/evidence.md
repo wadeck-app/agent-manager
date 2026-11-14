@@ -99,6 +99,13 @@ Mark `[V]` when I re-read the source myself; otherwise `agent report`.
 
 - The summary figure "Read round trip 751-831 ms" (T2) is the span from the `tool_use` event to the final `result`, so it includes the second model call. Raw timeline: `tool_result` arrives 33 ms after `tool_use`. Full detail: `research/poc-report.md` (the PoC report lives there, not in `poc/REPORT.md`)
 
+## M1 skeleton code review (code-review medium, 10 findings; reviewer read the staged diff)
+
+- Fixed in agent-manager: `main()` had no `.catch` (now exit 70 with a report hint); `args.ts` option lookup now `Object.hasOwn`
+- Inherited unchanged from `project` (same lines verified: `main.ts:34`, `args.ts:53`), left for parity and not fixed here: background update scheduled after `cli rollback`/`cli update` (UNVERIFIED whether shared-updater guards it); `splitCommand` cannot skip option values (no command has value options yet); `noticeGlue` `isInterrupted` treats a missing timestamp as infinitely old and `readAndClearState` drops a `deferred` state; updater crash with `UPDATER_FORCE` unset is lost (`stdio: 'ignore'`, no failed state); `withoutCommand` help for `agent-manager <unknown> --help`; shim chooses launcher by `args[0] !== 'start'`
+- Inherited from `ci-templates`: `generate-platform-packages.sh` documented default PLATFORMS (all three) differs from the code default and from `copy-binaries.sh`; the workflow always sets `PLATFORMS` explicitly, so CI is unaffected
+- These belong to the sibling owners (project-owner, ci-templates): facts to send once CI is green
+
 ## Pending
 
 - Four research agents running: sibling CLIs, app-core, hooks + w-guardrails, market survey. Results are `agent report` until verified.

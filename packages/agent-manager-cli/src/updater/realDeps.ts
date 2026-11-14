@@ -1,0 +1,30 @@
+import { cacheFilePath, execNpm, readCache, readState, runUpdater, stateFilePath, writeState } from '@wadeck-app/shared-updater';
+import { defaultConfigDir } from '../configDir.js';
+import type { UpdaterDeps } from './runAgentManagerUpdater.js';
+
+// Imported by the updater bundle (500 KB guard): the real wiring, nothing of the CLI runtime.
+
+/** The folder of the updater: the config folder of the CLI, its state, cache and logs live there. */
+export const updaterConfigDir = (env: NodeJS.ProcessEnv): string => defaultConfigDir(env);
+
+/** The dependencies of the updater as they are in production. Tests replace `runUpdater` (the install) and the writers, nothing else. */
+export function realUpdaterDeps(env: NodeJS.ProcessEnv, configDir: string, version: string): UpdaterDeps {
+  const cacheFile = cacheFilePath(configDir);
+  const stateFile = stateFilePath(configDir);
+  return {
+    env,
+    configDir,
+    version,
+    nodePath: process.execPath,
+    npmRootGlobal: () => execNpm(['root', '-g'], { timeout: 10_000 }),
+    runUpdater,
+    readCache: () => readCache(cacheFile),
+    readState: () => readState(stateFile),
+    cacheFile,
+    stateFile,
+    writeState: (state) => writeState(stateFile, state),
+    now: () => Date.now(),
+    stdout: (line) => process.stdout.write(`${line}\n`),
+    stderr: (line) => process.stderr.write(`${line}\n`),
+  };
+}

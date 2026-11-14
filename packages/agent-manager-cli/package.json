@@ -1,0 +1,31 @@
+{
+  "name": "agent-manager-cli",
+  "version": "0.0.1",
+  "description": "Source package of the agent-manager command. Published as the generated @wadeck-app/agent-manager-cli (see ci/)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --build tsconfig.json",
+    "bundle": "tsx ci/scripts/bundle.ts",
+    "build-launcher": "node ci/scripts/build-launcher.mjs",
+    "test": "vitest run --bail=1",
+    "test:watch": "vitest",
+    "clean": "rimraf dist dist-bundle launcher-go"
+  },
+  "dependencies": {
+    "@wadeck-app/shared-cli": "latest",
+    "@wadeck-app/shared-updater": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@wadeck-app/singleton-daemon-kit": "latest",
+    "esbuild": "^0.27.2",
+    "rimraf": "^6.0.1",
+    "tsx": "^4.7.0",
+    "typescript": "^7.0.0",
+    "vitest": "^4.0.14"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

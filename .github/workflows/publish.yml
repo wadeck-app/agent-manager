@@ -1,0 +1,222 @@
+name: CI / Publish
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Stable version (e.g. 1.2.0)'
+                required: false
+                default: ''
+            breaking:
+                description: 'Breaking change? (true/false)'
+                required: false
+                default: 'false'
+
+permissions:
+    contents: read
+    packages: write
+
+# One run per ref at a time, in push order: two quick pushes to main must not publish out of order.
+# A run is never cancelled on main (a half-finished publish would leave the registry inconsistent);
+# GitHub keeps only the newest waiting run, so an older waiting run is reported "cancelled" (it is superseded by the newer commit).
+# Pull request runs are cancelled by a newer push to the same pull request.
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+    # The CLI runs on every developer machine: build and test it on all three OS
+    build-and-test:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: '24'
+                  registry-url: 'https://npm.pkg.github.com'
+                  scope: '@wadeck-app'
+
+            - name: Install dependencies
+              run: npm ci
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build TypeScript
+              run: npm run build
+
+            # The log is kept to put its end in an annotation: the job logs are not readable without admin rights
+            - name: Run tests
+              shell: bash
+              run: |
+                  set -o pipefail
+                  npm test 2>&1 | tee "${{ runner.temp }}/tests.log"
+
+            - name: Annotate the failure of the tests
+              if: failure()
+              shell: bash
+              run: node packages/agent-manager-cli/ci/scripts/annotate-failure.mjs "tests (${{ matrix.os }})" "${{ runner.temp }}/tests.log"
+
+    publish:
+        needs: [build-and-test]
+        # Only main publishes, whether the run comes from a push or a manual dispatch (a dispatch on a branch or a tag must not publish)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        runs-on: ubuntu-latest
+        # The version that was published: verify-install installs exactly this one
+        outputs:
+            version: ${{ steps.version.outputs.version }}
+        steps:
+            - uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: '24'
+                  registry-url: 'https://npm.pkg.github.com'
+                  scope: '@wadeck-app'
+
+            # The Go launcher is built by the build.sh of @wadeck-app/singleton-daemon-kit
+            - uses: actions/setup-go@v5
+              with:
+                  go-version: '1.26'
+
+            - name: Install dependencies
+              run: npm ci
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build TypeScript
+              run: npm run build
+
+            - name: Build Go launchers
+              run: npm run build-launcher
+
+            # Unpinned on purpose, as in the sibling repositories: wadeck-app/ci-templates has no tag or release to pin to. Pin to a sha or a tag once it publishes one.
+            - name: Compute version
+              id: version
+              uses: wadeck-app/ci-templates/.github/actions/compute-version@main
+              with:
+                  version-input: ${{ github.event.inputs.version || '' }}
+                  breaking-input: ${{ github.event.inputs.breaking || 'false' }}
+
+            - name: Bundle
+              run: npm run bundle
+              env:
+                  BUNDLE_VERSION: ${{ steps.version.outputs.version }}
+
+            # Windows, Apple silicon and Linux x64 only: the shim refuses every other host with a clear message.
+            # PKG_VERSION pins the platform packages to this build: the range >=0.0.0-0 does not match a prerelease version, so npm would install none
+            - name: Generate platform package directories
+              env:
+                  PLATFORMS: win32-x64,darwin-arm64,linux-x64
+                  PKG_VERSION: ${{ steps.version.outputs.version }}
+              run: bash packages/agent-manager-cli/ci/scripts/generate-platform-packages.sh agent-manager
+
+            - name: Copy artifacts to platform packages
+              run: bash packages/agent-manager-cli/ci/scripts/copy-binaries.sh
+
+            # A launcher packed without its exec bit makes every command fail on macOS and Linux (it happened to the task CLI on macOS): refuse to publish it
+            - name: Check the exec bit of the packed macOS and Linux launchers and shim
+              run: |
+                  out="$(mktemp -d)"
+                  (cd packages/agent-manager-cli-darwin-arm64 && npm pack --silent --pack-destination "$out" >/dev/null)
+                  (cd packages/agent-manager-cli-linux-x64 && npm pack --silent --pack-destination "$out" >/dev/null)
+                  (cd packages/agent-manager-cli-dist && npm pack --silent --pack-destination "$out" >/dev/null)
+                  fail=0
+                  for t in "$out"/*.tgz; do
+                    for line in $(tar -tvzf "$t" | grep -E 'package/(agent-manager|bin/agent-manager\.js)$' | awk '{print $1 "@" $NF}'); do
+                      mode="${line%%@*}"
+                      case "$mode" in *x*x*x*) echo "ok   $mode ${line#*@} ($(basename "$t"))" ;; *) echo "FAIL $mode ${line#*@} ($(basename "$t")): no exec bit" >&2; fail=1 ;; esac
+                    done
+                  done
+                  test "$fail" = 0
+
+            - name: Set version in all generated packages
+              run: |
+                  for pkg in agent-manager-cli-dist agent-manager-cli-win32-x64 agent-manager-cli-darwin-arm64 agent-manager-cli-linux-x64; do
+                    (cd "packages/$pkg" && npm pkg set version="${{ steps.version.outputs.version }}")
+                  done
+
+            # What gets published must run and know its version, or the auto-update of the installed CLIs would loop on it
+            - name: Verify the generated bundle prints the stamped version
+              # The stamped bundle schedules a background update after each command: keep it away from the real config folder and switch it off
+              env:
+                  XDG_CONFIG_HOME: ${{ runner.temp }}/agent-manager-cli-check
+              run: |
+                  mkdir -p "$XDG_CONFIG_HOME/agent-manager"
+                  echo "autoUpdate: false" > "$XDG_CONFIG_HOME/agent-manager/config.yml"
+                  expected="${{ steps.version.outputs.version }}"
+                  actual="$(node packages/agent-manager-cli-dist/agent-manager.cjs --version)"
+                  if [ "$actual" != "$expected" ]; then
+                    echo "::error::agent-manager.cjs --version printed '$actual', expected '$expected'"
+                    exit 1
+                  fi
+                  node packages/agent-manager-cli-dist/agent-manager.cjs cli self-check
+
+            - name: Publish platform packages
+              run: |
+                  for pkg in agent-manager-cli-win32-x64 agent-manager-cli-darwin-arm64 agent-manager-cli-linux-x64; do
+                    (cd "packages/$pkg" && npm publish --tag ${{ steps.version.outputs.dist_tag }})
+                  done
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Publish main package (@wadeck-app/agent-manager-cli)
+              working-directory: packages/agent-manager-cli-dist
+              run: npm publish --tag ${{ steps.version.outputs.dist_tag }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # What was just published is installed from the registry on the three systems, in an isolated temp environment (npm prefix, config folder, home).
+    # Skipped when publish did not run. The same scripts can be run locally: see the header of verify-install.sh.
+    verify-install:
+        needs: [publish]
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        runs-on: ${{ matrix.os }}
+        permissions:
+            contents: read
+            packages: read
+        defaults:
+            run:
+                shell: bash
+        steps:
+            - uses: actions/checkout@v5
+
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: '24'
+                  registry-url: 'https://npm.pkg.github.com'
+                  scope: '@wadeck-app'
+
+            - name: Install the published version and check it works (install, --version, self-check, explicit failures of the unimplemented commands)
+              run: |
+                  set -o pipefail
+                  bash packages/agent-manager-cli/ci/scripts/verify-install.sh "${{ needs.publish.outputs.version }}" 2>&1 | tee "${{ runner.temp }}/verify-install.log"
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Annotate the failure of the install check
+              if: failure()
+              run: node packages/agent-manager-cli/ci/scripts/annotate-failure.mjs "verify-install (${{ matrix.os }})" "${{ runner.temp }}/verify-install.log"
+
+            - name: Update from the previous published version, roll back, update again
+              run: |
+                  set -o pipefail
+                  bash packages/agent-manager-cli/ci/scripts/verify-update.sh "${{ needs.publish.outputs.version }}" 2>&1 | tee "${{ runner.temp }}/verify-update.log"
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Annotate the failure of the update check
+              if: failure()
+              run: node packages/agent-manager-cli/ci/scripts/annotate-failure.mjs "verify-update (${{ matrix.os }})" "${{ runner.temp }}/verify-update.log"

@@ -1,0 +1,1 @@
+{ "appName": "agent-manager", "displayName": "Agent Manager CLI", "nodeScript": "agent-manager.cjs", "defaultConfigDir": "agent-manager", "cliFlags": [] }
