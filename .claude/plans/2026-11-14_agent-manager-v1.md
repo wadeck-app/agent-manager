@@ -38,7 +38,7 @@ Parked and not planned: v2 (bypass UI), v3 (MCP questions), v4 (OpenCode/Codex).
 
 | Item | Detail |
 |---|---|
-| Work | (1) hook-spawn cost: a stub hook (same bundle shape as the CLI) on the events of M2, measure wall time per call and CPU, with 1 then 2 sessions; (2) interactive-session check: socket wake, `asyncRewake` wake/re-arm, hot-wait in one **interactive** session (needs the user to launch it with a provided `--settings` file; the harness cannot allocate a TTY) ; (3) plain `async: true` observer does not delay the turn; (4) default-timeout behavior read from the docs and tested once with a short value; (5) `Read` of an out-of-project image path in default permission mode; (6) re-run the socket contract on 2.1.325 only with user approval (about 15 model turns) |
+| Work | (1) hook-spawn cost: a stub hook (same bundle shape as the CLI) on the events of M2, measure node cold start wall time and CPU per call on Windows, with 1 then 2 sessions, and extrapolate to the PostToolUse volume seen in w-warp logs (256k events with an `agent_id`; `research/w-warp-herdr-hooks.md`); measure the alternative of one long-lived forwarder and, if available, an HTTP hook (availability UNVERIFIED) and pick one before M2; (2) interactive-session check: socket wake, `asyncRewake` wake/re-arm, hot-wait in one **interactive** session (needs the user to launch it with a provided `--settings` file; the harness cannot allocate a TTY) ; (3) plain `async: true` observer does not delay the turn; (4) default-timeout behavior read from the docs and tested once with a short value; (5) `Read` of an out-of-project image path in default permission mode; (6) re-run the socket contract on 2.1.325 only with user approval (about 15 model turns) |
 | Exit | numbers and a verdict per gap written into `research/poc-report.md` (new section); decision 16 confirmed or revised in `_index.md` |
 | Tests | scripts under `poc/scripts`, results under `poc/results`; no process left (`alive.js`) |
 | Limits | at most 2 concurrent headless sessions; message only sessions the scripts started |
@@ -58,7 +58,8 @@ Parked and not planned: v2 (bypass UI), v3 (MCP questions), v4 (OpenCode/Codex).
 | Item | Detail |
 |---|---|
 | Work | plugin `hooks.json` (async observers); `hook <event>` forwarding; session store; state model; registry reader with `procStart` liveness; `sessions`, `doctor` hook checks; UI fleet list (YAML) with state badges and the navbar "waiting" count |
-| Verify | event -> state mapping against real payloads captured from the user's live sessions (read-only, by reference); record Stop/SubagentStop/Notification/SessionEnd fields in `research/` |
+| Verify | event -> state mapping against real payloads captured from the user's live sessions (read-only, by reference) and stored as fixtures recorded under a throwaway `HOME`; record Stop/SubagentStop/Notification/SessionEnd/StopFailure/MessageDisplay fields in `research/` (log undocumented events at full length) |
+| State rules | sub-agent events (`agent_id`) never change main-session state; leave waiting-permission via PostToolUse/PostToolUseFailure/UserPromptSubmit/Stop/PermissionDenied plus a timeout fallback (manual deny fires no hook); waiting-user from Stop, `idle_prompt` only refines; error never from failures alone; hooks fail open (exit 0, never 2), no sleeps, no extra spawns |
 | Exit | `sessions` lists all live sessions with correct states during normal use; killing a session marks it ended; missing plugin shows the banner and a `doctor` error with the install command |
 | Tests | fixture payloads per event; liveness test with a reused-pid simulation; hook CLI always exits 0 even with the daemon down (failure logged) |
 

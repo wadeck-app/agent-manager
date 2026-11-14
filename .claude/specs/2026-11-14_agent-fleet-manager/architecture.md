@@ -92,17 +92,22 @@ The module backend reads state files directly (queue pattern) and calls the daem
 | Idle shutdown | proposed: when no live session is registered for a grace period (value TBD at M1); queue uses 60 s with no pending work |
 | Hook ingress | `POST /hook` small JSON `{event, payload ref}`; payloads stored by reference (decision 10) |
 
-### State model (decision 14; the event -> state mapping is UNVERIFIED on real payloads, M2 checks it)
+### State model (decision 14, refined by `research/w-warp-herdr-hooks.md`; the event -> state mapping is still UNVERIFIED on real payloads, M2 checks it)
 
 | State | Entered by (proposed) |
 |---|---|
-| starting | SessionStart |
-| working | UserPromptSubmit, PreToolUse, PostToolUse |
+| starting | SessionStart (`source` startup/resume/clear/compact/fork kept, matcher `^(startup\|resume\|clear\|compact\|fork)$` as herdr) |
+| working | UserPromptSubmit, PreToolUse, PostToolUse (main session only) |
 | waiting-permission | PermissionRequest, Notification `permission_prompt` |
-| waiting-user | Notification `idle_prompt`, `elicitation_dialog`, `agent_needs_input` |
-| idle | Stop (turn ended) |
-| error | StopFailure |
-| ended | SessionEnd, or registry entry dead (liveness) |
+| waiting-user | Stop (turn ended, waiting for the user); Notification `idle_prompt` (~60 s late timer) only refines, `elicitation_dialog`, `agent_needs_input` |
+| idle | Stop with nothing pending, refined by `idle_prompt` |
+| error | StopFailure with a confirmed error type (fields UNVERIFIED); PostToolUseFailure alone never means error (2,460 in w-warp logs) |
+| ended | SessionEnd (fields UNVERIFIED), or registry entry dead (liveness) |
+
+Rules from the w-warp/herdr study:
+- **Sub-agents:** every event is tagged with `agent_id` and `agent_type`; events with an `agent_id` never change the main session's state, they update a child entry (PostToolUse, PostToolUseFailure, PermissionRequest and StopFailure carry it; Stop and session-level events did not in 17,447 Stop runs).
+- **Leaving waiting-permission:** PostToolUse, PostToolUseFailure, UserPromptSubmit, Stop and PermissionDenied (auto-mode denials only). A manual deny fires no hook (w-warp README:113), so the state also expires by a timeout fallback (value set at M2) and shows "unconfirmed" instead of staying blocked forever.
+- **Volume:** PostToolUse is the largest stream (256k events with an `agent_id` in w-warp logs); the daemon coalesces them per session.
 
 The registry `status` field is a cross-check and the fallback when hooks are missing (the UI shows a "hooks missing" banner, never a silent downgrade).
 
@@ -186,7 +191,15 @@ Files use locked or atomic writes (`FileLock`, atomic rename).
 
 ### Hooks plugin (decisions 13, 16)
 
-`hooks.json` registers: SessionStart, SessionEnd, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, Notification, Stop, StopFailure, SubagentStart, SubagentStop as plain `async: true` observers; reply hooks (`hotwait` on Stop, `asyncRewake` waiter) are separate entries enabled only when that transport is selected. PreToolUse and PermissionRequest observers must never return a decision (w-guardrails owns decisions). Coexists with existing hooks (w-warp, w-command-log, herdr, w-guardrails): all matching hooks run, so overlap with w-warp's state hooks is accepted for now (open question). Event payload fields for Stop, SubagentStop, PreCompact, SessionEnd, Notification are UNVERIFIED (M2).
+`hooks.json` registers: SessionStart, SessionEnd, UserPromptSubmit, PreToolUse, PostToolUse, PostToolUseFailure, PermissionRequest, Notification, Stop, StopFailure, SubagentStart, SubagentStop as plain `async: true` observers; reply hooks (`hotwait` on Stop, `asyncRewake` waiter) are separate entries enabled only when that transport is selected. PreToolUse and PermissionRequest observers must never return a decision (w-guardrails owns decisions). Coexists with existing hooks (w-warp, w-command-log, herdr, w-guardrails): all matching hooks run; overlap with w-warp and herdr is ignored (decision 23). Event payload fields for Stop, SubagentStop, PreCompact, SessionEnd, Notification, StopFailure, MessageDisplay are UNVERIFIED (M2).
+
+Rules from the w-warp/herdr study (`research/w-warp-herdr-hooks.md`, decision 25):
+- **Fail-open:** the hook wraps everything, exits 0 on bad JSON or an absent daemon, and never exits 2 for an observer; failures are logged and surfaced by `doctor` and the UI banner, never swallowed silently.
+- **Raw payloads:** undocumented events (SessionEnd, StopFailure, MessageDisplay, SubagentStart/Stop) are logged at full length (w-warp's 180-char cap hid the key set); captured payloads become test fixtures, recorded under a throwaway `HOME`.
+- **No sleeps, no extra spawns** in a hook (w-warp sleeps 300 ms/2 s and spawns `claude --version`); the daemon reads the transcript on Stop with a short retry if it is not flushed.
+- **Paths:** `${CLAUDE_PLUGIN_ROOT}` works only in plugin hooks; a global (settings.json) hook needs an absolute path.
+- **Matchers:** no wildcard matcher with a fail-closed hook (a crashing hook locked out every session, `kb/lessons-learned.md:5-7`).
+- **Spawn cost (UNVERIFIED, M0):** a node process per event is what w-warp does without measuring; with 256k PostToolUse events in its logs it may add up. M0 measures node cold start on Windows; alternatives: one long-lived forwarder, or an HTTP hook if available (UNVERIFIED).
 
 ## Parked
 
