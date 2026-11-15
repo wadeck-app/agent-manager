@@ -26,6 +26,8 @@
   --am-dot: 10px;
   --am-hit: 36px;
   --am-row: 52px;
+  --am-aside: 320px;
+  --am-log-max: 1152px;
 }
 
 .agents-scope[data-density='s'] {
@@ -43,6 +45,8 @@
   --am-dot: 8px;
   --am-hit: 32px;
   --am-row: 44px;
+  --am-aside: 288px;
+  --am-log-max: 1100px;
 }
 
 .agents-scope[data-density='l'] {
@@ -60,4 +64,25 @@
   --am-dot: 12px;
   --am-hit: 40px;
   --am-row: 60px;
+  --am-aside: 384px;
+  --am-log-max: 1400px;
+}
+
+.agents-scope[data-density='ml'] {
+  --am-fs-xs: 13px;
+  --am-lh-xs: 19px;
+  --am-fs-sm: 16px;
+  --am-lh-sm: 23px;
+  --am-fs-base: 17px;
+  --am-lh-base: 25px;
+  --am-fs-mono: 15px;
+  --am-lh-mono: 22px;
+  --am-lh-log: 1.55;
+  --am-icon: 22px;
+  --am-icon-sm: 17px;
+  --am-dot: 11px;
+  --am-hit: 38px;
+  --am-row: 56px;
+  --am-aside: 352px;
+  --am-log-max: 1260px;
 }

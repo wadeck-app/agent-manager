@@ -1,16 +1,22 @@
 import { ALargeSmall } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { DENSITIES, DENSITY_LABEL, setDensity, useDensity } from './density.js';
-import { densityHint } from './densityScale.js';
+import { DENSITY_LABEL, DENSITY_SETTINGS, setDensity, useDensity, useDensitySetting, type Density, type DensitySetting } from './density.js';
+import { autoHint, densityHint } from './densityScale.js';
 import { FOCUS_RING, ICON_BUTTON_CLASS } from './IconButton.js';
 import { Tooltip } from './Tooltip.js';
+
+/** The label of a choice: `auto` says what it currently picks. */
+function choiceLabel(value: DensitySetting, resolved: Density): string {
+  return value === 'auto' ? `Auto (currently ${DENSITY_LABEL[resolved]})` : DENSITY_LABEL[value];
+}
 
 /**
  * The text size setting: an icon button and a small panel with the three sizes (a radio group, arrows move, Enter or Space picks, Escape closes and gives the
  * focus back to the button). The choice is kept in localStorage and applies to the whole page at once through the scope wrapper.
  */
 export function DensityControl() {
-  const density = useDensity();
+  const setting = useDensitySetting();
+  const resolved = useDensity();
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const box = useRef<HTMLDivElement>(null);
@@ -52,7 +58,7 @@ export function DensityControl() {
       return;
     }
     event.preventDefault();
-    const next = DENSITIES[(DENSITIES.indexOf(density) + step + DENSITIES.length) % DENSITIES.length];
+    const next = DENSITY_SETTINGS[(DENSITY_SETTINGS.indexOf(setting) + step + DENSITY_SETTINGS.length) % DENSITY_SETTINGS.length];
     if (next !== undefined) {
       setDensity(next);
       queueMicrotask(() => box.current?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')?.focus());
@@ -69,18 +75,18 @@ export function DensityControl() {
       {open ? (
         <div id={panelId} role="dialog" aria-label="Text size" className="absolute right-0 top-full z-30 mt-1 w-72 rounded-lg border border-border bg-surface p-2 shadow-lg">
           <div role="radiogroup" aria-label="Text size" onKeyDown={onRadioKeyDown} className="flex flex-col gap-1">
-            {DENSITIES.map((value) => (
+            {DENSITY_SETTINGS.map((value) => (
               <button
                 key={value}
                 type="button"
                 role="radio"
-                aria-checked={value === density}
-                tabIndex={value === density ? 0 : -1}
+                aria-checked={value === setting}
+                tabIndex={value === setting ? 0 : -1}
                 onClick={() => setDensity(value)}
-                className={`flex min-h-am-hit flex-col items-start justify-center rounded px-3 py-1 text-left text-sm ${value === density ? 'bg-primary-light text-content' : 'text-content hover:bg-muted-bg'} ${FOCUS_RING}`}
+                className={`flex min-h-am-hit flex-col items-start justify-center rounded px-3 py-1 text-left text-sm ${value === setting ? 'bg-primary-light text-content' : 'text-content hover:bg-muted-bg'} ${FOCUS_RING}`}
               >
-                <span className="font-medium">{DENSITY_LABEL[value]}</span>
-                <span className="text-xs text-muted">{densityHint(value)}</span>
+                <span className="font-medium">{choiceLabel(value, resolved)}</span>
+                <span className="text-xs text-muted">{value === 'auto' ? autoHint() : densityHint(value)}</span>
               </button>
             ))}
           </div>

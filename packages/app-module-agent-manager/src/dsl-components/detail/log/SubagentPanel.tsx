@@ -21,7 +21,7 @@ export function SubagentPanel({ subagents, note, selected, onSelect }: SubagentP
     return null;
   }
   return (
-    <aside aria-label="Sub-agents" className="flex min-h-0 w-80 shrink-0 flex-col border-l border-border">
+    <aside aria-label="Sub-agents" className="flex min-h-0 w-am-aside shrink-0 flex-col border-l border-border">
       <h3 className={`flex shrink-0 items-center gap-1.5 border-b border-border px-3 py-2 ${LOG_META} font-medium text-content`}>
         <Bot aria-hidden="true" className={LOG_ICON} />
         <span>

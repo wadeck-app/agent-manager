@@ -46,7 +46,7 @@ describe('the module stylesheet', () => {
   it('has every rule under the scope selector (only the wrapper rule is the bare scope)', async () => {
     const all = rules(await parsed);
     expect(all.length).toBeGreaterThan(100);
-    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !/^\.agents-scope\[data-density='[sml]'\]$/.test(selector) && !selector.startsWith(`${SCOPE} `));
+    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !/^\.agents-scope\[data-density='(?:s|m|ml|l)'\]$/.test(selector) && !selector.startsWith(`${SCOPE} `));
     expect(unscoped, 'rules outside the scope leak into the other modules (and lose to theirs); see build-css.ts').toEqual([]);
   });
 
@@ -54,7 +54,7 @@ describe('the module stylesheet', () => {
     const root = await parsed;
     const sizes: Record<string, Record<string, number>> = {};
     root.walkRules((rule) => {
-      const match = /^\.agents-scope\[data-density='([sml])'\]$/.exec(rule.selector);
+      const match = /^\.agents-scope\[data-density='(s|ml|l)'\]$/.exec(rule.selector);
       if (match?.[1] === undefined) {
         return;
       }
@@ -64,7 +64,7 @@ describe('the module stylesheet', () => {
       });
       sizes[match[1]] = vars;
     });
-    expect(Object.keys(sizes).sort()).toEqual(['l', 's']);
+    expect(Object.keys(sizes).sort()).toEqual(['l', 'ml', 's']);
     for (const vars of Object.values(sizes)) {
       for (const [name, px] of Object.entries(vars)) {
         expect(px, name).toBeGreaterThanOrEqual(12);
@@ -79,12 +79,12 @@ describe('the module stylesheet', () => {
 
   it('holds exactly the sizes of ui/densityScale.ts (the source of the popover hints) for every density', async () => {
     const root = await parsed;
-    for (const density of ['s', 'm', 'l'] as const) {
+    for (const density of ['s', 'm', 'ml', 'l'] as const) {
       const selector = density === 'm' ? new Set([SCOPE, `${SCOPE}[data-density='m']`]) : new Set([`${SCOPE}[data-density='${density}']`]);
       const found: Record<string, number> = {};
       root.walkRules((rule) => {
         if (rule.selectors.some((one) => selector.has(one))) {
-          rule.walkDecls(/^--am-(fs|icon|dot|hit|row)/, (decl) => {
+          rule.walkDecls(/^--am-(fs|icon|dot|hit|row|aside|log-max)/, (decl) => {
             found[decl.prop] = Number.parseFloat(decl.value);
           });
         }

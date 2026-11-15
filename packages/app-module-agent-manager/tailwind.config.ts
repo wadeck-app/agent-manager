@@ -40,12 +40,14 @@ export default {
         'am-dot': 'var(--am-dot)',
         'am-hit': 'var(--am-hit)',
         'am-row': 'var(--am-row)',
+        // The sub-agent panel grows with the text.
+        'am-aside': 'var(--am-aside)',
       },
       maxWidth: {
         // Comfortable measure of prose (about 100 characters).
         'am-prose': 'min(92%, 104ch)',
-        // The column of the log rows on a very wide pane: a time stays within reach of its label (72rem, 1152 px).
-        'am-log': '72rem',
+        // The column of the log rows on a very wide pane: a time stays within reach of its label (1152 px at M, up to 1400 px at L).
+        'am-log': 'var(--am-log-max)',
       },
     },
   },

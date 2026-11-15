@@ -1,24 +1,60 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_DENSITY, DENSITY_STORAGE_KEY, readDensity, resetDensityCache, setDensity } from './density.js';
+import {
+  AUTO_L_FROM_PX,
+  AUTO_ML_FROM_PX,
+  DEFAULT_SETTING,
+  DENSITY_STORAGE_KEY,
+  readSetting,
+  resetDensityCache,
+  resolveAuto,
+  resolveDensity,
+  setDensity,
+} from './density.js';
 import { DensityControl } from './DensityControl.js';
+import { autoHint, densityHint } from './densityScale.js';
 import { Scope } from './Scope.js';
+
+const REAL_WIDTH = window.innerWidth;
+
+function setWindowWidth(width: number): void {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+}
 
 beforeEach(() => {
   window.localStorage.clear();
   resetDensityCache();
 });
 afterEach(() => {
+  setWindowWidth(REAL_WIDTH);
   window.localStorage.clear();
   resetDensityCache();
 });
 
+function scopeOf(container: HTMLElement): HTMLElement {
+  const scope = container.querySelector<HTMLElement>('.agents-scope');
+  if (scope === null) {
+    throw new Error('no scope wrapper rendered');
+  }
+  return scope;
+}
+
 describe('density setting', () => {
-  it('defaults to M, and an invalid saved value counts as nothing saved', () => {
-    expect(DEFAULT_DENSITY).toBe('m');
-    expect(readDensity()).toBe('m');
+  it('defaults to auto, and an invalid saved value counts as nothing saved', () => {
+    expect(DEFAULT_SETTING).toBe('auto');
+    expect(readSetting()).toBe('auto');
     window.localStorage.setItem(DENSITY_STORAGE_KEY, 'huge');
-    expect(readDensity()).toBe('m');
+    expect(readSetting()).toBe('auto');
+  });
+
+  it('auto picks M below 1700 px, M plus from 1700 px, L from 2200 px; a chosen scale ignores the width', () => {
+    expect(resolveAuto(AUTO_ML_FROM_PX - 1)).toBe('m');
+    expect(resolveAuto(AUTO_ML_FROM_PX)).toBe('ml');
+    expect(resolveAuto(AUTO_L_FROM_PX - 1)).toBe('ml');
+    expect(resolveAuto(AUTO_L_FROM_PX)).toBe('l');
+    expect(resolveDensity('s', 2560)).toBe('s');
+    expect(resolveDensity('m', 2560)).toBe('m');
+    expect(resolveDensity('auto', 2560)).toBe('l');
   });
 
   it('is applied by the scope wrapper (data-density) and saved', () => {
@@ -27,18 +63,39 @@ describe('density setting', () => {
         <p>content</p>
       </Scope>,
     );
-    const scope = container.querySelector('.agents-scope');
-    expect(scope).toHaveAttribute('data-density', 'm');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'm');
     act(() => setDensity('l'));
-    expect(scope).toHaveAttribute('data-density', 'l');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'l');
     expect(window.localStorage.getItem(DENSITY_STORAGE_KEY)).toBe('l');
   });
 
-  it('is read from the storage at start', () => {
+  it('is computed from the window width on the very first render (no flash), and follows a resize', () => {
+    setWindowWidth(2560);
+    const { container } = render(<Scope>x</Scope>);
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'l');
+    act(() => {
+      setWindowWidth(1900);
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'ml');
+    act(() => {
+      setWindowWidth(1440);
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'm');
+  });
+
+  it('a stored S, M or L wins over the width', () => {
+    setWindowWidth(2560);
     window.localStorage.setItem(DENSITY_STORAGE_KEY, 's');
     resetDensityCache();
     const { container } = render(<Scope>x</Scope>);
-    expect(container.querySelector('.agents-scope')).toHaveAttribute('data-density', 's');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 's');
+    act(() => {
+      setWindowWidth(1200);
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(scopeOf(container)).toHaveAttribute('data-density', 's');
   });
 
   it('is changed from the keyboard in the popover of the toolbar button, and Escape gives the focus back', () => {
@@ -51,16 +108,37 @@ describe('density setting', () => {
     expect(button).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(button);
     const radios = screen.getAllByRole('radio');
-    expect(radios.map((radio) => radio.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false']);
-    // The checked one holds the focus and the tab stop.
-    expect(document.activeElement).toBe(radios[1]);
-    fireEvent.keyDown(radios[1] as HTMLElement, { key: 'ArrowDown' });
-    expect(container.querySelector('.agents-scope')).toHaveAttribute('data-density', 'l');
+    expect(radios.map((radio) => radio.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false', 'false']);
+    // The checked one (Auto, the default) holds the focus and the tab stop.
+    expect(document.activeElement).toBe(radios[0]);
+    fireEvent.keyDown(radios[0] as HTMLElement, { key: 'ArrowDown' });
+    expect(window.localStorage.getItem(DENSITY_STORAGE_KEY)).toBe('s');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 's');
+    fireEvent.keyDown(screen.getAllByRole('radio')[1] as HTMLElement, { key: 'ArrowDown' });
     fireEvent.keyDown(screen.getAllByRole('radio')[2] as HTMLElement, { key: 'ArrowDown' });
-    expect(container.querySelector('.agents-scope')).toHaveAttribute('data-density', 's');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'l');
+    // Around the end: back to Auto.
+    fireEvent.keyDown(screen.getAllByRole('radio')[3] as HTMLElement, { key: 'ArrowDown' });
+    expect(window.localStorage.getItem(DENSITY_STORAGE_KEY)).toBe('auto');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('radiogroup')).toBeNull();
     expect(document.activeElement).toBe(button);
+  });
+
+  it('the popover says what Auto currently is', () => {
+    setWindowWidth(2560);
+    render(
+      <Scope>
+        <DensityControl />
+      </Scope>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Text size' }));
+    expect(screen.getAllByRole('radio')[0]).toHaveTextContent('Auto (currently Large)');
+    act(() => {
+      setWindowWidth(1800);
+      window.dispatchEvent(new Event('resize'));
+    });
+    expect(screen.getAllByRole('radio')[0]).toHaveTextContent('Auto (currently Medium plus)');
   });
 });
 
@@ -81,34 +159,34 @@ describe('toolbar', () => {
 describe('density across tabs', () => {
   it('follows a change made in another tab (storage event), and a cleared storage', () => {
     const { container } = render(<Scope>x</Scope>);
-    const scope = container.querySelector('.agents-scope');
-    expect(scope).toHaveAttribute('data-density', 'm');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'm');
     // Another tab wrote the key: the browser fires `storage` here with the new value already in the storage.
     window.localStorage.setItem(DENSITY_STORAGE_KEY, 'l');
     act(() => {
       window.dispatchEvent(new StorageEvent('storage', { key: DENSITY_STORAGE_KEY, newValue: 'l' }));
     });
-    expect(scope).toHaveAttribute('data-density', 'l');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'l');
     // An unrelated key changes nothing.
     window.localStorage.setItem(DENSITY_STORAGE_KEY, 's');
     act(() => {
       window.dispatchEvent(new StorageEvent('storage', { key: 'something-else' }));
     });
-    expect(scope).toHaveAttribute('data-density', 'l');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'l');
     window.localStorage.clear();
     act(() => {
       window.dispatchEvent(new StorageEvent('storage', { key: null }));
     });
-    expect(scope).toHaveAttribute('data-density', 'm');
+    expect(scopeOf(container)).toHaveAttribute('data-density', 'm');
   });
 });
 
 describe('popover hints', () => {
-  it('are written from the table of sizes, the same three facts for every density', async () => {
-    const { densityHint } = await import('./densityScale.js');
+  it('are written from the table of sizes, the same three facts for every scale', () => {
     expect(densityHint('s')).toBe('14 px text, 18 px icons, rows from 44 px');
     expect(densityHint('m')).toBe('15 px text, 20 px icons, rows from 52 px');
+    expect(densityHint('ml')).toBe('16 px text, 22 px icons, rows from 56 px');
     expect(densityHint('l')).toBe('17 px text, 24 px icons, rows from 60 px');
+    expect(autoHint()).toBe('Follows the window: Medium plus from 1700 px wide, Large from 2200 px');
     render(
       <Scope>
         <DensityControl />
@@ -116,5 +194,6 @@ describe('popover hints', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Text size' }));
     expect(screen.getByRole('radio', { name: /Small/ })).toHaveTextContent(densityHint('s'));
+    expect(screen.getByRole('radio', { name: /Auto/ })).toHaveTextContent(autoHint());
   });
 });

@@ -1,73 +1,115 @@
 import { useSyncExternalStore } from 'react';
 
-/** The text and icon scale of the page. The values per setting are CSS variables (styles/agents.css, `.agents-scope[data-density=...]`). */
-export type Density = 's' | 'm' | 'l';
+/**
+ * The scale the page is drawn with: the CSS variables of one of these (styles/agents.css, `.agents-scope[data-density=...]`). `ml` ("Medium plus") sits between
+ * M and L: the jump from 15 to 17 px text is too big for a window that is a little too wide for M and not wide enough for L.
+ */
+export type Density = 's' | 'm' | 'ml' | 'l';
 
-export const DENSITIES: readonly Density[] = ['s', 'm', 'l'];
-export const DEFAULT_DENSITY: Density = 'm';
+/** What the user can choose: one scale, or `auto` (the scale follows the width of the window). */
+export type DensitySetting = 'auto' | 's' | 'm' | 'l';
+
+export const DENSITY_SETTINGS: readonly DensitySetting[] = ['auto', 's', 'm', 'l'];
+/** The default: nothing chosen means the scale follows the screen (a stored S, M or L always wins). */
+export const DEFAULT_SETTING: DensitySetting = 'auto';
 export const DENSITY_STORAGE_KEY = 'agent-manager.density';
-export const DENSITY_LABEL: Record<Density, string> = { s: 'Small', m: 'Medium', l: 'Large' };
+export const DENSITY_LABEL: Record<Density, string> = { s: 'Small', m: 'Medium', ml: 'Medium plus', l: 'Large' };
 
-function isDensity(value: unknown): value is Density {
-  return value === 's' || value === 'm' || value === 'l';
+/** Window widths (CSS px) from which `auto` picks the bigger scale: below 1700 M, from 1700 M plus, from 2200 L (a 1440p monitor is 2560 wide). */
+export const AUTO_ML_FROM_PX = 1700;
+export const AUTO_L_FROM_PX = 2200;
+
+/** The scale `auto` picks for a window of this width. */
+export function resolveAuto(width: number): Density {
+  return width >= AUTO_L_FROM_PX ? 'l' : width >= AUTO_ML_FROM_PX ? 'ml' : 'm';
+}
+
+/** The scale of a setting for a window of this width. */
+export function resolveDensity(setting: DensitySetting, width: number): Density {
+  return setting === 'auto' ? resolveAuto(width) : setting;
+}
+
+function isSetting(value: unknown): value is DensitySetting {
+  return value === 'auto' || value === 's' || value === 'm' || value === 'l';
 }
 
 /** The saved setting; the default when nothing valid is saved. A storage that throws (private mode) means "nothing saved". */
-export function readDensity(): Density {
+export function readSetting(): DensitySetting {
   try {
     const saved = window.localStorage.getItem(DENSITY_STORAGE_KEY);
-    return isDensity(saved) ? saved : DEFAULT_DENSITY;
+    return isSetting(saved) ? saved : DEFAULT_SETTING;
   } catch {
-    return DEFAULT_DENSITY;
+    return DEFAULT_SETTING;
   }
 }
 
 const listeners = new Set<() => void>();
-let current: Density | undefined;
+let current: DensitySetting | undefined;
 
-function snapshot(): Density {
-  current ??= readDensity();
+function setting(): DensitySetting {
+  current ??= readSetting();
   return current;
 }
 
+function notify(): void {
+  listeners.forEach((listener) => listener());
+}
+
 /** Applies and saves a setting. Every scope wrapper (the page and each portal) follows at once. */
-export function setDensity(next: Density): void {
+export function setDensity(next: DensitySetting): void {
   current = next;
   try {
     window.localStorage.setItem(DENSITY_STORAGE_KEY, next);
   } catch {
     // Not saved: the setting resets on reload. Nothing the user could fix, nothing worth an error banner.
   }
-  listeners.forEach((listener) => listener());
+  notify();
 }
 
 /** Forgets the in-memory value so the next read goes to the storage again (tests). */
 export function resetDensityCache(): void {
   current = undefined;
-  listeners.forEach((listener) => listener());
+  notify();
 }
 
-/** Another tab changed (or cleared) the saved setting: this tab follows, so two open tabs never show different sizes after a reload-free change. */
+/** Another tab changed (or cleared) the saved setting: this tab follows. */
 function onStorage(event: StorageEvent): void {
   if (event.key === null || event.key === DENSITY_STORAGE_KEY) {
-    current = readDensity();
-    listeners.forEach((listener) => listener());
+    current = readSetting();
+    notify();
   }
+}
+
+/** The window was resized: `auto` may now pick another scale (a subscriber only re-renders when the picked scale changes). */
+function onResize(): void {
+  notify();
 }
 
 function subscribe(listener: () => void): () => void {
   if (listeners.size === 0) {
     window.addEventListener('storage', onStorage);
+    window.addEventListener('resize', onResize);
   }
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
     if (listeners.size === 0) {
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('resize', onResize);
     }
   };
 }
 
+/** The scale in use. Computed from the window width on every read, so the first render already has the right one (no flash, no effect). */
 export function useDensity(): Density {
-  return useSyncExternalStore(subscribe, snapshot, () => DEFAULT_DENSITY);
+  return useSyncExternalStore(
+    subscribe,
+    () => resolveDensity(setting(), window.innerWidth),
+    () => 'm',
+  );
+}
+
+/** The setting the user made (`auto` by default). */
+export function useDensitySetting(): DensitySetting {
+  return useSyncExternalStore(subscribe, setting, () => DEFAULT_SETTING);
 }
