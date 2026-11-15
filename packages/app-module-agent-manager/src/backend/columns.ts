@@ -1,5 +1,5 @@
 import { harnessBadges, type SessionRow } from './present.js';
-import type { DslNode } from './cards.js';
+import type { DslNode } from './dslNode.js';
 
 /**
  * The columns of the sessions table. They are built by the route, not written in the view, because the badge map of the Harness column

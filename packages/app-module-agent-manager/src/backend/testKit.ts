@@ -2,6 +2,7 @@
 import { tmpdir } from 'node:os';
 import type { ModuleContext } from '@wadeck-app/app-core-sdk';
 import registerRoutes from './index.js';
+import type { ModuleOptions } from './replyRoutes.js';
 
 export interface Call {
   status: number;
@@ -25,7 +26,7 @@ interface Route {
 }
 
 /** A module context that only records the routes, and `call` runs one the way app-core's router does (method, segments, decoded params). */
-export function makeModule(setup: { dataDir?: string } = {}): { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[] } {
+export function makeModule(setup: { dataDir?: string; options?: ModuleOptions } = {}): { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[] } {
   const routes: Route[] = [];
   const ctx = {
     dataDir: setup.dataDir ?? tmpdir(),
@@ -33,7 +34,7 @@ export function makeModule(setup: { dataDir?: string } = {}): { call: (method: s
       routes.push({ method, segments: subPath.split('/').filter(Boolean), handler });
     },
   } as unknown as ModuleContext;
-  registerRoutes(ctx);
+  registerRoutes(ctx, setup.options);
 
   return {
     routes: routes.map((r) => `${r.method} /${r.segments.join('/')}`),

@@ -1,0 +1,4 @@
+/* The module's stylesheet. The shell already has Tailwind's base layer and the dsl-ui palette, so no `@tailwind base` and no palette here:
+   only the utilities the components and the views use. */
+@tailwind components;
+@tailwind utilities;

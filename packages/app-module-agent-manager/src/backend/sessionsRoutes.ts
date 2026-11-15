@@ -1,10 +1,12 @@
 import { getErrorMessage, readSessionRegistry, resolveSessionsDir, sortByStatusUpdatedDesc } from '@wadeck-app/agent-manager-core';
-import { buildGroups } from './agentState.js';
-import { sessionCards } from './cards.js';
-import { herdrGroups } from './herdr.js';
-import { parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError } from './userState.js';
+import type { SessionRowDto } from '../commons/api.js';
+import { stateOf } from './agentState.js';
+import { digestOf, pruneDigestCache } from './transcriptDigest.js';
+import { parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserState } from './userState.js';
 import { sessionColumns } from './columns.js';
-import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText } from './present.js';
+import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
+import { registerLogRoute } from './logRoute.js';
+import { registerReplyRoutes, type ModuleOptions } from './replyRoutes.js';
 import { RequestError, type RouteKit, ok, queryValue } from './routeKit.js';
 
 const SHOW_VALUES = ['alive', 'all'] as const;
@@ -40,17 +42,18 @@ function registerSessions(kit: RouteKit): void {
     if (!registry.ok) {
       const { message, hint } = registry.error;
       const errorText = `${message}. ${hint}`;
-      return ok({ ok: false, show, dir, generatedAt, sessions: [], cards: [], herdr: [], herdrError: '', unreadable: [], error: registry.error, errorText, summary: null });
+      return ok({ ok: false, show, dir, generatedAt, sessions: [], userStateError: '', unreadable: [], error: registry.error, errorText, summary: null });
     }
     const all = sortByStatusUpdatedDesc(registry.sessions);
+    pruneDigestCache(new Set(all.map((session) => session.sessionId)), now);
     const latest = latestVersion(all);
     const shown = (show === 'all' ? all : all.filter((session) => session.alive)).map((session) => presentSession(session, latest));
     const hiddenDead = all.length - shown.length;
-    // The pins and seen markers: unreadable ones are reported as data (herdrError), the other layouts keep working.
-    let herdr: ReturnType<typeof herdrGroups> = [];
-    let herdrError = '';
+    // The pins and seen markers: unreadable ones are reported as data (userStateError), the sessions stay listed.
+    let user: UserState = { pinned: [], seen: {} };
+    let userStateError = '';
     try {
-      let user = await readUserState(kit.dataDir);
+      user = await readUserState(kit.dataDir);
       // Baseline: a session first seen now starts as seen, one write for all the new ids of this poll; the prune rides on it, once an hour.
       const ids = new Set(all.map((session) => session.sessionId.toLowerCase()));
       const missing = [...ids].filter((id) => user.seen[id] === undefined);
@@ -74,28 +77,40 @@ function registerSessions(kit: RouteKit): void {
           }
         } catch (error) {
           // The page still works with the state as read (the unrecorded sessions are Idle); the failure is shown, never ignored.
-          herdrError = `The first-seen markers could not be saved: ${getErrorMessage(error)}${error instanceof UserStateError ? `. ${error.hint}` : ''}`;
+          userStateError = `The first-seen markers could not be saved: ${getErrorMessage(error)}${error instanceof UserStateError ? `. ${error.hint}` : ''}`;
         }
       }
-      herdr = herdrGroups(buildGroups(shown, user, now), shown, now);
     } catch (error) {
-      herdrError = error instanceof UserStateError ? `${getErrorMessage(error)}. ${error.hint}` : `The herdr layout failed: ${getErrorMessage(error)}`;
-      if (error instanceof UserStateError) {
-        // The sessions stay listed with no pins and no seen markers (nothing is written, so the unreadable file is never overwritten); the error is shown.
-        herdr = herdrGroups(buildGroups(shown, { pinned: [], seen: {} }, now), shown, now);
-      }
+      // The sessions stay listed with no pins and no seen markers (nothing is written, so an unreadable file is never overwritten); the error is shown.
+      user = { pinned: [], seen: {} };
+      userStateError = error instanceof UserStateError ? `${getErrorMessage(error)}. ${error.hint}` : `The pins and seen markers failed: ${getErrorMessage(error)}`;
     }
+    const pinned = new Set(user.pinned);
+    const digests = await Promise.all(shown.map((row) => digestOf(row, now)));
+    const rows = shown.map((row, index): SessionRow & SessionRowDto => {
+      const digest = digests[index]!;
+      const seenAt = user.seen[row.sessionId.toLowerCase()];
+      return {
+        ...row,
+        state: stateOf(row, user.seen, now),
+        pinned: pinned.has(row.sessionId.toLowerCase()),
+        pinOrder: user.pinned.indexOf(row.sessionId.toLowerCase()),
+        seen: seenAt === undefined || row.statusUpdatedAt === undefined || row.statusUpdatedAt <= seenAt,
+        reason: row.waitingFor ?? '',
+        lastActivity: digest.lastActivity,
+        activityNote: digest.note,
+        subagentCount: digest.subagentCount,
+      };
+    });
     return ok({
       ok: true,
       show,
       dir,
       generatedAt,
-      sessions: shown,
+      sessions: rows,
       latestVersion: latest,
       tableColumns: sessionColumns(shown),
-      cards: sessionCards(shown),
-      herdr,
-      herdrError,
+      userStateError,
       unreadable: registry.unreadable,
       unreadableText: unreadableText(registry.unreadable),
       hiddenDead,
@@ -164,8 +179,10 @@ function registerUserState(kit: RouteKit): void {
   });
 }
 
-export function registerSessionsRoutes(kit: RouteKit): void {
+export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {}): void {
   registerUserState(kit);
   registerSessions(kit);
   registerSummary(kit);
+  registerLogRoute(kit);
+  registerReplyRoutes(kit, options);
 }

@@ -1,6 +1,14 @@
 {
   "id": "agent-manager",
   "title": "Agents",
+  "dslLib": {
+    "shared": {
+      "react": "^19",
+      "react-router-dom": "^7",
+      "@wadeck-app/dsl-ui": ">=2026.11.8-0",
+      "@wadeck-app/dsl-renderer": ">=2026.11.8-0"
+    }
+  },
   "extensionPoints": [
     {
       "kind": "page",

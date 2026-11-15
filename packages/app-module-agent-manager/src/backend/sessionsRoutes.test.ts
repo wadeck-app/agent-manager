@@ -34,8 +34,8 @@ function deadPid(): number {
 }
 
 describe('GET /sessions', () => {
-  it('registers the two read routes and the two user-state write routes, nothing else', () => {
-    expect(makeModule().routes.sort()).toEqual(['GET /sessions', 'GET /summary', 'POST /sessions/:sessionId/pin', 'POST /sessions/:sessionId/seen']);
+  it('registers the list, summary, log and reply routes and the two user-state write routes, nothing else', () => {
+    expect(makeModule().routes.sort()).toEqual(['GET /sessions', 'GET /sessions/:sessionId/log', 'GET /sessions/:sessionId/reply/status', 'GET /summary', 'POST /sessions/:sessionId/pin', 'POST /sessions/:sessionId/reply', 'POST /sessions/:sessionId/seen']);
   });
 
   it('answers the alive session with the derived texts and the generation time', async () => {
@@ -100,7 +100,7 @@ describe('GET /sessions', () => {
     process.env['AGENT_MANAGER_SESSIONS_DIR'] = join(dir, 'missing');
     const { status, body } = await makeModule().call('GET', '/sessions');
     expect(status).toBe(200);
-    expect(body).toMatchObject({ ok: false, sessions: [], cards: [], error: { code: 'missing-dir' } });
+    expect(body).toMatchObject({ ok: false, sessions: [], error: { code: 'missing-dir' } });
     expect(body.errorText).toContain(join(dir, 'missing'));
     expect(body.errorText).toContain('AGENT_MANAGER_SESSIONS_DIR');
   });
@@ -109,13 +109,6 @@ describe('GET /sessions', () => {
     const { body } = await makeModule().call('GET', '/sessions');
     expect(body).toMatchObject({ ok: true, sessions: [], unreadable: [] });
     expect(body.emptyText).toContain('No Claude Code session is registered');
-  });
-
-  it('cards: one per shown session, built from the same rows', async () => {
-    write(`${process.pid}.json`, entry(process.pid, { name: '$sources.secret', status: 'waiting', waitingFor: 'permission prompt' }));
-    const { body } = await makeModule().call('GET', '/sessions');
-    expect(body.cards).toHaveLength(1);
-    expect(JSON.stringify(body.cards[0])).toContain('waiting: permission prompt');
   });
 
   it('a registry folder that is a file is an explicit error', async () => {

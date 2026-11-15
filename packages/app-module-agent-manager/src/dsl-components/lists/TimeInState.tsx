@@ -1,0 +1,16 @@
+import type { AgentRow } from '../data/types.js';
+import { describeTimeInState, timeInState } from '../logic/time.js';
+import { Tooltip } from '../ui/Tooltip.js';
+
+/** Time in state ("3m") with the sentence in a tooltip. */
+export function TimeInState({ session, now }: { session: AgentRow; now: number }) {
+  const text = timeInState(session.statusUpdatedAt, now);
+  if (text === '') {
+    return null;
+  }
+  return (
+    <Tooltip content={describeTimeInState(session.statusUpdatedAt, now)}>
+      <span className="shrink-0 text-xs tabular-nums text-muted">{text}</span>
+    </Tooltip>
+  );
+}

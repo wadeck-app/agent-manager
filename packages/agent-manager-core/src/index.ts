@@ -8,3 +8,4 @@ export type { ReadOptions } from './readSessionRegistry.js';
 export { SESSIONS_DIR_ENV, resolveSessionsDir } from './sessionsDir.js';
 export type { LivenessCheck, RegistryError, RegistryErrorCode, RegistryResult, Session, StatusGroup, UnreadableFile } from './session.js';
 export { DurationError, parseDuration } from './duration.js';
+export { CONFIG_DIR_ENV, defaultConfigDir } from './configDir.js';

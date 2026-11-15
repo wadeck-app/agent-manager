@@ -24,6 +24,8 @@ export interface AuditReadOptions {
   limit?: number;
   /** Only records at or after this epoch ms. */
   sinceMs?: number;
+  /** Only the records of this session; applied before `limit`, so other sessions never crowd it out. */
+  sessionId?: string;
   fs?: ReplyFs;
 }
 
@@ -90,7 +92,7 @@ export async function readAudit(configDir: string, options: AuditReadOptions = {
     }
     const inFile = await readFileRecords(fs, configDir, file, () => true, unreadable);
     for (const record of inFile.reverse()) {
-      if (options.sinceMs === undefined || record.time >= options.sinceMs) {
+      if ((options.sinceMs === undefined || record.time >= options.sinceMs) && (options.sessionId === undefined || record.sessionId === options.sessionId)) {
         records.push(record);
       }
     }

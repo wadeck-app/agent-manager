@@ -137,6 +137,18 @@ describe('audit', () => {
     expect((await readAudit(configDir, { sinceMs: day1 + 500 })).records.map((r) => r.msgId)).toEqual(['c', 'b']);
   });
 
+  it('sessionId filters before the limit: other sessions never crowd this one out', async () => {
+    const configDir = tempDir();
+    const base = Date.UTC(2026, 10, 15, 10);
+    await appendAudit(configDir, { ...record(base, 'mine-1'), sessionId: 'mine' });
+    await appendAudit(configDir, { ...record(base + 1, 'mine-2'), sessionId: 'mine' });
+    for (let i = 0; i < 5; i++) {
+      await appendAudit(configDir, { ...record(base + 100 + i, `other-${i}`), sessionId: 'other' });
+    }
+    expect((await readAudit(configDir, { limit: 3 })).records.some((r) => r.sessionId === 'mine')).toBe(false);
+    expect((await readAudit(configDir, { limit: 3, sessionId: 'mine' })).records.map((r) => r.msgId)).toEqual(['mine-2', 'mine-1']);
+  });
+
   it('reads an empty list when nothing was recorded, and reports a damaged line instead of dropping it', async () => {
     const configDir = tempDir();
     expect(await readAudit(configDir)).toEqual({ records: [], unreadable: [] });

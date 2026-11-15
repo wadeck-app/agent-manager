@@ -4,9 +4,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
-import { sessionCard } from './cards.js';
 import { sessionColumns } from './columns.js';
 import { presentSession } from './present.js';
+import { checkVariant } from '../commons/variants.js';
 import { makeModule } from './testKit.js';
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -62,12 +62,15 @@ async function unknownKeyTools(): Promise<{ findUnknownKeys: UnknownKeyFinder; k
 }
 
 describe('manifest.json', () => {
-  it('has the id agent-manager and the title Agents, no version (the packaging stamps it), no dslLib and no backend path (the packaging fixes it)', () => {
+  it('has the id agent-manager and the title Agents, no version and no backend path (the packaging stamps them), and dslLib holds only the shared ranges', () => {
     expect(manifest.id).toBe('agent-manager');
     expect(manifest.title).toBe('Agents');
-    for (const key of ['version', 'dslLib', 'backendEntryPath']) {
+    for (const key of ['version', 'backendEntryPath']) {
       expect(manifest, key).not.toHaveProperty(key);
     }
+    const dslLib = manifest['dslLib'] as { shared?: Record<string, string>; entry?: string; css?: string };
+    expect(Object.keys(dslLib)).toEqual(['shared']);
+    expect(Object.keys(dslLib.shared ?? {}).sort()).toEqual(['@wadeck-app/dsl-renderer', '@wadeck-app/dsl-ui', 'react', 'react-router-dom']);
   });
 
   it('declares the Agents page in the menu (/agents) and one dashboard widget', () => {
@@ -83,9 +86,15 @@ describe('manifest.json', () => {
     expect(referenced.map((v) => v.replace('./src/dsl-views/', '')).sort()).toEqual([...viewFiles].sort());
   });
 
-  // This module ships no React component (no dslLib), so there is no dslLib.shared range to pin against the shell: the check would have nothing to check.
-  it('ships no component of its own: no src/dsl-components folder, no dslLib', () => {
-    expect(existsSync(join(packageDir, 'src/dsl-components'))).toBe(false);
+  it('ships its components through dslLib: the entry module exists and every agent-manager:<Name> used by a view is registered by it', () => {
+    expect(existsSync(join(packageDir, 'src/dsl-components/index.ts'))).toBe(true);
+    const entries = readFileSync(join(packageDir, 'src/dsl-components/generated/entries.tsx'), 'utf8');
+    const registered = [...entries.matchAll(/name: '(\w+)'/g)].map((match) => match[1]);
+    const used = viewFiles.flatMap((file) => collect(parseView(file), '$type')).filter((type): type is string => typeof type === 'string' && type.startsWith('agent-manager:'));
+    expect(used.length, 'no view uses a component of the module').toBeGreaterThan(0);
+    for (const type of used) {
+      expect(registered, `${type} is not registered: run npm run entries`).toContain(type.slice('agent-manager:'.length));
+    }
   });
 });
 
@@ -94,9 +103,10 @@ describe('dsl-views', () => {
     expect(parseView(file)['$type']).toEqual(expect.any(String));
   });
 
+  // The components of the module itself (agent-manager:<Name>) are not in the dsl-ui key file: their props are checked by the generated entry (knownKeys) and by the tests of the component.
   it.each(viewFiles)('%s holds only keys the installed dsl-ui knows', async (file) => {
     const { findUnknownKeys, knownKeys } = await unknownKeyTools();
-    const errors = findUnknownKeys(parseView(file), knownKeys).filter((d) => d.severity === 'error');
+    const errors = findUnknownKeys(parseView(file), knownKeys).filter((d) => d.severity === 'error' && !/agent-manager:/.test(d.message));
     expect(errors, errors.map((d) => `${d.nodePath} ${d.message}`).join('\n')).toEqual([]);
   });
 
@@ -170,21 +180,44 @@ describe('the Agents page', () => {
 
   it('says on the page itself that this is the partial M1b slice, in the exact words of the spec', () => {
     const note = sections().flatMap((s) => collect(s, 'text'));
-    expect(note).toContain('M1b: sessions from the Claude Code registry only (pid-only liveness). Hooks, transcripts, replies: planned');
+    expect(note).toContain('M1b: sessions from the Claude Code registry (pid-only liveness). Log and replies (socket transport) are in the master-detail layouts. Daemon, hooks and live updates (SSE): planned');
   });
 
-  it('wires the A/B test sessions-layout on the real page, with a table (initial), a cards and a herdr variant', () => {
+  it('wires the A/B test sessions-layout on the real page: the table (initial) and five master-detail lists, each a nested A/B test of 3 sub-variants', () => {
     const tests = sections().filter((s) => s['$type'] === 'AbTest');
     expect(tests).toHaveLength(1);
-    const test = tests[0] as { id: string; initial: string; variants: Record<string, { label: string; hint: string; view: { $type: string } }> };
+    type Variant = { label: string; hint: string; view: { $type: string; id?: string; initial?: string; list?: string; variant?: string; variants?: Record<string, Variant> } };
+    const test = tests[0] as { id: string; initial: string; variants: Record<string, Variant> };
     expect(test.id).toBe('sessions-layout');
     expect(test.initial).toBe('table');
-    expect(Object.keys(test.variants)).toEqual(['table', 'cards', 'herdr']);
-    expect(test.variants['table']?.view.$type).toBe('DataTable');
-    for (const variant of Object.values(test.variants)) {
-      expect(variant.label).toEqual(expect.any(String));
-      expect(variant.hint).toEqual(expect.any(String));
+    expect(Object.keys(test.variants)).toEqual(['table', 'groups', 'inbox', 'tree', 'tabs-cards', 'palette']);
+    expect(test.variants['table']?.view.$type).toBe('VerticalStack');
+    // The workspace variants carry no header, note or filter of their own on the page: they have a toolbar, and they get the rows of the page source (no second request).
+    expect(JSON.stringify(test.variants['groups'])).toContain('"sessions":"$sources.sessions.sessions"');
+    const ids = new Set<string>(['sessions-layout']);
+    for (const [name, variant] of Object.entries(test.variants)) {
+      expect(variant.label, name).toEqual(expect.any(String));
+      expect(variant.hint, name).toEqual(expect.any(String));
+      if (name === 'table') {
+        continue;
+      }
+      expect(variant.view.$type).toBe('AbTest');
+      expect(ids.has(variant.view.id ?? ''), `duplicate A/B id ${variant.view.id}`).toBe(false);
+      ids.add(variant.view.id ?? '');
+      const subs = Object.entries(variant.view.variants ?? {});
+      expect(subs, name).toHaveLength(3);
+      expect(variant.view.initial).toBe(subs[0]?.[0]);
+      for (const [sub, spec] of subs) {
+        expect(spec.hint, `${name}/${sub}`).toEqual(expect.any(String));
+        // The list and variant written in the YAML must be ones the component accepts.
+        expect(spec.view).toMatchObject({ $type: 'agent-manager:AgentWorkspace', list: name, variant: sub });
+        expect(checkVariant(spec.view.list, spec.view.variant).ok, `${name}/${sub}`).toBe(true);
+      }
     }
+  });
+
+  it('keeps no trace of the removed herdr layout', () => {
+    expect(readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8')).not.toMatch(/herdrError|\$sources\.sessions\.herdr\b|pinSession|markSeen/);
   });
 
   it('the dead sessions filter is a URL parameter (show) that reaches the source, default alive', () => {
@@ -210,19 +243,5 @@ describe('the Agents page', () => {
     const text = readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8');
     expect(text).toContain('$sources.sessions.errorText');
     expect(text).toContain('$sources.sessions.unreadableText');
-  });
-});
-
-describe('the cards of the cards variant (built by the route)', () => {
-  it('hold only keys the installed dsl-ui knows, for an alive, a waiting and a dead session', async () => {
-    const { findUnknownKeys, knownKeys } = await unknownKeyTools();
-    const base = { file: '1.json', pid: 1, sessionId: 's', cwd: '/a/b', folder: 'b', status: 'idle', statusGroup: 'idle' as const, alive: true, livenessCheck: 'pid-only' as const, version: '2.1.0', statusUpdatedAt: 5 };
-    const cards = [
-      sessionCard(presentSession(base)),
-      sessionCard(presentSession({ ...base, status: 'waiting', statusGroup: 'other', waitingFor: 'permission prompt', name: 'named' })),
-      sessionCard(presentSession({ ...base, alive: false })),
-    ];
-    const errors = findUnknownKeys({ $type: 'PageContent', sections: cards }, knownKeys).filter((d) => d.severity === 'error');
-    expect(errors, errors.map((d) => `${d.nodePath} ${d.message}`).join('\n')).toEqual([]);
   });
 });

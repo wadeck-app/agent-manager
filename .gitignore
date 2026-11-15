@@ -14,3 +14,9 @@ _secrets_/
 # Go launcher binaries and the packages generated for publishing (ci/scripts)
 launcher-go/
 packages/agent-manager-cli-*/
+packages/app-module-agent-manager/src/dsl-components/style.css
+
+# Throwaway PoC evidence
+poc/scripts/tmp-*
+poc/scripts/probe-*
+poc/results/ui*.png

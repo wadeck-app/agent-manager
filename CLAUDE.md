@@ -2,7 +2,7 @@
 
 Follows and answers Claude Code sessions (CLI `agent-manager`, web UI as an app-core module). Family-A CLI like `queue`, `task`, `project`.
 
-**Status: M1b partial slice: only a Sessions overview in app-core, fed by the Claude Code registry (`~/.claude/sessions`, pid-only liveness: the `procStart` pid-reuse check is not implemented). No daemon, hooks, transcripts, replies or SSE.** `cli register` / `cli unregister` work; `start`, `stop`, `status` still fail with "daemon not implemented yet". Plan: `.claude/plans/2026-11-14_agent-manager-v1.md`.
+**Status: M1b partial slice.** Exists: Sessions overview table in app-core, fed by the Claude Code registry (`~/.claude/sessions`, pid-only liveness: the `procStart` pid-reuse check is not implemented); master-detail layouts with transcript log and replies through the socket transport (pins, seen markers, audit). Missing: daemon, hooks, SSE. `cli register` / `cli unregister` work; `start`, `stop`, `status` still fail with "daemon not implemented yet". Plan: `.claude/plans/2026-11-14_agent-manager-v1.md`.
 
 ## Agent reference docs
 
