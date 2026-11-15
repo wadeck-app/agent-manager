@@ -10,7 +10,7 @@ export interface StatusIconProps {
 }
 
 /** The icon of a state (lucide, never a text glyph). Decorative unless `labelled`; the state text lives in the row label or the tooltip. */
-export function StatusIcon({ state, sizeClass = 'h-4 w-4', labelled = true }: StatusIconProps) {
+export function StatusIcon({ state, sizeClass = 'h-am-icon w-am-icon', labelled = true }: StatusIconProps) {
   const look = STATE_LOOK[state];
   const Icon = look.icon;
   return labelled ? (

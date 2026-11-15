@@ -18,7 +18,7 @@ export function SubagentRows({ sessionId }: { sessionId: string }) {
       <div role="alert" className="flex items-start gap-2 py-1 pl-14 pr-3 text-xs text-danger-text">
         <span className="min-w-0 flex-1">{state.text}</span>
         <button type="button" onClick={retry} className={`inline-flex shrink-0 items-center gap-1 rounded border border-danger px-1.5 py-0.5 ${FOCUS_RING}`}>
-          <RefreshCw aria-hidden="true" className="h-3 w-3" />
+          <RefreshCw aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           Retry
         </button>
       </div>

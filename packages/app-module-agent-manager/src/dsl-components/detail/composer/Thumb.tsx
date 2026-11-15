@@ -56,7 +56,7 @@ export function Thumb({ image }: { image: AttachedImage }) {
   if (failed) {
     return (
       <span role="img" aria-label={image.name} className="flex h-14 w-20 items-center justify-center rounded border border-border bg-muted-bg text-muted">
-        <ImageOff aria-hidden="true" className="h-5 w-5" />
+        <ImageOff aria-hidden="true" className="h-am-icon w-am-icon" />
       </span>
     );
   }

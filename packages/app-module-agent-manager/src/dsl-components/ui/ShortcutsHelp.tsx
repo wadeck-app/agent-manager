@@ -49,7 +49,7 @@ export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
     <div ref={box} className="relative">
       <Tooltip content="Keyboard shortcuts">
         <button type="button" aria-label="Keyboard shortcuts" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)} className={`${ICON_BUTTON_CLASS} ${open ? 'bg-muted-bg text-content' : ''}`}>
-          <Keyboard aria-hidden="true" className="h-4 w-4" />
+          <Keyboard aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
         </button>
       </Tooltip>
       {open ? (

@@ -200,4 +200,37 @@ describe('LogViewer', () => {
     expect(screen.getByRole('button', { name: /explorer/ })).toHaveAttribute('aria-pressed', 'true');
     expect(document.querySelector('[data-hot="true"]')).not.toBeNull();
   });
+
+  describe('sub-agents at two widths', () => {
+    const subagent = { agentId: 'aaaa1111', name: 'explorer', finished: true, isFork: false, children: [] };
+    function setWide(wide: boolean): void {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: wide, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    }
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('below 1920 px shows the collapsed strip, no side panel', async () => {
+      setWide(false);
+      queue = [() => respond(answer([assistantText('a', 'text')], { subagents: [subagent] }))];
+      render(<LogViewer session={session} logStyle="chat" />);
+      expect(await screen.findByRole('button', { name: '1 sub-agent: 0 running, 1 finished' })).toBeInTheDocument();
+      expect(screen.queryByRole('complementary', { name: 'Sub-agents' })).toBeNull();
+    });
+
+    it('from 1920 px shows the always-open panel instead of the strip', async () => {
+      setWide(true);
+      queue = [() => respond(answer([assistantText('a', 'text')], { subagents: [subagent] }))];
+      render(<LogViewer session={session} logStyle="chat" />);
+      const panel = await screen.findByRole('complementary', { name: 'Sub-agents' });
+      expect(panel).toHaveTextContent('1 sub-agent: 0 running, 1 finished');
+      expect(screen.getByRole('button', { name: /explorer/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '1 sub-agent: 0 running, 1 finished' })).toBeNull();
+    });
+
+    it.each([false, true])('shows the note about the sub-agents folder even when there is no sub-agent (wide: %s)', async (wide) => {
+      setWide(wide);
+      queue = [() => respond(answer([assistantText('a', 'text')], { subagentsNote: 'The sub-agents folder could not be read.' }))];
+      render(<LogViewer session={session} logStyle="chat" />);
+      expect(await screen.findByText('The sub-agents folder could not be read.')).toBeInTheDocument();
+    });
+  });
 });

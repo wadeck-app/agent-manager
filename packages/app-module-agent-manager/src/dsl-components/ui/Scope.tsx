@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useDensity } from './density.js';
 
 /**
  * The class every utility of the module's stylesheet is scoped under (build-css.ts sets Tailwind's `important: '.agents-scope'`, so each rule reads
@@ -7,9 +8,17 @@ import type { ReactNode } from 'react';
  *
  * The rule is `.agents-scope .x` (descendant), so an element carrying the class gets none of the utilities itself: it is a wrapper, `display: contents`
  * (styles/agents.css), whose children carry the classes. Every root we render and every portal container goes through this component.
+ *
+ * The wrapper also carries the density setting (`data-density`): the type and icon scale is a set of CSS variables per value, so the setting
+ * needs no class on any element below.
  */
 export const SCOPE_CLASS = 'agents-scope';
 
 export function Scope({ children }: { children: ReactNode }) {
-  return <div className={SCOPE_CLASS}>{children}</div>;
+  const density = useDensity();
+  return (
+    <div className={SCOPE_CLASS} data-density={density}>
+      {children}
+    </div>
+  );
 }

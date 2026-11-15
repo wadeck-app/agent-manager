@@ -15,7 +15,7 @@ export function DeliveryList({ items }: { items: readonly DeliveryItem[] }) {
   return (
     <div className="text-xs">
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`inline-flex items-center gap-1 rounded text-muted hover:text-content ${FOCUS_RING}`}>
-        <Chevron aria-hidden="true" className="h-3.5 w-3.5" />
+        <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
         Last messages ({items.length})
       </button>
       {open ? (
@@ -29,7 +29,7 @@ export function DeliveryList({ items }: { items: readonly DeliveryItem[] }) {
                 </span>
                 {item.imageCount > 0 ? (
                   <span className="inline-flex shrink-0 items-center gap-0.5 text-muted">
-                    <ImageIcon aria-hidden="true" className="h-3 w-3" />
+                    <ImageIcon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
                     {item.imageCount}
                   </span>
                 ) : null}

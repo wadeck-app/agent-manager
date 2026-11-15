@@ -33,7 +33,7 @@ export function SubagentStrip({ subagents, note, selected, onSelect }: SubagentS
       </button>
       {note !== '' ? <p className={`mt-1 ${LOG_META} text-warning-text`}>{note}</p> : null}
       {open && counts.total > 0 ? (
-        <ul className="mt-1.5 flex max-h-24 flex-row flex-wrap items-start gap-1 overflow-y-auto">
+        <ul className="mt-1.5 flex max-h-40 flex-row flex-wrap items-start gap-1 overflow-y-auto">
           {subagents.map((node) => (
             <SubagentNode key={node.agentId} node={node} selected={selected} onSelect={(id) => onSelect(selected === id ? undefined : id)} depth={0} />
           ))}

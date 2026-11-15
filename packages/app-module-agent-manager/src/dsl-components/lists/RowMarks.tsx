@@ -7,13 +7,13 @@ export function RowMarks({ session }: { session: AgentRow }) {
     <>
       {session.pinned ? (
         <span className="inline-flex shrink-0 text-muted">
-          <Pin aria-hidden="true" className="h-3 w-3" />
+          <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span className="sr-only">Pinned</span>
         </span>
       ) : null}
       {session.subagentCount > 0 ? (
         <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted">
-          <Bot aria-hidden="true" className="h-3 w-3" />
+          <Bot aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span aria-label={`${session.subagentCount} sub-agents`}>{session.subagentCount}</span>
         </span>
       ) : null}

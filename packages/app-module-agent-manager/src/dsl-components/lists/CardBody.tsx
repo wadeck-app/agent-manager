@@ -25,7 +25,7 @@ export function CardBody({ session, now }: { session: AgentRow; now: number }) {
       ) : null}
       <div className="flex items-center gap-2">
         <span className="inline-flex min-w-0 items-center gap-1 text-xs text-muted" title={session.cwd}>
-          <Folder aria-hidden="true" className="h-3 w-3 shrink-0" />
+          <Folder aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
           <span className="truncate">{session.folder}</span>
         </span>
         <span className="ml-auto">

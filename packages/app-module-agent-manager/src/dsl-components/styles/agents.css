@@ -7,3 +7,57 @@
 .agents-scope {
   display: contents;
 }
+
+/* The density scale (ui/density.ts; the numbers are ui/densityScale.ts, checked against this file by build/scopedCss.test.ts): one set of variables per setting, read by the type steps and the `am-*` tokens of tailwind.config.ts. Custom properties
+   inherit through `display: contents`, so every element under the wrapper (and a portal, which has its own wrapper) sees them. M is the default. */
+.agents-scope,
+.agents-scope[data-density='m'] {
+  --am-fs-xs: 13px;
+  --am-lh-xs: 18px;
+  --am-fs-sm: 15px;
+  --am-lh-sm: 22px;
+  --am-fs-base: 16px;
+  --am-lh-base: 24px;
+  --am-fs-mono: 14px;
+  --am-lh-mono: 21px;
+  --am-lh-log: 1.55;
+  --am-icon: 20px;
+  --am-icon-sm: 16px;
+  --am-dot: 10px;
+  --am-hit: 36px;
+  --am-row: 52px;
+}
+
+.agents-scope[data-density='s'] {
+  --am-fs-xs: 12px;
+  --am-lh-xs: 16px;
+  --am-fs-sm: 14px;
+  --am-lh-sm: 20px;
+  --am-fs-base: 16px;
+  --am-lh-base: 24px;
+  --am-fs-mono: 13px;
+  --am-lh-mono: 19px;
+  --am-lh-log: 1.5;
+  --am-icon: 18px;
+  --am-icon-sm: 14px;
+  --am-dot: 8px;
+  --am-hit: 32px;
+  --am-row: 44px;
+}
+
+.agents-scope[data-density='l'] {
+  --am-fs-xs: 14px;
+  --am-lh-xs: 20px;
+  --am-fs-sm: 17px;
+  --am-lh-sm: 25px;
+  --am-fs-base: 18px;
+  --am-lh-base: 27px;
+  --am-fs-mono: 16px;
+  --am-lh-mono: 24px;
+  --am-lh-log: 1.6;
+  --am-icon: 24px;
+  --am-icon-sm: 18px;
+  --am-dot: 12px;
+  --am-hit: 40px;
+  --am-row: 60px;
+}

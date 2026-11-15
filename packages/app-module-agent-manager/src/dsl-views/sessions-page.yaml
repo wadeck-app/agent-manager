@@ -15,6 +15,8 @@ $sources:
       show: $urlParam.show
 
 $type: PageContent
+# `full`: the page frame adds no width cap of its own (the default "xl" stopped the workspace at 1152 px, whatever the screen). The workspace (AgentWorkspace) stretches over the frame padding itself.
+maxWidth: full
 sections:
   # What went wrong, in boxes of their own: nothing is hidden behind an empty list.
   - $type: Badge

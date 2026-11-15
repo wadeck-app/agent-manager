@@ -157,7 +157,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   const items = deliveryItems(status?.messages ?? [], pending);
   const sendLabel = 'Send';
   return (
-    <div data-composer className="flex shrink-0 flex-col gap-2 border-t border-border bg-surface px-3 py-2">
+    <div data-composer className="flex shrink-0 flex-col gap-2 border-t border-border bg-surface px-4 py-3">
       {block !== undefined ? (
         <Banner
           tone={block.kind === 'checking' ? 'info' : 'warning'}
@@ -218,7 +218,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           onChange={(event) => change(event.target.value, current.current.images)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
-          className="max-h-44 min-h-[2rem] min-w-0 flex-1 resize-none bg-transparent px-1 py-1 text-sm leading-5 text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          className="max-h-64 min-h-am-hit min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
         <Tooltip content={priority === 'now' ? 'Interrupts the running tool call (asks to confirm). Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter'}>
           <button
@@ -227,9 +227,9 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             disabled={inactive || sending || attaching > 0}
             title={attaching > 0 ? 'Waiting for the image to be prepared' : undefined}
             onClick={requestSend}
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${priority === 'now' ? 'border-warning bg-warning-bg text-warning-text' : 'border-primary bg-primary-light text-primary'} ${FOCUS_RING}`}
+            className={`inline-flex h-am-hit w-am-hit shrink-0 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${priority === 'now' ? 'border-warning bg-warning-bg text-warning-text' : 'border-primary bg-primary-light text-primary'} ${FOCUS_RING}`}
           >
-            {sending ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <SendHorizontal aria-hidden="true" className="h-4 w-4" />}
+            {sending ? <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" /> : <SendHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
           </button>
         </Tooltip>
       </div>
@@ -241,7 +241,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           {selected !== undefined ? (
             <Tooltip content={`Sent through the ${selected.transportId} transport (${selected.description}). Chosen from ${status?.selectedFrom ?? 'the configuration'}; switching transports is a CLI or configuration matter for now, not done here.`}>
               <span className="inline-flex items-center gap-1">
-                <Plug aria-hidden="true" className="h-3.5 w-3.5" />
+                <Plug aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
                 via {selected.transportId}
               </span>
             </Tooltip>

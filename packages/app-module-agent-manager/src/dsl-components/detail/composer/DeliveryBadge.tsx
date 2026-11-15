@@ -16,7 +16,7 @@ export function DeliveryBadge({ ui, reason }: { ui: DeliveryUi; reason?: string 
   return (
     <Tooltip content={reason !== undefined && reason !== '' ? `${look.label}: ${reason}` : look.label}>
       <span className={`inline-flex shrink-0 items-center gap-1 text-xs ${look.text}`}>
-        <Icon aria-hidden="true" className={`h-3.5 w-3.5 ${look.spin}`} />
+        <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${look.spin}`} />
         {look.label}
       </span>
     </Tooltip>

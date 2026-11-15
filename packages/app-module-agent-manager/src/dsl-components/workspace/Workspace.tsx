@@ -13,7 +13,8 @@ import { agentId } from '../logic/states.js';
 import type { ListKind, LogStyle, SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
-import { useFillViewport, useNow } from '../ui/hooks.js';
+import { useNow } from '../ui/hooks.js';
+import { useFillContentArea } from '../ui/useFillContentArea.js';
 import { ListSkeleton } from '../ui/ListSkeleton.js';
 import { SplitPane } from '../ui/SplitPane.js';
 import { Toolbar } from './Toolbar.js';
@@ -44,7 +45,7 @@ export interface WorkspaceProps {
 
 export function Workspace({ list, style, sessions, userStateError, hiddenDead, logStyle }: WorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
-  useFillViewport(root, 360);
+  useFillContentArea(root, 360);
   const now = useNow();
   const optimistic = useOptimisticRows(sessions ?? []);
   const rows = optimistic.rows;
@@ -164,9 +165,9 @@ export function Workspace({ list, style, sessions, userStateError, hiddenDead, l
   }
 
   return (
-    <div ref={root} className="flex min-h-0 flex-col gap-2">
+    <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
       <Toolbar count={rows.length} hiddenDead={hiddenDead} show={show} onShow={(value) => setShowParam(value === 'all' ? 'all' : '')} helpOpen={helpOpen} onHelpOpenChange={setHelpOpen} />
-      {notices.length > 0 ? <div className="flex flex-col gap-1.5">{notices}</div> : null}
+      {notices.length > 0 ? <div className="flex flex-col gap-1.5 border-b border-border p-2">{notices}</div> : null}
       <div className="min-h-0 flex-1">
         <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} fixedWidth={fixedWidth} />
       </div>

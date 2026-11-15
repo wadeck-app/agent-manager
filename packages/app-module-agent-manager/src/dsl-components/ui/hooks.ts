@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useCallback, useEffect, useState, type KeyboardEvent } from 'react';
 import { isTypingTarget, navTarget } from '../logic/nav.js';
 
 /** The current time, refreshed every `everyMs` (the "3m" of a row ages without a poll). */
@@ -9,33 +9,6 @@ export function useNow(everyMs = 15_000): number {
     return () => clearInterval(timer);
   }, [everyMs]);
   return now;
-}
-
-/**
- * Makes the element as tall as what is left of the viewport below its top edge (no page scroll: the list and the log scroll inside it).
- * A style set through the DOM is allowed by the page's content-security policy, unlike a style attribute in markup.
- */
-export function useFillViewport(ref: RefObject<HTMLElement | null>, minHeight: number, bottomGap = 16): void {
-  useLayoutEffect(() => {
-    const fit = (): void => {
-      const element = ref.current;
-      if (element === null) {
-        return;
-      }
-      element.style.height = `${Math.max(minHeight, Math.floor(window.innerHeight - element.getBoundingClientRect().top - bottomGap))}px`;
-    };
-    fit();
-    window.addEventListener('resize', fit);
-    // The content above (banners, the filter) can change height after the first paint.
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(fit);
-    if (ref.current?.parentElement) {
-      observer?.observe(ref.current.parentElement);
-    }
-    return () => {
-      window.removeEventListener('resize', fit);
-      observer?.disconnect();
-    };
-  }, [ref, minHeight, bottomGap]);
 }
 
 /** Moves the focus to the message composer of the detail pane, if the next step has put one there (it marks itself with data-agent-composer). */
@@ -100,4 +73,27 @@ export function useListKeys({ onSelect }: ListKeysOptions): (event: KeyboardEven
 /** The id that holds the tab stop of a roving list: the selected one when it is listed, else the first (so the list is always reachable by Tab). */
 export function tabbableId(ids: readonly string[], selectedId: string | undefined): string | undefined {
   return selectedId !== undefined && ids.includes(selectedId) ? selectedId : ids[0];
+}
+
+/** Width (px) from which the log gets a third zone (the sub-agent panel beside it). */
+export const WIDE_SCREEN_PX = 1920;
+
+/**
+ * Whether the window is at least `px` wide, following resizes. Used to render ONE of two arrangements of the same data (a CSS-hidden twin would stay in the
+ * DOM, and in the accessibility tree of a test). False where `matchMedia` does not exist (a test environment).
+ */
+export function useMinWidth(px: number): boolean {
+  const query = `(min-width: ${px}px)`;
+  const [matches, setMatches] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') {
+      return;
+    }
+    const list = window.matchMedia(query);
+    const update = (): void => setMatches(list.matches);
+    update();
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, [query]);
+  return matches;
 }

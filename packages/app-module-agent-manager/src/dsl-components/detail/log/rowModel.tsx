@@ -46,7 +46,7 @@ function promptModel(entry: Extract<LogEntry, { kind: 'user-prompt' }>): RowMode
   const images = entry.images.length > 0 ? <p className={`${LOG_META} text-muted`}>{entry.images.length} image(s) attached, not shown.</p> : null;
   const body = (): ReactNode => (
     <div className="flex flex-col gap-1">
-      <p className="whitespace-pre-wrap break-words text-sm">{entry.text}</p>
+      <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{entry.text}</p>
       {images}
       {truncatedNote(entry.textTruncated, entry.textBytes, entry.text.length)}
     </div>
@@ -71,7 +71,7 @@ function noticeModel(entry: Extract<LogEntry, { kind: 'system-notice' }>): RowMo
     summary: firstLine(text),
     tone: entry.level === 'error' ? 'error' : 'muted',
     expandable: text.length > 0,
-    body: text === '' ? null : () => <p className="whitespace-pre-wrap break-words text-sm">{text}</p>,
+    body: text === '' ? null : () => <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{text}</p>,
     ...(entry.timestamp === undefined ? {} : { timestamp: entry.timestamp }),
   };
 }
@@ -116,7 +116,7 @@ export function describeEntry(entry: LogEntry): RowModel {
             <p className={`${LOG_META} text-muted`}>The transcript keeps no text for this thinking block.</p>
           ) : (
             <div className="flex flex-col gap-1">
-              <p className="whitespace-pre-wrap break-words text-sm italic text-muted">{entry.text}</p>
+              <p className="whitespace-pre-wrap break-words text-sm leading-am-log italic text-muted">{entry.text}</p>
               {truncatedNote(entry.textTruncated, entry.textBytes, entry.text.length)}
             </div>
           ),
@@ -246,7 +246,7 @@ export function describePending(message: PendingMessage): RowModel {
     trailing: <span className={`${LOG_META} ${failed ? 'text-hue-red' : 'text-muted'}`}>{PENDING_TEXT[message.state]}</span>,
     body: () => (
       <div className="flex flex-col gap-1">
-        <p className="whitespace-pre-wrap break-words text-sm">{message.text === '' ? `${message.imageCount} image(s)` : message.text}</p>
+        <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{message.text === '' ? `${message.imageCount} image(s)` : message.text}</p>
         {failed && message.error !== undefined ? <p className={`${LOG_META} text-hue-red`}>{message.error}</p> : null}
       </div>
     ),

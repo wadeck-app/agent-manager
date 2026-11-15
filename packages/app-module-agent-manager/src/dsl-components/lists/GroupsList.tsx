@@ -43,9 +43,9 @@ export function GroupsList({ sessions, selectedId, onSelect, now, style }: ListP
         return (
           <div key={group.id} role="group" aria-labelledby={headingId} className="pb-1">
             <div id={headingId} className={`sticky top-0 z-10 bg-surface text-xs font-medium ${groupText(group.id)}`}>
-              <button type="button" aria-expanded={!collapsed} aria-label={`${group.label}, ${group.sessions.length}`} onClick={() => toggle(group.id)} className={`flex w-full items-center gap-1.5 px-3 pb-1 pt-3 text-left ${FOCUS_RING} focus-visible:ring-inset`}>
-                <Chevron aria-hidden="true" className="h-3 w-3 shrink-0" />
-                {group.id === 'pinned' ? <Pin aria-hidden="true" className="h-3 w-3" /> : null}
+              <button type="button" aria-expanded={!collapsed} aria-label={`${group.label}, ${group.sessions.length}`} onClick={() => toggle(group.id)} className={`flex w-full items-center gap-1.5 px-3.5 pb-1.5 pt-3.5 text-left ${FOCUS_RING} focus-visible:ring-inset`}>
+                <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
+                {group.id === 'pinned' ? <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : null}
                 <span>{group.label}</span>
                 <span className="tabular-nums">{group.sessions.length}</span>
               </button>
@@ -54,7 +54,7 @@ export function GroupsList({ sessions, selectedId, onSelect, now, style }: ListP
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className={style === 'comfortable' ? 'px-3 py-2' : 'px-3 py-1.5'}>
+                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className={style === 'comfortable' ? 'min-h-am-row px-3.5 py-2' : 'min-h-am-hit px-3.5 py-2'}>
                   {style === 'comfortable' ? (
                     <div className="flex items-start gap-2.5">
                       <span className="mt-0.5">

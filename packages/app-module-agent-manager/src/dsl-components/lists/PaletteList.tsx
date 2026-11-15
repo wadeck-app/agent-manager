@@ -79,7 +79,7 @@ export function PaletteList({ sessions, selectedId, onSelect, now, style }: List
     <div className="flex min-h-0 flex-1 flex-col" onFocus={() => setFocused(true)} onBlur={onBlur}>
       <div className="flex flex-col gap-2 border-b border-border p-2">
         <div className="relative">
-          <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
           <input
             ref={input}
             data-agent-search=""
@@ -98,11 +98,11 @@ export function PaletteList({ sessions, selectedId, onSelect, now, style }: List
             value={text}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={onInputKey}
-            className={`w-full rounded border border-border bg-bg py-1.5 pl-8 pr-8 text-sm text-content placeholder:text-muted ${FOCUS_RING}`}
+            className={`w-full rounded border border-border bg-bg py-2 pl-8 pr-8 text-sm text-content placeholder:text-muted ${FOCUS_RING}`}
           />
           {text !== '' ? (
             <button type="button" aria-label="Clear the search" onClick={() => { setText(''); input.current?.focus(); }} className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted hover:text-content ${FOCUS_RING}`}>
-              <X aria-hidden="true" className="h-3.5 w-3.5" />
+              <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </button>
           ) : null}
         </div>
@@ -118,7 +118,7 @@ export function PaletteList({ sessions, selectedId, onSelect, now, style }: List
                   onClick={() => setText(toggleStateToken(text, state))}
                   className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${pressed ? `border-primary ${STATE_LOOK[state].bg} text-content` : 'border-border text-muted hover:bg-muted-bg'} ${FOCUS_RING}`}
                 >
-                  <StatusIcon state={state} sizeClass="h-3 w-3" labelled={false} />
+                  <StatusIcon state={state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />
                   {STATE_LABEL[state]}
                   <span className="tabular-nums">{counts[state]}</span>
                 </button>
@@ -156,7 +156,7 @@ export function PaletteList({ sessions, selectedId, onSelect, now, style }: List
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} elementId={optionId(id)} session={session} selected={id === selectedId} tabbable={false} onSelect={(value) => { onSelect(value); input.current?.focus(); }} className="px-3 py-2">
+                <OptionShell key={id} elementId={optionId(id)} session={session} selected={id === selectedId} tabbable={false} onSelect={(value) => { onSelect(value); input.current?.focus(); }} className="min-h-am-hit px-3.5 py-2">
                   <div className="flex items-start gap-2.5">
                     <span className="mt-0.5">
                       <StateIconTip session={session} />

@@ -23,7 +23,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
   const since = timeInState(session.statusUpdatedAt, now);
   const canMarkSeen = session.state === 'done';
   return (
-    <header className="flex items-start gap-2 border-b border-border px-3 py-2.5">
+    <header className="flex items-start gap-2 border-b border-border px-4 py-3">
       <span className="lg:hidden">
         <IconButton icon={ArrowLeft} label="Back to the list" onClick={onBack} />
       </span>
@@ -34,7 +34,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
           </h2>
           <Tooltip content={STATE_MEANING[session.state]}>
             <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs ${look.bg} ${look.text}`}>
-              <StatusIcon state={session.state} sizeClass="h-3 w-3" labelled={false} />
+              <StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />
               {look.label}
             </span>
           </Tooltip>
@@ -46,7 +46,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
           <span className="inline-flex min-w-0 max-w-full items-center gap-1" title={session.cwd}>
-            <Folder aria-hidden="true" className="h-3 w-3 shrink-0" />
+            <Folder aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
             <span className="truncate">{session.cwd}</span>
           </span>
           {session.harness !== undefined ? <span className="rounded bg-muted-bg px-1.5 py-0.5 text-content">{session.harness}</span> : null}

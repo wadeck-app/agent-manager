@@ -92,7 +92,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, style }: ListPr
         </div>
         {style === 'segmented' ? (
           <div className="relative">
-            <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
             <input
               type="search"
               aria-label="Filter this tab"
@@ -100,11 +100,11 @@ export function InboxList({ sessions, selectedId, onSelect, now, style }: ListPr
               placeholder="Filter by name or folder"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              className={`w-full rounded border border-border bg-bg py-1.5 pl-8 pr-8 text-sm text-content placeholder:text-muted ${FOCUS_RING}`}
+              className={`w-full rounded border border-border bg-bg py-2 pl-8 pr-8 text-sm text-content placeholder:text-muted ${FOCUS_RING}`}
             />
             {search !== '' ? (
               <button type="button" aria-label="Clear the filter" onClick={() => setSearch('')} className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted hover:text-content ${FOCUS_RING}`}>
-                <X aria-hidden="true" className="h-3.5 w-3.5" />
+                <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
               </button>
             ) : null}
           </div>
@@ -131,7 +131,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, style }: ListPr
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className="border-b border-border px-3 py-2.5">
+                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className="min-h-am-row border-b border-border px-3.5 py-2.5">
                   <div className="flex items-start gap-2.5">
                     <span className="mt-0.5">
                       <StateIconTip session={session} />

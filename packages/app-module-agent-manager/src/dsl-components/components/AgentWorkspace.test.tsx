@@ -79,6 +79,11 @@ describe('AgentWorkspace', () => {
     // The wrapper holds the whole workspace: both panes are inside it, and nothing of the workspace is a sibling of it.
     expect(scope.querySelector('[data-pane="list"]')).not.toBeNull();
     expect(scope.querySelector('[data-pane="detail"]')).not.toBeNull();
+    // The workspace box (toolbar and panes, no frame of its own around them) is the hook of the screen measures (poc/scripts/measure-workspace.js).
+    const box = scope.querySelector('[data-agent-workspace]');
+    expect(box).not.toBeNull();
+    expect(box?.className).not.toMatch(/(border|rounded)/);
+    expect(box?.querySelector('[data-pane="list"]')).not.toBeNull();
     expect(container.querySelectorAll('[data-pane]')).toHaveLength(scope.querySelectorAll('[data-pane]').length);
     rerender(
       <Page>
@@ -299,5 +304,89 @@ describe('SplitPane', () => {
     expect(screen.queryByRole('separator')).toBeNull();
     expect(container.querySelector('[data-pane=list]')?.className).toContain('hidden lg:flex');
     expect(container.querySelector('[data-pane=detail]')?.className).toContain('flex');
+  });
+});
+
+describe('SplitPane width on a wide screen', () => {
+  it('grows with the workspace (22 %, between 300 and 640 px) until the user chooses', async () => {
+    const { autoListWidth, AUTO_LIST_SHARE } = await import('../ui/SplitPane.js');
+    expect(AUTO_LIST_SHARE).toBe(0.22);
+    expect(autoListWidth(1200)).toBe(300);
+    expect(autoListWidth(1680)).toBe(370);
+    expect(autoListWidth(2320)).toBe(510);
+    expect(autoListWidth(9000)).toBe(MAX_LIST_WIDTH);
+    expect(autoListWidth(0)).toBe(DEFAULT_LIST_WIDTH);
+  });
+
+  it('keeps the detail pane at least 55 % of the workspace when the width is known', () => {
+    expect(clampWidth(900, 1200)).toBe(540);
+    expect(clampWidth(900, 0)).toBe(MAX_LIST_WIDTH);
+  });
+});
+
+describe('SplitPane saved width and dragging', () => {
+  const KEY = 'agent-manager.listWidth.v2';
+  let restore: (() => void) | undefined;
+
+  function stubWorkspaceWidth(px: number): void {
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => px });
+    restore = () => {
+      if (original !== undefined) {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', original);
+      } else {
+        delete (HTMLElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    };
+  }
+  afterEach(() => {
+    restore?.();
+    restore = undefined;
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+  });
+
+  it('shows a saved 640 px as 540 px (45 %) on a 1200 px workspace, and merely opening does not rewrite the saved value', () => {
+    window.localStorage.setItem(KEY, '640');
+    stubWorkspaceWidth(1200);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    render(<SplitPane list={<div>list</div>} detail={<div>detail</div>} detailOpen={false} />);
+    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '540');
+    expect(window.localStorage.getItem(KEY)).toBe('640');
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it('starts a key step from the width that is shown, and that step is then the saved choice', () => {
+    window.localStorage.setItem(KEY, '640');
+    stubWorkspaceWidth(1200);
+    render(<SplitPane list={<div>list</div>} detail={<div>detail</div>} detailOpen={false} />);
+    fireEvent.keyDown(screen.getByRole('separator'), { key: 'ArrowLeft' });
+    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '524');
+    expect(window.localStorage.getItem(KEY)).toBe('524');
+  });
+
+  it('shows the automatic width until the user chooses, without saving it', () => {
+    stubWorkspaceWidth(2320);
+    render(<SplitPane list={<div>list</div>} detail={<div>detail</div>} detailOpen={false} />);
+    expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', '510');
+    expect(window.localStorage.getItem(KEY)).toBeNull();
+  });
+
+  it('follows the pointer while dragging but saves once, when the pointer is released', () => {
+    stubWorkspaceWidth(2000);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    render(<SplitPane list={<div>list</div>} detail={<div>detail</div>} detailOpen={false} />);
+    const separator = screen.getByRole('separator');
+    separator.setPointerCapture = () => undefined;
+    const start = Number(separator.getAttribute('aria-valuenow'));
+    fireEvent.pointerDown(separator, { clientX: 400, pointerId: 1 });
+    fireEvent.pointerMove(separator, { clientX: 430, pointerId: 1 });
+    fireEvent.pointerMove(separator, { clientX: 460, pointerId: 1 });
+    expect(separator).toHaveAttribute('aria-valuenow', String(start + 60));
+    expect(setItem).not.toHaveBeenCalled();
+    fireEvent.pointerUp(separator, { pointerId: 1 });
+    expect(setItem).toHaveBeenCalledTimes(1);
+    expect(window.localStorage.getItem(KEY)).toBe(String(start + 60));
+    expect(separator).toHaveAttribute('aria-valuenow', String(start + 60));
   });
 });

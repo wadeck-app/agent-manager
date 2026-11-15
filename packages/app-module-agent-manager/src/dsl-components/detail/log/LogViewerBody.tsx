@@ -3,13 +3,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { LogStyle, SubagentDto } from '../deps.js';
 import { Banner } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
-import { useNow } from '../deps.js';
+import { useMinWidth, useNow, WIDE_SCREEN_PX } from '../deps.js';
 import { removePending, usePending } from '../pending.js';
 import { RowFrame } from './frames.js';
 import { buildRows, toggleOpen, type Row } from './grouping.js';
 import { reconcilePending } from './reconcile.js';
 import { describePending, describeRow, type OpenContext } from './rowModel.js';
 import { BOTTOM_SLACK_PX, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
+import { SubagentPanel } from './SubagentPanel.js';
 import { SubagentStrip } from './SubagentStrip.js';
 import { useLog } from './useLog.js';
 import type { LogViewerProps } from './logViewerTypes.js';
@@ -31,6 +32,7 @@ function rowMatches(row: Row, agent: SubagentDto): boolean {
 export function LogViewerBody({ session, logStyle }: LogViewerProps) {
   const { state, problem, loadingOlder, retry, loadOlder } = useLog(session.sessionId);
   const now = useNow(15_000);
+  const wide = useMinWidth(WIDE_SCREEN_PX);
   const pending = usePending(session.sessionId);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const [agentId, setAgentId] = useState<string | undefined>(undefined);
@@ -119,83 +121,86 @@ export function LogViewerBody({ session, logStyle }: LogViewerProps) {
   const cut = state.truncated;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <SubagentStrip subagents={state.subagents} note={state.subagentsNote} selected={agentId} onSelect={setAgentId} />
-      {agent !== undefined && hot.size === 0 ? (
-        <p className={`border-b border-border px-3 py-1 ${LOG_META} text-muted`}>The call that started this sub-agent is not among the entries loaded here. Load older entries or look in the transcript.</p>
-      ) : null}
-      {problem !== undefined ? (
-        <div className="px-3 pt-2">
-          <Banner tone="error" action={retryButton}>
-            <span className="font-medium">{problem.source === 'older' ? 'Older entries could not be loaded. ' : state.loaded ? 'The log could not be refreshed, the entries below are the last ones received. ' : 'The log could not be loaded. '}</span>
-            {problem.message} {problem.hint}
-          </Banner>
-        </div>
-      ) : null}
-      <div className="relative min-h-0 flex-1">
-        <div ref={scroller} onScroll={onScroll} role="log" aria-label={`Log of ${session.displayName}`} aria-live="off" tabIndex={0} className={`absolute inset-0 flex flex-col overflow-y-auto px-3 py-2 ${FOCUS_RING}`}>
-          {state.olderCursor !== null ? (
-            <button type="button" onClick={requestOlder} disabled={loadingOlder} className={`mb-2 inline-flex shrink-0 items-center justify-center gap-1.5 self-center rounded border border-border px-3 py-1 ${LOG_META} text-muted hover:bg-muted-bg hover:text-content disabled:cursor-wait ${FOCUS_RING}`}>
-              {loadingOlder ? <LoaderCircle aria-hidden="true" className={`${LOG_ICON} animate-spin motion-reduce:animate-none`} /> : <ChevronUp aria-hidden="true" className={LOG_ICON} />}
-              {loadingOlder ? 'Loading older entries' : 'Load older entries'}
-            </button>
-          ) : state.loaded && state.entries.length > 0 ? (
-            <p className={`mb-2 text-center ${LOG_META} text-muted`}>Start of the transcript</p>
-          ) : null}
-          {!state.loaded && problem === undefined ? (
-            <p className={`flex items-center justify-center gap-2 py-8 ${LOG_META} text-muted`} role="status">
-              <LoaderCircle aria-hidden="true" className={`${LOG_ICON} animate-spin motion-reduce:animate-none`} />
-              Loading the log
-            </p>
-          ) : null}
-          {state.loaded && state.entries.length === 0 && waiting.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">{state.note !== '' ? state.note : 'The transcript has no entry yet.'}</p>
-          ) : null}
-          <div className={`flex flex-col ${ROW_GAP[logStyle]}`}>
-            {rows.map((row) => (
-              <div key={row.key} data-row-key={row.key} data-hot={hot.has(row.key) ? 'true' : undefined}>
-                <RowFrame
-                  model={describeRow(row)}
-                  sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.entry}
-                  style={logStyle}
-                  open={open.has(row.key)}
-                  onToggle={toggle}
-                  context={context}
-                  now={now}
-                  highlighted={hot.has(row.key)}
-                />
-              </div>
-            ))}
-            {waiting.map((message) => (
-              <div key={`pending:${message.messageId}`} data-pending="true">
-                <RowFrame model={describePending(message)} sig={message} style={logStyle} open={true} onToggle={toggle} context={context} now={now} highlighted={false} />
-              </div>
-            ))}
-          </div>
-          {cut !== undefined && (cut.fieldsCut > 0 || cut.bodyCapped || cut.unreadableLines > 0) ? (
-            <p className={`mt-2 ${LOG_META} text-muted`}>
-              {[
-                cut.fieldsCut > 0 ? `${cut.fieldsCut} entries were shortened by the server` : '',
-                cut.bodyCapped ? 'the answer was cut at its size limit, older entries load with the button above' : '',
-                cut.unreadableLines > 0 ? `${cut.unreadableLines} lines of the transcript could not be read (shown as unrecognised entries)` : '',
-              ]
-                .filter(Boolean)
-                .join('; ')}
-              .
-            </p>
-          ) : null}
-        </div>
-        {unseen > 0 ? (
-          <button
-            type="button"
-            onClick={toBottom}
-            className={`absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary-solid px-3 py-1.5 ${LOG_META} text-bg shadow-lg ${FOCUS_RING}`}
-          >
-            <ArrowDown aria-hidden="true" className={LOG_ICON} />
-            {unseen} new {unseen === 1 ? 'entry' : 'entries'}
-          </button>
+    <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {wide ? null : <SubagentStrip subagents={state.subagents} note={state.subagentsNote} selected={agentId} onSelect={setAgentId} />}
+        {agent !== undefined && hot.size === 0 ? (
+          <p className={`border-b border-border px-3 py-1 ${LOG_META} text-muted`}>The call that started this sub-agent is not among the entries loaded here. Load older entries or look in the transcript.</p>
         ) : null}
+        {problem !== undefined ? (
+          <div className="px-3 pt-2">
+            <Banner tone="error" action={retryButton}>
+              <span className="font-medium">{problem.source === 'older' ? 'Older entries could not be loaded. ' : state.loaded ? 'The log could not be refreshed, the entries below are the last ones received. ' : 'The log could not be loaded. '}</span>
+              {problem.message} {problem.hint}
+            </Banner>
+          </div>
+        ) : null}
+        <div className="relative min-h-0 flex-1">
+          <div ref={scroller} onScroll={onScroll} role="log" aria-label={`Log of ${session.displayName}`} aria-live="off" tabIndex={0} className={`absolute inset-0 flex flex-col overflow-y-auto px-4 py-3 ${FOCUS_RING}`}>
+            {state.olderCursor !== null ? (
+              <button type="button" onClick={requestOlder} disabled={loadingOlder} className={`mb-2 inline-flex shrink-0 items-center justify-center gap-1.5 self-center rounded border border-border px-3 py-1 ${LOG_META} text-muted hover:bg-muted-bg hover:text-content disabled:cursor-wait ${FOCUS_RING}`}>
+                {loadingOlder ? <LoaderCircle aria-hidden="true" className={`${LOG_ICON} animate-spin motion-reduce:animate-none`} /> : <ChevronUp aria-hidden="true" className={LOG_ICON} />}
+                {loadingOlder ? 'Loading older entries' : 'Load older entries'}
+              </button>
+            ) : state.loaded && state.entries.length > 0 ? (
+              <p className={`mb-2 text-center ${LOG_META} text-muted`}>Start of the transcript</p>
+            ) : null}
+            {!state.loaded && problem === undefined ? (
+              <p className={`flex items-center justify-center gap-2 py-8 ${LOG_META} text-muted`} role="status">
+                <LoaderCircle aria-hidden="true" className={`${LOG_ICON} animate-spin motion-reduce:animate-none`} />
+                Loading the log
+              </p>
+            ) : null}
+            {state.loaded && state.entries.length === 0 && waiting.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted">{state.note !== '' ? state.note : 'The transcript has no entry yet.'}</p>
+            ) : null}
+            <div className={`mx-auto flex w-full max-w-am-log flex-col ${ROW_GAP[logStyle]}`}>
+              {rows.map((row) => (
+                <div key={row.key} data-row-key={row.key} data-hot={hot.has(row.key) ? 'true' : undefined}>
+                  <RowFrame
+                    model={describeRow(row)}
+                    sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.entry}
+                    style={logStyle}
+                    open={open.has(row.key)}
+                    onToggle={toggle}
+                    context={context}
+                    now={now}
+                    highlighted={hot.has(row.key)}
+                  />
+                </div>
+              ))}
+              {waiting.map((message) => (
+                <div key={`pending:${message.messageId}`} data-pending="true">
+                  <RowFrame model={describePending(message)} sig={message} style={logStyle} open={true} onToggle={toggle} context={context} now={now} highlighted={false} />
+                </div>
+              ))}
+            </div>
+            {cut !== undefined && (cut.fieldsCut > 0 || cut.bodyCapped || cut.unreadableLines > 0) ? (
+              <p className={`mt-2 ${LOG_META} text-muted`}>
+                {[
+                  cut.fieldsCut > 0 ? `${cut.fieldsCut} entries were shortened by the server` : '',
+                  cut.bodyCapped ? 'the answer was cut at its size limit, older entries load with the button above' : '',
+                  cut.unreadableLines > 0 ? `${cut.unreadableLines} lines of the transcript could not be read (shown as unrecognised entries)` : '',
+                ]
+                  .filter(Boolean)
+                  .join('; ')}
+                .
+              </p>
+            ) : null}
+          </div>
+          {unseen > 0 ? (
+            <button
+              type="button"
+              onClick={toBottom}
+              className={`absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary-solid px-3 py-1.5 ${LOG_META} text-bg shadow-lg ${FOCUS_RING}`}
+            >
+              <ArrowDown aria-hidden="true" className={LOG_ICON} />
+              {unseen} new {unseen === 1 ? 'entry' : 'entries'}
+            </button>
+          ) : null}
+        </div>
       </div>
+      {wide ? <SubagentPanel subagents={state.subagents} note={state.subagentsNote} selected={agentId} onSelect={setAgentId} /> : null}
     </div>
   );
 }

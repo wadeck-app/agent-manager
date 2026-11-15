@@ -24,9 +24,9 @@ export function ImageThumbs({ images, onRemove, disabled }: { images: readonly A
             aria-label={`Remove ${image.name}`}
             disabled={disabled}
             onClick={() => onRemove(image.id)}
-            className={`absolute -right-1.5 -top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-muted hover:text-content disabled:opacity-50 ${FOCUS_RING}`}
+            className={`absolute -right-1.5 -top-1.5 inline-flex h-am-icon w-am-icon items-center justify-center rounded-full border border-border bg-surface text-muted hover:text-content disabled:opacity-50 ${FOCUS_RING}`}
           >
-            <X aria-hidden="true" className="h-3 w-3" />
+            <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           </button>
           <div className="mt-0.5 truncate text-xs tabular-nums text-muted">
             {formatBytes(image.bytes)}

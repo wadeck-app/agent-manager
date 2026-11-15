@@ -50,7 +50,7 @@ export function CardsList({ sessions, selectedId, onSelect, now, style }: ListPr
           {visible.map((session) => {
             const id = agentId(session);
             return (
-              <OptionShell key={id} label={label(session)} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className="px-2.5 py-2.5">
+              <OptionShell key={id} label={label(session)} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className="min-h-am-row px-3 py-2.5">
                 <RailItem session={session} now={now} />
               </OptionShell>
             );

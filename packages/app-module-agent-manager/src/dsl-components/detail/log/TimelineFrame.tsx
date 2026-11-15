@@ -15,8 +15,8 @@ export function TimelineFrame({ model, open, onToggle, context, now, highlighted
       </div>
       <div className="relative flex justify-center">
         <span aria-hidden="true" className="absolute inset-y-0 w-px bg-border" />
-        <span className="relative z-10 mt-1 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-bg">
-          <Icon aria-hidden="true" className={`h-3 w-3 shrink-0 ${model.iconClass}`} />
+        <span className="relative z-10 mt-1 flex h-am-icon w-am-icon items-center justify-center rounded-full border border-border bg-bg">
+          <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm shrink-0 ${model.iconClass}`} />
         </span>
       </div>
       <div className={`min-w-0 pb-3 pl-2 ${highlighted ? `rounded ${HIGHLIGHT}` : ''}`}>

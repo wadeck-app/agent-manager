@@ -94,10 +94,10 @@ export function TreeList({ sessions, selectedId, onSelect, now, style }: ListPro
               tabIndex={visibleIds.length === 0 && node === nodes[0] ? 0 : -1}
               onClick={() => toggle(node, !open)}
               onKeyDown={(event) => onFolderKey(event, node)}
-              className={`flex cursor-pointer items-center gap-1.5 px-2 py-1.5 text-sm hover:bg-muted-bg ${FOCUS_RING} focus-visible:ring-inset`}
+              className={`flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${FOCUS_RING} focus-visible:ring-inset`}
             >
-              <Chevron aria-hidden="true" className="h-4 w-4 shrink-0 text-muted" />
-              <FolderIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-muted" />
+              <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
+              <FolderIcon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
               <span className="truncate font-semibold text-content" title={node.cwd}>
                 {node.folder}
               </span>
@@ -126,7 +126,7 @@ export function TreeList({ sessions, selectedId, onSelect, now, style }: ListPro
                   const line = detailLine(session);
                   return (
                     <Fragment key={id}>
-                    <OptionShell role="treeitem" level={2} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className="py-1.5 pl-5 pr-3" expanded={session.subagentCount > 0 ? openAgents[id] === true : undefined}>
+                    <OptionShell role="treeitem" level={2} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className="min-h-am-hit py-2 pl-5 pr-3" expanded={session.subagentCount > 0 ? openAgents[id] === true : undefined}>
                       <div className="flex items-center gap-2">
                         {session.subagentCount > 0 ? (
                           <button
@@ -137,12 +137,12 @@ export function TreeList({ sessions, selectedId, onSelect, now, style }: ListPro
                               event.stopPropagation();
                               toggleAgents(id, openAgents[id] !== true);
                             }}
-                            className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted hover:text-content ${FOCUS_RING}`}
+                            className={`inline-flex h-am-icon-sm w-am-icon-sm shrink-0 items-center justify-center rounded text-muted hover:text-content ${FOCUS_RING}`}
                           >
-                            {openAgents[id] === true ? <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" /> : <ChevronRight aria-hidden="true" className="h-3.5 w-3.5" />}
+                            {openAgents[id] === true ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
                           </button>
                         ) : (
-                          <span aria-hidden="true" className="h-4 w-4 shrink-0" />
+                          <span aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
                         )}
                         <StateIconTip session={session} />
                         <span className="min-w-0 flex-1">

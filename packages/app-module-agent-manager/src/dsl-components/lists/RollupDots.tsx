@@ -11,7 +11,7 @@ export function RollupDots({ node }: { node: FolderNode }) {
     <span className="flex shrink-0 items-center gap-1.5">
       {STATE_ORDER.filter((state) => (node.counts[state] ?? 0) > 0).map((state) => (
         <span key={state} className={`inline-flex items-center gap-0.5 text-xs tabular-nums ${STATE_LOOK[state].text}`} aria-label={`${node.counts[state]} ${STATE_LOOK[state].label}`}>
-          <Circle aria-hidden="true" className="h-2.5 w-2.5 fill-current" />
+          <Circle aria-hidden="true" className="h-am-dot w-am-dot fill-current" />
           {node.counts[state]}
         </span>
       ))}

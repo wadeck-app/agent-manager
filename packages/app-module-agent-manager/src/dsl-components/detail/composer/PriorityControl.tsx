@@ -14,14 +14,14 @@ export function PriorityControl({ priority, onChange, disabled }: { priority: 'n
     <div role="group" aria-label="When the agent reads the message" className="flex items-center gap-3">
       <Tooltip content="The agent reads the message after its current tool call finishes. Nothing is interrupted.">
         <button type="button" aria-pressed={priority === 'next'} disabled={disabled} onClick={() => onChange('next')} className={`${BUTTON} ${priority === 'next' ? 'bg-muted-bg text-content' : 'text-muted hover:text-content'}`}>
-          <Clock aria-hidden="true" className="h-3.5 w-3.5" />
+          <Clock aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           After current step
         </button>
       </Tooltip>
       <span aria-hidden="true" className="h-4 w-px bg-border" />
       <Tooltip content="Aborts the tool call the agent is running and delivers the message now. Asks for a confirmation before sending.">
         <button type="button" aria-pressed={priority === 'now'} disabled={disabled} onClick={() => onChange(priority === 'now' ? 'next' : 'now')} className={`${BUTTON} ${priority === 'now' ? 'bg-warning-bg text-warning-text' : 'text-muted hover:text-content'}`}>
-          <Zap aria-hidden="true" className="h-3.5 w-3.5" />
+          <Zap aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           Interrupt now
         </button>
       </Tooltip>

@@ -36,7 +36,7 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
         type="button"
         aria-label={name}
         onClick={copy}
-        className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
       >
         <Icon aria-hidden="true" className={`${LOG_ICON_SM} ${state === 'failed' ? 'text-danger-text' : ''}`} />
       </button>

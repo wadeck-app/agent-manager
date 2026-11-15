@@ -11,7 +11,7 @@ export function RailItem({ session, now }: { session: AgentRow; now: number }) {
       <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted-bg text-sm font-semibold text-content">
         {monogram(session.folder)}
         <span className="absolute -right-1 -top-1 rounded-full bg-surface">
-          <StatusIcon state={session.state} sizeClass="h-3.5 w-3.5" labelled={false} />
+          <StatusIcon state={session.state} sizeClass="h-am-icon w-am-icon" labelled={false} />
         </span>
       </span>
       <span className="hidden min-w-0 flex-1 group-hover/rail:block group-focus-within/rail:block">

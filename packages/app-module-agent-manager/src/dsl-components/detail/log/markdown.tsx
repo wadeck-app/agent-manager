@@ -19,7 +19,7 @@ function renderInline(nodes: readonly Inline[]): ReactNode {
         return <Fragment key={index}>{node.text}</Fragment>;
       case 'code':
         return (
-          <code key={index} className="rounded bg-muted-bg px-1 py-0.5 font-mono text-xs">
+          <code key={index} className="rounded bg-muted-bg px-1 py-0.5 font-mono text-[0.9em]">
             {node.text}
           </code>
         );
@@ -126,5 +126,5 @@ function renderBlocks(blocks: readonly Block[]): ReactNode {
 /** Assistant text as React elements. Safe by construction: see markdownParse.ts (no raw HTML, no images, only http, https and mailto links). */
 export function Markdown({ text }: { text: string }) {
   const blocks = useMemo(() => parseBlocks(text), [text]);
-  return <div className="flex flex-col gap-2 text-sm">{renderBlocks(blocks)}</div>;
+  return <div className="flex flex-col gap-2 text-sm leading-am-log">{renderBlocks(blocks)}</div>;
 }

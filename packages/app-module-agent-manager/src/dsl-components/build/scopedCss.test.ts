@@ -6,6 +6,7 @@ import postcss, { type AtRule, type Container, type Rule } from 'postcss';
 import { afterAll, describe, expect, it } from 'vitest';
 import { buildCss } from './build-css.js';
 import { SRC_DIR } from './paths.js';
+import { DENSITY_SCALE, SCALE_VARIABLES } from '../ui/densityScale.js';
 
 /**
  * The shell loads the stylesheet of every module, each a full Tailwind build: an unscoped `.hidden{display:none}` of a later module beats our
@@ -45,8 +46,52 @@ describe('the module stylesheet', () => {
   it('has every rule under the scope selector (only the wrapper rule is the bare scope)', async () => {
     const all = rules(await parsed);
     expect(all.length).toBeGreaterThan(100);
-    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !selector.startsWith(`${SCOPE} `));
+    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !/^\.agents-scope\[data-density='[sml]'\]$/.test(selector) && !selector.startsWith(`${SCOPE} `));
     expect(unscoped, 'rules outside the scope leak into the other modules (and lose to theirs); see build-css.ts').toEqual([]);
+  });
+
+  it('defines the type and icon scale per density, none of them below 12 px, and the type steps read it', async () => {
+    const root = await parsed;
+    const sizes: Record<string, Record<string, number>> = {};
+    root.walkRules((rule) => {
+      const match = /^\.agents-scope\[data-density='([sml])'\]$/.exec(rule.selector);
+      if (match?.[1] === undefined) {
+        return;
+      }
+      const vars: Record<string, number> = {};
+      rule.walkDecls(/^--am-fs-/, (decl) => {
+        vars[decl.prop] = Number.parseFloat(decl.value);
+      });
+      sizes[match[1]] = vars;
+    });
+    expect(Object.keys(sizes).sort()).toEqual(['l', 's']);
+    for (const vars of Object.values(sizes)) {
+      for (const [name, px] of Object.entries(vars)) {
+        expect(px, name).toBeGreaterThanOrEqual(12);
+      }
+    }
+    // M is the default and sits on the bare scope rule.
+    const css = root.toString();
+    expect(css).toMatch(/\.agents-scope,\s*\.agents-scope\[data-density='m'\]\s*\{[^}]*--am-fs-sm: 15px/);
+    expect(css).toMatch(/\.agents-scope \.text-sm\s*\{\s*font-size: var\(--am-fs-sm\)/);
+    expect(css).toMatch(/\.agents-scope \.text-am-mono\s*\{\s*font-size: var\(--am-fs-mono\)/);
+  });
+
+  it('holds exactly the sizes of ui/densityScale.ts (the source of the popover hints) for every density', async () => {
+    const root = await parsed;
+    for (const density of ['s', 'm', 'l'] as const) {
+      const selector = density === 'm' ? new Set([SCOPE, `${SCOPE}[data-density='m']`]) : new Set([`${SCOPE}[data-density='${density}']`]);
+      const found: Record<string, number> = {};
+      root.walkRules((rule) => {
+        if (rule.selectors.some((one) => selector.has(one))) {
+          rule.walkDecls(/^--am-(fs|icon|dot|hit|row)/, (decl) => {
+            found[decl.prop] = Number.parseFloat(decl.value);
+          });
+        }
+      });
+      const expected = Object.fromEntries(Object.entries(DENSITY_SCALE[density]).map(([key, px]) => [SCALE_VARIABLES[key as keyof typeof SCALE_VARIABLES], px]));
+      expect(found, density).toEqual(expected);
+    }
   });
 
   it('keeps the responsive override inside the scope, so it beats another module .hidden', async () => {

@@ -5,7 +5,7 @@ import { Tooltip } from './Tooltip.js';
 export const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
 /** One size for every icon button of the page (same role, same geometry). */
-export const ICON_BUTTON_CLASS = `inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
+export const ICON_BUTTON_CLASS = `inline-flex h-am-hit w-am-hit shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 
 export interface IconButtonProps {
   icon: LucideIcon;
@@ -25,7 +25,7 @@ export function IconButton({ icon: Icon, label, onClick, pressed, disabled = fal
   return (
     <Tooltip content={disabled && disabledReason !== undefined ? `${label}: ${disabledReason}` : label}>
       <button type="button" aria-label={label} aria-pressed={pressed} disabled={disabled} onClick={onClick} className={`${ICON_BUTTON_CLASS} ${className}`}>
-        <Icon aria-hidden="true" className="h-4 w-4" />
+        <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
       </button>
     </Tooltip>
   );
