@@ -2,7 +2,7 @@ import { ArrowDown, ChevronUp, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Banner } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
-import { useMinWidth, useNow, WIDE_SCREEN_PX } from '../deps.js';
+import { useMinWidth, useNow } from '../deps.js';
 import { removePending, usePending } from '../pending.js';
 import { RowFrame } from './frames.js';
 import { buildRows, toggleOpen, type Row } from './grouping.js';
@@ -10,7 +10,8 @@ import { reconcilePending } from './reconcile.js';
 import { describePending, describeRow, type OpenContext } from './rowModel.js';
 import { BOTTOM_SLACK_PX, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
 import { LocateBanner, locateAnnouncement } from './LocateBanner.js';
-import { SubagentAside, SubagentBadge, SubagentDrawerStrip } from './SubagentContainers.js';
+import { SubagentAside } from './SubagentAside.js';
+import { PANEL_OPEN_MIN_PX, useSubagentPrefs } from './subagentPrefs.js';
 import { flattenSubagents } from './subagentModel.js';
 import { useLocateCall } from './useLocateCall.js';
 import { useLog } from './useLog.js';
@@ -25,10 +26,15 @@ function rowMatches(row: Row, agent: { agentId: string; toolUseId?: string | und
   return row.entry.kind === 'tool-call' && hit(row.entry);
 }
 
-export function LogViewerBody({ session, subagentsLayout = 'panel', subagentsContent = 'summary' }: LogViewerProps) {
+export function LogViewerBody({ session }: LogViewerProps) {
   const { state, problem, loadingOlder, retry, loadOlder, loadOlderUntil } = useLog(session.sessionId);
   const now = useNow(15_000);
-  const wide = useMinWidth(WIDE_SCREEN_PX);
+  // The panel starts collapsed on a window narrower than PANEL_OPEN_MIN_PX (the log keeps its room) until the user chooses; the choice is remembered.
+  const roomy = useMinWidth(PANEL_OPEN_MIN_PX);
+  const { prefs, change: changePrefs, problem: prefsProblem, dismissProblem } = useSubagentPrefs();
+  // A selection (a click on a sub-agent, a search for its call) must be seen: a collapsed panel opens for it WITHOUT touching the saved preference. Collapsing or
+  // opening it by hand is the user's choice and is saved.
+  const [forcedOpen, setForcedOpen] = useState(false);
   const pending = usePending(session.sessionId);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const scroller = useRef<HTMLDivElement>(null);
@@ -50,6 +56,11 @@ export function LogViewerBody({ session, subagentsLayout = 'panel', subagentsCon
   const failedCalls = useMemo(() => new Set(state.entries.flatMap((entry) => (entry.kind === 'tool-call' && entry.status === 'error' ? [entry.id] : []))), [state.entries]);
   const items = useMemo(() => flattenSubagents(state.subagents, failedCalls), [state.subagents, failedCalls]);
   const locate = useLocateCall({ sessionId: session.sessionId, entries: state.entries, items, loadOlderUntil });
+  useEffect(() => {
+    if (locate.selectedId !== undefined) {
+      setForcedOpen(true);
+    }
+  }, [locate.selectedId]);
   const agent = useMemo(() => (locate.selectedId === undefined ? undefined : items.find((item) => item.dto.agentId === locate.selectedId)?.dto), [locate.selectedId, items]);
   // The rows of the call that started the selected sub-agent: highlighted once it is shown (not while it is being looked for).
   const hot = useMemo(() => new Set(agent === undefined || locate.state.phase !== 'found' ? [] : rows.filter((row) => rowMatches(row, agent)).map((row) => row.key)), [agent, rows, locate.state.phase]);
@@ -137,14 +148,22 @@ export function LogViewerBody({ session, subagentsLayout = 'panel', subagentsCon
     </button>
   );
   const cut = state.truncated;
-  // The side panel needs the room of a wide window; below it the same content opens from the strip above the log (said in the hint of the A/B test).
-  const showAside = subagentsLayout === 'panel' && wide && items.length > 0;
-  const subagentProps = { items, content: subagentsContent, selectedId: locate.selectedId, phase: locate.phase, onSelect: locate.select, note: state.subagentsNote };
+  const showAside = items.length > 0;
+  const subagentProps = {
+    items,
+    mode: prefs.mode,
+    onMode: (mode: typeof prefs.mode) => changePrefs({ mode }),
+    order: prefs.order,
+    onOrder: (order: typeof prefs.order) => changePrefs({ order }),
+    selectedId: locate.selectedId,
+    phase: locate.phase,
+    onSelect: locate.select,
+    note: state.subagentsNote,
+  };
 
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {showAside || items.length === 0 ? null : subagentsLayout === 'badge' ? <SubagentBadge {...subagentProps} /> : <SubagentDrawerStrip {...subagentProps} />}
         {items.length === 0 && state.subagentsNote !== '' ? <p className={`border-b border-border px-3 py-1.5 ${LOG_META} text-warning-text`}>{state.subagentsNote}</p> : null}
         <LocateBanner feed={locate} />
         <p role="status" aria-live="polite" className="sr-only">
@@ -223,7 +242,18 @@ export function LogViewerBody({ session, subagentsLayout = 'panel', subagentsCon
           ) : null}
         </div>
       </div>
-      {showAside ? <SubagentAside {...subagentProps} /> : null}
+      {showAside ? (
+        <SubagentAside
+          {...subagentProps}
+          collapsed={(prefs.collapsed ?? !roomy) && !forcedOpen}
+          onCollapsed={(collapsed) => {
+            setForcedOpen(false);
+            changePrefs({ collapsed });
+          }}
+          problem={prefsProblem}
+          onDismissProblem={dismissProblem}
+        />
+      ) : null}
     </div>
   );
 }

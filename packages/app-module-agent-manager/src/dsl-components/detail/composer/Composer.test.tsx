@@ -241,26 +241,82 @@ describe('Composer errors and delivery', () => {
 });
 
 describe('Composer interrupt now', () => {
-  it('needs a second, explicit confirmation before it sends priority now', async () => {
+  it('sends directly with confirmNow, with no confirmation step', async () => {
     const user = userEvent.setup();
     const box = await ready();
     await user.click(screen.getByRole('button', { name: /Interrupt now/ }));
     await user.type(box, 'stop{Enter}');
-    expect(posts).toHaveLength(0);
-    expect(screen.getByRole('alertdialog')).toHaveTextContent(/aborts the tool call/);
-    await user.click(screen.getByRole('button', { name: 'Interrupt and send' , hidden: false }));
     await waitFor(() => expect(posts).toHaveLength(1));
-    expect(posts[0]).toMatchObject({ priority: 'now', confirmNow: true });
+    expect(posts[0]).toMatchObject({ text: 'stop', priority: 'now', confirmNow: true });
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Interrupt and send' })).toBeNull();
   });
 
-  it('cancelling the confirmation sends nothing and keeps the text', async () => {
+  it('shows what is armed: the chip, the orange send button with its own name, and the placeholder', async () => {
+    const user = userEvent.setup();
+    const box = await ready();
+    await user.click(screen.getByRole('button', { name: /Interrupt now/ }));
+    expect(screen.getByRole('button', { name: /Interrupt now/ })).toHaveAttribute('aria-pressed', 'true');
+    const send = screen.getByRole('button', { name: 'Send and interrupt now' });
+    expect(send.className).toMatch(/bg-warning-bg/);
+    expect(box).toHaveAttribute('placeholder', expect.stringContaining('Interrupt now is armed'));
+  });
+
+  it('goes back to After current step after a send, and the next message is a normal one', async () => {
     const user = userEvent.setup();
     const box = await ready();
     await user.click(screen.getByRole('button', { name: /Interrupt now/ }));
     await user.type(box, 'stop{Enter}');
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(posts).toHaveLength(0);
+    await waitFor(() => expect(posts).toHaveLength(1));
+    await waitFor(() => expect(screen.getByRole('button', { name: /After current step/ })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+    await user.type(box, 'again{Enter}');
+    await waitFor(() => expect(posts).toHaveLength(2));
+    expect(posts[1]).toMatchObject({ priority: 'next' });
+    expect(posts[1]?.confirmNow).toBeUndefined();
+  });
+
+  it('a FAILED interrupting send disarms the mode, says so, and the retry goes out as a normal message', async () => {
+    const user = userEvent.setup();
+    onPost = () => ({ ok: false, error: { code: 'transport-unavailable', message: 'The pipe refused the connection', hint: 'Restart the session' } });
+    const box = await ready();
+    await user.click(screen.getByRole('button', { name: /Interrupt now/ }));
+    await user.type(box, 'stop{Enter}');
+    await screen.findByText(/Interrupt now was reset to After current step; arm it again to retry/);
+    expect(posts[0]).toMatchObject({ priority: 'now', confirmNow: true });
+    expect(screen.getByRole('button', { name: /After current step/ })).toHaveAttribute('aria-pressed', 'true');
     expect(box).toHaveValue('stop');
+    onPost = okReply;
+    await user.type(box, '{Enter}');
+    await waitFor(() => expect(posts).toHaveLength(2));
+    expect(posts[1]).toMatchObject({ priority: 'next' });
+    expect(posts[1]?.confirmNow).toBeUndefined();
+  });
+
+  it('the priority is After current step on mount and again on every session switch', async () => {
+    const user = userEvent.setup();
+    const first = row({ sessionId: '00000000-0000-4000-8000-0000000000a1', displayName: 'first-owner' });
+    const second = row({ sessionId: '00000000-0000-4000-8000-0000000000a2', displayName: 'second-owner' });
+    const view = render(<Composer session={first} />);
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+    expect(screen.getByRole('button', { name: /After current step/ })).toHaveAttribute('aria-pressed', 'true');
+    await user.click(screen.getByRole('button', { name: /Interrupt now/ }));
+    expect(screen.getByRole('button', { name: /Interrupt now/ })).toHaveAttribute('aria-pressed', 'true');
+    view.rerender(<Composer session={second} />);
+    await waitFor(() => expect(screen.getByRole('textbox')).toBeEnabled());
+    expect(screen.getByRole('button', { name: /After current step/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Interrupt now/ })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('puts the warning in the tooltip of the chip, on keyboard focus too, and says the mode is for one message', async () => {
+    await ready();
+    const chip = screen.getByRole('button', { name: /Interrupt now/ });
+    fireEvent.focus(chip);
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(/aborts the tool call the agent is running right now/);
+    expect(tip).toHaveTextContent(/work in that call is lost/);
+    expect(tip).toHaveTextContent(/one message only/);
+    expect(chip.getAttribute('aria-describedby')).toContain(tip.id);
   });
 });
 

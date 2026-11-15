@@ -9,4 +9,5 @@ export { getErrorMessage } from '../logic/errorText.js';
 export { Banner } from '../ui/Banner.js';
 export { FOCUS_RING, IconButton } from '../ui/IconButton.js';
 export { useMinWidth, useNow, WIDE_SCREEN_PX } from '../ui/hooks.js';
+export { AUTO_ML_FROM_PX } from '../ui/density.js';
 export { Tooltip } from '../ui/Tooltip.js';

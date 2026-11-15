@@ -1,4 +1,4 @@
-import { LoaderCircle, Paperclip, Plug, SendHorizontal } from 'lucide-react';
+import { LoaderCircle, Paperclip, Plug, SendHorizontal, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { Banner } from '../deps.js';
 import { FOCUS_RING, IconButton } from '../deps.js';
@@ -11,7 +11,6 @@ import { getDraft, setDraft } from './draftStore.js';
 import { ACCEPTED_MIMES } from './imagePipeline.js';
 import { ImageThumbs } from './ImageThumbs.js';
 import { formatBytes, sendProblem } from './limits.js';
-import { PriorityConfirm } from './PriorityConfirm.js';
 import { PriorityControl } from './PriorityControl.js';
 import type { AttachedImage } from './types.js';
 import { useAttachImages } from './useAttachImages.js';
@@ -27,7 +26,6 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   const [text, setText] = useState(() => getDraft(sessionId).text);
   const [images, setImages] = useState<AttachedImage[]>(() => getDraft(sessionId).images);
   const [priority, setPriority] = useState<'next' | 'now'>('next');
-  const [confirming, setConfirming] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
   const [notes, setNotes] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -97,16 +95,19 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   };
 
   const doSend = async (): Promise<void> => {
-    setConfirming(false);
     setProblems([]);
     setNotes([]);
+    const interrupting = priority === 'now';
+    // Interrupt now is armed for ONE attempt: after a send, failed or not, it is disarmed (a retry must not abort another tool call by surprise).
+    setPriority('next');
     const outcome = await send({ text, images, priority });
     if (!outcome.ok) {
-      setProblems([`The message was not sent, your text and images are still here. ${outcome.error}`]);
+      setProblems([
+        `The message was not sent, your text and images are still here. ${outcome.error}${interrupting ? " Interrupt now was reset to After current step; arm it again to retry." : ''}`,
+      ]);
       return;
     }
     change('', []);
-    setPriority('next');
     const { auditWarning, duplicate } = outcome.response;
     setNotes([...(duplicate ? ['This message had already been sent: nothing was sent twice.'] : []), ...(auditWarning === '' ? [] : [auditWarning])]);
     live.refresh();
@@ -122,11 +123,9 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
       return;
     }
     setProblems([]);
-    if (priority === 'now') {
-      setConfirming(true);
-    } else {
-      void doSend();
-    }
+    // Priority 'now' sends directly: choosing "Interrupt now" was the user's explicit confirmation (the chip's tooltip says what is lost). The server still
+    // requires confirmNow: true for it, which useSendReply sets for exactly this case.
+    void doSend();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -155,7 +154,8 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   const inactive = block !== undefined;
   const hint = limits === undefined ? '' : `Up to ${limits.maxImages} images of ${formatBytes(limits.maxImageBytes)} each, ${formatBytes(limits.maxBodyBytes)} in all.`;
   const items = deliveryItems(status?.messages ?? [], pending);
-  const sendLabel = 'Send';
+  // Armed with Interrupt now, the button says so (orange, lightning icon, its name): nobody sends an interruption by accident.
+  const sendLabel = priority === 'now' ? 'Send and interrupt now' : 'Send';
   return (
     <div data-composer className="flex shrink-0 flex-col gap-2 border-t border-border bg-surface px-4 py-3">
       {block !== undefined ? (
@@ -182,7 +182,6 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           {note}
         </Banner>
       ))}
-      {confirming ? <PriorityConfirm busy={sending} onConfirm={() => void doSend()} onCancel={() => setConfirming(false)} /> : null}
       <ImageThumbs images={images} disabled={sending} onRemove={(id) => change(current.current.text, current.current.images.filter((image) => image.id !== id))} />
       <div
         onDragOver={(event) => {
@@ -214,13 +213,13 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           readOnly={sending}
           disabled={inactive}
           aria-label={`Message to ${session.displayName}`}
-          placeholder={inactive ? 'Sending is not possible, see the message above' : 'Message the agent (Enter sends, Shift+Enter adds a line)'}
+          placeholder={inactive ? 'Sending is not possible, see the message above' : priority === 'now' ? 'Interrupt now is armed: Enter sends and aborts the running tool call' : 'Message the agent (Enter sends, Shift+Enter adds a line)'}
           onChange={(event) => change(event.target.value, current.current.images)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
           className="max-h-64 min-h-am-hit min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
-        <Tooltip content={priority === 'now' ? 'Interrupts the running tool call (asks to confirm). Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter'}>
+        <Tooltip content={priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter'}>
           <button
             type="button"
             aria-label={sendLabel}
@@ -229,7 +228,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             onClick={requestSend}
             className={`inline-flex h-am-hit w-am-hit shrink-0 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${priority === 'now' ? 'border-warning bg-warning-bg text-warning-text' : 'border-primary bg-primary-light text-primary'} ${FOCUS_RING}`}
           >
-            {sending ? <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" /> : <SendHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+            {sending ? <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" /> : priority === 'now' ? <Zap aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <SendHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
           </button>
         </Tooltip>
       </div>

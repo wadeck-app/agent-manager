@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTO_L_FROM_PX,
   AUTO_ML_FROM_PX,
@@ -206,7 +206,49 @@ describe('popover hints', () => {
       </Scope>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Text size' }));
-    expect(screen.getByRole('radio', { name: /Small/ })).toHaveTextContent(densityHint('s'));
+    expect(screen.getByRole('radio', { name: /^Small/ })).toHaveTextContent(densityHint('s'));
     expect(screen.getByRole('radio', { name: /Auto/ })).toHaveTextContent(autoHint());
+  });
+});
+
+describe('density storage problems are said, not swallowed', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+    resetDensityCache();
+  });
+
+  it('an unknown saved value gives Auto, a console warning and a note in the popover that can be dismissed', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    window.localStorage.setItem(DENSITY_STORAGE_KEY, 'huge');
+    resetDensityCache();
+    render(
+      <Scope>
+        <DensityControl />
+      </Scope>,
+    );
+    const button = screen.getByRole('button', { name: /Text size/ });
+    expect(button).toHaveAccessibleName('Text size (a note about the saved setting)');
+    fireEvent.click(button);
+    expect(screen.getByRole('alert')).toHaveTextContent('Your text size setting could not be read: the default (Auto) is used.');
+    expect(warn).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss the note about the text size' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('a setting that cannot be saved is said, and still applies for the session', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    render(
+      <Scope>
+        <DensityControl />
+      </Scope>,
+    );
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Text size' }));
+    fireEvent.click(screen.getByRole('radio', { name: /^Small/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent('could not be saved');
+    expect(screen.getByRole('radio', { name: /^Small/ })).toHaveAttribute('aria-checked', 'true');
   });
 });

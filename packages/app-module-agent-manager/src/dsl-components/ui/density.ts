@@ -33,12 +33,35 @@ function isSetting(value: unknown): value is DensitySetting {
   return value === 'auto' || value === 's' || value === 'm' || value === 'l';
 }
 
-/** The saved setting; the default when nothing valid is saved. A storage that throws (private mode) means "nothing saved". */
+export const DENSITY_READ_PROBLEM = 'Your text size setting could not be read: the default (Auto) is used.';
+export const DENSITY_WRITE_PROBLEM = 'Your text size could not be saved: it resets when the page is reloaded.';
+
+/** The last problem with the saved setting, shown (dismissible) in the text size panel; empty when there is none. */
+let storageProblem = '';
+let warned = false;
+
+function reportProblem(text: string, detail: unknown): void {
+  storageProblem = text;
+  if (!warned) {
+    warned = true;
+    console.warn(`[agent-manager] ${text}`, detail);
+  }
+}
+
+/** The saved setting; the default when nothing is saved. A storage that throws, or a value that is not a setting, gives the default AND a visible note (never silent). */
 export function readSetting(): DensitySetting {
   try {
     const saved = window.localStorage.getItem(DENSITY_STORAGE_KEY);
-    return isSetting(saved) ? saved : DEFAULT_SETTING;
-  } catch {
+    if (saved === null) {
+      return DEFAULT_SETTING;
+    }
+    if (isSetting(saved)) {
+      return saved;
+    }
+    reportProblem(DENSITY_READ_PROBLEM, saved);
+    return DEFAULT_SETTING;
+  } catch (error) {
+    reportProblem(DENSITY_READ_PROBLEM, error);
     return DEFAULT_SETTING;
   }
 }
@@ -60,8 +83,8 @@ export function setDensity(next: DensitySetting): void {
   current = next;
   try {
     window.localStorage.setItem(DENSITY_STORAGE_KEY, next);
-  } catch {
-    // Not saved: the setting resets on reload. Nothing the user could fix, nothing worth an error banner.
+  } catch (error) {
+    reportProblem(DENSITY_WRITE_PROBLEM, error);
   }
   notify();
 }
@@ -69,6 +92,8 @@ export function setDensity(next: DensitySetting): void {
 /** Forgets the in-memory value so the next read goes to the storage again (tests). */
 export function resetDensityCache(): void {
   current = undefined;
+  storageProblem = '';
+  warned = false;
   notify();
 }
 
@@ -107,6 +132,21 @@ export function useDensity(): Density {
     () => resolveDensity(setting(), window.innerWidth),
     () => 'm',
   );
+}
+
+/** The sentence to show when the saved text size could not be read or saved; empty otherwise. */
+export function useDensityProblem(): string {
+  return useSyncExternalStore(
+    subscribe,
+    () => storageProblem,
+    () => '',
+  );
+}
+
+/** The user dismissed the note. */
+export function dismissDensityProblem(): void {
+  storageProblem = '';
+  notify();
 }
 
 /** The setting the user made (`auto` by default). */

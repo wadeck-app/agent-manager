@@ -1,6 +1,6 @@
-import { ALargeSmall } from 'lucide-react';
+import { ALargeSmall, TriangleAlert, X } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
-import { DENSITY_LABEL, DENSITY_SETTINGS, setDensity, useDensity, useDensitySetting, type Density, type DensitySetting } from './density.js';
+import { DENSITY_LABEL, DENSITY_SETTINGS, dismissDensityProblem, setDensity, useDensity, useDensityProblem, useDensitySetting, type Density, type DensitySetting } from './density.js';
 import { autoHint, densityHint } from './densityScale.js';
 import { FOCUS_RING, ICON_BUTTON_CLASS } from './IconButton.js';
 import { Tooltip } from './Tooltip.js';
@@ -20,6 +20,7 @@ function choiceLabel(value: DensitySetting, resolved: Density): string {
 export function DensityControl() {
   const setting = useDensitySetting();
   const resolved = useDensity();
+  const problem = useDensityProblem();
   const { open, setOpen, box, panelId } = usePopover(CHECKED_RADIO);
 
   const onRadioKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
@@ -37,13 +38,21 @@ export function DensityControl() {
 
   return (
     <div ref={box} className="relative">
-      <Tooltip content="Text size">
-        <button type="button" aria-label="Text size" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpen(!open)} className={`${ICON_BUTTON_CLASS} ${open ? 'bg-muted-bg text-content' : ''}`}>
-          <ALargeSmall aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+      <Tooltip content={problem === '' ? 'Text size' : `Text size: ${problem}`}>
+        <button type="button" aria-label={problem === '' ? 'Text size' : 'Text size (a note about the saved setting)'} aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpen(!open)} className={`${ICON_BUTTON_CLASS} ${open ? 'bg-muted-bg text-content' : ''} ${problem === '' ? '' : 'text-warning-text'}`}>
+          {problem === '' ? <ALargeSmall aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <TriangleAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
         </button>
       </Tooltip>
       {open ? (
         <div id={panelId} role="dialog" aria-label="Text size" className="absolute right-0 top-full z-30 mt-1 w-72 rounded-lg border border-border bg-surface p-2 shadow-lg">
+          {problem !== '' ? (
+            <div role="alert" className="mb-2 flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-text">
+              <p className="min-w-0 flex-1">{problem}</p>
+              <button type="button" aria-label="Dismiss the note about the text size" onClick={dismissDensityProblem} className={`shrink-0 rounded p-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
+                <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+              </button>
+            </div>
+          ) : null}
           <div role="radiogroup" aria-label="Text size" onKeyDown={onRadioKeyDown} className="flex flex-col gap-1">
             {DENSITY_SETTINGS.map((value) => (
               <button

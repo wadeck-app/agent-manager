@@ -1,5 +1,6 @@
 import { CircleCheck, CircleDashed, CircleHelp, CircleX, LoaderCircle, type LucideIcon } from 'lucide-react';
 import type { SubagentDto } from '../deps.js';
+import type { TimelineOrder } from './subagentTypes.js';
 
 /** What a sub-agent is shown as. The server's status (facts from the meta and the file times), upgraded to 'failed' when the call that started it is known to have failed. */
 export type SubagentStatus = SubagentDto['status'];
@@ -96,11 +97,23 @@ export function filterItems(items: readonly SubagentItem[], filter: StatusFilter
   return filter === 'all' ? [...items] : items.filter((item) => item.status === filter);
 }
 
-/** What needs the eye first: active (the most recent first), then failed, then idle, then finished (the most recent first). Stable for equal starts. */
+/**
+ * THE ordering key of the panel, for the Summary and the Timeline alike: the last thing known to have happened to a sub-agent, that is its end (finished, failed),
+ * else its last write, else its start; 0 when nothing is known. "Most recent first" means the highest value first.
+ */
+export function recency(item: SubagentItem): number {
+  const { endedAt, lastActivityAt, startedAt } = item.dto;
+  return endedAt ?? lastActivityAt ?? startedAt ?? 0;
+}
+
+/**
+ * What needs the eye first: active, then unknown, failed, idle, then finished; inside each status the most recent first (the latest end time for the ones that
+ * ended, the latest write for the active ones). Stable for equal times.
+ */
 export function byAttention(items: readonly SubagentItem[]): SubagentItem[] {
   return items
     .map((item, index) => ({ item, index }))
-    .sort((a, b) => STATUS_ORDER.indexOf(a.item.status) - STATUS_ORDER.indexOf(b.item.status) || (b.item.dto.startedAt ?? 0) - (a.item.dto.startedAt ?? 0) || a.index - b.index)
+    .sort((a, b) => STATUS_ORDER.indexOf(a.item.status) - STATUS_ORDER.indexOf(b.item.status) || recency(b.item) - recency(a.item) || a.index - b.index)
     .map(({ item }) => item);
 }
 
@@ -132,24 +145,6 @@ export function formatElapsed(ms: number): string {
   return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`;
 }
 
-export interface TypeGroup {
-  type: string;
-  items: SubagentItem[];
-  counts: SubagentCounts;
-}
-
-/** Grouped by agent type (the groups with something running or failed first, then by size). */
-export function groupByType(items: readonly SubagentItem[]): TypeGroup[] {
-  const groups = new Map<string, SubagentItem[]>();
-  for (const item of items) {
-    const type = item.dto.agentType ?? (item.dto.isFork ? 'fork' : 'agent');
-    groups.set(type, [...(groups.get(type) ?? []), item]);
-  }
-  return [...groups.entries()]
-    .map(([type, list]) => ({ type, items: byAttention(list), counts: countStatuses(list) }))
-    .sort((a, b) => b.counts.active + b.counts.failed - (a.counts.active + a.counts.failed) || b.items.length - a.items.length || a.type.localeCompare(b.type));
-}
-
 export interface TimelineBar {
   item: SubagentItem;
   /** Percent of the axis. */
@@ -168,7 +163,7 @@ export interface Timeline {
 }
 
 /** Bars on a common time axis (start of the first to the end of the last, "now" for a running one), and the peak concurrency by a sweep over the edges. */
-export function buildTimeline(items: readonly SubagentItem[], now: number): Timeline {
+export function buildTimeline(items: readonly SubagentItem[], now: number, order: TimelineOrder = 'recent'): Timeline {
   const dated = items
     .map((item) => ({ item, start: item.dto.startedAt, end: item.status === 'active' ? now : (item.dto.endedAt ?? item.dto.lastActivityAt) }))
     .filter((entry): entry is { item: SubagentItem; start: number; end: number } => entry.start !== undefined && entry.end !== undefined);
@@ -179,7 +174,8 @@ export function buildTimeline(items: readonly SubagentItem[], now: number): Time
   const to = Math.max(...dated.map((entry) => entry.end), from + 1000);
   const span = to - from;
   const bars = dated
-    .sort((a, b) => a.start - b.start)
+    // Most recent first (default) or oldest first, by the same key as the Summary (recency); the axis itself always runs from the earliest start (left) to the latest end (right).
+    .sort((a, b) => (order === 'recent' ? recency(b.item) - recency(a.item) : recency(a.item) - recency(b.item)) || a.start - b.start)
     .map(({ item, start, end }) => ({ item, left: ((start - from) / span) * 100, width: Math.max(0.6, ((Math.max(end, start) - start) / span) * 100) }));
   const edges = dated.flatMap((entry) => [
     { at: entry.start, delta: 1 },
