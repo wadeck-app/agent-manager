@@ -28,6 +28,10 @@ export async function buildCss(outfile: string = MODULE_STYLE_CSS): Promise<void
   const source = fs.readFileSync(LIB_CSS, 'utf8');
   const config = {
     ...baseTailwind,
+    // Every utility becomes `.agents-scope .x`: the shell loads the sheet of every module, and an equal-specificity rule of a later one (`.hidden`) would win over our responsive variants. See ui/Scope.tsx.
+    important: '.agents-scope',
+    // `.container` is the one component Tailwind emits unscoped and nothing here uses it: it would leak into the other modules.
+    corePlugins: { container: false },
     content: [
       toGlob(path.join(SRC_DIR, '**', '*.{ts,tsx}')),
       `!${toGlob(path.join(SRC_DIR, '**', '*.test.{ts,tsx}'))}`,

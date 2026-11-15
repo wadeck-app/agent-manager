@@ -1,4 +1,5 @@
 import { Banner } from '../ui/Banner.js';
+import { Scope } from '../ui/Scope.js';
 import { checkVariant } from '../shared.js';
 import type { LogStyle, SessionRowDto } from '../shared.js';
 import { Workspace } from '../workspace/Workspace.js';
@@ -32,7 +33,15 @@ export interface AgentWorkspaceProps {
 export function AgentWorkspace({ list, variant, sessions, userStateError, hiddenDead, logStyle }: AgentWorkspaceProps) {
   const checked = checkVariant(list, variant);
   if (!checked.ok) {
-    return <Banner tone="error">{checked.text}</Banner>;
+    return (
+      <Scope>
+        <Banner tone="error">{checked.text}</Banner>
+      </Scope>
+    );
   }
-  return <Workspace list={checked.list} style={checked.style} sessions={sessions} userStateError={userStateError ?? ''} hiddenDead={hiddenDead ?? 0} logStyle={logStyle} />;
+  return (
+    <Scope>
+      <Workspace list={checked.list} style={checked.style} sessions={sessions} userStateError={userStateError ?? ''} hiddenDead={hiddenDead ?? 0} logStyle={logStyle} />
+    </Scope>
+  );
 }

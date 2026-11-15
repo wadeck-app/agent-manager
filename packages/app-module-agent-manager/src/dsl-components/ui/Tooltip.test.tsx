@@ -48,7 +48,9 @@ describe('Tooltip', () => {
     });
     const tip = screen.getByRole('tooltip');
     expect(tip).toHaveTextContent('Pin this session');
-    expect(tip.parentElement).toBe(document.body);
+    // The bubble sits in the scope wrapper, which is what sits in the body.
+    expect(tip.parentElement).toHaveClass('agents-scope');
+    expect(tip.parentElement!.parentElement).toBe(document.body);
     expect(button).toHaveAttribute('aria-describedby', tip.id);
   });
 

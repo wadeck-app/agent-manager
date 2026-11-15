@@ -68,6 +68,26 @@ describe('AgentWorkspace', () => {
     vi.unstubAllGlobals();
   });
 
+  it('renders every root inside the scope wrapper (the stylesheet only styles descendants of .agents-scope), the error banner too', () => {
+    const { container, rerender } = render(
+      <Page>
+        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP, DOCS]} />
+      </Page>,
+    );
+    const scope = container.firstElementChild as HTMLElement;
+    expect(scope).toHaveClass('agents-scope');
+    // The wrapper holds the whole workspace: both panes are inside it, and nothing of the workspace is a sibling of it.
+    expect(scope.querySelector('[data-pane="list"]')).not.toBeNull();
+    expect(scope.querySelector('[data-pane="detail"]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-pane]')).toHaveLength(scope.querySelectorAll('[data-pane]').length);
+    rerender(
+      <Page>
+        <AgentWorkspace list={'nope' as 'groups'} variant="compact" />
+      </Page>,
+    );
+    expect(screen.getByRole('alert').closest('.agents-scope')).not.toBeNull();
+  });
+
   it('reports a wrong list or variant on the page instead of falling back', () => {
     render(
       <Page>

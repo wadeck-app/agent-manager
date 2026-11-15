@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Scope } from './Scope.js';
 
 /** Delay before a tooltip appears, so moving the pointer across a list shows none. Keyboard focus shows it at once. */
 export const SHOW_DELAY_MS = 350;
@@ -163,17 +164,19 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
       {described}
       {open
         ? createPortal(
-            <div
-              ref={bubbleRef}
-              id={id}
-              role="tooltip"
-              data-side={placement?.side}
-              // Fixed to the viewport, invisible until measured (so the first frame is not at 0,0).
-              className={`pointer-events-none fixed left-0 top-0 z-50 w-max max-w-xs rounded bg-content px-2 py-1 text-xs text-bg shadow-lg ${placement === undefined ? 'invisible' : ''}`}
-              style={placement === undefined ? undefined : { top: placement.top, left: placement.left }}
-            >
-              {content}
-            </div>,
+            <Scope>
+              <div
+                ref={bubbleRef}
+                id={id}
+                role="tooltip"
+                data-side={placement?.side}
+                // Fixed to the viewport, invisible until measured (so the first frame is not at 0,0).
+                className={`pointer-events-none fixed left-0 top-0 z-50 w-max max-w-xs rounded bg-content px-2 py-1 text-xs text-bg shadow-lg ${placement === undefined ? 'invisible' : ''}`}
+                style={placement === undefined ? undefined : { top: placement.top, left: placement.left }}
+              >
+                {content}
+              </div>
+            </Scope>,
             document.body,
           )
         : null}

@@ -2,3 +2,8 @@
    only the utilities the components and the views use. */
 @tailwind components;
 @tailwind utilities;
+
+/* The scope wrapper (ui/Scope.tsx): no box of its own, so layout is exactly as if it were not there. Not a utility, so not scoped. */
+.agents-scope {
+  display: contents;
+}
