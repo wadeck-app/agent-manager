@@ -5,7 +5,6 @@ import { FOCUS_RING } from '../ui/IconButton.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
 import { ModeToggle } from './ModeToggle.js';
 import { SearchBox, type SearchBoxProps } from './SearchBox.js';
-import { TableLink } from './TableLink.js';
 import { ViewOptionsControl } from './ViewOptionsControl.js';
 
 export interface ToolbarProps {
@@ -26,7 +25,7 @@ export interface ToolbarProps {
 
 /**
  * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the toggle between the listing modes, the search, which
- * sessions to show, then the icon buttons (view options of the mode, the table page, text size, shortcut help).
+ * sessions to show, then the icon buttons (view options of the mode, text size, shortcut help).
  */
 export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange }: ToolbarProps) {
   return (
@@ -52,7 +51,6 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
           <option value="all">Alive and ended sessions</option>
         </select>
         <ViewOptionsControl mode={mode} options={options} onChange={onOptions} />
-        <TableLink />
         <DensityControl />
         <ShortcutsHelp open={helpOpen} onOpenChange={onHelpOpenChange} />
       </div>

@@ -33,7 +33,7 @@ export interface ApiFailure {
 export type AgentState = 'needs-you' | 'done' | 'working' | 'idle' | 'ended' | 'other';
 
 /** One row of GET /sessions: the registry session plus what the list needs. Only the fields the UI uses are listed; the table columns use the others. */
-export interface SessionRowDto {
+export interface SessionRowDto extends SessionStatusDto {
   /** The session id as the registry writes it (use it in the routes below; case-insensitive on the server). */
   sessionId: string;
   /** The registry name, else the folder. */
@@ -110,6 +110,88 @@ export interface SessionsFailed {
 export type SessionsResponse = SessionsOk | SessionsFailed;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
+// The status line data (what the Claude Code status line shows): model, context, tokens, duration, branch, role, bypasses
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// Every field is OPTIONAL and read-only data of the user's own machine. An absent field means "not available", and the reason is in `statusNote` (never a
+// silent empty). Sources, from Claude Code 2.1.3xx transcripts (details: .claude/specs/2026-11-14_agent-fleet-manager/research/statusline-data-in-transcripts.md):
+//   model            EXACT name and id when the transcript holds the `model` attachment (written at start and at each change); else derived from the id of
+//                    the last assistant message with a data table (`known: false` = id not in the table, shown raw).
+//   contextUsedPct   the formula is Claude Code's (round(contextTokens / window * 100)); the WINDOW is an estimate (see ContextUsedDto): basis 'estimate'.
+//   tokensIn/Out     the status line's "total_input_tokens" / "total_output_tokens" are NOT running totals: they are the prompt size (input + cache creation +
+//                    cache read) and the output of the LAST API call. Same numbers here, read from the last assistant message of the transcript tail.
+//   durationMs       now - registry startedAt (the Claude process start). The status line's `cost.total_duration_ms` is a wall clock since the session started
+//                    that Claude Code restores on resume: equal for a session that was not resumed, larger after a resume. Not recoverable from the transcript
+//                    of a live session (the cost-state line is only written when the session ends).
+//   gitBranch        `git -C <cwd> branch --show-current`, cwd from the registry only; absent when not a repository or on a detached HEAD.
+//   role             the file <cwd or a parent>/.claude/session/roles/<sessionId>, as the status line reads it.
+//   bypasses         the overrides of this session in <cwd>/.claude/w-guardrails/guardrails.bypass.json that are not expired.
+
+/** A model as the UI shows it. */
+export interface ModelDto {
+  /** The raw id (assistant `message.model`, or the attachment `modelId` with the provider prefix and the `[1m]` tag); absent when only the name is known. */
+  id?: string;
+  /** "Sonnet 5.5", "Opus 5.5 (1M context)"; the raw id when the model is not in the table. */
+  displayName: string;
+  /** False when the id is not in the model table: `displayName` is then the raw id, show it with a visible "unknown model" mark. */
+  known: boolean;
+}
+
+/** Percentage of the context window used. */
+export interface ContextUsedDto {
+  /** 0..100, an integer, rounded like the status line. */
+  value: number;
+  /**
+   * 'estimate' whenever the window had to be assumed (always today: the window is not written in the transcript). 'exact' is reserved for a window read
+   * from Claude Code itself; the UI shows an estimate with a "~" and the `note` as tooltip.
+   */
+  basis: 'estimate' | 'exact';
+  /** Where the window comes from and what it is ("Sonnet 5.5 was observed above 200k tokens without the [1m] tag: 1000k window assumed"). */
+  note: string;
+  /** The window the percentage is computed with. */
+  windowTokens: number;
+}
+
+/** One active w-guardrails bypass of the session. */
+export interface BypassDto {
+  /** Raw category ('git-commit-push'). */
+  category: string;
+  /** Short label as the status line shows it ('c&p' for git-commit-push). */
+  label: string;
+  /** Time left or uses left, as the status line shows it ('1h52m', '10m', '<1m', '2x'). */
+  left: string;
+  /** Milliseconds left; absent for a bypass counted in uses ('2x'). */
+  leftMs?: number;
+}
+
+/** The status line data of one session. Shared by the rows of GET /sessions and by `status` of GET /sessions/:id/log. */
+export interface SessionStatusDto {
+  /** The current model: the one of the last assistant message of the main session. Absent while no assistant message exists (see statusNote). */
+  model?: ModelDto;
+  /** Models used before, most recent first, found in the part of the transcript that was read (a tail window: not the whole history). */
+  previousModels?: ModelDto[];
+  contextUsedPct?: ContextUsedDto;
+  /** Prompt size of the last API call (input + cache creation + cache read): the status line's "total_input_tokens". EXACT. */
+  tokensIn?: number;
+  /** Output tokens of the last assistant message: the status line's "total_output_tokens". EXACT, but it grows while the message streams. */
+  tokensOut?: number;
+  /** Milliseconds since the registry `startedAt` of the session (see the notes above for the difference with the status line); absent without startedAt. */
+  durationMs?: number;
+  /** Current git branch of the working directory; absent when it is not a repository, the folder is gone, or HEAD is detached. */
+  gitBranch?: string;
+  /** Set when git could not be run (missing, timeout): visible text with what to do. A folder that is not a repository is NOT an error. */
+  gitBranchError?: string;
+  /** Absent: no role; 'autonomous-worker': the role (the "role-" prefix dropped); '!role-err:<cause>': the role file is broken (show it as an error). */
+  role?: string;
+  /** Active bypasses, sorted by label; absent when the file does not exist; [] when it exists with none for this session. */
+  bypasses?: BypassDto[];
+  /** Set when the bypass file exists but cannot be read or parsed: visible text, never an empty list. */
+  bypassError?: string;
+  /** Why model, context or tokens are absent ("No transcript yet", "No assistant message yet"); absent when nothing is missing. */
+  statusNote?: string;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
 // POST /sessions/:sessionId/pin {pinned: boolean}   and   POST /sessions/:sessionId/seen (no body): existing routes, unchanged.
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -131,7 +213,10 @@ export type SessionsResponse = SessionsOk | SessionsFailed;
 // - Safety net: when an answer holds a key you already have, keep ONE copy: the one of the newer answer for `after`, the one of the older page for `before`
 //   (it is complete). This only happens for a call whose result was more than about 1 MiB away from it; such a result arrives alone with `orphan: true`
 //   (show it as "tool result" without a name).
-// - Entries of kind 'usage' (token counts) are never sent: the context size is in `activity.contextEstimate`.
+// - Entries of kind 'usage' (token counts) and 'model-info' (the model attachment) are never sent: the model and the context are in `status`.
+// - Entries of kind 'model-change' ARE sent, in the timeline where the model changed: `text` is ready to show ("Model changed: Sonnet 4.6 -> Haiku 5.5"),
+//   `from` / `to` are ModelRef ({id?, displayName, known}), `source` says whether `/model` or the first message of the new model showed it,
+//   `scope` ('session' | 'default') is set for a command. Render it as a visible notice row (like a system notice), never hidden.
 // - The activity of a `before` answer describes the older window: ignore it, keep the one of the newest answers.
 
 /** A transcript entry in JSON (the Entry type of the core transcript reader, see packages/agent-manager-core/src/transcript/types.ts). */
@@ -259,6 +344,8 @@ export interface LogOk {
   /** Problems reading the sub-agents folder, shown not hidden; empty when fine. */
   subagentsNote: string;
   activity: LogActivity;
+  /** The status line data of the session (model, context, tokens, branch, role, bypasses), same shape and sources as in the rows of GET /sessions. */
+  status?: SessionStatusDto;
   truncated: LogTruncation;
   limits: LogLimits;
   /** Set (with empty entries) when the session has no transcript yet; empty otherwise. */
@@ -297,6 +384,9 @@ export interface ReplyRequest {
   messageId?: string;
 }
 
+/** How the session sees a delivered message: 'peer' = peer message (wrapped by Claude Code, "not typed by your user"); 'typed' = typed prompt (as the user, full user authority). */
+export type DeliveredAs = 'peer' | 'typed';
+
 /** The state of a reply, from the core delivery state machine. */
 export type DeliveryStateName = 'queued' | 'sent' | 'queued-in-session' | 'confirmed' | 'unconfirmed' | 'expired';
 
@@ -310,6 +400,10 @@ export interface ReplyOk {
   /** What the composer shows now. */
   deliveryUi: DeliveryUi;
   transportId: string;
+  /** How the session sees the message: 'peer' (wrapped by Claude Code) or 'typed' (as the user typed it). */
+  deliveredAs: DeliveredAs;
+  /** An identifier the transport gave the delivery (hc: `t2#turn7`); empty when it has none. Informational. */
+  handle: string;
   messageId: string;
   /** True when this id was already sent: nothing was sent again. */
   duplicate: boolean;
@@ -319,7 +413,7 @@ export interface ReplyOk {
   imagesSaved: number;
 }
 
-/** Codes: 'bad-request' (400), 'unknown-session' (404 or 200), 'session-dead', 'transport-unavailable', 'transport-refused', 'no-token-file', 'confirm-now-required', 'text-too-long', 'upload-too-large', 'unsupported-image', 'mime-mismatch', 'transports-invalid', ... (the code of the core ReplyError, with its `fix` as `hint`). */
+/** Codes: 'bad-request' (400), 'unknown-session' (404 or 200), 'session-dead', 'terminal-blocked' / 'no-terminal' / 'ambiguous-terminal' / 'terminal-gone' (409, hc transport), 'rate-limited' (429, hc transport), 'hc-missing' / 'hc-timeout' / 'hc-send-failed' (502), 'transport-unavailable', 'transport-refused', 'no-token-file', 'confirm-now-required', 'text-too-long', 'upload-too-large', 'unsupported-image', 'mime-mismatch', 'transports-invalid', ... (the code of the core ReplyError, with its `fix` as `hint`). */
 export type ReplyResponse = ReplyOk | ApiFailure;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -331,6 +425,8 @@ export interface TransportStatusDto {
   description: string;
   /** 'direct' (written into the session now) or 'mailbox' (waits until a hook picks it up). */
   kind: string;
+  /** False: this transport was NOT probed (only the selected one is, unless the request says `?probe=all`): `available` and `reason` are placeholders. */
+  probed: boolean;
   /** This transport can deliver to the session now. */
   available: boolean;
   /** Why it is available or not, one sentence. */
@@ -341,6 +437,14 @@ export interface TransportStatusDto {
   warnings: string[];
   /** The transport a send uses without an explicit choice. */
   selected: boolean;
+  /** This transport is the global default (transports.json "default"). */
+  isDefault: boolean;
+  /** This transport is the override of THIS session (transports.json "perSession"). */
+  sessionOverride: boolean;
+  /** How the session sees what this transport delivers. */
+  deliveredAs: DeliveredAs;
+  /** The wording to show: 'peer message (wrapped by Claude Code)' or 'typed prompt (as the user)'. */
+  deliveredAsText: string;
 }
 
 /** One recent reply to the session. */
@@ -379,6 +483,11 @@ export interface ReplyStatusOk {
   sessionAlive: boolean;
   /** Where `selected` comes from: 'default' (no transports.json: the built-in default), 'transports.json', or 'transports.json (session override)'. */
   selectedFrom: string;
+  /** The transport a reply uses now (the session override, else the default). */
+  selectedTransportId: string;
+  defaultTransportId: string;
+  /** The override of this session, null when it follows the default. */
+  sessionOverrideTransportId: string | null;
   /** Transports known to the module (implemented ones only) with their availability for this session. */
   transports: TransportStatusDto[];
   /** The last replies to this session, newest first (at most 10, from the audit). */
@@ -390,3 +499,57 @@ export interface ReplyStatusOk {
 
 /** Codes: 'unknown-session' (404), 'transports-invalid', 'transports-unreadable', 'registry-unreadable'. */
 export type ReplyStatusResponse = ReplyStatusOk | ApiFailure;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// PUT /sessions/:sessionId/reply/transport   and   PUT /reply/transport/default
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// The transport is a setting (transports.json, also changed by `agent-manager transport set`), never a field of POST reply (a transport field there is
+// a 400 'bad-request' that names these routes). Changing it sends nothing. Availability is NOT required to select a transport (GET .../reply/status says
+// whether it works now); a reply that cannot go out through the selected transport fails with its reason, it never falls back to another one.
+
+/** Body of PUT /sessions/:sessionId/reply/transport: a transport id, or null to follow the default again. */
+export interface ReplyTransportSetRequest {
+  transportId: string | null;
+}
+
+export interface ReplyTransportSetOk {
+  ok: true;
+  sessionId: string;
+  /** What a reply to this session uses now. */
+  selectedTransportId: string;
+  /** The override of this session, null when it follows the default. */
+  sessionOverrideTransportId: string | null;
+  defaultTransportId: string;
+}
+
+/** Codes: 'bad-request' (400), 'unknown-transport' (400, the message lists the valid ids), 'unknown-session' (404), 'registry-unreadable' (409), 'transports-invalid' / 'transports-unreadable' (502: fix or delete transports.json). */
+export type ReplyTransportSetResponse = ReplyTransportSetOk | ApiFailure;
+
+/** Body of PUT /reply/transport/default. */
+export interface ReplyDefaultTransportSetRequest {
+  transportId: string;
+}
+
+export interface ReplyDefaultTransportSetOk {
+  ok: true;
+  defaultTransportId: string;
+}
+
+/** Codes: 'bad-request' (400), 'unknown-transport' (400), 'transports-invalid' / 'transports-unreadable' (502). */
+export type ReplyDefaultTransportSetResponse = ReplyDefaultTransportSetOk | ApiFailure;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// GET /csrf   and   the 403 of every write route (header name and rules: ./csrf.ts)
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+export interface CsrfOk {
+  ok: true;
+  /** The header to send with every non-GET request: 'X-Agent-Manager-Csrf'. */
+  header: string;
+  /** Valid until the module restarts. Never log it or put it in a URL. */
+  token: string;
+}
+
+/** Codes of the 403 of a write route (body `{ ok: false, error }`): 'csrf-required' (no `Sec-Fetch-Site: same-origin`, or no token header), 'csrf-invalid' (token not issued by this module run: fetch a new one, retry once). */
+export type CsrfResponse = CsrfOk | ApiFailure;

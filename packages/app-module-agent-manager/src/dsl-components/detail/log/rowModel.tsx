@@ -1,7 +1,10 @@
-import { Bell, Bot, Brain, ChevronDown, ChevronRight, CircleHelp, Clock, Cpu, GitFork, Layers, ListOrdered, Terminal, TriangleAlert, User, Users, Wrench, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, Bell, Bot, Brain, ChevronDown, ChevronRight, CircleHelp, Clock, Cpu, GitFork, Layers, ListOrdered, Terminal, TriangleAlert, User, Users, Wrench, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { LogEntry } from '../deps.js';
-import type { PendingMessage } from '../pending.js';
+import type { LogEntry, ReplyMessageDto } from '../deps.js';
+import { UNCONFIRMED_AFTER_MS, type PendingMessage } from '../pending.js';
+import { DeliveryMark, type MarkState } from './DeliveryMark.js';
+import { PendingActions } from './PendingActions.js';
+import { PriorityMark } from './PriorityMark.js';
 import { firstLine, formatBytes, formatDuration } from './format.js';
 import { summariseGroup, type Row, type ToolCall } from './grouping.js';
 import { Markdown } from './markdown.js';
@@ -29,6 +32,8 @@ export interface RowModel {
   /** Status icon, duration, counts, at the end of the header. */
   trailing?: ReactNode;
   tone: 'normal' | 'muted' | 'error';
+  /** 'interrupt': a message that aborted the running tool call (an orange outline on its bubble). */
+  cue?: 'interrupt';
   /** Collapsed until clicked (tool calls, thinking, notices). Messages are open. */
   expandable: boolean;
   body: ((context: OpenContext) => ReactNode) | null;
@@ -41,7 +46,58 @@ function truncatedNote(truncated: boolean, bytes: number, shownChars: number): R
   return truncated ? <p className={`${LOG_META} text-muted`}>Shortened: the message is {formatBytes(bytes)}, {shownChars} characters are shown.</p> : null;
 }
 
-function promptModel(entry: Extract<LogEntry, { kind: 'user-prompt' }>): RowModel {
+/** The server's record of a message (state, priority), by the client message id of the marker. */
+export type DeliveryLookup = (messageId: string) => ReplyMessageDto | undefined;
+
+function priorityOf(value: string | undefined): 'next' | 'now' | undefined {
+  return value === 'now' || value === 'next' ? value : undefined;
+}
+
+/** The raw text of a message, one click away (the wrapper Claude Code adds around a message of another session is there). */
+function rawText(text: string): ReactNode {
+  return (
+    <details className={LOG_META}>
+      <summary className="cursor-pointer text-muted">Raw message</summary>
+      <pre className="mt-1 whitespace-pre-wrap break-words font-mono text-am-mono text-muted">{text}</pre>
+    </details>
+  );
+}
+
+/** A reply sent from agent-manager, as the transcript has it: the person's bubble, with the words they wrote; the wrapper of the peer message is the raw text. */
+function webReplyModel(entry: Extract<LogEntry, { kind: 'user-prompt' }>, delivery: ReplyMessageDto | undefined): RowModel {
+  const webReply = entry.webReply;
+  const priority = priorityOf(delivery?.priority);
+  return {
+    key: entry.key,
+    role: 'user',
+    icon: User,
+    iconClass: 'text-primary',
+    label: 'You, via web',
+    summary: firstLine(webReply?.text ?? entry.text),
+    tone: 'normal',
+    expandable: false,
+    ...(priority === 'now' ? { cue: 'interrupt' as const } : {}),
+    ...(entry.timestamp === undefined ? {} : { timestamp: entry.timestamp }),
+    // The transcript shows it, so the agent has it, whatever an earlier verdict of the audit said.
+    trailing: (
+      <span className="flex items-center gap-1">
+        {priority === undefined ? null : <PriorityMark priority={priority} />}
+        <DeliveryMark state="seen" reason="The transcript shows the message" />
+      </span>
+    ),
+    body: () => (
+      <div className="flex flex-col gap-1">
+        <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{webReply?.text ?? entry.text}</p>
+        {rawText(entry.text)}
+      </div>
+    ),
+  };
+}
+
+function promptModel(entry: Extract<LogEntry, { kind: 'user-prompt' }>, delivery?: ReplyMessageDto): RowModel {
+  if (entry.webReply !== undefined) {
+    return webReplyModel(entry, delivery);
+  }
   const base = { key: entry.key, tone: 'normal' as const, ...(entry.timestamp === undefined ? {} : { timestamp: entry.timestamp }) };
   const images = entry.images.length > 0 ? <p className={`${LOG_META} text-muted`}>{entry.images.length} image(s) attached, not shown.</p> : null;
   const body = (): ReactNode => (
@@ -51,6 +107,23 @@ function promptModel(entry: Extract<LogEntry, { kind: 'user-prompt' }>): RowMode
       {truncatedNote(entry.textTruncated, entry.textBytes, entry.text.length)}
     </div>
   );
+  // Text Claude Code wrote itself (a slash command, its output, a caveat): a quiet notice with a readable label, collapsed, the inner text one click away.
+  // The text was kept whole by the server (ANSI escapes removed), so nothing is lost; an unknown tag never gets here (the server only flags known ones).
+  if (entry.harness !== undefined) {
+    const { harness } = entry;
+    const detail = harness.detail !== '' && harness.detail !== harness.summary ? harness.detail : '';
+    return {
+      ...base,
+      tone: harness.level === 'error' ? 'error' : 'muted',
+      role: 'meta',
+      icon: harness.label.startsWith('Command') || harness.label.startsWith('Shell') ? Terminal : Cpu,
+      iconClass: harness.level === 'error' ? 'text-hue-red' : 'text-muted',
+      label: harness.label,
+      summary: harness.summary,
+      expandable: detail !== '',
+      body: detail === '' ? null : () => <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{detail}</p>,
+    };
+  }
   if (entry.source === 'human' || entry.source === 'other') {
     return { ...base, role: 'user', icon: User, iconClass: 'text-primary', label: entry.queued ? 'You (queued)' : 'You', summary: firstLine(entry.text), expandable: false, body };
   }
@@ -76,11 +149,11 @@ function noticeModel(entry: Extract<LogEntry, { kind: 'system-notice' }>): RowMo
   };
 }
 
-export function describeEntry(entry: LogEntry): RowModel {
+export function describeEntry(entry: LogEntry, deliveryOf?: DeliveryLookup): RowModel {
   const at = entry.timestamp === undefined ? {} : { timestamp: entry.timestamp };
   switch (entry.kind) {
     case 'user-prompt':
-      return promptModel(entry);
+      return promptModel(entry, entry.webReply === undefined ? undefined : deliveryOf?.(entry.webReply.messageId));
     case 'assistant-text':
       return {
         key: entry.key,
@@ -133,6 +206,23 @@ export function describeEntry(entry: LogEntry): RowModel {
       return { key: entry.key, role: 'meta', icon: GitFork, iconClass: 'text-muted', label: 'Forked', summary: `from session ${entry.parentSessionId ?? 'unknown'}`, tone: 'muted', expandable: false, body: null, ...at };
     case 'usage':
       return { key: entry.key, role: 'meta', icon: Cpu, iconClass: 'text-muted', label: 'Token usage', summary: `${entry.contextEstimate} tokens of context`, tone: 'muted', expandable: false, body: null, ...at };
+    case 'model-change':
+      // "Model changed: Sonnet 4.6 -> Haiku 5.5" (the text is made by the core); the scope of a /model command is said in the same line, not hidden in a fold.
+      return {
+        key: entry.key,
+        role: 'meta',
+        icon: ArrowLeftRight,
+        iconClass: 'text-hue-purple',
+        label: 'Model changed',
+        summary: `${entry.text}${entry.scope === 'session' ? ' (for this session)' : entry.scope === 'default' ? ' (saved as the default)' : ''}`,
+        tone: 'normal',
+        expandable: false,
+        body: null,
+        ...at,
+      };
+    case 'model-info':
+      // A quiet row, visible (never hidden): which model the session started on or was switched to, as the transcript announces it.
+      return { key: entry.key, role: 'meta', icon: Cpu, iconClass: 'text-muted', label: 'Model', summary: entry.displayName, tone: 'muted', expandable: false, body: null, ...at };
     case 'unknown':
     case 'unparsable':
     case 'oversize': {
@@ -144,7 +234,16 @@ export function describeEntry(entry: LogEntry): RowModel {
             : `line of ${formatBytes(entry.bytes)} over the ${formatBytes(entry.limit)} limit${entry.lineType === undefined ? '' : `, type "${entry.lineType}"`}`;
       return { key: entry.key, role: 'meta', icon: CircleHelp, iconClass: 'text-muted', label: 'Unrecognised entry', summary: `${entry.kind}: ${detail}`, tone: 'muted', expandable: false, body: null, ...at };
     }
+    default:
+      // An entry kind a newer server sends and this page does not know: shown with its kind name, never dropped (the compiler flags a kind added without a case above).
+      return unknownKindModel(entry);
   }
+}
+
+function unknownKindModel(entry: never): RowModel {
+  const kind = String(Reflect.get(entry, 'kind'));
+  const key = String(Reflect.get(entry, 'key'));
+  return { key, role: 'meta', icon: CircleHelp, iconClass: 'text-muted', label: 'Unrecognised entry', summary: `kind "${kind}": this page does not know how to show it`, tone: 'muted', expandable: false, body: null };
 }
 
 function callModel(call: ToolCall): RowModel {
@@ -219,35 +318,48 @@ export function describeGroup(row: Extract<Row, { type: 'group' }>): RowModel {
   };
 }
 
-export function describeRow(row: Row): RowModel {
-  return row.type === 'group' ? describeGroup(row) : describeEntry(row.entry);
+export function describeRow(row: Row, deliveryOf?: DeliveryLookup): RowModel {
+  return row.type === 'group' ? describeGroup(row) : describeEntry(row.entry, deliveryOf);
 }
 
-const PENDING_TEXT: Record<PendingMessage['state'], string> = {
-  sending: 'Sending',
-  delivered: 'Sent, waiting for the agent',
-  seen: 'Seen by the agent, waiting for the transcript',
-  failed: 'Not delivered',
-};
+/** What a pending message is shown as: sending, delivered, seen, a problem, or (nothing in the transcript after UNCONFIRMED_AFTER_MS) not confirmed. */
+export function pendingMark(message: PendingMessage, now: number): { state: MarkState; reason: string; hint: string } {
+  if (message.state === 'failed') {
+    return { state: 'failed', reason: message.error ?? 'Nothing was sent.', hint: '' };
+  }
+  if ((message.state === 'sending' || message.state === 'delivered') && now - message.sentAt > UNCONFIRMED_AFTER_MS) {
+    return { state: 'unconfirmed', reason: 'The transcript has not shown this message yet.', hint: 'Check that the session is still open and accepts messages from other sessions.' };
+  }
+  const reason = message.state === 'sending' ? 'The request is in flight.' : message.state === 'delivered' ? 'Sent to the session; waiting for it to appear in the transcript.' : 'The agent took it; waiting for the transcript.';
+  return { state: message.state, reason, hint: '' };
+}
 
-/** A message the user just sent, before the transcript echoes it. */
-export function describePending(message: PendingMessage): RowModel {
-  const failed = message.state === 'failed';
+/** A message the user just sent, before the transcript echoes it: at the end of the log, with its delivery and priority as small marks. */
+export function describePending(message: PendingMessage, now: number): RowModel {
+  const mark = pendingMark(message, now);
+  const problem = mark.state === 'failed';
   return {
     key: `pending:${message.messageId}`,
     role: 'user',
-    icon: failed ? TriangleAlert : Clock,
-    iconClass: failed ? 'text-hue-red' : 'text-muted',
+    icon: problem ? TriangleAlert : Clock,
+    iconClass: problem ? 'text-hue-red' : 'text-muted',
     label: 'You',
     summary: firstLine(message.text) || `${message.imageCount} image(s)`,
     timestamp: message.sentAt,
-    tone: failed ? 'error' : 'muted',
+    tone: problem ? 'error' : 'muted',
     expandable: false,
-    trailing: <span className={`${LOG_META} ${failed ? 'text-hue-red' : 'text-muted'}`}>{PENDING_TEXT[message.state]}</span>,
+    ...(message.priority === 'now' ? { cue: 'interrupt' as const } : {}),
+    trailing: (
+      <span className="flex items-center gap-1">
+        {message.priority === undefined ? null : <PriorityMark priority={message.priority} />}
+        <DeliveryMark state={mark.state} reason={mark.reason} hint={mark.hint} />
+        {mark.state === 'failed' || mark.state === 'unconfirmed' ? <PendingActions message={message} /> : null}
+      </span>
+    ),
     body: () => (
       <div className="flex flex-col gap-1">
         <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{message.text === '' ? `${message.imageCount} image(s)` : message.text}</p>
-        {failed && message.error !== undefined ? <p className={`${LOG_META} text-hue-red`}>{message.error}</p> : null}
+        {problem && message.error !== undefined ? <p className={`${LOG_META} text-hue-red`}>{message.error}</p> : null}
       </div>
     ),
   };

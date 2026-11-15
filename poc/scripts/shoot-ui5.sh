@@ -46,5 +46,5 @@ shoot search-groups "agents?mode=groups&session=$SID" "$OPT_DEFAULT" "state:work
 shoot search-inbox "agents?mode=inbox&tab=all&session=$SID" "$OPT_DEFAULT" "ow"
 shoot search-empty "agents?mode=tree&session=$SID" "$OPT_DEFAULT" "zzzz"
 shoot badmode "agents?mode=cards&session=$SID" "$OPT_DEFAULT"
-shoot table "agents/table" "$OPT_DEFAULT"
+shoot table "table" "$OPT_DEFAULT"
 agent-browser close >/dev/null 2>&1

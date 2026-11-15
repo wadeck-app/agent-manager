@@ -25,3 +25,6 @@ Status: each file marks claims `[V]` (lead re-read the source), `agent report` (
 - Anything marked `agent report` or `UNVERIFIED` must be re-read before it drives a decision.
 - [m0-measurements.md](m0-measurements.md) -- first M0 batch: real hook durations, node cold start (shim 503 ms vs direct 45-63 ms), socket msg_id and priority; raw files in poc/results
 - [ui-inspiration.md](ui-inspiration.md) -- herdr Agents panel (image + docs), survey of 20+ interfaces with V/P/U marks, state model implied by herdr, variant concepts A-J, recommendation; reference image in assets/herdr-agents-panel.png
+- [reply-wrapper-and-user-origin.md](reply-wrapper-and-user-origin.md) -- why socket replies arrive as "Another Claude session sent a message" (hard-coded peer origin, binary offsets), `hc send` as a typed human prompt (transcript compare, dialog refusal, busy queueing), UUID msg_id as delivery key, ranked options
+- [statusline-data-in-transcripts.md](statusline-data-in-transcripts.md) -- model attachment, `/model` stdout, usage fields, how each statusline field is derived (exact vs estimate), context window evidence per model, model id forms
+- [hc-transport.md](hc-transport.md) -- the `hc` reply transport: hc CLI shapes and errors, session to terminal mapping (foreground pid), what was proven with a real terminal and what only with fakes

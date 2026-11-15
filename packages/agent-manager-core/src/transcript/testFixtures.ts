@@ -22,7 +22,7 @@ export function ts(seconds: number): string {
   return new Date(Date.UTC(2026, 10, 15, 10, 0, 0) + seconds * 1000).toISOString();
 }
 
-type Obj = Record<string, unknown>;
+export type Obj = Record<string, unknown>;
 
 function common(seconds: number, sidechain = false): Obj {
   return {
@@ -287,4 +287,10 @@ export function sampleConversation(): Obj[] {
     systemLine(8, 'turn_duration', { durationMs: 7000, messageCount: 5, isMeta: true }),
   ];
   return lines;
+}
+
+/** The line with the `message.model` set (the assistant fixtures default to a made-up model). */
+export function withModel(line: Obj, model: string): Obj {
+  (line.message as Obj).model = model;
+  return line;
 }

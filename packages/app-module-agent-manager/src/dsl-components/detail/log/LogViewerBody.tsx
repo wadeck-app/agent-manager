@@ -3,13 +3,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Banner } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
 import { useMinWidth, useNow } from '../deps.js';
-import { removePending, usePending } from '../pending.js';
+import { settlePending, useDelivery, usePending } from '../pending.js';
 import { RowFrame } from './frames.js';
 import { buildRows, toggleOpen, type Row } from './grouping.js';
-import { reconcilePending } from './reconcile.js';
+import { drawable, reconcilePending } from './reconcile.js';
+import { hideWebQueueLines } from './webQueue.js';
 import { describePending, describeRow, type OpenContext } from './rowModel.js';
 import { BOTTOM_SLACK_PX, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
 import { LocateBanner, locateAnnouncement } from './LocateBanner.js';
+import { publishLogStatus } from '../status/useSessionStatus.js';
 import { SubagentAside } from './SubagentAside.js';
 import { PANEL_OPEN_MIN_PX, useSubagentPrefs } from './subagentPrefs.js';
 import { flattenSubagents } from './subagentModel.js';
@@ -29,6 +31,12 @@ function rowMatches(row: Row, agent: { agentId: string; toolUseId?: string | und
 export function LogViewerBody({ session }: LogViewerProps) {
   const { state, problem, loadingOlder, retry, loadOlder, loadOlderUntil } = useLog(session.sessionId);
   const now = useNow(15_000);
+  // The header (outside this component) shows the live status line data: hand it each answer, and forget it when this session is left.
+  const sessionId = session.sessionId;
+  useEffect(() => {
+    publishLogStatus(sessionId, state.status);
+  }, [sessionId, state.status]);
+  useEffect(() => () => publishLogStatus(sessionId, undefined), [sessionId]);
   // The panel starts collapsed on a window narrower than PANEL_OPEN_MIN_PX (the log keeps its room) until the user chooses; the choice is remembered.
   const roomy = useMinWidth(PANEL_OPEN_MIN_PX);
   const { prefs, change: changePrefs, problem: prefsProblem, dismissProblem } = useSubagentPrefs();
@@ -45,11 +53,15 @@ export function LogViewerBody({ session }: LogViewerProps) {
   const { echoed, waiting } = useMemo(() => reconcilePending(state.entries, pending), [state.entries, pending]);
   useEffect(() => {
     for (const message of echoed) {
-      removePending(session.sessionId, message.messageId);
+      settlePending(session.sessionId, message.messageId);
     }
   }, [echoed, session.sessionId]);
 
-  const rows = useMemo(() => buildRows(state.entries), [state.entries]);
+  const delivery = useDelivery(session.sessionId);
+  const deliveryOf = useCallback((messageId: string) => delivery.get(messageId), [delivery]);
+  // The queue lines of a message sent from here are redundant with its bubble: not drawn.
+  const rows = useMemo(() => buildRows(hideWebQueueLines(state.entries)), [state.entries]);
+  const shownPending = useMemo(() => drawable(waiting, now), [waiting, now]);
   const toggle = useCallback((key: string) => setOpen((current) => toggleOpen(current, key)), []);
   const context = useMemo<OpenContext>(() => ({ isOpen: (key) => open.has(key), toggle }), [open, toggle]);
   // A call that failed makes the sub-agent it started count as failed, whatever the meta of the sub-agent says.
@@ -193,7 +205,7 @@ export function LogViewerBody({ session }: LogViewerProps) {
                 Loading the log
               </p>
             ) : null}
-            {state.loaded && state.entries.length === 0 && waiting.length === 0 ? (
+            {state.loaded && state.entries.length === 0 && shownPending.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted">{state.note !== '' ? state.note : 'The transcript has no entry yet.'}</p>
             ) : null}
             <div className={`mx-auto flex w-full max-w-am-log flex-col gap-2`}>
@@ -201,8 +213,8 @@ export function LogViewerBody({ session }: LogViewerProps) {
                 // A new key at each "shown" event restarts the pulse animation on the same row.
                 <div key={hot.has(row.key) ? `${row.key}:${locate.pulse}` : row.key} data-row-key={row.key} data-hot={hot.has(row.key) ? 'true' : undefined} className={hot.has(row.key) ? 'animate-am-pulse rounded-lg motion-reduce:animate-none' : undefined}>
                   <RowFrame
-                    model={describeRow(row)}
-                    sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.entry}
+                    model={describeRow(row, deliveryOf)}
+                    sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.entry.kind === 'user-prompt' && row.entry.webReply !== undefined ? [row.entry, delivery.get(row.entry.webReply.messageId)] : row.entry}
                       open={open.has(row.key)}
                     onToggle={toggle}
                     context={context}
@@ -211,9 +223,9 @@ export function LogViewerBody({ session }: LogViewerProps) {
                   />
                 </div>
               ))}
-              {waiting.map((message) => (
+              {shownPending.map((message) => (
                 <div key={`pending:${message.messageId}`} data-pending="true">
-                  <RowFrame model={describePending(message)} sig={message} open={true} onToggle={toggle} context={context} now={now} highlighted={false} />
+                  <RowFrame model={describePending(message, now)} sig={[message, Math.floor(now / 30_000)]} open={true} onToggle={toggle} context={context} now={now} highlighted={false} />
                 </div>
               ))}
             </div>

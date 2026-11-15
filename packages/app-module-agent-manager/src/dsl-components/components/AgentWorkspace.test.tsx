@@ -417,14 +417,15 @@ describe('the listing mode', () => {
     expect(screen.getByTestId('mode').textContent).toBe('');
   });
 
-  it('links to the table page with an icon', () => {
+  it('has no link to the table page in the toolbar (the table is reached from the side menu)', () => {
     stubFetch();
     render(
       <Page>
         <AgentWorkspace sessions={[SHOP]} />
       </Page>,
     );
-    expect(screen.getByRole('link', { name: 'Agents table' })).toHaveAttribute('href', '/modules/agent-manager/agents/table');
+    expect(screen.queryByRole('link', { name: /table/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /table/i })).toBeNull();
   });
 });
 

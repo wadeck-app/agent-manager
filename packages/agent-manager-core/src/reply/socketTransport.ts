@@ -10,6 +10,7 @@ import { resolveSessionsDir } from '../sessionsDir.js';
 import { ReplyError, assertSafeId } from './errors.js';
 import { errorCode } from './fsTypes.js';
 import type { ReplyFs } from './fsTypes.js';
+import { wireMsgId } from './messageIds.js';
 import { REPLY_PRIORITIES } from './types.js';
 import type { ProbeCheck, ProbeContext, ProbeResult, ReplyMessage, ReplyTransport, SendResult } from './types.js';
 
@@ -40,7 +41,7 @@ export interface SocketTransportOptions {
   isAlive?: (pid: number) => boolean;
 }
 
-/** The JSON line of a user message (decision 37): the full frame. */
+/** The JSON line of a user message (decision 37): the full frame. `msg_id` is a UUID (wireMsgId) so that Claude Code keeps it as `origin.msg_id` in the transcript. */
 export function buildSocketFrame(input: { text: string; id: string; priority: string; sessionId: string }): string {
   assertSafeId('message id', input.id);
   if (typeof input.text !== 'string' || input.text.length === 0) {
@@ -49,7 +50,7 @@ export function buildSocketFrame(input: { text: string; id: string; priority: st
   if (!(REPLY_PRIORITIES as readonly string[]).includes(input.priority)) {
     throw new ReplyError('invalid-priority', `the priority must be one of ${REPLY_PRIORITIES.join(', ')}, got ${JSON.stringify(input.priority)}`, 'use now, next or later');
   }
-  return JSON.stringify({ type: 'user', message: { role: 'user', content: input.text }, msgV: 1, msg_id: input.id, priority: input.priority, session_id: input.sessionId });
+  return JSON.stringify({ type: 'user', message: { role: 'user', content: input.text }, msgV: 1, msg_id: wireMsgId(input.id), priority: input.priority, session_id: input.sessionId });
 }
 
 /** `<pid>.<sha256(socket path)>.key`; the path is lower-cased on Windows (observed on 15 live sessions by the reference sender). */
@@ -296,6 +297,7 @@ export function createSocketTransport(options: SocketTransportOptions = {}): Rep
   return {
     id: SOCKET_TRANSPORT_ID,
     kind: 'direct',
+    deliveredAs: 'peer',
     describe: () => 'Claude Code inbox socket (private protocol, no acknowledgement): wakes an idle session, no resident process',
     probe,
     send,

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { afterEach, beforeEach } from 'vitest';
 import { clearDigestCache } from './transcriptDigest.js';
+import { clearStatusCaches } from './sessionStatus.js';
 
 /** Test-only: a sandbox (registry, projects, config and data folders in the temp folder) and builders of registry files and transcript lines. */
 
@@ -40,6 +41,7 @@ export function useSandbox(): Sandbox {
     process.env['AGENT_MANAGER_PROJECTS_DIR'] = box.projects;
     process.env['AGENT_MANAGER_CONFIG_DIR'] = box.config;
     clearDigestCache();
+    clearStatusCaches();
   });
   afterEach(() => {
     for (const name of VARIABLES) {
@@ -111,6 +113,37 @@ function assistant(seconds: number, messageId: string, block: Obj): Obj {
     cwd: CWD,
   };
 }
+
+/** An assistant text line of the given model with the given usage (trimmed real shape: `message.model` has no region and no [1m] tag). */
+export function modelLine(seconds: number, model: string, usage: { input?: number; cacheRead?: number; cacheCreate?: number; output?: number } = {}, text = 'ok'): Obj {
+  const line = assistant(seconds, `msg_${uid()}`, { type: 'text', text });
+  (line['message'] as Obj)['model'] = model;
+  (line['message'] as Obj)['usage'] = {
+    input_tokens: usage.input ?? 10,
+    cache_creation_input_tokens: usage.cacheCreate ?? 100,
+    cache_read_input_tokens: usage.cacheRead ?? 1000,
+    output_tokens: usage.output ?? 50,
+  };
+  return line;
+}
+
+/** The `model` attachment in its real key order (the attachment object comes before the type). */
+export const modelAttachmentLine = (seconds: number, modelId: string, marketingName: string): Obj => ({
+  parentUuid: uid(),
+  isSidechain: false,
+  attachment: { type: 'model', identity: { modelId, marketingName, knowledgeCutoff: 'June 2026' } },
+  type: 'attachment',
+  uuid: uid(),
+  timestamp: ts(seconds),
+  userType: 'external',
+  cwd: CWD,
+});
+
+/** The two user lines of a `/model` command: the command and its stdout (real shape, ANSI-free). */
+export const modelCommandLines = (seconds: number, stdout: string): Obj[] => [
+  userLine(seconds, '<command-name>/model</command-name>\n            <command-message>model</command-message>\n            <command-args></command-args>'),
+  userLine(seconds, `<local-command-stdout>${stdout}</local-command-stdout>`),
+];
 
 export const textLine = (seconds: number, text: string): Obj => assistant(seconds, `msg_${uid()}`, { type: 'text', text });
 export const toolUseLine = (seconds: number, id: string, name: string, input: Obj): Obj => assistant(seconds, `msg_${uid()}`, { type: 'tool_use', id, name, input });

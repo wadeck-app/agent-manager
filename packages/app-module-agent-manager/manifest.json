@@ -23,8 +23,8 @@
     {
       "kind": "page",
       "slot": "nav",
-      "label": "Agents table",
-      "path": "/agents/table",
+      "label": "Table",
+      "path": "/table",
       "view": {
         "type": "path",
         "value": "./src/dsl-views/sessions-table.yaml"

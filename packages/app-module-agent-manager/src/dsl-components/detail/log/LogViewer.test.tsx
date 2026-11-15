@@ -159,13 +159,13 @@ describe('LogViewer', () => {
     await screen.findByText('earlier');
     act(() => addPending({ messageId: 'm1', sessionId: session.sessionId, text: 'please continue', imageCount: 0, sentAt: Date.now(), state: 'delivered' }));
     expect(screen.getAllByText('please continue')).toHaveLength(1);
-    expect(screen.getByText('Sent, waiting for the agent')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Delivered: Sent to the session; waiting/ })).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100);
     });
     await waitFor(() => expect(getPending(session.sessionId)).toHaveLength(0));
     expect(screen.getAllByText('please continue')).toHaveLength(1);
-    expect(screen.queryByText('Sent, waiting for the agent')).toBeNull();
+    expect(screen.queryByRole('img', { name: /^Delivered: Sent to the session/ })).toBeNull();
   });
 
   it('shows a failed send with its error and keeps it', async () => {
@@ -173,8 +173,8 @@ describe('LogViewer', () => {
     render(<LogViewer session={session} />);
     await screen.findByText('x');
     act(() => addPending({ messageId: 'm9', sessionId: session.sessionId, text: 'lost', imageCount: 0, sentAt: Date.now(), state: 'failed', error: 'Transport unavailable. Start the session with the socket.' }));
-    expect(screen.getByText('Not delivered')).toBeInTheDocument();
-    expect(screen.getByText(/Transport unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /^Problem: Transport unavailable/ })).toBeInTheDocument();
+    expect(screen.getAllByText(/Transport unavailable/).length).toBeGreaterThan(0);
   });
 
   it('shows the server note for a session without a transcript', async () => {

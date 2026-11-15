@@ -14,7 +14,7 @@ import { errorCode } from './fsTypes.js';
 import type { ReplyFs } from './fsTypes.js';
 import { saveUpload } from './uploads.js';
 import { DEFAULT_PRIORITY, REPLY_PRIORITIES } from './types.js';
-import type { ProbeContext, ProbeResult, ReplyPriority, ReplyTransport } from './types.js';
+import type { DeliveredAs, ProbeContext, ProbeResult, ReplyPriority, ReplyTransport } from './types.js';
 
 export interface ReplyImage {
   base64: string;
@@ -49,12 +49,15 @@ export interface ReplyServiceDeps {
   fs?: ReplyFs;
   config?: ReplyConfig;
   newId?: () => string;
+  /** Most replies accepted per session in the window, whatever the transport (T-08: a runaway script cannot flood a session). Default 6 per 60 s. */
+  rateLimit?: { max: number; windowMs: number };
   /** Size cap of the in-memory sent ids (LRU). Default 1000. The audit file is the durable dedupe. */
   maxSentEntries?: number;
 }
 
 const DEFAULT_MAX_SENT_ENTRIES = 1000;
 const SENT_MAX_AGE_MS = 24 * 60 * 60_000;
+export const DEFAULT_RATE_LIMIT = { max: 6, windowMs: 60_000 } as const;
 
 interface SentEntry {
   promise: Promise<DeliveryRecord>;
@@ -66,23 +69,41 @@ export interface TransportStatusEntry {
   transportId: string;
   description: string;
   kind: string;
+  deliveredAs: DeliveredAs;
   probe: ProbeResult;
+  /** False: this transport was not probed (it is not the selected one and nobody asked): `probe` is a placeholder, not a measurement. */
+  probed: boolean;
 }
 
 export interface SessionTransportStatus {
   sessionId: string;
   /** The transport a send would use without an explicit choice. */
   selectedTransportId: string;
+  /** The global default of transports.json. */
+  defaultTransportId: string;
+  /** The override of this session in transports.json, null when it follows the default. */
+  sessionOverrideTransportId: string | null;
   transports: TransportStatusEntry[];
 }
 
 export interface ReplyService {
   send(request: SendRequest): Promise<DeliveryRecord>;
   deliveryState(record: DeliveryRecord, transcriptEntries: readonly ReplyTranscriptEntry[], context?: DeliveryContext): DeliveryStatus;
-  getTransportStatus(sessions: readonly Session[], options?: { permissionModes?: Record<string, string> }): Promise<SessionTransportStatus[]>;
+  /** `probe: 'selected'` (default) probes only the transport a send would use; 'all' probes every transport (the transport menu is open). */
+  getTransportStatus(sessions: readonly Session[], options?: { permissionModes?: Record<string, string>; probe?: 'selected' | 'all' }): Promise<SessionTransportStatus[]>;
 }
 
 /** Builds the reply service (see send). Every dependency is injected so that nothing in it touches a real session in tests. */
+/**
+ * The context of a delivery state with the `deliveredAs` of the transport filled in. A value the caller gives wins; an explicit `undefined` from the caller must
+ * not erase the one derived from the transport (a plain spread would).
+ */
+export function withDeliveredAs(context: DeliveryContext | undefined, derived: DeliveredAs | undefined): DeliveryContext {
+  const given = context ?? {};
+  const deliveredAs = given.deliveredAs ?? derived;
+  return { ...given, ...(deliveredAs === undefined ? {} : { deliveredAs }) };
+}
+
 export function createReplyService(deps: ReplyServiceDeps): ReplyService {
   const fs = deps.fs ?? realFs;
   const clock = deps.clock ?? Date.now;
@@ -104,6 +125,29 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
   // In-flight and finished sends of this process, by message id. A promise is stored so that two concurrent sends of one id cannot both go out.
   const sent = new Map<string, SentEntry>();
   const maxSent = deps.maxSentEntries ?? DEFAULT_MAX_SENT_ENTRIES;
+  const rateLimit = deps.rateLimit ?? DEFAULT_RATE_LIMIT;
+  // Send times of the last window, by session id.
+  const recentSends = new Map<string, number[]>();
+
+  /** Counts one attempt against the limit and returns the way to take it back (an attempt the transport refused delivered nothing: it must not lock the session). */
+  function checkRate(sessionId: string): () => void {
+    const now = clock();
+    const recent = (recentSends.get(sessionId) ?? []).filter((time) => now - time < rateLimit.windowMs);
+    if (recent.length >= rateLimit.max) {
+      recentSends.set(sessionId, recent);
+      const waitS = Math.ceil((rateLimit.windowMs - (now - recent[0]!)) / 1000);
+      throw new ReplyError('rate-limited', `${recent.length} replies were sent to this session in the last ${Math.round(rateLimit.windowMs / 1000)} s (limit ${rateLimit.max})`, `wait about ${waitS} s, then send again`);
+    }
+    recent.push(now);
+    recentSends.set(sessionId, recent);
+    return () => {
+      const current = recentSends.get(sessionId) ?? [];
+      const at = current.lastIndexOf(now);
+      if (at >= 0) {
+        recentSends.set(sessionId, [...current.slice(0, at), ...current.slice(at + 1)]);
+      }
+    };
+  }
 
   function transportById(id: string): ReplyTransport {
     const transport = byId.get(id);
@@ -145,6 +189,8 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
     let transportId = request.transportId ?? '?';
     // Files saved for this message so far; removed again when the message is not sent.
     const imagePaths: string[] = [];
+    // Takes this attempt back from the rate limit; set once the slot is counted, cleared once the transport accepted the message.
+    let refundSlot: (() => void) | undefined;
     try {
       const session = await findLiveSession(request.sessionId);
       const transport = await chooseTransport(request.sessionId, request.transportId);
@@ -154,6 +200,8 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
       if (!probe.available) {
         throw new ReplyError('transport-unavailable', `the '${transport.id}' transport is not available for this session: ${probe.reason}`, probe.fix);
       }
+      // Counted here: the transport is known to work, and the files of the reply are not saved yet.
+      refundSlot = checkRate(request.sessionId);
       for (const [index, image] of images.entries()) {
         const saved = await saveUpload({ configDir: deps.configDir, sessionId: request.sessionId, msgId: id, index, base64: image.base64, declaredMime: image.declaredMime, fs });
         imagePaths.push(saved.path);
@@ -163,7 +211,9 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
       if (!result.accepted) {
         throw new ReplyError('transport-refused', `the '${transport.id}' transport did not accept the message (${result.detail})`, 'switch transport or retry');
       }
-      const record: DeliveryRecord = { id, sessionId: request.sessionId, state: transport.kind === 'mailbox' ? 'queued' : 'sent', transportId: transport.id, kind: transport.kind, sentAt: result.sentAt, priority };
+      // Accepted by the transport: from here on the attempt counts, whatever happens to the audit.
+      refundSlot = undefined;
+      const record: DeliveryRecord = { id, sessionId: request.sessionId, state: transport.kind === 'mailbox' ? 'queued' : 'sent', transportId: transport.id, kind: transport.kind, sentAt: result.sentAt, priority, ...(result.handle === undefined ? {} : { handle: result.handle }) };
       // The message is delivered from here on: a failing audit write is reported on the record, never thrown (a throw would free the id for a second send).
       try {
         await audit(transport.id, 'sent', imagePaths);
@@ -173,13 +223,15 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
       return record;
     } catch (caught) {
       let error: unknown = caught;
+      // An attempt that delivered nothing (a refusal, a timeout, a bad image) does not count against the limit: a blocked terminal must not lock the session out.
+      refundSlot?.();
       const leftovers = await removeUploads(imagePaths);
       if (leftovers !== undefined) {
         error = error instanceof ReplyError
           ? Object.assign(new ReplyError(error.code, `${error.reason} (and ${leftovers})`, error.fix), { cause: error })
           : new ReplyError('upload-cleanup-failed', `${getErrorMessage(error)} (and ${leftovers})`, 'delete the listed files by hand');
       }
-      const outcome = `${error instanceof ReplyError && (error.code === 'transport-unavailable' || error.code === 'unknown-session' || error.code === 'session-dead') ? 'refused' : 'failed'}: ${getErrorMessage(error)}`;
+      const outcome = `${error instanceof ReplyError && (error.code === 'transport-unavailable' || error.code === 'rate-limited' || error.code === 'unknown-session' || error.code === 'session-dead') ? 'refused' : 'failed'}: ${getErrorMessage(error)}`;
       // The failure itself is the answer: a failing audit write must not hide it or change its code; it is attached as `auditError`.
       try {
         await audit(transportId, outcome, []);
@@ -276,7 +328,7 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
     }
   }
 
-  async function getTransportStatus(sessions: readonly Session[], options: { permissionModes?: Record<string, string> } = {}): Promise<SessionTransportStatus[]> {
+  async function getTransportStatus(sessions: readonly Session[], options: { permissionModes?: Record<string, string>; probe?: 'selected' | 'all' } = {}): Promise<SessionTransportStatus[]> {
     const transportsConfig = await readTransportsConfig(deps.configDir, fs);
     return Promise.all(
       sessions.map(async (session) => {
@@ -285,25 +337,32 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
         if (mode !== undefined) {
           context.permissionMode = mode;
         }
+        const selectedId = transportsConfig.perSession[session.sessionId] ?? transportsConfig.default;
         const transports = await Promise.all(
           [...byId.values()].map(async (transport): Promise<TransportStatusEntry> => {
+            // Lazy: a transport nobody selected is probed only on demand (an hc probe spawns one process per terminal).
+            if (options.probe !== 'all' && transport.id !== selectedId) {
+              const placeholder: ProbeResult = { available: false, reason: 'not checked yet (the transport menu checks every transport when it opens)', fix: 'open the transport menu', details: { notProbed: true } };
+              return { transportId: transport.id, description: transport.describe(), kind: transport.kind, deliveredAs: transport.deliveredAs, probe: placeholder, probed: false };
+            }
             let probe: ProbeResult;
             try {
               probe = await transport.probe(session, context);
             } catch (error) {
               probe = { available: false, reason: `the probe itself failed: ${getErrorMessage(error)}`, fix: 'report this: probe() must not throw', details: {} };
             }
-            return { transportId: transport.id, description: transport.describe(), kind: transport.kind, probe };
+            return { transportId: transport.id, description: transport.describe(), kind: transport.kind, deliveredAs: transport.deliveredAs, probe, probed: true };
           }),
         );
-        return { sessionId: session.sessionId, selectedTransportId: transportsConfig.perSession[session.sessionId] ?? transportsConfig.default, transports };
+        const override = transportsConfig.perSession[session.sessionId] ?? null;
+        return { sessionId: session.sessionId, selectedTransportId: override ?? transportsConfig.default, defaultTransportId: transportsConfig.default, sessionOverrideTransportId: override, transports };
       }),
     );
   }
 
   return {
     send,
-    deliveryState: (record, entries, context) => deliveryState(record, entries, clock(), config, context),
+    deliveryState: (record, entries, context) => deliveryState(record, entries, clock(), config, withDeliveredAs(context, byId.get(record.transportId)?.deliveredAs)),
     getTransportStatus,
   };
 }

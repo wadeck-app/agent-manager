@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import * as realFs from 'node:fs/promises';
 import { DurationError, parseDuration } from '../duration.js';
 import { getErrorMessage } from '../errors.js';
-import { ReplyError } from './errors.js';
+import { ReplyError, assertSafeId } from './errors.js';
 import { errorCode } from './fsTypes.js';
 import type { ReplyFs } from './fsTypes.js';
 
@@ -87,24 +87,13 @@ export async function readTransportsConfig(configDir: string, fs: ReplyFs = real
   return { default: (object.default as string | undefined) ?? DEFAULT_TRANSPORT_ID, perSession: perSession as Record<string, string> };
 }
 
-// Writes to one file are chained in this process (the last write wins, in call order); the temp name is unique per call, also across processes.
+// Updates of one file are chained in this process (the last write wins, in call order); the temp name is unique per call, also across processes.
+// Two PROCESSES (the CLI and the module) changing the file at the same moment can lose one change: the file is replaced whole, never half written.
 const writeChains = new Map<string, Promise<void>>();
 
-/** Writes `<configDir>/transports.json` atomically (unique temp file then rename). Concurrent calls in one process run one after the other. */
-export async function writeTransportsConfig(configDir: string, config: TransportsConfig, fs: ReplyFs = realFs): Promise<void> {
-  const file = join(configDir, 'transports.json');
+async function chained(file: string, work: () => Promise<void>): Promise<void> {
   const previous = writeChains.get(file) ?? Promise.resolve();
-  const run = previous.catch(() => undefined).then(async () => {
-    await fs.mkdir(configDir, { recursive: true });
-    const temp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
-    try {
-      await fs.writeFile(temp, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
-      await fs.rename(temp, file);
-    } catch (error) {
-      await fs.unlink(temp).catch(() => undefined);
-      throw error;
-    }
-  });
+  const run = previous.catch(() => undefined).then(work);
   writeChains.set(file, run);
   try {
     await run;
@@ -113,4 +102,67 @@ export async function writeTransportsConfig(configDir: string, config: Transport
       writeChains.delete(file);
     }
   }
+}
+
+async function writeAtomic(configDir: string, config: TransportsConfig, fs: ReplyFs): Promise<void> {
+  const file = join(configDir, 'transports.json');
+  await fs.mkdir(configDir, { recursive: true });
+  const temp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
+  try {
+    await fs.writeFile(temp, `${JSON.stringify(config, null, 2)}
+`, 'utf8');
+    await fs.rename(temp, file);
+  } catch (error) {
+    await fs.unlink(temp).catch(() => undefined);
+    throw error;
+  }
+}
+
+/** Writes `<configDir>/transports.json` atomically (unique temp file then rename). Concurrent calls in one process run one after the other. */
+export function writeTransportsConfig(configDir: string, config: TransportsConfig, fs: ReplyFs = realFs): Promise<void> {
+  return chained(join(configDir, 'transports.json'), () => writeAtomic(configDir, config, fs));
+}
+
+function assertKnownTransport(id: unknown, knownIds: readonly string[]): asserts id is string {
+  if (typeof id !== 'string' || !knownIds.includes(id)) {
+    throw new ReplyError('unknown-transport', `there is no reply transport ${JSON.stringify(id)} (known: ${knownIds.join(', ')})`, `choose one of: ${knownIds.join(', ')}`);
+  }
+}
+
+/** Reads, changes and writes transports.json in one chained step; nothing is written when `change` throws. */
+async function updateTransportsConfig(configDir: string, fs: ReplyFs, change: (config: TransportsConfig) => void): Promise<TransportsConfig> {
+  let result: TransportsConfig | undefined;
+  await chained(join(configDir, 'transports.json'), async () => {
+    const config = await readTransportsConfig(configDir, fs);
+    change(config);
+    await writeAtomic(configDir, config, fs);
+    result = config;
+  });
+  if (result === undefined) {
+    throw new ReplyError('transports-not-written', 'transports.json was not written', 'retry');
+  }
+  return result;
+}
+
+/** Sets the global default transport. `transportId` must be one of `knownIds` (the transports registered by the caller), else an explicit error. Returns the new config. */
+export async function setDefaultTransport(configDir: string, transportId: string, knownIds: readonly string[], fs: ReplyFs = realFs): Promise<TransportsConfig> {
+  assertKnownTransport(transportId, knownIds);
+  return updateTransportsConfig(configDir, fs, (config) => {
+    config.default = transportId;
+  });
+}
+
+/** Sets the transport of one session, or clears its override with `null` (the session then follows the default). Returns the new config. */
+export async function setSessionTransport(configDir: string, sessionId: string, transportId: string | null, knownIds: readonly string[], fs: ReplyFs = realFs): Promise<TransportsConfig> {
+  assertSafeId('session id', sessionId);
+  if (transportId !== null) {
+    assertKnownTransport(transportId, knownIds);
+  }
+  return updateTransportsConfig(configDir, fs, (config) => {
+    if (transportId === null) {
+      delete config.perSession[sessionId];
+    } else {
+      config.perSession[sessionId] = transportId;
+    }
+  });
 }

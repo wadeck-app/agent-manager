@@ -1,20 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import { failureText, requestJson } from '../deps.js';
-import type { ReplyOk, ReplyRequest, ReplyResponse } from '../deps.js';
-import { addPending, getPending, removePending, updatePending } from '../pending.js';
-import type { AttachedImage } from './types.js';
+import { addPending, getPending, removePending, rememberImages, updatePending } from '../pending.js';
+import { newMessageId, postReply, type SendInput, type SendOutcome } from './postReply.js';
 
-export interface SendInput {
-  text: string;
-  images: readonly AttachedImage[];
-  priority: 'next' | 'now';
-}
-
-export type SendOutcome = { ok: true; response: ReplyOk } | { ok: false; error: string };
-
-function newMessageId(): string {
-  return `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
+export type { SendInput, SendOutcome } from './postReply.js';
 
 function fingerprint(input: SendInput): string {
   return JSON.stringify([input.text, input.priority, input.images.map((image) => image.id)]);
@@ -38,29 +26,21 @@ export function useSendReply(sessionId: string): { send: (input: SendInput) => P
       }
       retry.current = { print, messageId };
       if (getPending(sessionId).some((message) => message.messageId === messageId)) {
-        updatePending(sessionId, messageId, { state: 'sending', error: undefined });
+        updatePending(sessionId, messageId, { state: 'sending', error: undefined, priority: input.priority });
       } else {
-        addPending({ messageId, sessionId, text: input.text, imageCount: input.images.length, sentAt: Date.now(), state: 'sending' });
+        addPending({ messageId, sessionId, text: input.text, imageCount: input.images.length, sentAt: Date.now(), state: 'sending', priority: input.priority });
       }
+      rememberImages(messageId, input.images);
       setSending(true);
-      const body: ReplyRequest = {
-        text: input.text,
-        messageId,
-        priority: input.priority,
-        ...(input.priority === 'now' ? { confirmNow: true } : {}),
-        ...(input.images.length > 0 ? { images: input.images.map(({ name, mime, dataBase64 }) => ({ name, mime, dataBase64 })) } : {}),
-      };
-      const result = await requestJson<ReplyResponse>(`/sessions/${encodeURIComponent(sessionId)}/reply`, { method: 'POST', body });
+      const outcome = await postReply(sessionId, messageId, input);
       setSending(false);
-      const failure = !result.ok ? result.text : !result.value.ok ? failureText(result.value, 200) : undefined;
-      if (failure !== undefined || !result.ok || !result.value.ok) {
-        const error = failure ?? 'The server answered without a result.';
-        updatePending(sessionId, messageId, { state: 'failed', error });
-        return { ok: false, error };
+      if (!outcome.ok) {
+        updatePending(sessionId, messageId, { state: 'failed', error: outcome.error });
+        return outcome;
       }
       retry.current = undefined;
-      updatePending(sessionId, messageId, { state: result.value.deliveryUi === 'sending' ? 'sending' : result.value.deliveryUi });
-      return { ok: true, response: result.value };
+      updatePending(sessionId, messageId, { state: outcome.response.deliveryUi === 'sending' ? 'sending' : outcome.response.deliveryUi });
+      return outcome;
     },
     [sessionId],
   );

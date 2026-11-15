@@ -46,4 +46,4 @@ The package ships the app-core module `agent-manager` (`app-module/`, title Agen
 | `unconfirmed` | 0 | no answer in time; wait, then run `register` again |
 | `refused`, `failed` | 1 | the message says what to fix |
 
-`--json` prints `{ ok, status, message }`. The page lists the sessions (dead ones hidden unless `?show=all`), polls every 5 s, shows unreadable registry files and a missing registry folder as visible errors, and has a table page (`/agents/table`) next to the workspace page (`/agents`). Module docs: `packages/app-module-agent-manager/README.md`.
+`--json` prints `{ ok, status, message }`. The page lists the sessions (dead ones hidden unless `?show=all`), polls every 5 s, shows unreadable registry files and a missing registry folder as visible errors, and has a table page (`/table`) next to the workspace page (`/agents`). Module docs: `packages/app-module-agent-manager/README.md`.

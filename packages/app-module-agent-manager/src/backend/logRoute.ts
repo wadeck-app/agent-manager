@@ -1,10 +1,13 @@
 import { open, stat } from 'node:fs/promises';
-import { getErrorMessage } from '@wadeck-app/agent-manager-core';
+import { getErrorMessage, type Session } from '@wadeck-app/agent-manager-core';
 import {
   DEFAULT_MAX_LINE_BYTES,
   LIMITS,
   agentCallOwners,
   buildAgentTree,
+  createModelTrackerState,
+  parseModelId,
+  insertModelChanges,
   linkSubagents,
   listSubagents,
   mergeToolCallEntries,
@@ -15,14 +18,17 @@ import {
   summarizeActivity,
   transcriptPath,
   type Entry,
+  type ModelTrackerState,
   type ReadError,
   type SubagentNode,
   type ToolCallEntry,
   type WindowResult,
 } from '@wadeck-app/agent-manager-core/transcript';
-import type { LogActivity, LogEntry, LogLimits, LogOk, LogTruncation, SubagentDto } from '../commons/api.js';
+import type { LogActivity, LogEntry, LogLimits, LogOk, LogTruncation, SessionStatusDto, SubagentDto } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import { registerLocateRoute } from './locateCall.js';
+import { statusOf } from './sessionStatus.js';
+import { digestOf } from './transcriptDigest.js';
 import { findSession } from './sessionLookup.js';
 import { RequestError, type RouteKit, type RouteRequest, ok, queryValue } from './routeKit.js';
 
@@ -59,10 +65,84 @@ interface Cursor {
   o: number;
   /** Offsets of the lines of the tool calls that were still running when the cursor was made. */
   r: number[];
+  /** The model the transcript had at this point (see CursorModel): the next `after` answer notices a change against it. Absent before the first assistant message. */
+  m?: CursorModel;
+}
+
+/**
+ * Compact form of the model tracker state carried by a cursor: id (i), display name (n) and known flag (k) of the current model (absent before the first
+ * assistant message), 1 while a /model command waits for its first message (p), and the exact names of the models announced by an attachment but not yet used
+ * by a message (a, [id, name] pairs, at most MAX_CARRIED_NAMES: the 1M tag lives only there, and it is used by the first message of that model).
+ */
+interface CursorModel {
+  i?: string;
+  n?: string;
+  k?: boolean;
+  p?: 1;
+  a?: [string, string][];
+}
+
+const MAX_CARRIED_NAMES = 4;
+
+function cursorModelOf(state: ModelTrackerState): CursorModel | undefined {
+  const { current } = state;
+  const names = Object.values(state.names).slice(-MAX_CARRIED_NAMES).map((entry): [string, string] => [entry.modelId, entry.displayName]);
+  if (current === undefined && names.length === 0) {
+    return undefined;
+  }
+  return {
+    ...(current === undefined ? {} : { ...(current.id !== undefined ? { i: current.id } : {}), n: current.displayName, k: current.known }),
+    ...(state.commandPending === true ? { p: 1 as const } : {}),
+    ...(names.length === 0 ? {} : { a: names }),
+  };
+}
+
+function trackerOf(model: CursorModel | undefined): ModelTrackerState {
+  const state = createModelTrackerState();
+  if (model !== undefined) {
+    if (model.n !== undefined && model.k !== undefined) {
+      state.current = { ...(model.i !== undefined ? { id: model.i } : {}), displayName: model.n, known: model.k };
+    }
+    if (model.p === 1) {
+      state.commandPending = true;
+    }
+    for (const [modelId, displayName] of model.a ?? []) {
+      state.names[parseModelId(modelId).canonical] = { modelId, displayName };
+    }
+  }
+  return state;
+}
+
+function validModel(value: unknown): CursorModel | undefined | 'bad' {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return 'bad';
+  }
+  const [i, n, k, p, a] = ['i', 'n', 'k', 'p', 'a'].map((name): unknown => Reflect.get(value, name));
+  const short = (text: unknown): text is string => typeof text === 'string' && text.length > 0 && text.length <= 200;
+  const currentOk = n === undefined ? k === undefined && i === undefined : short(n) && typeof k === 'boolean' && (i === undefined || short(i));
+  const names: [string, string][] = [];
+  if (a !== undefined) {
+    if (!Array.isArray(a) || a.length > MAX_CARRIED_NAMES) {
+      return 'bad';
+    }
+    for (const pair of a as unknown[]) {
+      if (!Array.isArray(pair) || pair.length !== 2 || !short(pair[0]) || !short(pair[1])) {
+        return 'bad';
+      }
+      names.push([pair[0], pair[1]]);
+    }
+  }
+  if (!currentOk || (p !== undefined && p !== 1)) {
+    return 'bad';
+  }
+  return { ...(i !== undefined ? { i: i as string } : {}), ...(n === undefined ? {} : { n: n as string, k: k as boolean }), ...(p === 1 ? { p: 1 as const } : {}), ...(names.length === 0 ? {} : { a: names }) };
 }
 
 function encodeCursor(cursor: Cursor): string {
-  return Buffer.from(JSON.stringify(cursor.r.length === 0 ? { o: cursor.o } : cursor), 'utf8').toString('base64url');
+  return Buffer.from(JSON.stringify({ o: cursor.o, ...(cursor.r.length === 0 ? {} : { r: cursor.r }), ...(cursor.m === undefined ? {} : { m: cursor.m }) }), 'utf8').toString('base64url');
 }
 
 function decodeCursor(name: string, text: string): Cursor {
@@ -83,12 +163,20 @@ function decodeCursor(name: string, text: string): Cursor {
   if (typeof o !== 'number' || !Number.isSafeInteger(o) || o < 0 || !Array.isArray(r) || r.length > MAX_RUNNING_CARRIED || !r.every((n) => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0 && n < o)) {
     return bad();
   }
-  return { o, r: r as number[] };
+  const m = validModel(Reflect.get(value, 'm'));
+  if (m === 'bad') {
+    return bad();
+  }
+  return { o, r: r as number[], ...(m === undefined ? {} : { m }) };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // Entries
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** Entries the answer never carries: the token counts and the model attachments (they feed the status and the model-change notices). */
+const isHidden = (entry: Entry): boolean => entry.kind === 'usage' || entry.kind === 'model-info';
+const visible = (entries: readonly Entry[]): Entry[] => entries.filter((entry) => !isHidden(entry));
 
 const isCall = (entry: Entry): entry is ToolCallEntry => entry.kind === 'tool-call';
 const isRunning = (entry: Entry): entry is ToolCallEntry => isCall(entry) && entry.status === 'running' && entry.orphan !== true;
@@ -146,13 +234,14 @@ const orphans = (entries: readonly Entry[]): number => entries.filter((entry) =>
 
 /** Reads backwards from `first` until `wanted` entries are merged (and the results at the old edge found their calls), within MAX_PAGES. */
 async function collectBackwards(path: string, first: WindowResult, wanted: number): Promise<Collected> {
-  let entries = mergeToolCallEntries(first.entries).filter((entry) => entry.kind !== 'usage');
+  // The usage and model-info entries stay: the model tracker needs them (an assistant message with only tool calls has no model but its usage entry).
+  let entries = mergeToolCallEntries(first.entries);
   let startOffset = first.startOffset;
   let hasMoreBefore = first.hasMoreBefore;
   let pages = 1;
   let extra = 0;
   while (hasMoreBefore && pages < MAX_PAGES) {
-    const needMore = entries.length < wanted;
+    const needMore = visible(entries).length < wanted;
     const needPair = orphans(entries) > 0 && extra < ORPHAN_EXTRA_PAGES;
     if (!needMore && !needPair) {
       break;
@@ -162,7 +251,7 @@ async function collectBackwards(path: string, first: WindowResult, wanted: numbe
     }
     const page = checked(await pageBackwards(path, startOffset, { bytes: PAGE_BYTES }));
     pages += 1;
-    entries = mergeToolCallEntries([...page.entries, ...entries]).filter((entry) => entry.kind !== 'usage');
+    entries = mergeToolCallEntries([...page.entries, ...entries]);
     startOffset = page.startOffset;
     hasMoreBefore = page.hasMoreBefore;
   }
@@ -313,17 +402,17 @@ export function registerLogRoute(kit: RouteKit): void {
       const located = await transcriptPath(session.cwd, session.sessionId, resolveProjectsDir(process.env));
       if (!located.ok) {
         if (located.error.code === 'not-found') {
-          return ok(emptyLog(session.sessionId, `No transcript yet for this session: ${located.error.fix}`));
+          return ok(await emptyLog(session, `No transcript yet for this session: ${located.error.fix}`));
         }
         const { message, fix } = located.error;
         return fail(200, 'transcript-unreadable', message, fix);
       }
       try {
-        return ok(await readLog(located.path, located.projectDir, session.sessionId, limit, before, after));
+        return ok(await readLog(session, located.path, located.projectDir, limit, before, after));
       } catch (error) {
         if (error instanceof LogReadError) {
           if (error.readError.code === 'missing') {
-            return ok(emptyLog(session.sessionId, `No transcript yet for this session: ${error.readError.hint}`));
+            return ok(await emptyLog(session, `No transcript yet for this session: ${error.readError.hint}`));
           }
           return readFailure(error.readError);
         }
@@ -333,10 +422,17 @@ export function registerLogRoute(kit: RouteKit): void {
   );
 }
 
-function emptyLog(sessionId: string, note: string): LogOk {
+/** The status line data of the open session: the cached transcript digest (model, usage) and the registry folder (branch, role, bypasses). */
+async function statusFor(session: Session): Promise<SessionStatusDto> {
+  const now = Date.now();
+  const digest = await digestOf(session, now);
+  return statusOf(session, digest.usage, digest.note, now);
+}
+
+async function emptyLog(session: Session, note: string): Promise<LogOk> {
   return {
     ok: true,
-    sessionId,
+    sessionId: session.sessionId,
     entries: [],
     // No cursor: the client asks for the tail again (a transcript that appears later is read from its end, not from byte 0).
     cursor: null,
@@ -345,6 +441,7 @@ function emptyLog(sessionId: string, note: string): LogOk {
     subagents: [],
     subagentsNote: '',
     activity: activityOf([]),
+    status: await statusFor(session),
     truncated: { fieldsCut: 0, bodyCapped: false, unreadableLines: 0 },
     limits: LOG_LIMITS,
     note,
@@ -375,7 +472,7 @@ async function skipLongLine(path: string, from: number, size: number): Promise<E
   return undefined;
 }
 
-async function readLog(path: string, projectDir: string, sessionId: string, limit: number, before: Cursor | undefined, after: Cursor | undefined): Promise<LogOk> {
+async function readLog(session: Session, path: string, projectDir: string, limit: number, before: Cursor | undefined, after: Cursor | undefined): Promise<LogOk> {
   let entries: Entry[];
   let cursor: string | null;
   let olderCursor: string | null = null;
@@ -399,30 +496,40 @@ async function readLog(path: string, projectDir: string, sessionId: string, limi
     const carried = new Set(after.r);
     // Entries of lines before the cursor were sent already, except the running calls (their update is the point of reading back).
     const fresh = mergeToolCallEntries(skipped === undefined ? window.entries : [skipped]).filter((entry) => entry.offset >= after.o || (isCall(entry) && carried.has(entry.offset)));
-    activityEntries = fresh;
-    const visible = fresh.filter((entry) => entry.kind !== 'usage');
-    const shrunk = visible.map(shrink);
+    // The model changes against the model the cursor carries; the notices are part of the answer, the usage and model-info entries are not.
+    const initial = trackerOf(after.m);
+    const tracked = insertModelChanges(fresh, initial);
+    activityEntries = tracked.entries;
+    const shrunk = visible(tracked.entries).map(shrink);
     const capped = capBody(shrunk, 'oldest');
     bodyCapped = capped.dropped.length > 0;
     entries = capped.kept;
     const next = bodyCapped ? capped.dropped[0]!.offset : skipped === undefined ? window.endOffset : skipped.offset + (skipped.kind === 'oversize' ? skipped.bytes : 0);
-    cursor = encodeCursor({ o: next, r: runningOffsets(entries).filter((offset) => offset < next) });
+    // When the body cap cut the answer, the state is the one just before the first entry left out: it is read again with the next cursor.
+    const stateAtNext = bodyCapped ? insertModelChanges(fresh.filter((entry) => entry.offset < next), initial).state : tracked.state;
+    const model = cursorModelOf(stateAtNext);
+    cursor = encodeCursor({ o: next, r: runningOffsets(entries).filter((offset) => offset < next), ...(model !== undefined ? { m: model } : {}) });
     more = bodyCapped || (!stuck && (skipped === undefined ? from + AFTER_BYTES < size : next < size));
   } else if (before !== undefined) {
     const first = checked(await pageBackwards(path, before.o, { bytes: PAGE_BYTES }));
     const collected = await collectBackwards(path, first, limit);
     const completed = await completeRunning(path, collected.entries, before.o, first.state.size);
-    activityEntries = completed;
-    ({ entries, olderCursor, bodyCapped } = trimToLimit(completed.map(shrink), collected, limit));
+    const tracked = insertModelChanges(completed);
+    activityEntries = tracked.entries;
+    ({ entries, olderCursor, bodyCapped } = trimToLimit(visible(tracked.entries).map(shrink), collected, limit));
     cursor = null;
   } else {
     const first = checked(await readTail(path, { bytes: PAGE_BYTES }));
     const collected = await collectBackwards(path, first, limit);
-    activityEntries = collected.entries;
-    ({ entries, olderCursor, bodyCapped } = trimToLimit(collected.entries.map(shrink), collected, limit));
-    cursor = encodeCursor({ o: first.endOffset, r: runningOffsets(entries).filter((offset) => offset < first.endOffset) });
+    // The tracker runs over everything read (more than the answer keeps), so a change near the start of the answer still finds the model before it.
+    const tracked = insertModelChanges(collected.entries);
+    activityEntries = tracked.entries;
+    ({ entries, olderCursor, bodyCapped } = trimToLimit(visible(tracked.entries).map(shrink), collected, limit));
+    const model = cursorModelOf(tracked.state);
+    cursor = encodeCursor({ o: first.endOffset, r: runningOffsets(entries).filter((offset) => offset < first.endOffset), ...(model !== undefined ? { m: model } : {}) });
   }
 
+  const sessionId = session.sessionId;
   const fieldsCut = entries.filter((entry) => SHORTENED.has(entry)).length;
   const subagentResult = await listSubagents(projectDir, sessionId);
   const subagents = subagentResult.ok ? subagentResult.subagents : [];
@@ -450,6 +557,7 @@ async function readLog(path: string, projectDir: string, sessionId: string, limi
     subagents: tree.map((node) => subagentDto(node, Date.now())),
     subagentsNote: notes.join(' '),
     activity: activityOf(activityEntries),
+    status: await statusFor(session),
     truncated,
     limits: LOG_LIMITS,
     note: '',

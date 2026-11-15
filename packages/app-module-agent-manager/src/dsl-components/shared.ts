@@ -3,3 +3,4 @@
 export type * from '../commons/api.js';
 export { DEFAULT_MODE, isMode, MODE_LABEL, MODES } from '../commons/variants.js';
 export type { ModeId } from '../commons/variants.js';
+export { CSRF_HEADER, CSRF_PATH } from '../commons/csrf.js';

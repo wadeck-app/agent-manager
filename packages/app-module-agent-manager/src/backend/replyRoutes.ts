@@ -3,13 +3,16 @@ import { join } from 'node:path';
 import { defaultConfigDir, getErrorMessage, readSessionRegistry, resolveSessionsDir, type Session } from '@wadeck-app/agent-manager-core';
 import {
   DEFAULT_REPLY_CONFIG,
+  DELIVERED_AS_TEXT,
   MAX_TEXT_CHARS,
   MAX_UPLOAD_BYTES,
   ReplyError,
   createReplyService,
   readAudit,
+  implementedTransports,
   readTransportsConfig,
-  socketTransport,
+  setDefaultTransport,
+  setSessionTransport,
   type AuditRecord,
   type DeliveryRecord,
   type ReplyService,
@@ -17,15 +20,15 @@ import {
   type ReplyTransport,
 } from '@wadeck-app/agent-manager-core/reply';
 import { readTail, resolveProjectsDir, transcriptPath, type Entry } from '@wadeck-app/agent-manager-core/transcript';
-import type { DeliveryStateName, DeliveryUi, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyStatusLimits, ReplyStatusOk, TransportStatusDto } from '../commons/api.js';
+import type { DeliveryStateName, DeliveryUi, ReplyDefaultTransportSetOk, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyStatusLimits, ReplyStatusOk, ReplyTransportSetOk, TransportStatusDto } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import { findSession } from './sessionLookup.js';
 import type { RouteAnswer, RouteKit } from './routeKit.js';
-import { ok } from './routeKit.js';
+import { ok, queryValue } from './routeKit.js';
 
 /** What a test (or a future caller) can replace; app-core calls the module with the context only. */
 export interface ModuleOptions {
-  /** The transports the module offers. Default: the implemented ones (the socket transport). */
+  /** The transports the module offers. Default: the implemented ones (socket, hc). */
   transports?: readonly ReplyTransport[];
 }
 
@@ -51,13 +54,34 @@ const bad = (message: string, hint: string): never => {
   throw new CodedRequestError(400, 'bad-request', message, hint);
 };
 
+/** The body of the transport routes: {"transportId": "<id>"}; null clears the override of a session (`allowNull`). */
+function parseTransportBody(body: unknown, allowNull: boolean): string | null {
+  const example = allowNull ? '{"transportId": "hc"} or {"transportId": null} to follow the default again' : '{"transportId": "hc"}';
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return bad('The body must be a JSON object', `Send ${example} with Content-Type: application/json.`);
+  }
+  const extra = Object.keys(body).filter((key) => key !== 'transportId');
+  if (extra.length > 0) {
+    bad(`Unknown field(s) in the body: ${extra.map((key) => `'${key.slice(0, 40)}'`).join(', ')}`, `The only field is transportId, e.g. ${example}.`);
+  }
+  const transportId: unknown = Reflect.get(body, 'transportId');
+  if (transportId === null && allowNull) {
+    return null;
+  }
+  if (typeof transportId !== 'string' || transportId === '') {
+    return bad(`'transportId' must be a transport id (a non-empty string)${allowNull ? ' or null' : ''}, got ${transportId === undefined ? 'nothing' : JSON.stringify(transportId)?.slice(0, 40)}`, `Send ${example}; GET /sessions/:sessionId/reply/status lists the ids.`);
+  }
+  return transportId;
+}
+
 function parseBody(body: unknown): ReplyRequest {
   if (body === null || typeof body !== 'object' || Array.isArray(body)) {
     return bad('The body must be a JSON object', `Send {"text": "..."} with Content-Type: application/json (optional: images, priority, confirmNow, messageId).`);
   }
   const extra = Object.keys(body).filter((key) => !(BODY_FIELDS as readonly string[]).includes(key));
   if (extra.length > 0) {
-    bad(`Unknown field(s) in the body: ${extra.map((key) => `'${key.slice(0, 40)}'`).join(', ')}`, `The fields are ${BODY_FIELDS.join(', ')}.`);
+    const transportHint = extra.some((key) => key.toLowerCase().includes('transport')) ? ' A reply has no transport field: the transport is chosen in transports.json with PUT /sessions/:sessionId/reply/transport or PUT /reply/transport/default (or: agent-manager transport set).' : '';
+    bad(`Unknown field(s) in the body: ${extra.map((key) => `'${key.slice(0, 40)}'`).join(', ')}`, `The fields are ${BODY_FIELDS.join(', ')}.${transportHint}`);
   }
   const text: unknown = Reflect.get(body, 'text');
   if (typeof text !== 'string') {
@@ -134,17 +158,21 @@ function statusOfReplyError(code: string): number {
   if (code === 'unknown-session') {
     return 404;
   }
-  if (code === 'session-dead' || code === 'registry-unreadable') {
+  if (code === 'session-dead' || code === 'registry-unreadable' || code === 'terminal-blocked' || code === 'no-terminal' || code === 'ambiguous-terminal' || code === 'terminal-gone') {
     return 409;
   }
-  const request = ['invalid-id', 'invalid-priority', 'confirm-now-required', 'invalid-text', 'text-too-long', 'empty-reply', 'empty-image', 'invalid-base64', 'upload-too-large', 'unsupported-image', 'mime-mismatch', 'invalid-index', 'invalid-image-path'];
+  if (code === 'rate-limited') {
+    return 429;
+  }
+  const request = ['text-too-long-for-hc', 'invalid-id', 'invalid-priority', 'confirm-now-required', 'invalid-text', 'text-too-long', 'empty-reply', 'empty-image', 'invalid-base64', 'upload-too-large', 'unsupported-image', 'mime-mismatch', 'invalid-index', 'invalid-image-path'];
   return request.includes(code) ? 400 : 502;
 }
 
-function replyFailure(error: ReplyError): RouteAnswer {
+/** `status`: overrides the status of the code (a PUT with an unknown transport id is the caller's mistake, a transports.json that names one is a configuration error). */
+function replyFailure(error: ReplyError, status?: number): RouteAnswer {
   const audit = (error as { auditError?: { message: string; fix: string } }).auditError;
   const sizeHint = error.code === 'upload-too-large' ? ` The request body is limited to 1 MiB of JSON (base64 adds a third): keep each image under ${Math.floor(MAX_UPLOAD_BYTES / 1024)} KB and the whole reply under 1 MiB.` : '';
-  return fail(statusOfReplyError(error.code), error.code, `${error.reason}${audit === undefined ? '' : ` (${audit.message})`}`, `${error.fix}${sizeHint}`);
+  return fail(status ?? statusOfReplyError(error.code), error.code, `${error.reason}${audit === undefined ? '' : ` (${audit.message})`}`, `${error.fix}${sizeHint}`);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -153,7 +181,7 @@ function replyFailure(error: ReplyError): RouteAnswer {
 
 /** One service per config folder: it remembers the ids it sent (no double send on a retry), so it lives as long as the module. */
 function serviceFactory(options: ModuleOptions): () => { service: ReplyService; configDir: string; transports: readonly ReplyTransport[] } {
-  const transports = options.transports ?? [socketTransport];
+  const transports = options.transports ?? implementedTransports;
   let current: { service: ReplyService; configDir: string; transports: readonly ReplyTransport[] } | undefined;
   return () => {
     const configDir = defaultConfigDir(process.env);
@@ -173,7 +201,7 @@ function toTranscriptEntry(entry: Entry): ReplyTranscriptEntry {
   const base = timestamp === undefined ? {} : { timestamp };
   switch (entry.kind) {
     case 'user-prompt':
-      return { type: 'user', ...base, message: { content: entry.text } };
+      return { type: 'user', ...base, message: { content: entry.text }, ...(entry.originKind === undefined && entry.originMsgId === undefined ? {} : { origin: { ...(entry.originKind === undefined ? {} : { kind: entry.originKind }), ...(entry.originMsgId === undefined ? {} : { msg_id: entry.originMsgId }) } }) };
     case 'queue-operation':
       return { type: 'queue-operation', operation: entry.operation, content: entry.contentPreview ?? '', ...base };
     case 'assistant-text':
@@ -260,7 +288,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
         return fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
       }
       const { session } = found;
-      const { service } = services();
+      const { service, transports } = services();
       try {
         const record = await service.send({
           sessionId: session.sessionId,
@@ -276,6 +304,8 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
           deliveryState: record.state,
           deliveryUi: deliveryUiOf(record.state),
           transportId: record.transportId,
+          deliveredAs: transports.find((transport) => transport.id === record.transportId)?.deliveredAs ?? 'peer',
+          handle: record.handle ?? '',
           messageId: record.id,
           duplicate: record.duplicate === true,
           auditWarning: record.auditError === undefined ? '' : `${record.auditError.message}. ${record.auditError.fix}`,
@@ -285,6 +315,56 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
       } catch (error) {
         if (error instanceof ReplyError) {
           return replyFailure(error);
+        }
+        throw error;
+      }
+    }),
+  );
+
+  // The transport is a setting of transports.json (decision 19), never a field of a reply: the same file is read by the CLI (agent-manager transport).
+  kit.route(
+    'PUT',
+    '/sessions/:sessionId/reply/transport',
+    shaped(async (req) => {
+      const transportId = parseTransportBody(req.body, true);
+      const found = await findSession(req.params?.['sessionId']);
+      if ('registryError' in found) {
+        return fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
+      }
+      const { session } = found;
+      const { configDir, transports } = services();
+      try {
+        const config = await setSessionTransport(configDir, session.sessionId, transportId, transports.map((transport) => transport.id));
+        const body: ReplyTransportSetOk = {
+          ok: true,
+          sessionId: session.sessionId,
+          selectedTransportId: config.perSession[session.sessionId] ?? config.default,
+          sessionOverrideTransportId: config.perSession[session.sessionId] ?? null,
+          defaultTransportId: config.default,
+        };
+        return ok(body);
+      } catch (error) {
+        if (error instanceof ReplyError) {
+          return replyFailure(error, error.code === 'unknown-transport' || error.code === 'invalid-id' ? 400 : undefined);
+        }
+        throw error;
+      }
+    }),
+  );
+
+  kit.route(
+    'PUT',
+    '/reply/transport/default',
+    shaped(async (req) => {
+      const transportId = parseTransportBody(req.body, false);
+      const { configDir, transports } = services();
+      try {
+        const config = await setDefaultTransport(configDir, transportId as string, transports.map((transport) => transport.id));
+        const body: ReplyDefaultTransportSetOk = { ok: true, defaultTransportId: config.default };
+        return ok(body);
+      } catch (error) {
+        if (error instanceof ReplyError) {
+          return replyFailure(error, error.code === 'unknown-transport' ? 400 : undefined);
         }
         throw error;
       }
@@ -304,7 +384,8 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
       const warnings: string[] = await configWarnings(configDir);
       try {
         const config = await readTransportsConfig(configDir);
-        const [status] = await service.getTransportStatus([session]);
+        // Only the selected transport is probed on a plain poll (an hc probe spawns one process per terminal); ?probe=all is what the transport menu sends when it opens.
+        const [status] = await service.getTransportStatus([session], { probe: queryValue(req.query, 'probe') === 'all' ? 'all' : 'selected' });
         if (status === undefined) {
           return fail(200, 'transport-status-empty', 'The reply service returned no transport status', 'Report this: it is a bug of the module.');
         }
@@ -319,18 +400,23 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
             transportId: entry.transportId,
             description: entry.description,
             kind: entry.kind,
+            probed: entry.probed,
             available: entry.probe.available,
             reason: entry.probe.reason,
             fix: entry.probe.fix,
             warnings: Array.isArray(probeWarnings) ? probeWarnings.filter((warning): warning is string => typeof warning === 'string') : [],
             selected: entry.transportId === status.selectedTransportId,
+            isDefault: entry.transportId === status.defaultTransportId,
+            sessionOverride: entry.transportId === status.sessionOverrideTransportId,
+            deliveredAs: entry.deliveredAs,
+            deliveredAsText: DELIVERED_AS_TEXT[entry.deliveredAs],
           };
         });
         if (!list.some((entry) => entry.selected)) {
           warnings.push(`The selected transport '${status.selectedTransportId}' (${selectedFrom}) is not one the module offers (${list.map((entry) => entry.transportId).join(', ')}): replies fail until ${join(configDir, 'transports.json')} names one of them.`);
         }
         const messages = await messagesOf(session, service, configDir, transports, warnings);
-        const body: ReplyStatusOk = { ok: true, sessionId: session.sessionId, sessionAlive: session.alive, selectedFrom, transports: list, messages, warnings, limits: REPLY_LIMITS };
+        const body: ReplyStatusOk = { ok: true, sessionId: session.sessionId, sessionAlive: session.alive, selectedFrom, selectedTransportId: status.selectedTransportId, defaultTransportId: status.defaultTransportId, sessionOverrideTransportId: status.sessionOverrideTransportId, transports: list, messages, warnings, limits: REPLY_LIMITS };
         return ok(body);
       } catch (error) {
         if (error instanceof ReplyError) {

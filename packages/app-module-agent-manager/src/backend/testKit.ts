@@ -1,6 +1,7 @@
 
 import { tmpdir } from 'node:os';
 import type { ModuleContext } from '@wadeck-app/app-core-sdk';
+import { socketTransport } from '@wadeck-app/agent-manager-core/reply';
 import registerRoutes from './index.js';
 import type { ModuleOptions } from './replyRoutes.js';
 
@@ -34,9 +35,10 @@ export function makeModule(setup: { dataDir?: string; options?: ModuleOptions } 
       routes.push({ method, segments: subPath.split('/').filter(Boolean), handler });
     },
   } as unknown as ModuleContext;
-  registerRoutes(ctx, setup.options);
+  // The default of the module also offers the hc transport, whose probe runs the real `hc`: tests get the socket transport alone unless they give their own.
+  registerRoutes(ctx, { ...setup.options, transports: setup.options?.transports ?? [socketTransport] });
 
-  return {
+  const module: { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[] } = {
     routes: routes.map((r) => `${r.method} /${r.segments.join('/')}`),
     async call(method, path, options = {}) {
       const [pathOnly = '', queryString] = path.split('?');
@@ -68,7 +70,11 @@ export function makeModule(setup: { dataDir?: string; options?: ModuleOptions } 
           return reply;
         },
       };
-      const headers: Record<string, string | undefined> = { host: '127.0.0.1:4850', 'content-type': 'application/json', ...(options.headers ?? {}) };
+      // A local browser request of the web UI: same-origin, and (for a write) the token of GET /csrf. A test removes one with `headers: { name: undefined }`.
+      const headers: Record<string, string | undefined> = { host: '127.0.0.1:4850', 'content-type': 'application/json', 'sec-fetch-site': 'same-origin', ...(options.headers ?? {}) };
+      if (method !== 'GET' && !('x-agent-manager-csrf' in (options.headers ?? {}))) {
+        headers['x-agent-manager-csrf'] = ((await module.call('GET', '/csrf')).body as { token: string }).token;
+      }
       for (const name of Object.keys(headers)) {
         if (headers[name] === undefined) {
           delete headers[name];
@@ -78,4 +84,5 @@ export function makeModule(setup: { dataDir?: string; options?: ModuleOptions } 
       return { status, body };
     },
   };
+  return module;
 }

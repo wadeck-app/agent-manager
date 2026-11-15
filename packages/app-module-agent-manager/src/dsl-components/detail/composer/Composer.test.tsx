@@ -227,16 +227,48 @@ describe('Composer errors and delivery', () => {
     expect(box).toHaveValue('hi');
   });
 
-  it('lists the last messages with their state', async () => {
+  it('has no list of the last messages under the box: the delivery is a mark on each sent bubble of the log', async () => {
     await ready();
-    await userEvent.setup().click(await screen.findByRole('button', { name: /Last messages/ }));
-    expect(screen.getByText('earlier')).toBeInTheDocument();
-    expect(screen.getAllByText('Seen by agent').length).toBeGreaterThan(0);
+    await screen.findByRole('button', { name: 'Transport: socket' });
+    expect(screen.queryByRole('button', { name: /Last messages/ })).toBeNull();
+    expect(screen.queryByText('earlier')).toBeNull();
   });
 
   it('names the transport read-only', async () => {
     await ready();
-    expect(await screen.findByText('via socket')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Transport: socket' })).toBeInTheDocument();
+  });
+});
+
+describe('Composer limits', () => {
+  it('does not show the limits as a permanent line', async () => {
+    await ready();
+    expect(screen.queryByText(/Up to \d+ images/)).toBeNull();
+  });
+
+  it('says them in the tooltip of the attach button, on keyboard focus too', async () => {
+    await ready();
+    const attach = screen.getByRole('button', { name: 'Attach images' });
+    fireEvent.focus(attach);
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(/Up to 2 images of .* each, .* in all\./);
+    expect(attach.getAttribute('aria-describedby')).toContain(tip.id);
+  });
+
+  it('shows a counter on the attach button once an image is attached, and names it', async () => {
+    const box = await ready();
+    expect(screen.queryByText('1/2')).toBeNull();
+    fireEvent.paste(box, { clipboardData: { files: [png(100, 'a.png')], items: [], getData: () => '' } });
+    await screen.findByRole('img', { name: 'a.png' });
+    expect(screen.getByText('1/2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Attach images (1 of 2 attached)' })).toBeInTheDocument();
+  });
+
+  it('keeps a clean wrapper for the transport (the selector of #38 goes there), small, next to the name', async () => {
+    await ready();
+    const wrapper = document.querySelector('[data-composer-transport]');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper).toHaveTextContent('socket');
   });
 });
 

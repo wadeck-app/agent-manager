@@ -8,13 +8,14 @@ import type { Session } from '../session.js';
 import { removeDir } from '../testFixtures.js';
 import { readAudit } from './audit.js';
 import * as realFs from 'node:fs/promises';
+import { wireMsgId } from './messageIds.js';
 import { DEFAULT_REPLY_CONFIG, parseReplyConfig, readTransportsConfig, writeTransportsConfig } from './config.js';
 import type { ReplyFs } from './fsTypes.js';
 import { deliveryState } from './deliveryState.js';
 import type { DeliveryRecord, ReplyTranscriptEntry } from './deliveryState.js';
 import { NotImplementedError, ReplyError } from './errors.js';
 import { asyncRewakeTransport, herdrTransport, hotWaitTransport, queueModTransport } from './hookTransports.js';
-import { createReplyService } from './replyService.js';
+import { createReplyService, DEFAULT_RATE_LIMIT, withDeliveredAs } from './replyService.js';
 import { createSocketTransport } from './socketTransport.js';
 import { FAKE_TOKEN, fakePng, makeFixture, startFakePipe } from './testSupport.js';
 import type { ProbeResult, ReplyMessage, ReplyTransport, TransportKind } from './types.js';
@@ -37,6 +38,7 @@ function fakeTransport(id: string, options: { available?: boolean; kind?: Transp
   return {
     id,
     kind: options.kind ?? 'direct',
+    deliveredAs: 'peer',
     describe: () => `fake ${id}`,
     probe: (): Promise<ProbeResult> => {
       state.probes++;
@@ -83,6 +85,81 @@ describe('ReplyService.send', () => {
     expect(socket.sent).toEqual([{ id: 'm1', text: '[web reply via agent-manager #m1]\nhello', imagePaths: [], priority: 'next', origin: 'web' }]);
     const audit = await readAudit(configDir);
     expect(audit.records).toEqual([{ sessionId: session.sessionId, time: 10_000, text: 'hello', imagePaths: [], transport: 'socket', priority: 'next', outcome: 'sent', msgId: 'm1' }]);
+  });
+
+  it('limits the replies per session whatever the transport, then lets the window pass', async () => {
+    const session = await liveSession();
+    const socket = fakeTransport('socket');
+    let now = 10_000;
+    const configDir = tempDir();
+    const service = createReplyService({
+      configDir,
+      transports: [socket],
+      clock: () => now,
+      rateLimit: { max: 2, windowMs: 60_000 },
+      readSessions: () => Promise.resolve({ ok: true, dir: 'x', sessions: [{ ...session, alive: true }], unreadable: [] }),
+    });
+    await service.send({ sessionId: session.sessionId, text: 'one', id: 'r1' });
+    await service.send({ sessionId: session.sessionId, text: 'two', id: 'r2' });
+    const refused = await service.send({ sessionId: session.sessionId, text: 'three', id: 'r3' }).catch((error: unknown) => error);
+    expect(refused).toMatchObject({ code: 'rate-limited' });
+    expect((refused as Error).message).toContain('wait about');
+    expect(socket.sent).toHaveLength(2);
+    // The refused id was not sent: it can be retried later.
+    now += 60_001;
+    expect((await service.send({ sessionId: session.sessionId, text: 'three', id: 'r3' })).state).toBe('sent');
+  });
+
+  it('attempts that delivered nothing (refused by the transport, bad image, unavailable) do not count: the session is never locked out by refusals', async () => {
+    const session = await liveSession();
+    const socket = fakeTransport('socket');
+    let accept = false;
+    const flaky: ReplyTransport = { ...socket, send: (_session, message) => (accept ? socket.send(_session, message) : Promise.resolve({ accepted: false, detail: 'terminal blocked', sentAt: 0 })) };
+    const { service } = serviceWith(session, [flaky]);
+    // One refusal more than the limit allows sends: none of them was delivered, so none counts.
+    for (let index = 0; index < DEFAULT_RATE_LIMIT.max + 1; index++) {
+      const refusal = await service.send({ sessionId: session.sessionId, text: 'x', id: `refused-${index}` }).catch((error: unknown) => error);
+      expect(refusal).toMatchObject({ code: 'transport-refused' });
+    }
+    // A bad image fails before the transport: it does not count either.
+    const bad = await service.send({ sessionId: session.sessionId, text: 'x', id: 'bad-image', images: [{ base64: 'not-base64!!', declaredMime: 'image/png' }] }).catch((error: unknown) => error);
+    expect(bad).toBeInstanceOf(ReplyError);
+    accept = true;
+    expect((await service.send({ sessionId: session.sessionId, text: 'ok', id: 'valid-1' })).state).toBe('sent');
+  });
+
+  it('real sends are limited: the limit-th send passes, the next one is rate-limited', async () => {
+    const session = await liveSession();
+    const socket = fakeTransport('socket');
+    const { service } = serviceWith(session, [socket]);
+    for (let index = 0; index < DEFAULT_RATE_LIMIT.max; index++) {
+      expect((await service.send({ sessionId: session.sessionId, text: 'x', id: `real-${index}` })).state).toBe('sent');
+    }
+    const limited = await service.send({ sessionId: session.sessionId, text: 'x', id: 'real-over' }).catch((error: unknown) => error);
+    expect(limited).toMatchObject({ code: 'rate-limited' });
+    expect(socket.sent).toHaveLength(DEFAULT_RATE_LIMIT.max);
+  });
+
+  it('deliveryState: an explicit undefined deliveredAs from the caller does not erase the one of the transport', () => {
+    expect(withDeliveredAs({ deliveredAs: undefined }, 'typed')).toMatchObject({ deliveredAs: 'typed' });
+    expect(withDeliveredAs(undefined, 'peer')).toEqual({ deliveredAs: 'peer' });
+    expect(withDeliveredAs({ deliveredAs: 'peer' }, 'typed')).toMatchObject({ deliveredAs: 'peer' });
+    expect(withDeliveredAs({ sessionStatus: 'idle' }, undefined)).toEqual({ sessionStatus: 'idle' });
+  });
+
+  it('getTransportStatus probes only the selected transport unless every one is asked for (an hc probe spawns processes)', async () => {
+    const session = await liveSession();
+    const socket = fakeTransport('socket');
+    const other = fakeTransport('hc');
+    const { service } = serviceWith(session, [socket, other]);
+    const [plain] = await service.getTransportStatus([session]);
+    expect(socket.probes).toBe(1);
+    expect(other.probes).toBe(0);
+    expect(plain?.transports.map((entry) => [entry.transportId, entry.probed])).toEqual([['socket', true], ['hc', false]]);
+    expect(plain?.transports[1]?.probe).toMatchObject({ available: false, details: { notProbed: true } });
+    const [all] = await service.getTransportStatus([session], { probe: 'all' });
+    expect(other.probes).toBe(1);
+    expect(all?.transports.every((entry) => entry.probed)).toBe(true);
   });
 
   it('saves the images and adds one line per image', async () => {
@@ -213,7 +290,7 @@ describe('ReplyService.send', () => {
     expect(registry.ok).toBe(true);
     const record = await service.send({ sessionId: fixture.sessionId, text: 'ping', id: 'e2e-1' });
     expect(pipe.lines).toHaveLength(2);
-    expect(JSON.parse(pipe.lines[1] as string)).toMatchObject({ type: 'user', msg_id: 'e2e-1', priority: 'next', session_id: fixture.sessionId });
+    expect(JSON.parse(pipe.lines[1] as string)).toMatchObject({ type: 'user', msg_id: wireMsgId('e2e-1'), priority: 'next', session_id: fixture.sessionId });
     const status = await service.getTransportStatus([fixture.session]);
     const everything = JSON.stringify([record, status, (await readAudit(configDir)).records]);
     expect(everything).not.toContain(FAKE_TOKEN);
@@ -222,12 +299,12 @@ describe('ReplyService.send', () => {
 });
 
 describe('ReplyService.getTransportStatus', () => {
-  it('returns every transport probe per session, including the stubs, and passes the permission mode', async () => {
+  it('returns every transport probe (when asked for all) per session, including the stubs, and passes the permission mode', async () => {
     const session = await liveSession();
     const socket = fakeTransport('socket');
     const { service, configDir } = serviceWith(session, [socket, asyncRewakeTransport, hotWaitTransport, queueModTransport, herdrTransport]);
     await writeTransportsConfig(configDir, { default: 'socket', perSession: { [session.sessionId]: 'herdr' } });
-    const status = await service.getTransportStatus([session]);
+    const status = await service.getTransportStatus([session], { probe: 'all' });
     expect(status).toHaveLength(1);
     expect(status[0]?.selectedTransportId).toBe('herdr');
     expect(status[0]?.transports.map((t) => [t.transportId, t.probe.available])).toEqual([

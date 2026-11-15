@@ -8,6 +8,9 @@ export function statusFixture(options: { sessionAlive?: boolean; transportAvaila
     sessionId: 's',
     sessionAlive: options.sessionAlive ?? true,
     selectedFrom: 'default',
+    selectedTransportId: 'socket',
+    defaultTransportId: 'socket',
+    sessionOverrideTransportId: null,
     transports: [
       {
         transportId: 'socket',
@@ -18,6 +21,11 @@ export function statusFixture(options: { sessionAlive?: boolean; transportAvaila
         fix: available ? '' : 'create the token file',
         warnings: [],
         selected: true,
+        probed: true,
+        isDefault: true,
+        sessionOverride: false,
+        deliveredAs: 'peer',
+        deliveredAsText: 'peer message (wrapped by Claude Code)',
       },
     ],
     messages: [{ messageId: 'm1', sentAt: 1_000, text: 'earlier', imageCount: 0, transportId: 'socket', priority: 'next', state: 'confirmed', ui: 'seen', reason: 'echoed', hint: '' }],

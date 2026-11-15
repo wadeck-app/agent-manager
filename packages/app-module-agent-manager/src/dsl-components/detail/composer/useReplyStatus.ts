@@ -16,9 +16,9 @@ export interface ReplyStatusState {
 
 /**
  * GET /sessions/:id/reply/status: once on mount, again on `refresh()` (which also restarts the loop), then every STATUS_POLL_MS as long as `follow` says
- * the last answer holds something not final yet and the tab is visible (a hidden tab skips the request). The next request starts when the previous answer arrived.
+ * the last answer holds something not final yet (`probeAll` asks the server to probe every transport, not only the selected one: the transport menu is open) and the tab is visible (a hidden tab skips the request). The next request starts when the previous answer arrived.
  */
-export function useReplyStatus(sessionId: string, follow: (status: ReplyStatusOk | undefined) => boolean): ReplyStatusState {
+export function useReplyStatus(sessionId: string, follow: (status: ReplyStatusOk | undefined) => boolean, probeAll = false): ReplyStatusState {
   const followRef = useRef(follow);
   followRef.current = follow;
   const last = useRef<ReplyStatusOk | undefined>(undefined);
@@ -30,7 +30,7 @@ export function useReplyStatus(sessionId: string, follow: (status: ReplyStatusOk
     let timer: ReturnType<typeof setTimeout> | undefined;
     const run = async (): Promise<void> => {
       if (document.visibilityState !== 'hidden') {
-        const result = await requestJson<ReplyStatusResponse>(`/sessions/${encodeURIComponent(sessionId)}/reply/status`, { signal: controller.signal });
+        const result = await requestJson<ReplyStatusResponse>(`/sessions/${encodeURIComponent(sessionId)}/reply/status${probeAll ? '?probe=all' : ''}`, { signal: controller.signal });
         if (controller.signal.aborted) {
           return;
         }
@@ -53,7 +53,7 @@ export function useReplyStatus(sessionId: string, follow: (status: ReplyStatusOk
       controller.abort();
       clearTimeout(timer);
     };
-  }, [sessionId, tick]);
+  }, [sessionId, tick, probeAll]);
 
   const refresh = useCallback(() => setTick((value) => value + 1), []);
   return { ...state, refresh };

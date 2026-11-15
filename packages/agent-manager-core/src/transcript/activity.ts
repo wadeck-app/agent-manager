@@ -21,7 +21,9 @@ export class ActivityAccumulator {
 
   add(entry: Entry): void {
     // Other kinds (queue operations, markers, unknown lines) say nothing about activity.
-    if (entry.kind === 'user-prompt') {
+    // A slash command, its output or a system reminder (harness text) is not something the person asked the agent: it starts no turn. A task notification is
+    // harness text too (same tags) but it DOES start a turn (the agent reacts to it): it stays counted.
+    if (entry.kind === 'user-prompt' && (entry.harness === undefined || entry.harness.tags.includes('task-notification'))) {
       if (entry.source === 'human' && entry.timestamp !== undefined) {
         this.lastPromptAt = entry.timestamp;
       }

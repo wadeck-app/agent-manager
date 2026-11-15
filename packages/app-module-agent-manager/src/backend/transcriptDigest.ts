@@ -2,7 +2,20 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Session } from '@wadeck-app/agent-manager-core';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
-import { listSubagents, mergeToolCallEntries, readTail, resolveProjectsDir, toolSummary, transcriptPath } from '@wadeck-app/agent-manager-core/transcript';
+import {
+  listSubagents,
+  mergeToolCallEntries,
+  pageBackwards,
+  parseModelId,
+  readTail,
+  resolveProjectsDir,
+  rollupModelUsage,
+  toolSummary,
+  transcriptPath,
+  type Entry,
+  type ModelInfoEntry,
+  type ModelUsageRollup,
+} from '@wadeck-app/agent-manager-core/transcript';
 
 /** What the list shows about the transcript of a session. */
 export interface TranscriptDigest {
@@ -11,6 +24,8 @@ export interface TranscriptDigest {
   /** Why lastActivity is empty or stale; empty when it is trustworthy. */
   note: string;
   subagentCount: number;
+  /** Model and token figures of the tail window (see ModelUsageRollup); absent when there is no transcript or it could not be read. */
+  usage?: ModelUsageRollup;
 }
 
 /** Bytes of the end of the transcript read to find the latest activity: bounded whatever the size of the file. */
@@ -19,6 +34,9 @@ export const DIGEST_TAIL_BYTES = 64 * 1024;
 export const DIGEST_TEXT_CHARS = 140;
 /** A session with no transcript is looked for again at most this often (the lookup scans the project folders). */
 const MISSING_RECHECK_MS = 15_000;
+/** Bytes read backwards, once per model, to find the `model` attachment (exact name, 1M tag) when the tail does not hold it. */
+export const MODEL_SCAN_BYTES = 2 * 1024 * 1024;
+const MODEL_SCAN_PAGE = 256 * 1024;
 /** Sessions remembered; beyond it the cache restarts (it only saves work). */
 const MAX_CACHED = 200;
 
@@ -34,6 +52,11 @@ interface Cached {
   subNote: string;
   lastActivity: string;
   subagentCount: number;
+  usage: ModelUsageRollup | undefined;
+  /** The model attachments seen (tail or scan), by canonical model id: the exact names, kept while the session lives. */
+  infos: Record<string, ModelInfoEntry>;
+  /** Canonical ids whose attachment was already looked for backwards (found or not): the scan runs once per model. */
+  scanned: string[];
 }
 
 const found = new Map<string, Cached>();
@@ -103,7 +126,7 @@ export async function digestOf(session: Session, now: number): Promise<Transcrip
         return { lastActivity: '', note, subagentCount: 0 };
       }
       missing.delete(id);
-      cached = { path: located.path, projectDir: located.projectDir, mtimeMs: -1, size: -1, subMtimeMs: undefined, tailNote: '', subNote: '', lastActivity: '', subagentCount: 0 };
+      cached = { path: located.path, projectDir: located.projectDir, mtimeMs: -1, size: -1, subMtimeMs: undefined, tailNote: '', subNote: '', lastActivity: '', subagentCount: 0, usage: undefined, infos: {}, scanned: [] };
     }
     const info = await stat(cached.path);
     const subMtime = await mtimeOf(join(cached.projectDir, id, 'subagents'));
@@ -117,9 +140,11 @@ export async function digestOf(session: Session, now: number): Promise<Transcrip
         const { message, hint } = tail.error;
         next.tailNote = `Transcript unreadable: ${message} ${hint}`;
         next.lastActivity = '';
+        next.usage = undefined;
       } else {
         next.tailNote = '';
         next.lastActivity = latestActivity(mergeToolCallEntries(tail.entries));
+        await updateUsage(next, tail.entries, tail.startOffset);
       }
     }
     if (subMtime !== cached.subMtimeMs) {
@@ -145,7 +170,45 @@ export async function digestOf(session: Session, now: number): Promise<Transcrip
 }
 
 function answerOf(cached: Cached): TranscriptDigest {
-  return { lastActivity: cached.lastActivity, note: joinNotes(cached.tailNote, cached.subNote), subagentCount: cached.subagentCount };
+  return { lastActivity: cached.lastActivity, note: joinNotes(cached.tailNote, cached.subNote), subagentCount: cached.subagentCount, ...(cached.usage !== undefined ? { usage: cached.usage } : {}) };
+}
+
+/**
+ * The model and token figures of the tail window. The exact model name and the 1M tag live in the `model` attachment, written when the session starts and
+ * when the model changes: when the tail does not hold the one of the current model, up to MODEL_SCAN_BYTES before it are read ONCE per model (found or
+ * not, it is not looked for again until the model changes). A scan that finds nothing leaves the name derived from the model table.
+ */
+async function updateUsage(cached: Cached, tailEntries: readonly Entry[], tailStart: number): Promise<void> {
+  for (const entry of tailEntries) {
+    if (entry.kind === 'model-info') {
+      cached.infos[parseModelId(entry.modelId).canonical] = entry;
+    }
+  }
+  const known = (): readonly Entry[] => [...Object.values(cached.infos), ...tailEntries];
+  let usage = rollupModelUsage(known());
+  const current = usage.currentModel?.id;
+  const canonical = current === undefined ? undefined : parseModelId(current).canonical;
+  if (canonical !== undefined && cached.infos[canonical] === undefined && !cached.scanned.includes(canonical)) {
+    cached.scanned.push(canonical);
+    let start = tailStart;
+    let read = 0;
+    while (start > 0 && read < MODEL_SCAN_BYTES && cached.infos[canonical] === undefined) {
+      const page = await pageBackwards(cached.path, start, { bytes: MODEL_SCAN_PAGE });
+      if (page.error !== undefined || page.startOffset >= start) {
+        break;
+      }
+      read += start - page.startOffset;
+      start = page.startOffset;
+      for (const entry of page.entries) {
+        if (entry.kind === 'model-info' && parseModelId(entry.modelId).canonical === canonical) {
+          // The newest attachment of the model wins: the entries of a page are in file order.
+          cached.infos[canonical] = entry;
+        }
+      }
+    }
+    usage = rollupModelUsage(known());
+  }
+  cached.usage = usage;
 }
 
 function latestActivity(entries: ReturnType<typeof mergeToolCallEntries>): string {

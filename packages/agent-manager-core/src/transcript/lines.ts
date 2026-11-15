@@ -44,7 +44,8 @@ export function skippableType(head: string): string | undefined {
     return undefined;
   }
   if (head.startsWith('{"parentUuid":') && ATTACHMENT_HEAD.test(head)) {
-    return 'attachment';
+    // The `model` attachment (the name and the exact id of the model, see ModelInfoEntry) is the one attachment that is parsed: a few per session.
+    return head.includes('"attachment":{"type":"model"') ? undefined : 'attachment';
   }
   return undefined;
 }

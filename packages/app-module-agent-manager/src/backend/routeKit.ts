@@ -1,5 +1,6 @@
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
 import type { ModuleContext } from '@wadeck-app/app-core-sdk';
+import { createCsrf } from './csrf.js';
 
 /** The parts of a Fastify request the routes read (the SDK types them loosely). */
 export interface RouteRequest {
@@ -7,6 +8,8 @@ export interface RouteRequest {
   query?: Record<string, string | string[] | undefined>;
   /** The parsed JSON body of a write request (undefined when none was sent). */
   body?: unknown;
+  /** The request headers (Fastify lower-cases the names). */
+  headers?: Record<string, string | string[] | undefined>;
 }
 
 /** What a route returns: the HTTP status and the JSON body. */
@@ -32,6 +35,8 @@ export class RequestError extends Error {
 export interface RouteKit {
   /** Registers a route; every error thrown by `run` becomes its HTTP answer. */
   route(method: string, subPath: string, run: (req: RouteRequest) => Promise<RouteAnswer>): void;
+  /** A token for the write routes (served by GET /csrf). */
+  csrfToken(): string;
   /** The persistent folder of the module (ctx.dataDir): pins and seen markers live there. */
   readonly dataDir: string;
 }
@@ -68,13 +73,24 @@ function inline(failure: { status: number; body: Record<string, unknown> }): { s
   return { status: 200, body: { ...failure.body, ok: false, failed: true, httpStatus: failure.status, errorText: `${message}.${hint}` } };
 }
 
+/** Methods that never change state: every other method needs the same-origin and token check (T-08), whoever registers the route. */
+const READ_METHODS = ['GET', 'HEAD'];
+
 export function createRouteKit(ctx: ModuleContext, writeStderr: (text: string) => void = (text) => void process.stderr.write(text)): RouteKit {
+  const csrf = createCsrf();
   return {
     dataDir: ctx.dataDir,
+    csrfToken: csrf.issue,
     route(method, subPath, run) {
       ctx.registerRoute(method, subPath, async (req, reply) => {
         const out = reply as unknown as Reply;
         try {
+          if (!READ_METHODS.includes(method.toUpperCase())) {
+            const refusal = csrf.check((req as unknown as RouteRequest).headers);
+            if (refusal !== undefined) {
+              return out.code(403).send({ ok: false, error: refusal });
+            }
+          }
           const answer = await run(req as unknown as RouteRequest);
           return out.code(answer.status).send(answer.body);
         } catch (error) {

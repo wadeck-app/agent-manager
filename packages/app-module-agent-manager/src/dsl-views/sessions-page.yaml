@@ -5,7 +5,7 @@
 # The page is the master-detail workspace of the dsl-lib component agent-manager:AgentWorkspace: a toggle between three listing modes (Tree, Groups, Inbox;
 # the URL parameter ?mode=, remembered), a search box that works in every mode, the agents in a left column, the selected one on the right. It gets the rows of
 # $sources.sessions as a prop (no request of its own), has its own slim toolbar and fills the viewport. It writes its selection in the URL (?session=).
-# The table of the sessions is a page of its own: sessions-table.yaml (nav /agents/table), linked from the toolbar.
+# The table of the sessions is a page of its own: sessions-table.yaml (nav "Table", /table), reached from the side menu.
 $sources:
   sessions:
     url: GET /api/modules/agent-manager/sessions

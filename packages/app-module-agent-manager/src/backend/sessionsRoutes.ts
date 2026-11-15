@@ -1,7 +1,9 @@
 import { getErrorMessage, readSessionRegistry, resolveSessionsDir, sortByStatusUpdatedDesc } from '@wadeck-app/agent-manager-core';
-import type { SessionRowDto } from '../commons/api.js';
+import type { CsrfOk, SessionRowDto } from '../commons/api.js';
+import { CSRF_HEADER, CSRF_PATH } from '../commons/csrf.js';
 import { stateOf } from './agentState.js';
 import { digestOf, pruneDigestCache } from './transcriptDigest.js';
+import { statusOf } from './sessionStatus.js';
 import { parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserState } from './userState.js';
 import { sessionColumns } from './columns.js';
 import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
@@ -87,11 +89,14 @@ function registerSessions(kit: RouteKit): void {
     }
     const pinned = new Set(user.pinned);
     const digests = await Promise.all(shown.map((row) => digestOf(row, now)));
+    // The status line data (model, context, tokens, duration, branch, role, bypasses): read from the transcript digest and the registry folder of each session.
+    const statuses = await Promise.all(shown.map((row, index) => statusOf(row, digests[index]!.usage, digests[index]!.note, now)));
     const rows = shown.map((row, index): SessionRow & SessionRowDto => {
       const digest = digests[index]!;
       const seenAt = user.seen[row.sessionId.toLowerCase()];
       return {
         ...row,
+        ...statuses[index],
         state: stateOf(row, user.seen, now),
         pinned: pinned.has(row.sessionId.toLowerCase()),
         pinOrder: user.pinned.indexOf(row.sessionId.toLowerCase()),
@@ -146,6 +151,11 @@ async function guarded<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
+/** GET /csrf: the token every write route requires in the header X-Agent-Manager-Csrf (contract: commons/csrf.ts). */
+function registerCsrf(kit: RouteKit): void {
+  kit.route('GET', CSRF_PATH, () => Promise.resolve(ok({ ok: true, header: CSRF_HEADER, token: kit.csrfToken() } satisfies CsrfOk)));
+}
+
 /**
  * POST /sessions/:sessionId/pin {"pinned": boolean}: pins or unpins a session (idempotent). Any well-formed session id is accepted, known or not:
  * a pin must be removable after the session ended.
@@ -180,6 +190,7 @@ function registerUserState(kit: RouteKit): void {
 }
 
 export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {}): void {
+  registerCsrf(kit);
   registerUserState(kit);
   registerSessions(kit);
   registerSummary(kit);

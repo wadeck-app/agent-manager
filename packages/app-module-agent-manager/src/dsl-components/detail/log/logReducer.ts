@@ -1,4 +1,4 @@
-import type { LogEntry, LogLimits, LogOk, LogTruncation, SubagentDto } from '../deps.js';
+import type { LogEntry, LogLimits, LogOk, LogTruncation, SessionStatusDto, SubagentDto } from '../deps.js';
 
 /** What the viewer shows of one session. Pure state: every transition is a function of the previous state and one answer of GET /log. */
 export interface LogState {
@@ -14,6 +14,8 @@ export interface LogState {
   appended: number;
   subagents: SubagentDto[];
   subagentsNote: string;
+  /** The status line data of the newest answer (tail or after); undefined before the first answer or when the server sent none. */
+  status?: SessionStatusDto;
   /** "No transcript yet" and the like, from the server. */
   note: string;
   truncated?: LogTruncation;
@@ -66,8 +68,8 @@ export function prependOlder(entries: readonly LogEntry[], older: readonly LogEn
   return [...page, ...entries.filter((entry) => !pageKeys.has(entry.key))];
 }
 
-function details(state: LogState, answer: LogOk): Pick<LogState, 'subagents' | 'subagentsNote' | 'note' | 'truncated' | 'limits'> {
-  return { subagents: answer.subagents, subagentsNote: answer.subagentsNote, note: answer.note, truncated: answer.truncated, limits: answer.limits ?? state.limits };
+function details(state: LogState, answer: LogOk): Pick<LogState, 'subagents' | 'subagentsNote' | 'note' | 'truncated' | 'limits' | 'status'> {
+  return { ...(answer.status === undefined ? {} : { status: answer.status }), subagents: answer.subagents, subagentsNote: answer.subagentsNote, note: answer.note, truncated: answer.truncated, limits: answer.limits ?? state.limits };
 }
 
 export function logReducer(state: LogState, action: LogAction): LogState {

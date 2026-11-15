@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { removeDir } from '../testFixtures.js';
 import { ReplyError } from './errors.js';
+import { wireMsgId } from './messageIds.js';
 import { buildSocketFrame, createSocketTransport, tokenFileName } from './socketTransport.js';
 import { FAKE_TOKEN, makeFixture, startFakePipe } from './testSupport.js';
 import type { FakePipe } from './testSupport.js';
@@ -41,7 +42,7 @@ async function waitForLines(pipe: FakePipe, count: number): Promise<void> {
 describe('buildSocketFrame', () => {
   it('has the shape the session expects', () => {
     const frame = JSON.parse(buildSocketFrame({ text: 'hi', id: 'abc', priority: 'later', sessionId: 'sid' })) as { type: string };
-    expect(frame).toEqual({ type: 'user', message: { role: 'user', content: 'hi' }, msgV: 1, msg_id: 'abc', priority: 'later', session_id: 'sid' });
+    expect(frame).toEqual({ type: 'user', message: { role: 'user', content: 'hi' }, msgV: 1, msg_id: wireMsgId('abc'), priority: 'later', session_id: 'sid' });
   });
   it('refuses an empty text, an unknown priority and an unsafe id', () => {
     expect(() => buildSocketFrame({ text: '', id: 'abc', priority: 'next', sessionId: 's' })).toThrow(ReplyError);
@@ -68,7 +69,7 @@ describe('socket send (fake pipe)', () => {
       type: 'user',
       message: { role: 'user', content: message().text },
       msgV: 1,
-      msg_id: 'msg-1',
+      msg_id: wireMsgId('msg-1'),
       priority: 'later',
       session_id: fixture.sessionId,
     });

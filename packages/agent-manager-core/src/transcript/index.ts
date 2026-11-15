@@ -13,7 +13,15 @@ export { agentCallOwners, buildAgentTree, linkSubagents, listSubagents, Subagent
 export type { ListSubagentsResult, SubagentFileProblem } from './subagents.js';
 export { ActivityAccumulator, summarizeActivity, toolSummary } from './activity.js';
 export { stripAnsi } from './text.js';
+export { classifyHarnessText } from './harness.js';
+export { parseWebReply } from './webReply.js';
 export { LIMITS } from './types.js';
+export { contextWindowOf, describeModel, describeModelName, MODEL_TABLE, parseModelId, sameModel } from './models.js';
+export type { ContextWindow, ModelRow, ParsedModelId, WindowSource } from './models.js';
+export { createModelTrackerState, insertModelChanges } from './modelChanges.js';
+export type { ModelTrackerState } from './modelChanges.js';
+export { MAX_PREVIOUS_MODELS, ModelUsageAccumulator, rollupModelUsage } from './modelUsage.js';
+export type { LastUsage, ModelUsageRollup } from './modelUsage.js';
 export type {
   ActivitySummary,
   AssistantTextEntry,
@@ -21,7 +29,12 @@ export type {
   EntryBase,
   EntryKind,
   ForkRefEntry,
+  HarnessInfo,
+  WebReplyInfo,
   ImageRef,
+  ModelChangeEntry,
+  ModelInfoEntry,
+  ModelRef,
   NoticeKind,
   OversizeEntry,
   PromptSource,

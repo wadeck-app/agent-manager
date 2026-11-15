@@ -325,6 +325,51 @@ ${JSON.stringify(textLine(3, 'after the huge line'))}
   });
 });
 
+describe('GET /sessions/:sessionId/log: live polling across big lines', () => {
+  const cursorAt = (o: number): string => Buffer.from(JSON.stringify({ o })).toString('base64url');
+
+  it('after: a 95 KB line between two entries arrives (shortened, flagged), with the entries around it, and the cursor ends at the end of the file', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    const head = JSON.stringify(userLine(1, 'sent from the page'));
+    const big = JSON.stringify(userLine(2, 'b'.repeat(95_000)));
+    const answerLine = JSON.stringify(textLine(3, 'Salut, the answer'));
+    writeFileSync(file, `${head}\n${big}\n${answerLine}\n`);
+    const { body } = await log(`?after=${cursorAt(Buffer.byteLength(head) + 1)}`);
+    expect(body.ok).toBe(true);
+    expect(body.entries.map((e: { kind: string; text?: string }) => (e.text ?? e.kind).slice(0, 12))).toEqual(['bbbbbbbbbbbb', 'Salut, the a']);
+    expect(body.entries[0]).toMatchObject({ textTruncated: true });
+    expect(body.truncated.fieldsCut).toBe(1);
+    expect(body.more).toBe(false);
+    // The cursor also carries the model of the transcript at that point (see CursorModel in logRoute.ts): only its offset is compared here.
+    expect(JSON.parse(Buffer.from(body.cursor, 'base64url').toString()).o).toBe(statSync(file).size);
+  });
+
+  it('after: a line still being written is not delivered half, and arrives whole once it is complete', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    const head = JSON.stringify(userLine(1, 'hello'));
+    writeFileSync(file, `${head}\n`);
+    let cursor = cursorAt(Buffer.byteLength(head) + 1);
+    const full = JSON.stringify(textLine(2, 'the answer that was written in two parts'));
+    writeFileSync(file, `${head}\n${full.slice(0, 40)}`);
+    const partial = (await log(`?after=${cursor}`)).body;
+    expect(partial.entries).toEqual([]);
+    cursor = partial.cursor;
+    writeFileSync(file, `${head}\n${full}\n`);
+    const complete = (await log(`?after=${cursor}`)).body;
+    expect(texts(complete.entries)).toEqual(['the']);
+  });
+
+  it('after: a cursor in the middle of a line is refused as stale with the way out, not read from the middle', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    writeLines(file, [userLine(1, 'a'.repeat(300)), textLine(2, 'b')]);
+    const answer = await log(`?after=${cursorAt(100)}`);
+    expect(answer.body).toMatchObject({ ok: false, error: { code: 'cursor-stale', hint: expect.stringContaining('without a cursor') } });
+  });
+});
+
 describe('GET /sessions/:sessionId/log/locate', () => {
   const locate = (toolUseId: string, id = ID(process.pid)) => makeModule({ dataDir: box.data }).call('GET', `/sessions/${id}/log/locate?toolUseId=${encodeURIComponent(toolUseId)}`);
 

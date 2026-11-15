@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LogResponse } from '../deps.js';
+import type { LogEntry, LogResponse } from '../deps.js';
 import { resetPending } from '../pending.js';
 import { answer, assistantText } from './entryFixtures.js';
 import { useLog } from './useLog.js';
@@ -62,5 +62,70 @@ describe('loadOlderUntil and the lock of the older pages', () => {
     await waitFor(() => expect(result.current.state.entries.length).toBe(2));
     const outcome = await result.current.loadOlderUntil(100, { signal: new AbortController().signal, maxPages: 5, onPage: () => undefined });
     expect(outcome).toEqual({ status: 'reached', pages: 0 });
+  });
+});
+
+describe('live polling: entries appended while the page is open', () => {
+  let written: LogEntry[];
+  let requests: string[];
+
+  /** A tiny server: the cursor is how many entries it has sent; `after=<n>` returns the rest. */
+  function serveAppendable(): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        requests.push(url);
+        const after = new URL(url, 'http://x').searchParams.get('after');
+        const from = after === null ? 0 : Number(after);
+        return json(answer(written.slice(from), { cursor: String(written.length) }));
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    written = [{ ...assistantText('a0', 'first'), offset: 0 }];
+    requests = [];
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    Reflect.deleteProperty(document, 'hidden');
+  });
+
+  const oversize = { key: '1000.0', offset: 1000, kind: 'oversize', bytes: 1_300_000, limit: 1_048_576 } as LogEntry;
+
+  it('shows the answer that arrives after a delivered message and a very large line, within one poll', async () => {
+    serveAppendable();
+    const { result } = renderHook(() => useLog('s-live'));
+    await waitFor(() => expect(result.current.state.entries).toHaveLength(1));
+    // The message is delivered (a peer entry), a huge line follows (the viewer gets a marker for it), then the answer.
+    written.push({ ...assistantText('w', 'delivered'), offset: 100 }, oversize, { ...assistantText('answer', 'Salut ! the answer'), offset: 2_000_000 });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2100);
+    });
+    expect(result.current.state.entries.map((entry) => entry.key)).toEqual(['a0', 'w', '1000.0', 'answer']);
+    expect(result.current.state.appended).toBe(3);
+  });
+
+  it('a hidden tab does not poll, and refreshes at once when it shows again', async () => {
+    serveAppendable();
+    const { result } = renderHook(() => useLog('s-hidden'));
+    await waitFor(() => expect(result.current.state.entries).toHaveLength(1));
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    const before = requests.length;
+    written.push({ ...assistantText('late', 'while hidden'), offset: 100 });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(requests.length).toBe(before);
+    expect(result.current.state.entries).toHaveLength(1);
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'));
+      await vi.advanceTimersByTimeAsync(50);
+    });
+    expect(result.current.state.entries.map((entry) => entry.key)).toEqual(['a0', 'late']);
   });
 });

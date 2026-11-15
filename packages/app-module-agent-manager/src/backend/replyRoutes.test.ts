@@ -17,6 +17,7 @@ function fakeTransport(over: { id?: string; available?: boolean } = {}): FakeTra
   return {
     id: over.id ?? 'socket',
     kind: 'direct',
+    deliveredAs: over.id === 'hc' ? 'typed' : 'peer',
     sent,
     describe: () => 'fake transport of the tests',
     probe: () =>
@@ -44,7 +45,7 @@ describe('POST /sessions/:sessionId/reply', () => {
     const transport = fakeTransport();
     const { status, body } = await module_(transport).call('POST', `/sessions/${id}/reply`, { body: { text: 'please continue' } });
     expect(status).toBe(200);
-    expect(body).toEqual({ ok: true, deliveryState: 'sent', deliveryUi: 'delivered', transportId: 'socket', messageId: expect.any(String), duplicate: false, auditWarning: '', imagesSaved: 0 });
+    expect(body).toEqual({ ok: true, deliveryState: 'sent', deliveryUi: 'delivered', transportId: 'socket', deliveredAs: 'peer', handle: '', messageId: expect.any(String), duplicate: false, auditWarning: '', imagesSaved: 0 });
     expect(transport.sent).toHaveLength(1);
     expect(transport.sent[0]!.text).toContain(`[web reply via agent-manager #${body.messageId}]`);
     expect(transport.sent[0]!.text).toContain('please continue');
@@ -190,7 +191,7 @@ describe('GET /sessions/:sessionId/reply/status', () => {
       messages: [],
       warnings: [],
       limits: { maxTextChars: 20000, maxImages: 4, maxImageBytes: 700 * 1024, maxBodyBytes: 1024 * 1024 },
-      transports: [{ transportId: 'socket', kind: 'direct', available: true, reason: 'the fake is on', fix: '', warnings: ['a warning of the probe'], selected: true }],
+      transports: [{ transportId: 'socket', kind: 'direct', available: true, reason: 'the fake is on', fix: '', warnings: ['a warning of the probe'], selected: true, isDefault: true, sessionOverride: false, deliveredAs: 'peer', deliveredAsText: 'peer message (wrapped by Claude Code)' }],
     });
   });
 
@@ -271,5 +272,109 @@ describe('GET /sessions/:sessionId/reply/status', () => {
     const { messages } = (await statusOf(id, m)).body;
     expect(messages).toHaveLength(10);
     expect(messages[0].text).toBe('m11');
+  });
+});
+
+describe('transport switching routes', () => {
+  const both = (): FakeTransport[] => [fakeTransport({ id: 'socket' }), fakeTransport({ id: 'hc' })];
+  const withBoth = () => makeModule({ dataDir: box.data, options: { transports: both() } });
+  const config = (): unknown => JSON.parse(readFileSync(join(box.config, 'transports.json'), 'utf8'));
+
+  it('a plain status probes only the selected transport; ?probe=all probes every one (the menu)', async () => {
+    const id = putSession(box, process.pid);
+    let probes = 0;
+    const counting = fakeTransport({ id: 'hc' });
+    const probe = counting.probe.bind(counting);
+    counting.probe = (...args) => {
+      probes += 1;
+      return probe(...args);
+    };
+    const m = makeModule({ dataDir: box.data, options: { transports: [fakeTransport({ id: 'socket' }), counting] } });
+    const plain = (await m.call('GET', `/sessions/${id}/reply/status`)).body;
+    expect(plain.transports.map((entry: { transportId: string; probed: boolean }) => [entry.transportId, entry.probed])).toEqual([['socket', true], ['hc', false]]);
+    expect(probes).toBe(0);
+    const all = (await m.call('GET', `/sessions/${id}/reply/status?probe=all`)).body;
+    expect(all.transports.every((entry: { probed: boolean }) => entry.probed)).toBe(true);
+    expect(probes).toBe(1);
+  });
+
+  it('the status lists both transports with how each delivers, the default and the override', async () => {
+    const id = putSession(box, process.pid);
+    const body = (await withBoth().call('GET', `/sessions/${id}/reply/status`)).body;
+    expect(body.selectedTransportId).toBe('socket');
+    expect(body.sessionOverrideTransportId).toBeNull();
+    expect(body.transports.map((entry: { transportId: string; deliveredAsText: string }) => [entry.transportId, entry.deliveredAsText])).toEqual([
+      ['socket', 'peer message (wrapped by Claude Code)'],
+      ['hc', 'typed prompt (as the user)'],
+    ]);
+  });
+
+  it('PUT session transport selects hc for this session only, and null clears it', async () => {
+    const id = putSession(box, process.pid);
+    const m = withBoth();
+    const set = await m.call('PUT', `/sessions/${id}/reply/transport`, { body: { transportId: 'hc' } });
+    expect(set).toMatchObject({ status: 200, body: { ok: true, sessionId: id, selectedTransportId: 'hc', sessionOverrideTransportId: 'hc', defaultTransportId: 'socket' } });
+    expect(config()).toEqual({ default: 'socket', perSession: { [id]: 'hc' } });
+    const status = (await m.call('GET', `/sessions/${id}/reply/status`)).body;
+    expect(status).toMatchObject({ selectedTransportId: 'hc', selectedFrom: 'transports.json (session override)' });
+    expect(status.transports.find((entry: { transportId: string }) => entry.transportId === 'hc')).toMatchObject({ selected: true, sessionOverride: true, isDefault: false });
+    const cleared = await m.call('PUT', `/sessions/${id}/reply/transport`, { body: { transportId: null } });
+    expect(cleared.body).toMatchObject({ ok: true, selectedTransportId: 'socket', sessionOverrideTransportId: null });
+    expect(config()).toEqual({ default: 'socket', perSession: {} });
+  });
+
+  it('a reply then goes through the selected transport, and never through another one', async () => {
+    const id = putSession(box, process.pid);
+    const [socket, hc] = both() as [FakeTransport, FakeTransport];
+    const m = makeModule({ dataDir: box.data, options: { transports: [socket, hc] } });
+    await m.call('PUT', `/sessions/${id}/reply/transport`, { body: { transportId: 'hc' } });
+    const answer = await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'hello' } });
+    expect(answer.body).toMatchObject({ ok: true, transportId: 'hc', deliveredAs: 'typed' });
+    expect(hc.sent).toHaveLength(1);
+    expect(socket.sent).toHaveLength(0);
+  });
+
+  it('a selected transport that cannot deliver fails with its reason: no fallback to the other one', async () => {
+    const id = putSession(box, process.pid);
+    const socket = fakeTransport({ id: 'socket' });
+    const hc = fakeTransport({ id: 'hc', available: false });
+    const m = makeModule({ dataDir: box.data, options: { transports: [socket, hc] } });
+    await m.call('PUT', `/sessions/${id}/reply/transport`, { body: { transportId: 'hc' } });
+    const answer = await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'hello' } });
+    expect(answer.body).toMatchObject({ ok: false, error: { code: 'transport-unavailable' } });
+    expect(socket.sent).toHaveLength(0);
+  });
+
+  it('PUT default changes the default for the sessions without override', async () => {
+    const id = putSession(box, process.pid);
+    const m = withBoth();
+    expect((await m.call('PUT', '/reply/transport/default', { body: { transportId: 'hc' } })).body).toEqual({ ok: true, defaultTransportId: 'hc' });
+    expect((await m.call('GET', `/sessions/${id}/reply/status`)).body.selectedTransportId).toBe('hc');
+  });
+
+  it('an unknown transport id is a 400 that lists the valid ids, and nothing is written', async () => {
+    const id = putSession(box, process.pid);
+    const m = withBoth();
+    const answer = await m.call('PUT', `/sessions/${id}/reply/transport`, { body: { transportId: 'pigeon' } });
+    expect(answer).toMatchObject({ status: 400, body: { ok: false, error: { code: 'unknown-transport', message: expect.stringContaining('socket, hc'), hint: expect.stringContaining('socket, hc') } } });
+    expect((await m.call('PUT', '/reply/transport/default', { body: { transportId: 'pigeon' } })).status).toBe(400);
+    expect(existsSync(join(box.config, 'transports.json'))).toBe(false);
+  });
+
+  it('refuses a bad body, a null default and an unknown session, and writes nothing', async () => {
+    const id = putSession(box, process.pid);
+    const m = withBoth();
+    expect((await m.call('PUT', `/sessions/${id}/reply/transport`, { body: {} })).status).toBe(400);
+    expect((await m.call('PUT', `/sessions/${id}/reply/transport`, { body: { transportId: 'hc', extra: 1 } })).status).toBe(400);
+    expect((await m.call('PUT', '/reply/transport/default', { body: { transportId: null } })).status).toBe(400);
+    expect((await m.call('PUT', '/sessions/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/reply/transport', { body: { transportId: 'hc' } })).status).toBe(404);
+    expect(existsSync(join(box.config, 'transports.json'))).toBe(false);
+  });
+
+  it('POST reply accepts no transport field and says where to choose it', async () => {
+    const id = putSession(box, process.pid);
+    const answer = await withBoth().call('POST', `/sessions/${id}/reply`, { body: { text: 'x', transportId: 'hc' } });
+    expect(answer.status).toBe(400);
+    expect(JSON.stringify(answer.body)).toContain('PUT /sessions/:sessionId/reply/transport');
   });
 });

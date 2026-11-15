@@ -52,6 +52,28 @@ export type PromptSource = 'human' | 'peer' | 'task-notification' | 'injected' |
 
 export type ImageRef = { type: 'image'; mediaType: string; bytes: number };
 
+/** A user entry that is only text Claude Code injected itself (a slash command, its output, a caveat, a reminder): see classifyHarnessText(). */
+export type HarnessInfo = {
+  /** Short readable name: 'Command /compact', 'Command output', 'System reminder'. */
+  label: string;
+  /** One line of what it says. */
+  summary: string;
+  /** The inner text (the arguments of a command, the output), empty when there is none. */
+  detail: string;
+  /** The harness tags found, once each. */
+  tags: string[];
+  /** 'error' for an error stream (stderr). */
+  level?: 'error';
+};
+
+/** A message the person sent from agent-manager, as it comes back in the transcript (a "peer" entry carrying our marker): see parseWebReply(). */
+export type WebReplyInfo = {
+  /** The id in the marker: the client message id of POST /reply, what the optimistic message is matched by. */
+  messageId: string;
+  /** What the person wrote: the text after the marker line, without the paragraph Claude Code adds. */
+  text: string;
+};
+
 export type UserPromptEntry = EntryBase & {
   kind: 'user-prompt';
   source: PromptSource;
@@ -60,8 +82,14 @@ export type UserPromptEntry = EntryBase & {
   isMeta: boolean;
   /** Raw `origin.kind` / `promptSource`, kept for what the classification hides. */
   originKind?: string;
+  /** `origin.msg_id`: the socket `msg_id` Claude Code kept (only when it is a UUID). Matches a reply to its line without reading the text. */
+  originMsgId?: string;
   promptSource?: string;
   peer?: { name?: string; from?: string };
+  /** Set when the whole text is made of harness tags (not a prompt the person wrote); the text is kept, ANSI escapes removed. */
+  harness?: HarnessInfo;
+  /** Set on a peer entry that carries the marker of a reply sent from agent-manager. The full text stays in `text`. */
+  webReply?: WebReplyInfo;
   text: string;
   textTruncated: boolean;
   /** UTF-8 size of the full text. */
@@ -186,6 +214,46 @@ export type UsageEntry = EntryBase & {
   contextEstimate: number;
 };
 
+/**
+ * A model as the UI shows it. `id` is the raw id when one is known (assistant `message.model`, attachment `modelId`); it is absent for a model known by its
+ * name only (the stdout of `/model`). `known` is false when the name is not in the model table: `displayName` is then the raw id (never a guess).
+ */
+export type ModelRef = {
+  id?: string;
+  displayName: string;
+  known: boolean;
+};
+
+/**
+ * `attachment` lines of type `model` (observed: `{"attachment":{"type":"model","identity":{"modelId","marketingName","knowledgeCutoff"}}}`), written at the
+ * start of a session and when the model changes. `modelId` is the exact id with the provider prefix and the `[1m]` tag (`us.anthropic.claude-opus-5-5[1m]`),
+ * `displayName` the `marketingName` ("Opus 5.5 (1M context)"). The log route does not send these entries (like `usage`).
+ */
+export type ModelInfoEntry = EntryBase & {
+  kind: 'model-info';
+  modelId: string;
+  displayName: string;
+  knowledgeCutoff?: string;
+};
+
+/**
+ * Derived, never read from a line: inserted into an entry list by insertModelChanges() where the model of the session changes. Two signals, one notice:
+ * the stdout of `/model` ("Set model to `X` ...", placed at the command) and the first assistant entry whose model differs (placed before that message);
+ * when both exist only the command one is kept.
+ */
+export type ModelChangeEntry = EntryBase & {
+  kind: 'model-change';
+  /** The model before; absent when it is not known (the first model seen, or the window starts after it). */
+  from?: ModelRef;
+  to: ModelRef;
+  /** command: the stdout of `/model`. assistant: the model of the assistant messages changed with no command seen (fallback, plan mode, a command outside the window). */
+  source: 'command' | 'assistant';
+  /** command only, from the stdout: 'session' = "for this session only", 'default' = "saved as your default for new sessions". Absent when the text says neither. */
+  scope?: 'session' | 'default';
+  /** Ready to show: "Model changed: Sonnet 4.6 -> Haiku 5.5" ("Model changed to ..." when `from` is unknown). */
+  text: string;
+};
+
 /** The first line of a fork sub-agent transcript (observed type fork-context-ref). */
 export type ForkRefEntry = EntryBase & {
   kind: 'fork-ref';
@@ -216,6 +284,8 @@ export type Entry =
   | SystemNoticeEntry
   | QueueOperationEntry
   | UsageEntry
+  | ModelInfoEntry
+  | ModelChangeEntry
   | ForkRefEntry
   | UnknownEntry
   | UnparsableEntry

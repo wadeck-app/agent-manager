@@ -51,11 +51,28 @@ export interface SendResult {
   detail: string;
   /** Epoch ms. */
   sentAt: number;
+  /** An identifier the transport gave the delivery, when it has one (hc: `<terminal>#turn<N>`). Informational: it is not a transcript key. */
+  handle?: string;
 }
+
+/**
+ * How the session sees the message (measured, research/reply-wrapper-and-user-origin.md):
+ * peer: Claude Code marks it as a message of another session and wraps it (the model is told it was not typed by the user);
+ * typed: it arrives as a prompt typed by the user (origin human), with the full authority of the user.
+ */
+export type DeliveredAs = 'peer' | 'typed';
+
+/** The wording for the UI and the CLI. */
+export const DELIVERED_AS_TEXT: Record<DeliveredAs, string> = {
+  peer: 'peer message (wrapped by Claude Code)',
+  typed: 'typed prompt (as the user)',
+};
 
 export interface ReplyTransport {
   readonly id: string;
   readonly kind: TransportKind;
+  /** How the session sees what this transport delivers. */
+  readonly deliveredAs: DeliveredAs;
   describe(): string;
   /** Never throws for an unavailable transport: the answer is `available: false` with a reason and a fix. */
   probe(session: Session, context?: ProbeContext): Promise<ProbeResult>;

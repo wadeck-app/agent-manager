@@ -10,6 +10,8 @@ import {
   type UsageEntry,
   type UserPromptEntry,
 } from './types.js';
+import { classifyHarnessText } from './harness.js';
+import { parseWebReply } from './webReply.js';
 import { asNumber, asString, base64Bytes, boundValue, isRecord, oneLine, parseTimestamp, stripAnsi, truncateText } from './text.js';
 
 /** Line types skipped by prefix, WITHOUT JSON.parse, and counted per type (decision 29 / R-08 plus the types observed on real transcripts). */
@@ -100,6 +102,9 @@ export function handleLine(sink: Sink, line: Record<string, unknown>, offset: nu
     });
     return;
   }
+  if (type === 'attachment' && handleModelAttachment(sink, ctx, line)) {
+    return;
+  }
   if (type !== undefined && SKIPPED_LINE_TYPES.has(type)) {
     // The prefix check missed it (key order changed): the line was parsed, but it is still counted as skipped and produces no entry.
     state.counts.lines -= 1;
@@ -108,6 +113,20 @@ export function handleLine(sink: Sink, line: Record<string, unknown>, offset: nu
   }
   state.counts.unknown += 1;
   push(sink, ctx, { kind: 'unknown', lineType: type ?? '(no type)', keys: Object.keys(line).slice(0, 24), bytes });
+}
+
+/** `attachment` of type `model` with an identity: a model-info entry. Any other attachment is not handled (it stays a skipped line). */
+function handleModelAttachment(sink: Sink, ctx: LineContext, line: Record<string, unknown>): boolean {
+  const attachment = isRecord(line.attachment) ? line.attachment : undefined;
+  const identity = isRecord(attachment?.identity) ? attachment.identity : undefined;
+  const modelId = asString(identity?.modelId);
+  if (attachment?.type !== 'model' || identity === undefined || modelId === undefined || modelId === '') {
+    return false;
+  }
+  const marketingName = asString(identity.marketingName);
+  const cutoff = asString(identity.knowledgeCutoff);
+  push(sink, ctx, { kind: 'model-info', modelId, displayName: marketingName !== undefined && marketingName !== '' ? marketingName : modelId, ...(cutoff !== undefined ? { knowledgeCutoff: cutoff } : {}) });
+  return true;
 }
 
 type LineContext = { offset: number; timestamp?: number; ownerAgentId?: string; n: number };
@@ -326,14 +345,23 @@ function handleUser(sink: Sink, ctx: LineContext, line: Record<string, unknown>)
   const originKind = asString(origin?.kind);
   const promptSource = asString(line.promptSource);
   const isMeta = line.isMeta === true;
+  // ANSI escapes are removed here, once, so no client ever sees a raw ESC byte (a terminal colour in a command output shows as '[2m' in a browser).
+  const promptText = stripAnsi(texts.join('\n'));
+  const harness = classifyHarnessText(promptText);
+  const promptKind = classifyPrompt(originKind, asString(line.turnOrigin), isMeta);
+  // Only a message delivered as a peer message can be one of our replies: a typed prompt that merely contains the marker is not.
+  const webReply = promptKind === 'peer' ? parseWebReply(promptText) : undefined;
   const entry = push(sink, ctx, {
     kind: 'user-prompt',
-    source: classifyPrompt(originKind, asString(line.turnOrigin), isMeta),
+    source: promptKind,
     queued: promptSource === 'queued',
     isMeta,
     ...(originKind !== undefined ? { originKind } : {}),
+    ...(asString(origin?.msg_id) !== undefined ? { originMsgId: asString(origin?.msg_id) } : {}),
     ...(promptSource !== undefined ? { promptSource } : {}),
-    ...boundedText(texts.join('\n')),
+    ...boundedText(promptText),
+    ...(harness === undefined ? {} : { harness }),
+    ...(webReply === undefined ? {} : { webReply }),
     images,
   }) as UserPromptEntry;
   if (origin !== undefined && entry.source === 'peer') {

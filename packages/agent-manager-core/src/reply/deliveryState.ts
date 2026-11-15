@@ -1,12 +1,13 @@
 import { originMarkerFor } from './compose.js';
+import { wireMsgId } from './messageIds.js';
 import type { ReplyConfig } from './config.js';
-import type { ReplyPriority, TransportKind } from './types.js';
+import type { DeliveredAs, ReplyPriority, TransportKind } from './types.js';
 
 /**
  * queued: a mailbox transport holds it, no session picked it up yet.
  * sent: a direct transport wrote it.
  * queued-in-session: a `queue-operation` enqueue line carrying the origin marker was seen in the transcript.
- * confirmed: a user line with the origin marker (which contains the id) was seen.
+ * confirmed: a user line carrying the message was seen: matched by `origin.msg_id` (the socket `msg_id`, see wireMsgId) first, by the origin marker second.
  * unconfirmed: not seen after the confirmation window, or after `hintAfter` on an idle session whose transcript did not grow. Never a hard
  *   failure: it can still become confirmed, the reply is never resent automatically (decision 42).
  * expired: a mailbox reply nobody picked up within `mailboxExpiry`.
@@ -24,6 +25,8 @@ export interface DeliveryRecord {
   priority: ReplyPriority;
   /** Present and true when this call returned an earlier send of the same id instead of sending again. */
   duplicate?: boolean;
+  /** An identifier the transport gave the delivery (hc: `<terminal>#turn<N>`). Informational only. */
+  handle?: string;
   /** Present when the message WAS delivered but its audit line could not be written: the delivery stands, only the audit trail has a gap. */
   auditError?: { message: string; fix: string };
 }
@@ -36,12 +39,16 @@ export interface ReplyTranscriptEntry {
   timestamp?: string | number;
   content?: unknown;
   message?: { content?: unknown };
+  /** The `origin` of a user line: `kind` ('human', 'peer', ...) and `msg_id` (kept by Claude Code when the socket `msg_id` is a UUID). */
+  origin?: { kind?: string; msg_id?: string };
   [key: string]: unknown;
 }
 
 export interface DeliveryContext {
   /** The registry status group of the session now. The hint needs 'idle'. */
   sessionStatus?: 'busy' | 'idle' | 'other';
+  /** How the transport of the reply delivers: the "probably not delivered" hint depends on it. Default: peer (the socket wording). */
+  deliveredAs?: DeliveredAs;
 }
 
 export interface DeliveryStatus {
@@ -69,6 +76,18 @@ function timeOf(entry: ReplyTranscriptEntry): number | undefined {
 }
 
 /**
+ * Does this user line carry the message? `origin.msg_id` decides when the line has one (it does not depend on the text, so a reworded or shortened
+ * marker cannot break it); otherwise the origin marker in the text decides. A line whose `origin.msg_id` is another id is not this message.
+ */
+function userLineMatch(entry: ReplyTranscriptEntry, record: DeliveryRecord, marker: string): 'msg_id' | 'marker' | undefined {
+  const lineId = entry.origin?.msg_id;
+  if (typeof lineId === 'string' && lineId !== '') {
+    return lineId.toLowerCase() === wireMsgId(record.id) ? 'msg_id' : undefined;
+  }
+  return textOf(entry.message?.content ?? entry.content).includes(marker) ? 'marker' : undefined;
+}
+
+/**
  * Pure state machine of one reply. `transcriptEntries` are the transcript lines of the session (at least those since `record.sentAt`).
  * Order: confirmed > queued-in-session > expired > unconfirmed > the record state.
  * UNVERIFIED: that a peer message appears as a `queue-operation` carrying its text, and that a hook-delivered reminder appears as a line with the
@@ -84,8 +103,10 @@ export function deliveryState(record: DeliveryRecord, transcriptEntries: readonl
     if (at !== undefined && at > record.sentAt) {
       grew = true;
     }
-    if (entry.type === 'user' && textOf(entry.message?.content ?? entry.content).includes(marker)) {
-      return { state: 'confirmed', reason: 'a user line with the origin marker and the message id is in the transcript' };
+    const matched = entry.type === 'user' ? userLineMatch(entry, record, marker) : undefined;
+    if (matched !== undefined) {
+      const as = entry.origin?.kind === undefined ? '' : ` (origin ${entry.origin.kind})`;
+      return { state: 'confirmed', reason: matched === 'msg_id' ? `a user line with origin.msg_id of the message is in the transcript${as}` : `a user line with the origin marker and the message id is in the transcript${as}` };
     }
     if (record.kind === 'mailbox' && entry.type !== 'queue-operation' && entry.type !== 'assistant' && textOf(entry.message?.content ?? entry.content).includes(marker)) {
       return { state: 'confirmed', reason: 'a line with the origin marker and the message id is in the transcript (hook delivery, UNVERIFIED shape)' };
@@ -108,7 +129,9 @@ export function deliveryState(record: DeliveryRecord, transcriptEntries: readonl
     return {
       state: 'unconfirmed',
       reason: `the session is idle and its transcript did not grow ${config.hintAfterMs} ms after the send`,
-      hint: 'probably not delivered. Check that crossSessionInbound is "accept" in ~/.claude/settings.json (a session in bypass-permissions holds messages otherwise), that the session is still open, and that Claude Code was not updated (the socket protocol is private); then resend, or switch transport',
+      hint: context.deliveredAs === 'typed'
+        ? 'probably not delivered. Check that the terminal still runs the session (hc ls), that no dialog is open in it and that nobody has an unfinished draft there (a draft delays the send, hc setting draft_wait); then resend, or switch transport'
+        : 'probably not delivered. Check that crossSessionInbound is "accept" in ~/.claude/settings.json (a session in bypass-permissions holds messages otherwise), that the session is still open, and that Claude Code was not updated (the socket protocol is private); then resend, or switch transport',
     };
   }
   return { state: record.state, reason: record.state === 'queued' ? 'held for the session, not picked up yet' : 'accepted by the transport, not seen in the transcript yet' };

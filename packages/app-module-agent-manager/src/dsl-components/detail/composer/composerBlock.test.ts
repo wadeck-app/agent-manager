@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { composerBlock } from './composerBlock.js';
-import { deliveryItems, needsPolling } from './deliveryItems.js';
+import { needsPolling } from './deliveryItems.js';
 import { statusFixture } from './fixtures.js';
 
 describe('composerBlock', () => {
@@ -22,16 +22,7 @@ describe('composerBlock', () => {
   });
 });
 
-describe('deliveryItems', () => {
-  const server = statusFixture().messages;
-  it('merges server and local messages without duplicates, newest first', () => {
-    const items = deliveryItems(server, [
-      { messageId: 'm1', sessionId: 's', text: 'dup', imageCount: 0, sentAt: 1, state: 'sending' },
-      { messageId: 'm9', sessionId: 's', text: 'local', imageCount: 0, sentAt: 9_000_000, state: 'failed', error: 'boom' },
-    ]);
-    expect(items.map((item) => item.messageId)).toEqual(['m9', 'm1']);
-    expect(items[0]).toMatchObject({ ui: 'failed', detail: 'boom' });
-  });
+describe('needsPolling', () => {
   it('polls only for recent messages not seen yet', () => {
     const now = 1_000_000;
     const local = (state: 'sending' | 'seen', sentAt: number) => [{ messageId: 'a', sessionId: 's', text: '', imageCount: 0, sentAt, state }];

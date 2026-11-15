@@ -1,4 +1,4 @@
-# Agents table (nav /agents/table): one row per Claude Code session with every field in a column. The master-detail workspace is the page /agents (linked below).
+# Agents table (nav "Table", path /table: a sibling of /agents, not nested under it, because the shell highlights every menu entry whose path is a prefix of the URL): one row per Claude Code session with every field in a column. Reached from the side menu only.
 # Same source as that page: the registry-fed list, polled every 5 s, errors answered as data (inlineErrors: errorText).
 $sources:
   sessions:
@@ -26,10 +26,6 @@ sections:
   - $type: PageHeader
     title: Agents table
     subtitle: The Claude Code sessions running on this machine, most recent status change first.
-    headerActions:
-      - $type: ButtonLink
-        label: Back to the agents
-        to: /modules/agent-manager/agents
   - $type: Card
     padding: sm
     items:

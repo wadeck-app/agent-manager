@@ -6,7 +6,7 @@ import { Tooltip } from '../ui/Tooltip.js';
 /** The state icon with the meaning of the state in its tooltip. */
 export function StateIconTip({ session, sizeClass }: { session: AgentRow; sizeClass?: string }) {
   return (
-    <Tooltip content={STATE_MEANING[session.state]} side="left">
+    <Tooltip content={session.model === undefined ? STATE_MEANING[session.state] : `${STATE_MEANING[session.state]} Model: ${session.model.displayName}.`} side="left">
       <span className="inline-flex">
         <StatusIcon state={session.state} sizeClass={sizeClass} />
       </span>

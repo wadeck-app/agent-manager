@@ -1,21 +1,23 @@
-import { LoaderCircle, Paperclip, Plug, SendHorizontal, Zap } from 'lucide-react';
+import { Keyboard, LoaderCircle, Paperclip, SendHorizontal, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { Banner } from '../deps.js';
-import { FOCUS_RING, IconButton } from '../deps.js';
+import { FOCUS_RING, ICON_BUTTON_CLASS } from '../deps.js';
 import { Tooltip } from '../deps.js';
-import { getPending, updatePending, usePending } from '../pending.js';
+import { getPending } from '../pending.js';
 import { composerBlock } from './composerBlock.js';
-import { deliveryItems, needsPolling } from './deliveryItems.js';
-import { DeliveryList } from './DeliveryList.js';
+import { needsPolling } from './deliveryItems.js';
 import { getDraft, setDraft } from './draftStore.js';
 import { ACCEPTED_MIMES } from './imagePipeline.js';
 import { ImageThumbs } from './ImageThumbs.js';
 import { formatBytes, sendProblem } from './limits.js';
 import { PriorityControl } from './PriorityControl.js';
+import { TransportPicker } from './TransportPicker.js';
+import { TYPED_WARNING } from './TransportRow.js';
 import type { AttachedImage } from './types.js';
 import { useAttachImages } from './useAttachImages.js';
 import { useReplyStatus } from './useReplyStatus.js';
 import { useSendReply } from './useSendReply.js';
+import { useSyncDelivery } from './useSyncDelivery.js';
 import type { ComposerProps } from './types.js';
 
 /** Height of the field in pixels: 8 lines of 20 px plus padding. Beyond it the field scrolls. */
@@ -32,23 +34,17 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   const field = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
 
-  const pending = usePending(sessionId);
-  const live = useReplyStatus(sessionId, (answer) => needsPolling(answer?.messages ?? [], getPending(sessionId), Date.now()));
+  // Every transport is probed only while the transport menu is open (an hc probe spawns one process per terminal).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const live = useReplyStatus(sessionId, (answer) => needsPolling(answer?.messages ?? [], getPending(sessionId), Date.now()), menuOpen);
   const status = live.status;
   const { send, sending } = useSendReply(sessionId);
   const block = composerBlock({ alive: session.alive, loading: live.loading, status, error: live.error });
   const limits = status?.limits;
-  const selected = status?.transports.find((transport) => transport.selected);
+  const typed = status?.transports.find((transport) => transport.selected)?.deliveredAs === 'typed';
 
-  // The server knows the real state of a message (the agent took it, or it failed): the local copy shown in the log follows it.
-  useEffect(() => {
-    for (const message of status?.messages ?? []) {
-      const local = getPending(sessionId).find((entry) => entry.messageId === message.messageId);
-      if (local !== undefined && local.state !== 'failed' && local.state !== message.ui) {
-        updatePending(sessionId, message.messageId, { state: message.ui, error: message.ui === 'failed' ? message.reason : undefined });
-      }
-    }
-  }, [status, sessionId]);
+  // The state of the sent messages follows the server; the log shows them (marks on the bubbles), there is no list here.
+  useSyncDelivery(sessionId, status?.messages);
 
   // The field grows with its text up to MAX_FIELD_PX. A height set through the DOM is allowed by the content-security policy.
   useEffect(() => {
@@ -152,8 +148,10 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   };
 
   const inactive = block !== undefined;
-  const hint = limits === undefined ? '' : `Up to ${limits.maxImages} images of ${formatBytes(limits.maxImageBytes)} each, ${formatBytes(limits.maxBodyBytes)} in all.`;
-  const items = deliveryItems(status?.messages ?? [], pending);
+  // The limits are said where they matter: in the tooltip of the attach button (hover and keyboard focus), and as the counter on it once an image is attached.
+  const limitsText = limits === undefined ? '' : `Up to ${limits.maxImages} images of ${formatBytes(limits.maxImageBytes)} each, ${formatBytes(limits.maxBodyBytes)} in all.`;
+  const attachName = images.length > 0 && limits !== undefined ? `Attach images (${images.length} of ${limits.maxImages} attached)` : 'Attach images';
+  const attachTip = inactive ? `Attach images: the session cannot receive messages` : limitsText === '' ? 'Attach images' : `Attach images. ${limitsText}`;
   // Armed with Interrupt now, the button says so (orange, lightning icon, its name): nobody sends an interruption by accident.
   const sendLabel = priority === 'now' ? 'Send and interrupt now' : 'Send';
   return (
@@ -204,7 +202,16 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             event.target.value = '';
           }}
         />
-        <IconButton icon={Paperclip} label="Attach images" disabled={inactive || sending} disabledReason={inactive ? 'the session cannot receive messages' : undefined} onClick={() => picker.current?.click()} />
+        <Tooltip content={attachTip}>
+          <button type="button" aria-label={attachName} disabled={inactive || sending} onClick={() => picker.current?.click()} className={`${ICON_BUTTON_CLASS} relative`}>
+            <Paperclip aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            {images.length > 0 && limits !== undefined ? (
+              <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 rounded-full bg-primary-light px-1 text-xs tabular-nums leading-none text-content">
+                {images.length}/{limits.maxImages}
+              </span>
+            ) : null}
+          </button>
+        </Tooltip>
         <textarea
           ref={field}
           data-agent-composer
@@ -219,6 +226,13 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           onPaste={onPaste}
           className="max-h-64 min-h-am-hit min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
+        {typed ? (
+          <Tooltip content={`Sends as typed by you. ${TYPED_WARNING}`}>
+            <span data-typed-cue="" tabIndex={0} aria-label="Sends as typed by you" className={`inline-flex h-am-hit shrink-0 items-center text-muted ${FOCUS_RING}`}>
+              <Keyboard aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            </span>
+          </Tooltip>
+        ) : null}
         <Tooltip content={priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter'}>
           <button
             type="button"
@@ -236,18 +250,12 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
         <PriorityControl priority={priority} onChange={setPriority} disabled={inactive || sending} />
         <div className="flex items-center gap-3 text-xs text-muted">
           {attaching > 0 ? <span role="status">Preparing the image, Send is available when it is attached.</span> : null}
-          {hint !== '' ? <span className="hidden xl:inline">{hint}</span> : null}
-          {selected !== undefined ? (
-            <Tooltip content={`Sent through the ${selected.transportId} transport (${selected.description}). Chosen from ${status?.selectedFrom ?? 'the configuration'}; switching transports is a CLI or configuration matter for now, not done here.`}>
-              <span className="inline-flex items-center gap-1">
-                <Plug aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-                via {selected.transportId}
-              </span>
-            </Tooltip>
-          ) : null}
+          {/* The transport: a small control that opens the list of transports (TransportPicker). */}
+          <div data-composer-transport="" className="flex items-center">
+            <TransportPicker sessionId={sessionId} status={status} onChanged={live.refresh} onOpenChange={setMenuOpen} />
+          </div>
         </div>
       </div>
-      <DeliveryList items={items} />
     </div>
   );
 }
