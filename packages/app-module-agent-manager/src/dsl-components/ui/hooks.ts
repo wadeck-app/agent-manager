@@ -75,8 +75,8 @@ export function tabbableId(ids: readonly string[], selectedId: string | undefine
   return selectedId !== undefined && ids.includes(selectedId) ? selectedId : ids[0];
 }
 
-/** Width (px) from which the log gets a third zone (the sub-agent panel beside it). */
-export const WIDE_SCREEN_PX = 1920;
+/** Window width (px) from which the log has room for a third zone (the sub-agent panel beside it): the detail pane is about 1100 px there, 750 px left for the log. */
+export const WIDE_SCREEN_PX = 1700;
 
 /**
  * Whether the window is at least `px` wide, following resizes. Used to render ONE of two arrangements of the same data (a CSS-hidden twin would stay in the

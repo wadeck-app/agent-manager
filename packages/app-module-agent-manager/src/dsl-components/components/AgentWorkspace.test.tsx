@@ -1,25 +1,26 @@
 import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { statusFixture } from '../detail/composer/fixtures.js';
 import { failureText } from '../data/http.js';
 import { row } from '../logic/fixtures.js';
-import { toggleStateToken } from '../logic/fuzzy.js';
-import { groupByHarness } from '../logic/harness.js';
-import { checkVariant, LIST_STYLES } from '../shared.js';
+import { MODE_STORAGE_KEY } from '../logic/mode.js';
+import { VIEW_OPTIONS_STORAGE_KEY } from '../logic/viewOptions.js';
 import { clampWidth, DEFAULT_LIST_WIDTH, MAX_LIST_WIDTH, MIN_LIST_WIDTH, SplitPane } from '../ui/SplitPane.js';
 import { tabbableId } from '../ui/hooks.js';
 import { AgentWorkspace } from './AgentWorkspace.js';
 
+/** The page: the URL parameters are state. The tests of the lists run in the Groups mode (the default of the page is Tree): pass `mode: ''` to get the default. */
 function Page({ children, initial = {} }: { children: ReactNode; initial?: Record<string, string> }) {
-  const [params, setParams] = useState<Record<string, string>>(initial);
+  const [params, setParams] = useState<Record<string, string>>({ mode: 'groups', ...initial });
   const service: UrlParamService = { get: (key) => params[key] ?? null, set: (key, value) => setParams((current) => ({ ...current, [key]: value })) };
   return (
     <UrlParamContext.Provider value={service}>
       {children}
       <div data-testid="url">{params['session'] ?? ''}</div>
       <div data-testid="show">{params['show'] ?? ''}</div>
+      <div data-testid="mode">{params['mode'] ?? ''}</div>
     </UrlParamContext.Provider>
   );
 }
@@ -43,13 +44,13 @@ const EMPTY_LOG = {
 };
 
 /** Routes the calls of the page: the log and the reply status of the detail pane, and the pin / seen actions (`post` answers them). */
-function stubFetch(post: (url: string, body: unknown) => Response = () => json({ ok: true })): ReturnType<typeof vi.fn> {
+function stubFetch(post: (url: string, body: unknown) => Response = () => json({ ok: true }), status = statusFixture()): ReturnType<typeof vi.fn> {
   const mock = vi.fn(async (url: string, init?: RequestInit) => {
     if (init?.method === 'POST') {
       return post(url, init.body === undefined ? undefined : JSON.parse(init.body as string));
     }
     if (url.includes('/reply/status')) {
-      return json(statusFixture());
+      return json(status);
     }
     if (url.includes('/log')) {
       return json(EMPTY_LOG);
@@ -69,9 +70,9 @@ describe('AgentWorkspace', () => {
   });
 
   it('renders every root inside the scope wrapper (the stylesheet only styles descendants of .agents-scope), the error banner too', () => {
-    const { container, rerender } = render(
+    const { container } = render(
       <Page>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP, DOCS]} />
+        <AgentWorkspace sessions={[SHOP, DOCS]} />
       </Page>,
     );
     const scope = container.firstElementChild as HTMLElement;
@@ -85,34 +86,19 @@ describe('AgentWorkspace', () => {
     expect(box?.className).not.toMatch(/(border|rounded)/);
     expect(box?.querySelector('[data-pane="list"]')).not.toBeNull();
     expect(container.querySelectorAll('[data-pane]')).toHaveLength(scope.querySelectorAll('[data-pane]').length);
-    rerender(
-      <Page>
-        <AgentWorkspace list={'nope' as 'groups'} variant="compact" />
-      </Page>,
-    );
-    expect(screen.getByRole('alert').closest('.agents-scope')).not.toBeNull();
-  });
-
-  it('reports a wrong list or variant on the page instead of falling back', () => {
-    render(
-      <Page>
-        <AgentWorkspace list={'nope' as 'groups'} variant="compact" />
-      </Page>,
-    );
-    expect(screen.getByRole('alert')).toHaveTextContent('list is "nope". Use one of: groups, inbox, tree, tabs-cards, palette.');
   });
 
   it('shows a loading state while the page has no answer, then the sessions it is given, and makes no request of its own for the list', async () => {
     const mock = stubFetch();
     const { rerender } = render(
       <Page>
-        <AgentWorkspace list="groups" variant="compact" />
+        <AgentWorkspace />
       </Page>,
     );
     expect(screen.getByRole('status', { name: 'Loading the sessions' })).toBeInTheDocument();
     rerender(
       <Page>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP, DOCS]} />
+        <AgentWorkspace sessions={[SHOP, DOCS]} />
       </Page>,
     );
     expect(within(await screen.findByRole('listbox', { name: 'Agents' })).getAllByRole('option')).toHaveLength(2);
@@ -125,7 +111,7 @@ describe('AgentWorkspace', () => {
     stubFetch();
     render(
       <Page>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP, DOCS]} hiddenDead={3} />
+        <AgentWorkspace sessions={[SHOP, DOCS]} hiddenDead={3} />
       </Page>,
     );
     expect(screen.getByRole('heading', { level: 1, name: 'Agents' })).toBeInTheDocument();
@@ -139,7 +125,7 @@ describe('AgentWorkspace', () => {
     stubFetch();
     render(
       <Page initial={{ session: SHOP.sessionId }}>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP, DOCS]} logStyle="chat" />
+        <AgentWorkspace sessions={[SHOP, DOCS]} />
       </Page>,
     );
     expect(await screen.findByRole('heading', { name: 'shop-owner' })).toBeInTheDocument();
@@ -154,7 +140,7 @@ describe('AgentWorkspace', () => {
     const mock = stubFetch(() => json({ error: 'BAD_REQUEST', message: 'state file is not valid JSON', hint: 'Fix or delete it.' }, false, 500));
     render(
       <Page initial={{ session: SHOP.sessionId }}>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP, DOCS]} logStyle="chat" />
+        <AgentWorkspace sessions={[SHOP, DOCS]} />
       </Page>,
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Pin' }));
@@ -170,7 +156,7 @@ describe('AgentWorkspace', () => {
     stubFetch();
     render(
       <Page initial={{ session: SHOP.sessionId }}>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP, DOCS]} logStyle="chat" />
+        <AgentWorkspace sessions={[SHOP, DOCS]} />
       </Page>,
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Pin' }));
@@ -184,7 +170,7 @@ describe('AgentWorkspace', () => {
     stubFetch();
     render(
       <Page>
-        <AgentWorkspace list="tree" variant="expanded" sessions={[SHOP]} userStateError="agents-user-state.json is not valid JSON. Fix or delete it." />
+        <AgentWorkspace sessions={[SHOP]} userStateError="agents-user-state.json is not valid JSON. Fix or delete it." />
       </Page>,
     );
     expect(screen.getByText('agents-user-state.json is not valid JSON. Fix or delete it.')).toBeInTheDocument();
@@ -194,7 +180,7 @@ describe('AgentWorkspace', () => {
     stubFetch();
     render(
       <Page initial={{ session: 'ffffffff-0000-4000-8000-000000000000' }}>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP]} />
+        <AgentWorkspace sessions={[SHOP]} />
       </Page>,
     );
     expect(await screen.findByText(/is not in the list/)).toBeInTheDocument();
@@ -208,7 +194,7 @@ describe('AgentWorkspace', () => {
     stubFetch();
     render(
       <Page initial={{ session: SHOP.sessionId }}>
-        <AgentWorkspace list="groups" variant="compact" sessions={[SHOP]} logStyle="chat" />
+        <AgentWorkspace sessions={[SHOP]} />
       </Page>,
     );
     await screen.findByRole('heading', { name: 'shop-owner' });
@@ -224,7 +210,7 @@ describe('AgentWorkspace', () => {
       const mock = stubFetch();
       render(
         <Page initial={{ session: done.sessionId }}>
-          <AgentWorkspace list="groups" variant="compact" sessions={[done]} logStyle="chat" />
+          <AgentWorkspace sessions={[done]} />
         </Page>,
       );
       await screen.findByRole('heading', { name: 'docs' });
@@ -240,32 +226,11 @@ describe('AgentWorkspace', () => {
 });
 
 describe('helpers', () => {
-  it('checkVariant accepts every declared pair and refuses the others with the allowed values', () => {
-    for (const [list, styles] of Object.entries(LIST_STYLES)) {
-      for (const style of styles) {
-        expect(checkVariant(list, style).ok).toBe(true);
-      }
-      expect(checkVariant(list, 'bogus')).toEqual({ ok: false, text: expect.stringContaining(`Use one of: ${styles.join(', ')}`) });
-    }
-    expect(checkVariant(undefined, 'x').ok).toBe(false);
-  });
-
   it('failureText reads both error shapes and falls back to the status', () => {
     expect(failureText({ error: 'BAD_REQUEST', message: 'bad id', hint: 'use a uuid' }, 400)).toBe('bad id. use a uuid');
     expect(failureText({ ok: false, error: { code: 'c', message: 'gone', hint: 'wait' } }, 404)).toBe('gone. wait');
     expect(failureText({ errorText: 'one line' }, 200)).toBe('one line');
     expect(failureText(null, 502)).toContain('HTTP 502');
-  });
-
-  it('toggleStateToken adds, removes, and keeps the other words', () => {
-    expect(toggleStateToken('shop', 'done')).toBe('shop state:done');
-    expect(toggleStateToken('shop state:done', 'done')).toBe('shop');
-    expect(toggleStateToken('state:don', 'done')).toBe('');
-  });
-
-  it('groupByHarness orders by version number, not by text', () => {
-    const groups = groupByHarness([row({ version: '2.1.9' }), row({ version: '2.1.10' }), row({ version: undefined })]);
-    expect(groups.map((group) => group.version)).toEqual(['2.1.10', '2.1.9', undefined]);
   });
 
   it('tabbableId keeps the tab stop on the selection, else the first row', () => {
@@ -299,9 +264,8 @@ describe('SplitPane', () => {
     expect(screen.getByRole('separator')).toHaveAttribute('aria-valuenow', String(MIN_LIST_WIDTH));
   });
 
-  it('has no separator with a fixed width, and stacks: the list hides when a session is open', () => {
-    const { container } = render(<SplitPane list={<div>list</div>} detail={<div>detail</div>} detailOpen fixedWidth={56} />);
-    expect(screen.queryByRole('separator')).toBeNull();
+  it('stacks on a narrow screen: the list hides when a session is open', () => {
+    const { container } = render(<SplitPane list={<div>list</div>} detail={<div>detail</div>} detailOpen />);
     expect(container.querySelector('[data-pane=list]')?.className).toContain('hidden lg:flex');
     expect(container.querySelector('[data-pane=detail]')?.className).toContain('flex');
   });
@@ -388,5 +352,305 @@ describe('SplitPane saved width and dragging', () => {
     expect(setItem).toHaveBeenCalledTimes(1);
     expect(window.localStorage.getItem(KEY)).toBe(String(start + 60));
     expect(separator).toHaveAttribute('aria-valuenow', String(start + 60));
+  });
+});
+
+describe('the listing mode', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('is Tree by default, the toggle switches it, and the choice is in the URL and remembered', () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: '' }}>
+        <AgentWorkspace sessions={[SHOP, DOCS]} />
+      </Page>,
+    );
+    expect(screen.getByRole('radio', { name: 'Tree' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('tree', { name: 'Agents by folder' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Inbox' }));
+    expect(screen.getByTestId('mode').textContent).toBe('inbox');
+    expect(window.localStorage.getItem(MODE_STORAGE_KEY)).toBe('inbox');
+    expect(screen.getByRole('tablist', { name: 'Inbox' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('radio', { name: 'Groups' }));
+    expect(screen.getByRole('listbox', { name: 'Agents' })).toBeInTheDocument();
+  });
+
+  it('is a radio group of icon buttons with labels, moved with the arrow keys', () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'tree' }}>
+        <AgentWorkspace sessions={[SHOP]} />
+      </Page>,
+    );
+    const group = screen.getByRole('radiogroup', { name: 'Listing mode' });
+    expect(within(group).getAllByRole('radio')).toHaveLength(3);
+    expect(group.querySelectorAll('svg').length).toBe(3);
+    fireEvent.keyDown(screen.getByRole('radio', { name: 'Tree' }), { key: 'ArrowRight' });
+    expect(screen.getByTestId('mode').textContent).toBe('groups');
+  });
+
+  it('uses the saved mode when the address has none', () => {
+    stubFetch();
+    window.localStorage.setItem(MODE_STORAGE_KEY, 'inbox');
+    render(
+      <Page initial={{ mode: '' }}>
+        <AgentWorkspace sessions={[SHOP]} />
+      </Page>,
+    );
+    expect(screen.getByRole('radio', { name: 'Inbox' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('says so when the address names a mode that does not exist, shows Tree, and can remove it from the address', () => {
+    stubFetch();
+    window.localStorage.setItem(MODE_STORAGE_KEY, 'inbox');
+    render(
+      <Page initial={{ mode: 'cards' }}>
+        <AgentWorkspace sessions={[SHOP]} />
+      </Page>,
+    );
+    expect(screen.getByText(/asks for the mode 'cards', which does not exist. Showing Tree/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'Tree' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove it from the address' }));
+    expect(screen.getByTestId('mode').textContent).toBe('');
+  });
+
+  it('links to the table page with an icon', () => {
+    stubFetch();
+    render(
+      <Page>
+        <AgentWorkspace sessions={[SHOP]} />
+      </Page>,
+    );
+    expect(screen.getByRole('link', { name: 'Agents table' })).toHaveAttribute('href', '/modules/agent-manager/agents/table');
+  });
+});
+
+describe('the search, in every mode', () => {
+  const SHOPS = [row({ folder: 'shop', displayName: 'shop-owner', cwd: '/w/shop', state: 'needs-you', reason: 'permission prompt' }), row({ folder: 'docs', displayName: 'docs-writer', cwd: '/w/docs', state: 'idle', lastActivity: 'Edit: README' }), row({ folder: 'api', displayName: 'api-owner', cwd: '/w/api', state: 'working' })];
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([
+    ['tree', 'tree'],
+    ['groups', 'listbox'],
+    ['inbox', 'listbox'],
+  ] as const)('filters the rows in %s, highlights the letters, and says "N of M"', (mode, role) => {
+    stubFetch();
+    const { container } = render(
+      <Page initial={{ mode, tab: 'all' }}>
+        <AgentWorkspace sessions={SHOPS} />
+      </Page>,
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search agents' }), { target: { value: 'doc' } });
+    expect(screen.getByText('1 of 3')).toBeInTheDocument();
+    expect(within(screen.getByRole(role === 'tree' ? 'tree' : 'listbox')).getAllByRole(role === 'tree' ? 'treeitem' : 'option').filter((item) => item.hasAttribute('data-session-id'))).toHaveLength(1);
+    expect(container.querySelectorAll('[data-match]').length).toBeGreaterThan(0);
+  });
+
+  it('tree: keeps the folder of every match and drops the folders without one', () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'tree' }}>
+        <AgentWorkspace sessions={SHOPS} />
+      </Page>,
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search agents' }), { target: { value: 'api' } });
+    const folders = screen.getAllByRole('treeitem').filter((item) => !item.hasAttribute('data-session-id'));
+    expect(folders).toHaveLength(1);
+    expect(folders[0]).toHaveTextContent('api');
+  });
+
+  it('groups: hides the groups without a match', () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'groups' }}>
+        <AgentWorkspace sessions={SHOPS} />
+      </Page>,
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search agents' }), { target: { value: 'state:working' } });
+    expect(screen.getAllByRole('group')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Working, 1' })).toBeInTheDocument();
+  });
+
+  it('matches the last activity text too', () => {
+    stubFetch();
+    render(
+      <Page>
+        <AgentWorkspace sessions={SHOPS} />
+      </Page>,
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search agents' }), { target: { value: 'README' } });
+    expect(screen.getByText('1 of 3')).toBeInTheDocument();
+  });
+
+  it('an empty result is explicit, with the way out, and a typo in a prefix is reported', () => {
+    stubFetch();
+    render(
+      <Page>
+        <AgentWorkspace sessions={SHOPS} />
+      </Page>,
+    );
+    const box = screen.getByRole('textbox', { name: 'Search agents' });
+    fireEvent.change(box, { target: { value: 'zzzz' } });
+    expect(screen.getByText("No agent matches 'zzzz'")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear the search' }));
+    expect((box as HTMLInputElement).value).toBe('');
+    fireEvent.change(box, { target: { value: 'state:nope' } });
+    expect(screen.getAllByText(/'nope' is not a state/).length).toBeGreaterThan(0);
+  });
+
+  it('the / shortcut focuses the box, ArrowDown moves the selection, Enter goes to the reply box, Escape clears then leaves', async () => {
+    stubFetch();
+    render(
+      <Page>
+        <AgentWorkspace sessions={SHOPS} />
+      </Page>,
+    );
+    fireEvent.keyDown(document.body, { key: '/' });
+    const box = screen.getByRole('textbox', { name: 'Search agents' });
+    expect(box).toHaveFocus();
+    fireEvent.keyDown(box, { key: 'ArrowDown' });
+    expect(screen.getByTestId('url').textContent).not.toBe('');
+    const composerShown = await screen.findByRole('textbox', { name: /^Message to / });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(composerShown).toHaveFocus();
+    box.focus();
+    fireEvent.change(box, { target: { value: 'abc' } });
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect((box as HTMLInputElement).value).toBe('');
+    expect(box).toHaveFocus();
+    fireEvent.keyDown(box, { key: 'Escape' });
+    expect(box).not.toHaveFocus();
+  });
+});
+
+describe('the view options', () => {
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+  const WITH_ACTIVITY = [row({ folder: 'task', displayName: 'task-owner', state: 'working', lastActivity: 'Bash: npm test' })];
+
+  it('groups: the last activity line is an option (on by default), remembered', () => {
+    stubFetch();
+    render(
+      <Page>
+        <AgentWorkspace sessions={WITH_ACTIVITY} />
+      </Page>,
+    );
+    expect(screen.getByText('Bash: npm test')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    fireEvent.click(screen.getByRole('switch', { name: /Show the last activity/ }));
+    expect(screen.queryByText('Bash: npm test')).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem(VIEW_OPTIONS_STORAGE_KEY) ?? '{}')).toMatchObject({ groups: { preview: false } });
+  });
+
+  it('tree: grouping and expansion are options with the default By workspace and All expanded', () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'tree' }}>
+        <AgentWorkspace sessions={WITH_ACTIVITY} />
+      </Page>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    expect(screen.getByRole('radio', { name: /By workspace/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /All expanded/ })).toBeChecked();
+    fireEvent.click(screen.getByRole('radio', { name: /^None/ }));
+    expect(screen.getByRole('tree', { name: 'Agents' })).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem(VIEW_OPTIONS_STORAGE_KEY) ?? '{}')).toMatchObject({ tree: { grouping: 'none' } });
+  });
+
+  it('inbox: auto-next is off by default and explains itself', () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'inbox' }}>
+        <AgentWorkspace sessions={WITH_ACTIVITY} />
+      </Page>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    const toggle = screen.getByRole('switch', { name: /Open the next agent after a reply/ });
+    expect(toggle).not.toBeChecked();
+    expect(screen.getByText(/stops needing you, the next one that does opens by itself/)).toBeInTheDocument();
+  });
+});
+
+describe('the search box walks the data, not the DOM', () => {
+  const FOLDERS = [row({ folder: 'shop', displayName: 'shop-owner', cwd: '/w/shop', state: 'needs-you', reason: 'permission prompt' }), row({ folder: 'docs', displayName: 'docs-writer', cwd: '/w/docs', state: 'idle', lastActivity: 'Edit: README' }), row({ folder: 'docs', displayName: 'docs-reviewer', cwd: '/w/docs', state: 'idle', lastActivity: 'Read: README' })];
+  afterEach(() => {
+    window.localStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('tree: a folder closed by hand opens while searching, so its matches are listed and reached with the arrows', async () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'tree' }}>
+        <AgentWorkspace sessions={FOLDERS} />
+      </Page>,
+    );
+    // Close the docs folder by hand: its sessions leave the list.
+    fireEvent.click(screen.getAllByRole('treeitem').find((item) => item.textContent?.includes('docs') === true && !item.hasAttribute('data-session-id'))!);
+    expect(screen.queryByText('docs-writer')).toBeNull();
+    const box = screen.getByRole('textbox', { name: 'Search agents' });
+    fireEvent.change(box, { target: { value: 'README' } });
+    expect(screen.getByText('2 of 3')).toBeInTheDocument();
+    // Both matches are listed (the highlight splits the name, so the rows are counted) and the arrows reach both.
+    expect(screen.getAllByRole('treeitem').filter((item) => item.hasAttribute('data-session-id'))).toHaveLength(2);
+    fireEvent.keyDown(box, { key: 'ArrowDown' });
+    const first = screen.getByTestId('url').textContent;
+    fireEvent.keyDown(box, { key: 'ArrowDown' });
+    const second = screen.getByTestId('url').textContent;
+    expect(first).not.toBe('');
+    expect(second).not.toBe(first);
+  });
+
+  it('Enter selects the first match and the reply box takes the focus once it is there, from no selection at all', async () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'groups' }}>
+        <AgentWorkspace sessions={FOLDERS} />
+      </Page>,
+    );
+    const box = screen.getByRole('textbox', { name: 'Search agents' });
+    box.focus();
+    fireEvent.change(box, { target: { value: 'shop' } });
+    expect(screen.getByTestId('url').textContent).toBe('');
+    fireEvent.keyDown(box, { key: 'Enter' });
+    const composer = await screen.findByRole('textbox', { name: /^Message to / });
+    await waitFor(() => expect(composer).toHaveFocus());
+  });
+
+  it('says so when the reply box cannot take the focus (the session cannot receive messages)', async () => {
+    stubFetch(undefined, statusFixture({ transportAvailable: false }));
+    render(
+      <Page initial={{ mode: 'groups' }}>
+        <AgentWorkspace sessions={FOLDERS} />
+      </Page>,
+    );
+    const box = screen.getByRole('textbox', { name: 'Search agents' });
+    fireEvent.change(box, { target: { value: 'shop' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(await screen.findByText(/cannot take the focus because the session cannot receive messages/, undefined, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('inbox: matches that are all in another tab are said, Enter never does nothing silently', () => {
+    stubFetch();
+    render(
+      <Page initial={{ mode: 'inbox', tab: 'needs-you' }}>
+        <AgentWorkspace sessions={FOLDERS} />
+      </Page>,
+    );
+    const box = screen.getByRole('textbox', { name: 'Search agents' });
+    fireEvent.change(box, { target: { value: 'README' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(screen.getByText(/2 agents match, none in the list you are looking at/)).toBeInTheDocument();
+    expect(screen.getByTestId('url').textContent).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByText(/none in the list you are looking at/)).toBeNull();
   });
 });

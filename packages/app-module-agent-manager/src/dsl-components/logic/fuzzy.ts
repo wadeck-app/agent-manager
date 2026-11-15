@@ -149,19 +149,6 @@ export function filterSessions(sessions: readonly SessionRowDto[], query: Parsed
   return scored.map((entry) => entry.session);
 }
 
-/** The `state:` tokens of a query text, as the states they resolve to. */
-export function stateTokens(text: string): AgentState[] {
-  return parseQuery(text).states.filter((entry) => !entry.negate).map((entry) => entry.state);
-}
-
-/** Adds `state:<name>` to the text, or removes it when it is there: what a facet chip does to the query. */
-export function toggleStateToken(text: string, state: AgentState): string {
-  const tokens = text.split(/\s+/).filter((token) => token !== '');
-  const isThis = (token: string): boolean => token.toLowerCase().startsWith('state:') && resolveState(token.slice('state:'.length)) === state;
-  const kept = tokens.filter((token) => !isThis(token));
-  return kept.length === tokens.length ? [...kept, `state:${state}`].join(' ') : kept.join(' ');
-}
-
 /**
  * The indices of `haystack` that a fuzzy match of the words `terms` lights up (first-fit, like fuzzyScore: the letters of a word in order), for
  * highlighting. A word that does not match adds nothing; the result is sorted and without duplicates.

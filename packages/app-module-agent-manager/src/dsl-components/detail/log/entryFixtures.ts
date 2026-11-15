@@ -1,4 +1,4 @@
-import type { LogEntry, LogOk } from '../deps.js';
+import type { LogEntry, LogOk, SubagentDto } from '../deps.js';
 import type { ToolCall } from './grouping.js';
 
 /** Test builders of log entries and answers (only the tests import this file). */
@@ -30,4 +30,9 @@ export function answer(entries: LogEntry[], patch: Partial<LogOk> = {}): LogOk {
     note: '',
     ...patch,
   };
+}
+
+/** A sub-agent as the route sends it (status and times are facts the tests set when they matter). */
+export function subagent(patch: Partial<SubagentDto> = {}): SubagentDto {
+  return { agentId: 'aaaa1111', description: 'explorer', finished: true, status: 'finished', isFork: false, children: [], ...patch };
 }

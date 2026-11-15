@@ -1,9 +1,12 @@
 import { ALargeSmall } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import { DENSITY_LABEL, DENSITY_SETTINGS, setDensity, useDensity, useDensitySetting, type Density, type DensitySetting } from './density.js';
 import { autoHint, densityHint } from './densityScale.js';
 import { FOCUS_RING, ICON_BUTTON_CLASS } from './IconButton.js';
 import { Tooltip } from './Tooltip.js';
+import { usePopover } from './usePopover.js';
+
+const CHECKED_RADIO = '[role="radio"][aria-checked="true"]';
 
 /** The label of a choice: `auto` says what it currently picks. */
 function choiceLabel(value: DensitySetting, resolved: Density): string {
@@ -11,46 +14,13 @@ function choiceLabel(value: DensitySetting, resolved: Density): string {
 }
 
 /**
- * The text size setting: an icon button and a small panel with the three sizes (a radio group, arrows move, Enter or Space picks, Escape closes and gives the
+ * The text size setting: an icon button and a small panel with the choices (a radio group, arrows move, Enter or Space picks, Escape closes and gives the
  * focus back to the button). The choice is kept in localStorage and applies to the whole page at once through the scope wrapper.
  */
 export function DensityControl() {
   const setting = useDensitySetting();
   const resolved = useDensity();
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const box = useRef<HTMLDivElement>(null);
-  const wasOpen = useRef(false);
-
-  useEffect(() => {
-    if (!open) {
-      if (wasOpen.current) {
-        box.current?.querySelector<HTMLElement>('button[aria-expanded]')?.focus();
-      }
-      wasOpen.current = false;
-      return;
-    }
-    wasOpen.current = true;
-    box.current?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')?.focus();
-    const onKey = (event: globalThis.KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        event.stopPropagation();
-        setOpen(false);
-      }
-    };
-    const onPointer = (event: PointerEvent): void => {
-      if (box.current !== null && event.target instanceof Node && !box.current.contains(event.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('keydown', onKey, true);
-    document.addEventListener('pointerdown', onPointer);
-    return () => {
-      document.removeEventListener('keydown', onKey, true);
-      document.removeEventListener('pointerdown', onPointer);
-    };
-  }, [open]);
+  const { open, setOpen, box, panelId } = usePopover(CHECKED_RADIO);
 
   const onRadioKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     const step = event.key === 'ArrowDown' || event.key === 'ArrowRight' ? 1 : event.key === 'ArrowUp' || event.key === 'ArrowLeft' ? -1 : 0;
@@ -61,7 +31,7 @@ export function DensityControl() {
     const next = DENSITY_SETTINGS[(DENSITY_SETTINGS.indexOf(setting) + step + DENSITY_SETTINGS.length) % DENSITY_SETTINGS.length];
     if (next !== undefined) {
       setDensity(next);
-      queueMicrotask(() => box.current?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')?.focus());
+      queueMicrotask(() => box.current?.querySelector<HTMLElement>(CHECKED_RADIO)?.focus());
     }
   };
 

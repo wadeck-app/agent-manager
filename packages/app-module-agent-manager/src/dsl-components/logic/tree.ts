@@ -10,8 +10,6 @@ export interface FolderNode {
   disambiguation: string;
   /** The worst state of its sessions: what the folder shows when collapsed. */
   rollup: AgentState;
-  /** Sessions per state, for the compact roll-up dots. */
-  counts: Partial<Record<AgentState, number>>;
   sessions: SessionRowDto[];
 }
 
@@ -34,12 +32,8 @@ export function buildTree(sessions: readonly SessionRowDto[]): FolderNode[] {
     }
   }
   const nodes: FolderNode[] = [...byCwd.entries()].map(([cwd, list]) => {
-    const counts: Partial<Record<AgentState, number>> = {};
-    for (const session of list) {
-      counts[session.state] = (counts[session.state] ?? 0) + 1;
-    }
     const ordered = [...list].sort((a, b) => ATTENTION[b.state] - ATTENTION[a.state] || sortForState(a.state)(a, b));
-    return { cwd, folder: list[0]?.folder ?? cwd, disambiguation: '', rollup: worstState(list.map((session) => session.state)) ?? 'idle', counts, sessions: ordered };
+    return { cwd, folder: list[0]?.folder ?? cwd, disambiguation: '', rollup: worstState(list.map((session) => session.state)) ?? 'idle', sessions: ordered };
   });
   const sameName = new Map<string, number>();
   for (const node of nodes) {
@@ -53,7 +47,12 @@ export function buildTree(sessions: readonly SessionRowDto[]): FolderNode[] {
   return nodes.sort((a, b) => ATTENTION[b.rollup] - ATTENTION[a.rollup] || b.sessions.length - a.sessions.length || a.folder.localeCompare(b.folder) || a.cwd.localeCompare(b.cwd));
 }
 
-/** Folders that do not need you: the ones the "attention only" sub-variant starts collapsed. */
+/** The sessions as one flat list, the most urgent first (the tree with the folders left out). */
+export function flatByUrgency(sessions: readonly SessionRowDto[]): SessionRowDto[] {
+  return [...sessions].sort((a, b) => ATTENTION[b.state] - ATTENTION[a.state] || sortForState(a.state)(a, b));
+}
+
+/** Folders that do not need you: the ones the "only what needs attention" expansion starts collapsed. */
 export function quietFolders(nodes: readonly FolderNode[]): string[] {
   return nodes.filter((node) => node.rollup !== 'needs-you' && node.rollup !== 'done' && node.rollup !== 'other').map((node) => node.cwd);
 }

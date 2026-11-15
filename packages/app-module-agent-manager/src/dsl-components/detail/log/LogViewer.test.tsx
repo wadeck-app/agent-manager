@@ -41,7 +41,7 @@ afterEach(() => {
 describe('LogViewer', () => {
   it('shows the tail with tool calls collapsed, and opens one with the keyboard-reachable button', async () => {
     queue = [() => respond(answer([userPrompt('u', 'run the tests'), assistantText('a', 'Sure, **running** now'), toolCall('t1', { status: 'ok', resultPreview: 'all green', durationMs: 3200 })]))];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     expect(await screen.findByText('run the tests')).toBeInTheDocument();
     expect(screen.getByText('running').tagName).toBe('STRONG');
     const call = screen.getByRole('button', { name: /Bash/ });
@@ -54,7 +54,7 @@ describe('LogViewer', () => {
 
   it('groups consecutive tool calls under one collapsed line, and opens a call inside', async () => {
     queue = [() => respond(answer([toolCall('a', { status: 'ok', resultPreview: 'one' }), toolCall('b', { status: 'ok', name: 'Read', resultPreview: 'two' })]))];
-    render(<LogViewer session={session} logStyle="timeline" />);
+    render(<LogViewer session={session} />);
     const group = await screen.findByRole('button', { name: /2 tool calls/ });
     expect(screen.queryByText('one')).toBeNull();
     fireEvent.click(group);
@@ -64,7 +64,7 @@ describe('LogViewer', () => {
 
   it('shows an unknown entry as unrecognised with its type, never dropped', async () => {
     queue = [() => respond(answer([{ key: 'k', offset: 0, kind: 'unknown', lineType: 'weird-type', keys: ['a', 'b'], bytes: 10 }]))];
-    render(<LogViewer session={session} logStyle="compact" />);
+    render(<LogViewer session={session} />);
     expect(await screen.findByText(/weird-type/)).toBeInTheDocument();
     expect(screen.getByText('Unrecognised entry')).toBeInTheDocument();
   });
@@ -75,7 +75,7 @@ describe('LogViewer', () => {
       () => respond(answer([userPrompt('u', 'first message')])),
       () => respond({ ok: false, error: { code: 'transcript-unreadable', message: 'The transcript cannot be read.', hint: 'Close the program that locks it.' } }),
     ];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     await screen.findByText('first message');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100);
@@ -90,7 +90,7 @@ describe('LogViewer', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const stale = (): Response => respond({ ok: false, error: { code: 'cursor-stale', message: 'The cursor does not fit.', hint: 'Reload the log.' } });
     queue = [() => respond(answer([userPrompt('u', 'old')])), stale, () => respond(answer([userPrompt('n', 'fresh')], { cursor: 'c9' })), stale];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     await screen.findByText('old');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100);
@@ -111,7 +111,7 @@ describe('LogViewer', () => {
       () => respond(answer([toolCall('r')], { cursor: 'c1' })),
       () => respond(answer([toolCall('r', { status: 'ok', resultPreview: 'finished output' }), assistantText('x', 'next')], { cursor: 'c2' })),
     ];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     const call = await screen.findByRole('button', { name: /Bash/ });
     expect(screen.getByRole('img', { name: 'Running' })).toBeInTheDocument();
     await act(async () => {
@@ -127,7 +127,7 @@ describe('LogViewer', () => {
   it('never re-asks at once when more is announced but the cursor did not move, and says so', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     queue = [() => respond(answer([userPrompt('u', 'first')], { cursor: 'c1' })), () => respond(answer([], { cursor: 'c1', more: true }))];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     await screen.findByText('first');
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100);
@@ -143,7 +143,7 @@ describe('LogViewer', () => {
 
   it('loads older entries with the button and puts them in front', async () => {
     queue = [() => respond(answer([userPrompt('u2', 'newer')], { olderCursor: 'o1' })), () => respond(answer([userPrompt('u1', 'older')], { cursor: null, olderCursor: null }))];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     fireEvent.click(await screen.findByRole('button', { name: /Load older entries/ }));
     await screen.findByText('older');
     expect(urls[1]).toContain('before=o1');
@@ -155,7 +155,7 @@ describe('LogViewer', () => {
   it('shows a sent message once, then reconciles it when the transcript echoes it', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     queue = [() => respond(answer([userPrompt('u', 'earlier', 1)], { cursor: 'c1' })), () => respond(answer([userPrompt('echo', 'please continue', Date.now())], { cursor: 'c2' }))];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     await screen.findByText('earlier');
     act(() => addPending({ messageId: 'm1', sessionId: session.sessionId, text: 'please continue', imageCount: 0, sentAt: Date.now(), state: 'delivered' }));
     expect(screen.getAllByText('please continue')).toHaveLength(1);
@@ -170,7 +170,7 @@ describe('LogViewer', () => {
 
   it('shows a failed send with its error and keeps it', async () => {
     queue = [() => respond(answer([userPrompt('u', 'x', 1)]))];
-    render(<LogViewer session={session} logStyle="compact" />);
+    render(<LogViewer session={session} />);
     await screen.findByText('x');
     act(() => addPending({ messageId: 'm9', sessionId: session.sessionId, text: 'lost', imageCount: 0, sentAt: Date.now(), state: 'failed', error: 'Transport unavailable. Start the session with the socket.' }));
     expect(screen.getByText('Not delivered')).toBeInTheDocument();
@@ -179,58 +179,7 @@ describe('LogViewer', () => {
 
   it('shows the server note for a session without a transcript', async () => {
     queue = [() => respond(answer([], { note: 'No transcript yet for this session.' }))];
-    render(<LogViewer session={session} logStyle="chat" />);
+    render(<LogViewer session={session} />);
     expect(await screen.findByText('No transcript yet for this session.')).toBeInTheDocument();
-  });
-
-  it('shows the sub-agents with their state and highlights the call that started one', async () => {
-    queue = [
-      () =>
-        respond(
-          answer([toolCall('agent-call', { name: 'Agent', status: 'ok' }), assistantText('a', 'text')], {
-            subagents: [
-              { agentId: 'aaaa1111', name: 'explorer', finished: true, isFork: false, toolUseId: 'agent-call', children: [{ agentId: 'bbbb2222', description: 'nested worker', finished: false, isFork: false, children: [] }] },
-            ],
-          }),
-        ),
-    ];
-    render(<LogViewer session={session} logStyle="chat" />);
-    fireEvent.click(await screen.findByRole('button', { name: '2 sub-agents: 1 running, 1 finished' }));
-    fireEvent.click(screen.getByRole('button', { name: /explorer/ }));
-    expect(screen.getByRole('button', { name: /explorer/ })).toHaveAttribute('aria-pressed', 'true');
-    expect(document.querySelector('[data-hot="true"]')).not.toBeNull();
-  });
-
-  describe('sub-agents at two widths', () => {
-    const subagent = { agentId: 'aaaa1111', name: 'explorer', finished: true, isFork: false, children: [] };
-    function setWide(wide: boolean): void {
-      vi.stubGlobal('matchMedia', (query: string) => ({ matches: wide, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
-    }
-    afterEach(() => vi.unstubAllGlobals());
-
-    it('below 1920 px shows the collapsed strip, no side panel', async () => {
-      setWide(false);
-      queue = [() => respond(answer([assistantText('a', 'text')], { subagents: [subagent] }))];
-      render(<LogViewer session={session} logStyle="chat" />);
-      expect(await screen.findByRole('button', { name: '1 sub-agent: 0 running, 1 finished' })).toBeInTheDocument();
-      expect(screen.queryByRole('complementary', { name: 'Sub-agents' })).toBeNull();
-    });
-
-    it('from 1920 px shows the always-open panel instead of the strip', async () => {
-      setWide(true);
-      queue = [() => respond(answer([assistantText('a', 'text')], { subagents: [subagent] }))];
-      render(<LogViewer session={session} logStyle="chat" />);
-      const panel = await screen.findByRole('complementary', { name: 'Sub-agents' });
-      expect(panel).toHaveTextContent('1 sub-agent: 0 running, 1 finished');
-      expect(screen.getByRole('button', { name: /explorer/ })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: '1 sub-agent: 0 running, 1 finished' })).toBeNull();
-    });
-
-    it.each([false, true])('shows the note about the sub-agents folder even when there is no sub-agent (wide: %s)', async (wide) => {
-      setWide(wide);
-      queue = [() => respond(answer([assistantText('a', 'text')], { subagentsNote: 'The sub-agents folder could not be read.' }))];
-      render(<LogViewer session={session} logStyle="chat" />);
-      expect(await screen.findByText('The sub-agents folder could not be read.')).toBeInTheDocument();
-    });
   });
 });

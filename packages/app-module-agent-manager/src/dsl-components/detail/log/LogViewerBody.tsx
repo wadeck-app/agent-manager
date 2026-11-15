@@ -1,6 +1,5 @@
 import { ArrowDown, ChevronUp, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { LogStyle, SubagentDto } from '../deps.js';
 import { Banner } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
 import { useMinWidth, useNow, WIDE_SCREEN_PX } from '../deps.js';
@@ -10,18 +9,15 @@ import { buildRows, toggleOpen, type Row } from './grouping.js';
 import { reconcilePending } from './reconcile.js';
 import { describePending, describeRow, type OpenContext } from './rowModel.js';
 import { BOTTOM_SLACK_PX, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
-import { SubagentPanel } from './SubagentPanel.js';
-import { SubagentStrip } from './SubagentStrip.js';
+import { LocateBanner, locateAnnouncement } from './LocateBanner.js';
+import { SubagentAside, SubagentBadge, SubagentDrawerStrip } from './SubagentContainers.js';
+import { flattenSubagents } from './subagentModel.js';
+import { useLocateCall } from './useLocateCall.js';
 import { useLog } from './useLog.js';
 import type { LogViewerProps } from './logViewerTypes.js';
 
-const ROW_GAP: Record<LogStyle, string> = { chat: 'gap-2', timeline: 'gap-0', compact: 'gap-0.5' };
-
-function flatten(nodes: readonly SubagentDto[]): SubagentDto[] {
-  return nodes.flatMap((node) => [node, ...flatten(node.children)]);
-}
-
-function rowMatches(row: Row, agent: SubagentDto): boolean {
+/** True when the row (a call, or a group of calls) holds the tool call that started the sub-agent. */
+function rowMatches(row: Row, agent: { agentId: string; toolUseId?: string | undefined }): boolean {
   const hit = (call: { id: string; subagentId?: string | undefined }): boolean => call.id === agent.toolUseId || call.subagentId === agent.agentId;
   if (row.type === 'group') {
     return row.calls.some(hit);
@@ -29,13 +25,12 @@ function rowMatches(row: Row, agent: SubagentDto): boolean {
   return row.entry.kind === 'tool-call' && hit(row.entry);
 }
 
-export function LogViewerBody({ session, logStyle }: LogViewerProps) {
-  const { state, problem, loadingOlder, retry, loadOlder } = useLog(session.sessionId);
+export function LogViewerBody({ session, subagentsLayout = 'panel', subagentsContent = 'summary' }: LogViewerProps) {
+  const { state, problem, loadingOlder, retry, loadOlder, loadOlderUntil } = useLog(session.sessionId);
   const now = useNow(15_000);
   const wide = useMinWidth(WIDE_SCREEN_PX);
   const pending = usePending(session.sessionId);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
-  const [agentId, setAgentId] = useState<string | undefined>(undefined);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const anchor = useRef<{ height: number; top: number; firstKey: string | undefined } | null>(null);
@@ -51,8 +46,13 @@ export function LogViewerBody({ session, logStyle }: LogViewerProps) {
   const rows = useMemo(() => buildRows(state.entries), [state.entries]);
   const toggle = useCallback((key: string) => setOpen((current) => toggleOpen(current, key)), []);
   const context = useMemo<OpenContext>(() => ({ isOpen: (key) => open.has(key), toggle }), [open, toggle]);
-  const agent = useMemo(() => (agentId === undefined ? undefined : flatten(state.subagents).find((node) => node.agentId === agentId)), [agentId, state.subagents]);
-  const hot = useMemo(() => new Set(agent === undefined ? [] : rows.filter((row) => rowMatches(row, agent)).map((row) => row.key)), [agent, rows]);
+  // A call that failed makes the sub-agent it started count as failed, whatever the meta of the sub-agent says.
+  const failedCalls = useMemo(() => new Set(state.entries.flatMap((entry) => (entry.kind === 'tool-call' && entry.status === 'error' ? [entry.id] : []))), [state.entries]);
+  const items = useMemo(() => flattenSubagents(state.subagents, failedCalls), [state.subagents, failedCalls]);
+  const locate = useLocateCall({ sessionId: session.sessionId, entries: state.entries, items, loadOlderUntil });
+  const agent = useMemo(() => (locate.selectedId === undefined ? undefined : items.find((item) => item.dto.agentId === locate.selectedId)?.dto), [locate.selectedId, items]);
+  // The rows of the call that started the selected sub-agent: highlighted once it is shown (not while it is being looked for).
+  const hot = useMemo(() => new Set(agent === undefined || locate.state.phase !== 'found' ? [] : rows.filter((row) => rowMatches(row, agent)).map((row) => row.key)), [agent, rows, locate.state.phase]);
 
   const requestOlder = useCallback(() => {
     const element = scroller.current;
@@ -81,12 +81,30 @@ export function LogViewerBody({ session, logStyle }: LogViewerProps) {
     }
   }, [state.entries, state.appended, waiting.length, loadingOlder]);
 
-  // The highlighted call comes into view.
+  // The call comes into view, every time it is shown (a second click on the same sub-agent shows it again). A group of calls that holds it opens.
   useEffect(() => {
-    if (agent !== undefined) {
-      scroller.current?.querySelector('[data-hot="true"]')?.scrollIntoView({ block: 'center' });
+    if (locate.pulse === 0 || agent === undefined) {
+      return;
     }
-  }, [agent]);
+    setOpen((current) => {
+      const next = new Set(current);
+      for (const row of rows) {
+        if (rowMatches(row, agent)) {
+          next.add(row.key);
+          if (row.type === 'group') {
+            row.calls.filter((call) => call.id === agent.toolUseId || call.subagentId === agent.agentId).forEach((call) => next.add(call.key));
+          }
+        }
+      }
+      return next;
+    });
+    const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // After the open set is rendered: the row is taller once the group opens.
+    const frame = window.requestAnimationFrame(() => scroller.current?.querySelector('[data-hot="true"]')?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' }));
+    return () => window.cancelAnimationFrame(frame);
+    // Only a new "shown" event moves the log: the rows and the agent are read as they are at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locate.pulse]);
 
   const onScroll = (): void => {
     const element = scroller.current;
@@ -119,14 +137,19 @@ export function LogViewerBody({ session, logStyle }: LogViewerProps) {
     </button>
   );
   const cut = state.truncated;
+  // The side panel needs the room of a wide window; below it the same content opens from the strip above the log (said in the hint of the A/B test).
+  const showAside = subagentsLayout === 'panel' && wide && items.length > 0;
+  const subagentProps = { items, content: subagentsContent, selectedId: locate.selectedId, phase: locate.phase, onSelect: locate.select, note: state.subagentsNote };
 
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {wide ? null : <SubagentStrip subagents={state.subagents} note={state.subagentsNote} selected={agentId} onSelect={setAgentId} />}
-        {agent !== undefined && hot.size === 0 ? (
-          <p className={`border-b border-border px-3 py-1 ${LOG_META} text-muted`}>The call that started this sub-agent is not among the entries loaded here. Load older entries or look in the transcript.</p>
-        ) : null}
+        {showAside || items.length === 0 ? null : subagentsLayout === 'badge' ? <SubagentBadge {...subagentProps} /> : <SubagentDrawerStrip {...subagentProps} />}
+        {items.length === 0 && state.subagentsNote !== '' ? <p className={`border-b border-border px-3 py-1.5 ${LOG_META} text-warning-text`}>{state.subagentsNote}</p> : null}
+        <LocateBanner feed={locate} />
+        <p role="status" aria-live="polite" className="sr-only">
+          {locateAnnouncement(locate)}
+        </p>
         {problem !== undefined ? (
           <div className="px-3 pt-2">
             <Banner tone="error" action={retryButton}>
@@ -154,14 +177,14 @@ export function LogViewerBody({ session, logStyle }: LogViewerProps) {
             {state.loaded && state.entries.length === 0 && waiting.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted">{state.note !== '' ? state.note : 'The transcript has no entry yet.'}</p>
             ) : null}
-            <div className={`mx-auto flex w-full max-w-am-log flex-col ${ROW_GAP[logStyle]}`}>
+            <div className={`mx-auto flex w-full max-w-am-log flex-col gap-2`}>
               {rows.map((row) => (
-                <div key={row.key} data-row-key={row.key} data-hot={hot.has(row.key) ? 'true' : undefined}>
+                // A new key at each "shown" event restarts the pulse animation on the same row.
+                <div key={hot.has(row.key) ? `${row.key}:${locate.pulse}` : row.key} data-row-key={row.key} data-hot={hot.has(row.key) ? 'true' : undefined} className={hot.has(row.key) ? 'animate-am-pulse rounded-lg motion-reduce:animate-none' : undefined}>
                   <RowFrame
                     model={describeRow(row)}
                     sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.entry}
-                    style={logStyle}
-                    open={open.has(row.key)}
+                      open={open.has(row.key)}
                     onToggle={toggle}
                     context={context}
                     now={now}
@@ -171,7 +194,7 @@ export function LogViewerBody({ session, logStyle }: LogViewerProps) {
               ))}
               {waiting.map((message) => (
                 <div key={`pending:${message.messageId}`} data-pending="true">
-                  <RowFrame model={describePending(message)} sig={message} style={logStyle} open={true} onToggle={toggle} context={context} now={now} highlighted={false} />
+                  <RowFrame model={describePending(message)} sig={message} open={true} onToggle={toggle} context={context} now={now} highlighted={false} />
                 </div>
               ))}
             </div>
@@ -200,7 +223,7 @@ export function LogViewerBody({ session, logStyle }: LogViewerProps) {
           ) : null}
         </div>
       </div>
-      {wide ? <SubagentPanel subagents={state.subagents} note={state.subagentsNote} selected={agentId} onSelect={setAgentId} /> : null}
+      {showAside ? <SubagentAside {...subagentProps} /> : null}
     </div>
   );
 }

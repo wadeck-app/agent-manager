@@ -10,13 +10,10 @@ export const AgentWorkspaceEntry: ComponentRegistryEntry = {
 	name: 'AgentWorkspace', category: 'composite', tags: ["agents","sessions","master-detail"],
 	nodeSchema: null as never,
 	render: ({ node, ctx }: RegistryRenderProps) => {
-		const list = coerceProp(resolveExpressionValue(node['list'], ctx), 'AgentWorkspace.list', 'primitive', true) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['list']
-		const variant = coerceProp(resolveExpressionValue(node['variant'], ctx), 'AgentWorkspace.variant', 'string', true) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['variant']
 		const sessions = coerceProp(resolveExpressionValue(node['sessions'], ctx), 'AgentWorkspace.sessions', 'array', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['sessions']
 		const userStateError = coerceProp(resolveExpressionValue(node['userStateError'], ctx), 'AgentWorkspace.userStateError', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['userStateError']
 		const hiddenDead = coerceProp(resolveExpressionValue(node['hiddenDead'], ctx), 'AgentWorkspace.hiddenDead', 'primitive', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['hiddenDead']
-		const logStyle = coerceProp(resolveExpressionValue(node['logStyle'], ctx), 'AgentWorkspace.logStyle', 'primitive', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['logStyle']
-		return <AgentWorkspace list={list} variant={variant} sessions={sessions} userStateError={userStateError} hiddenDead={hiddenDead} logStyle={logStyle} />
+		return <AgentWorkspace sessions={sessions} userStateError={userStateError} hiddenDead={hiddenDead} />
 	},
 }
 // ─── All entries ──────────────────────────────────────────────────────────────
@@ -27,4 +24,4 @@ export const allEntries: ComponentRegistryEntry[] = [
 
 // ─── Auto-detected metadata (allowedChildren, providesContext, requiresContext) ─
 // Generated from @slot JSDoc tags and createContext/useContext calls in component sources.
-AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["hiddenDead","list","logStyle","sessions","userStateError","variant"] : [];
+AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["hiddenDead","sessions","userStateError"] : [];

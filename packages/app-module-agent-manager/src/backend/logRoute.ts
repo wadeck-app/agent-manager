@@ -22,6 +22,7 @@ import {
 } from '@wadeck-app/agent-manager-core/transcript';
 import type { LogActivity, LogEntry, LogLimits, LogOk, LogTruncation, SubagentDto } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
+import { registerLocateRoute } from './locateCall.js';
 import { findSession } from './sessionLookup.js';
 import { RequestError, type RouteKit, type RouteRequest, ok, queryValue } from './routeKit.js';
 
@@ -187,10 +188,36 @@ function runningOffsets(entries: readonly Entry[]): number[] {
 // The answer
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
-function subagentDto(node: SubagentNode): SubagentDto {
+/** A sub-agent that is not marked finished counts as active (probably running: a heuristic) while its transcript was written within this time. */
+export const RUNNING_FRESH_MS = 10 * 60_000;
+
+/** The status of a sub-agent from facts only (see SubagentDto.status). */
+export function subagentStatus(info: SubagentNode['info'], now: number): SubagentDto['status'] {
+  // A transcript that exists but cannot be read says nothing: never "just started".
+  if (info.readError !== undefined) {
+    return 'unknown';
+  }
+  if (info.stoppedByUser) {
+    return 'failed';
+  }
+  if (info.finished) {
+    return 'finished';
+  }
+  // No transcript yet: just started, nothing says otherwise.
+  return info.lastWriteAt === undefined || now - info.lastWriteAt <= RUNNING_FRESH_MS ? 'active' : 'idle';
+}
+
+function subagentDto(node: SubagentNode, now: number): SubagentDto {
   const { info } = node;
+  const status = subagentStatus(info, now);
   return {
     agentId: info.agentId,
+    status,
+    ...(status === 'failed' ? { failureReason: 'Stopped by the user' } : {}),
+    ...(info.readError !== undefined ? { readError: info.readError } : {}),
+    ...(info.startedAt !== undefined ? { startedAt: info.startedAt } : {}),
+    ...(info.lastWriteAt !== undefined ? { lastActivityAt: info.lastWriteAt } : {}),
+    ...((status === 'finished' || status === 'failed') && info.lastWriteAt !== undefined ? { endedAt: info.lastWriteAt } : {}),
     ...(info.agentType !== undefined ? { agentType: info.agentType } : {}),
     ...(info.description !== undefined ? { description: info.description } : {}),
     ...(info.name !== undefined ? { name: info.name } : {}),
@@ -199,7 +226,7 @@ function subagentDto(node: SubagentNode): SubagentDto {
     ...(info.model !== undefined ? { model: info.model } : {}),
     ...(info.toolUseId !== undefined ? { toolUseId: info.toolUseId } : {}),
     ...(node.parentAgentId !== undefined ? { parentAgentId: node.parentAgentId } : {}),
-    children: node.children.map(subagentDto),
+    children: node.children.map((child) => subagentDto(child, now)),
   };
 }
 
@@ -265,6 +292,7 @@ function capBody(entries: Entry[], from: 'newest' | 'oldest'): { kept: Entry[]; 
 }
 
 export function registerLogRoute(kit: RouteKit): void {
+  registerLocateRoute(kit);
   kit.route(
     'GET',
     '/sessions/:sessionId/log',
@@ -419,7 +447,7 @@ async function readLog(path: string, projectDir: string, sessionId: string, limi
     cursor,
     olderCursor,
     more,
-    subagents: tree.map(subagentDto),
+    subagents: tree.map((node) => subagentDto(node, Date.now())),
     subagentsNote: notes.join(' '),
     activity: activityOf(activityEntries),
     truncated,

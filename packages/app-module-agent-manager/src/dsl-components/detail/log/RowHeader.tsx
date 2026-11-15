@@ -6,15 +6,15 @@ import type { RowModel } from './rowModel.js';
 import { LOG_ICON, LOG_MONO } from './sizes.js';
 
 /** The clickable (or static) title line of a row. */
-export function RowHeader({ model, expandable, open, onToggle, mono }: { model: RowModel; expandable: boolean; open: boolean; onToggle: () => void; mono?: boolean }) {
+export function RowHeader({ model, expandable, open, onToggle }: { model: RowModel; expandable: boolean; open: boolean; onToggle: () => void }) {
   const Icon = model.icon;
   const Chevron = open ? ChevronDown : ChevronRight;
   const content: ReactNode = (
     <>
       {expandable ? <Chevron aria-hidden="true" className={`${LOG_ICON} text-muted`} /> : null}
       <Icon aria-hidden="true" className={`${LOG_ICON} ${model.iconClass}`} />
-      <span className={`shrink-0 ${mono === true ? LOG_MONO : 'text-sm'} font-medium ${TONE_TEXT[model.tone]}`}>{model.label}</span>
-      {open && !mono ? <span className="flex-1" /> : <span className={`min-w-0 flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>}
+      <span className={`shrink-0 text-sm font-medium ${TONE_TEXT[model.tone]}`}>{model.label}</span>
+      {open ? <span className="flex-1" /> : <span className={`min-w-0 flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>}
       {model.trailing}
     </>
   );

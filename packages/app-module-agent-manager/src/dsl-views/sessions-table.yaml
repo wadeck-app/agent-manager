@@ -1,0 +1,59 @@
+# Agents table (nav /agents/table): one row per Claude Code session with every field in a column. The master-detail workspace is the page /agents (linked below).
+# Same source as that page: the registry-fed list, polled every 5 s, errors answered as data (inlineErrors: errorText).
+$sources:
+  sessions:
+    url: GET /api/modules/agent-manager/sessions
+    poll: 5s
+    params:
+      inlineErrors: 'true'
+      show: $urlParam.show
+
+$type: PageContent
+maxWidth: full
+sections:
+  - $type: Badge
+    $if: $sources.sessions.errorText
+    label: $sources.sessions.errorText
+    variant: danger
+  - $type: Badge
+    $if: $sources.sessions.unreadableText
+    label: $sources.sessions.unreadableText
+    variant: warning
+  - $type: Badge
+    $if: $sources.sessions.emptyText
+    label: $sources.sessions.emptyText
+    variant: info
+  - $type: PageHeader
+    title: Agents table
+    subtitle: The Claude Code sessions running on this machine, most recent status change first.
+    headerActions:
+      - $type: ButtonLink
+        label: Back to the agents
+        to: /modules/agent-manager/agents
+  - $type: Card
+    padding: sm
+    items:
+      - $type: Markdown
+        text: 'M1b: sessions from the Claude Code registry (pid-only liveness). The log and the reply box (socket transport) are on the Agents page. Daemon, hooks and live updates (SSE): planned'
+  - $type: HorizontalStack
+    gap: gap-3
+    align: items-center
+    items:
+      - $type: CompactSelect
+        urlParam: show
+        ariaLabel: Sessions to show
+        # As in the queue module: the placeholder is the entry for the unset parameter (the default, alive sessions); the options hold only the other values, so no label appears twice.
+        placeholder: Alive sessions
+        options:
+          - { value: all, label: Alive and dead sessions }
+      - $type: Badge
+        $if: $sources.sessions.hiddenText
+        label: $sources.sessions.hiddenText
+        variant: info
+        tone: subtle
+  - $type: DataTable
+    rows: $sources.sessions.sessions
+    rowKey: sessionId
+    emptyMessage: No session to show
+    # Built by the route: the Harness badge map (green for the most recent version, orange for an older one) depends on the versions found on this machine.
+    columns: $sources.sessions.tableColumns

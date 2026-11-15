@@ -2,6 +2,8 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from '@testing-li
 import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { parseQuery } from '../logic/fuzzy.js';
+import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
 import { row } from '../logic/fixtures.js';
 import { matchPositions } from '../logic/fuzzy.js';
 import { SHORTCUTS } from '../logic/shortcuts.js';
@@ -47,7 +49,7 @@ describe('Other and Ended groups of the Groups list', () => {
   const noop = (): void => undefined;
 
   it('start collapsed with their count, open on click, and the choice is remembered', () => {
-    render(<GroupsList sessions={sessions} selectedId={undefined} onSelect={noop} now={0} style="compact" />);
+    render(<GroupsList sessions={sessions} selectedId={undefined} onSelect={noop} now={0} query={parseQuery("")} searching={false} options={DEFAULT_VIEW_OPTIONS} />);
     expect(screen.queryByText('gone')).toBeNull();
     const ended = screen.getByRole('button', { name: 'Ended, 1' });
     expect(ended).toHaveAttribute('aria-expanded', 'false');
@@ -58,7 +60,7 @@ describe('Other and Ended groups of the Groups list', () => {
   });
 
   it('a normal group can be collapsed too, and its rows leave the keyboard order', () => {
-    render(<GroupsList sessions={sessions} selectedId={undefined} onSelect={noop} now={0} style="compact" />);
+    render(<GroupsList sessions={sessions} selectedId={undefined} onSelect={noop} now={0} query={parseQuery("")} searching={false} options={DEFAULT_VIEW_OPTIONS} />);
     fireEvent.click(screen.getByRole('button', { name: 'Idle, 1' }));
     expect(screen.queryByText('live')).toBeNull();
   });
@@ -243,7 +245,7 @@ describe('sub-agents under a session of the tree', () => {
     const service: UrlParamService = { get: () => null, set: () => undefined };
     render(
       <UrlParamContext.Provider value={service}>
-        <TreeList sessions={[parent]} selectedId={undefined} onSelect={() => undefined} now={0} style="expanded" />
+        <TreeList sessions={[parent]} selectedId={undefined} onSelect={() => undefined} now={0} query={parseQuery("")} searching={false} options={DEFAULT_VIEW_OPTIONS} />
       </UrlParamContext.Provider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Show the 1 sub-agents' }));

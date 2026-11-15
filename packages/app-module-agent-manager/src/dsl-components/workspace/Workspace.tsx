@@ -3,17 +3,21 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { requestJson } from '../data/http.js';
 import { AgentDetail } from '../detail/AgentDetail.js';
 import { DetailHeader } from '../detail/DetailHeader.js';
-import { CardsList } from '../lists/CardsList.js';
 import type { ListProps } from '../lists/common.js';
+import { EmptyNote } from '../lists/EmptyNote.js';
 import { GroupsList } from '../lists/GroupsList.js';
 import { InboxList } from '../lists/InboxList.js';
-import { PaletteList } from '../lists/PaletteList.js';
 import { TreeList } from '../lists/TreeList.js';
+import { filterSessions, parseQuery } from '../logic/fuzzy.js';
+import { readSavedMode, resolveMode, saveMode } from '../logic/mode.js';
+import { navTarget } from '../logic/nav.js';
+import { orderedSessionIds } from '../logic/order.js';
 import { agentId } from '../logic/states.js';
-import type { ListKind, LogStyle, SessionRowDto } from '../shared.js';
+import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
+import { MODE_LABEL, type ModeId, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
-import { useNow } from '../ui/hooks.js';
+import { focusComposer, useNow } from '../ui/hooks.js';
 import { useFillContentArea } from '../ui/useFillContentArea.js';
 import { ListSkeleton } from '../ui/ListSkeleton.js';
 import { SplitPane } from '../ui/SplitPane.js';
@@ -22,28 +26,23 @@ import { useInFlight } from './useInFlight.js';
 import { useOptimisticRows } from './useOptimisticRows.js';
 import { usePageShortcuts } from './usePageShortcuts.js';
 
-const LISTS: Record<ListKind, (props: ListProps) => ReactNode> = {
+const LISTS: Record<ModeId, (props: ListProps) => ReactNode> = {
+  tree: TreeList,
   groups: GroupsList,
   inbox: InboxList,
-  tree: TreeList,
-  'tabs-cards': CardsList,
-  palette: PaletteList,
 };
 
 /** How long a Done session stays open before it counts as seen (decision 45: opening it marks it seen). */
 export const SEEN_AFTER_MS = 1500;
 
 export interface WorkspaceProps {
-  list: ListKind;
-  style: string;
   /** The rows of the page poll, undefined until the first answer. The page owns the one request: the workspace never fetches the list itself. */
   sessions: readonly SessionRowDto[] | undefined;
   userStateError: string;
   hiddenDead: number;
-  logStyle?: LogStyle;
 }
 
-export function Workspace({ list, style, sessions, userStateError, hiddenDead, logStyle }: WorkspaceProps) {
+export function Workspace({ sessions, userStateError, hiddenDead }: WorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
   useFillContentArea(root, 360);
   const now = useNow();
@@ -55,7 +54,37 @@ export function Workspace({ list, style, sessions, userStateError, hiddenDead, l
   const [sessionParam, setSessionParam] = useUrlParam('session');
   const selectedId = sessionParam === null || sessionParam === '' ? undefined : sessionParam.toLowerCase();
   const selected = useMemo(() => rows.find((session) => agentId(session) === selectedId), [rows, selectedId]);
+  // The listing mode: the URL (?mode=) wins, then the saved choice, then Tree; a mode the URL names that does not exist is said, not silently replaced.
+  const [modeParam, setModeParam] = useUrlParam('mode');
+  const [savedMode, setSavedMode] = useState(readSavedMode);
+  const resolvedMode = resolveMode(modeParam, savedMode);
+  const mode = resolvedMode.mode;
+  // The URL wins when it names a mode (resolveMode), so changing the mode writes BOTH the URL and the saved choice: the one the user just made is the one that shows now and that a bare address opens next time.
+  const changeMode = useCallback(
+    (next: ModeId) => {
+      saveMode(next);
+      setSavedMode(next);
+      setModeParam(next);
+    },
+    [setModeParam],
+  );
+  const [options, setOptions] = useState<ViewOptions>(readViewOptions);
+  const changeOptions = useCallback((next: ViewOptions) => {
+    saveViewOptions(next);
+    setOptions(next);
+  }, []);
+  // The search is the same in every mode: it filters the rows before the mode draws them.
+  const [searchText, setSearchText] = useState('');
+  const query = useMemo(() => parseQuery(searchText), [searchText]);
+  const searching = searchText.trim() !== '';
+  const shownRows = useMemo(() => (searching ? filterSessions(rows, query) : rows), [searching, rows, query]);
+  // The Inbox tab (?tab=) decides which rows the Inbox lists, so it decides which rows the search box walks through there.
+  const [tabParam] = useUrlParam('tab');
   const [actionError, setActionError] = useState('');
+  // Said when the search box could not do what was asked (nothing to open, the reply box cannot take the focus): never a silent no-op.
+  const [searchNote, setSearchNote] = useState('');
+  // The session whose reply box must take the focus once it exists (the detail pane mounts after the selection changes).
+  const [focusWanted, setFocusWanted] = useState<string | undefined>(undefined);
   const { busy, track } = useInFlight();
   const [helpOpen, setHelpOpen] = useState(false);
 
@@ -110,11 +139,113 @@ export function Workspace({ list, style, sessions, userStateError, hiddenDead, l
     toggleHelp: () => setHelpOpen((open) => !open),
   });
 
-  const List = LISTS[list];
-  const fixedWidth = list === 'tabs-cards' && style === 'rail' ? 56 : undefined;
-  const listColumn = loading ? <ListSkeleton /> : <List sessions={rows} selectedId={selectedId} onSelect={select} now={now} style={style} />;
+  // Once the reply box of the wanted session exists, it takes the focus. Tried for about half a second (the pane mounts after the selection); a box that cannot
+  // take the focus (the session cannot receive messages) or never appears is said, not ignored.
+  const selectedSessionId = selected === undefined ? undefined : agentId(selected);
+  useEffect(() => {
+    if (focusWanted === undefined || selectedSessionId !== focusWanted) {
+      return;
+    }
+    let tries = 0;
+    let frame = 0;
+    const attempt = (): void => {
+      focusComposer();
+      if (document.activeElement?.hasAttribute('data-agent-composer') === true) {
+        setFocusWanted(undefined);
+        return;
+      }
+      tries += 1;
+      if (tries < 30) {
+        frame = requestAnimationFrame(attempt);
+        return;
+      }
+      setFocusWanted(undefined);
+      const composer = document.querySelector<HTMLTextAreaElement>('[data-agent-composer]');
+      setSearchNote(
+        composer?.disabled === true
+          ? 'The reply box of this agent cannot take the focus because the session cannot receive messages: the message above the box says why.'
+          : 'The reply box did not appear, so it could not take the focus. Select the agent again, or reload the page.',
+      );
+    };
+    attempt();
+    return () => cancelAnimationFrame(frame);
+  }, [focusWanted, selectedSessionId]);
+
+  const List = LISTS[mode];
+  // The order comes from the data the list is drawn from, not from the DOM: a closed folder or tab would hide its matches from the keyboard.
+  const orderedIds = (): string[] => orderedSessionIds(mode, shownRows, options, tabParam);
+  const moveBy = (step: 1 | -1): void => {
+    setSearchNote('');
+    const target = navTarget(step === 1 ? 'ArrowDown' : 'ArrowUp', orderedIds(), selectedId);
+    if (target !== undefined) {
+      select(target);
+    }
+  };
+  const openFirst = (): void => {
+    setSearchNote('');
+    const ids = orderedIds();
+    const target = selectedId !== undefined && ids.includes(selectedId) ? selectedId : ids[0];
+    if (target === undefined) {
+      setSearchNote(
+        shownRows.length > 0
+          ? `${shownRows.length} agents match, none in the list you are looking at (the ${MODE_LABEL[mode]} view lists only part of them: check the other tabs).`
+          : 'No agent matches, so there is nothing to open.',
+      );
+      return;
+    }
+    select(target);
+    setFocusWanted(target);
+  };
+  let listColumn: ReactNode;
+  if (loading) {
+    listColumn = <ListSkeleton />;
+  } else if (searching && shownRows.length === 0 && rows.length > 0) {
+    listColumn = (
+      <EmptyNote
+        title={`No agent matches '${searchText.trim()}'`}
+        hint={query.problems.length > 0 ? query.problems.join('. ') : 'Check the spelling, or remove a state: or project: filter.'}
+        action={
+          <button type="button" onClick={() => setSearchText('')} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg ${FOCUS_RING}`}>
+            Clear the search
+          </button>
+        }
+      />
+    );
+  } else {
+    listColumn = <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} />;
+  }
 
   const notices: ReactNode[] = [];
+  if (resolvedMode.note !== '') {
+    notices.push(
+      <Banner
+        key="mode"
+        tone="warning"
+        action={
+          <button type="button" onClick={() => setModeParam('')} className={`shrink-0 rounded border border-warning px-2 py-0.5 text-xs ${FOCUS_RING}`}>
+            Remove it from the address
+          </button>
+        }
+      >
+        {resolvedMode.note}
+      </Banner>,
+    );
+  }
+  if (searchNote !== '') {
+    notices.push(
+      <Banner
+        key="search"
+        tone="warning"
+        action={
+          <button type="button" onClick={() => setSearchNote('')} className={`shrink-0 rounded border border-warning px-2 py-0.5 text-xs ${FOCUS_RING}`}>
+            Dismiss
+          </button>
+        }
+      >
+        {searchNote}
+      </Banner>,
+    );
+  }
   if (userStateError !== '') {
     notices.push(
       <Banner key="user" tone="warning">
@@ -143,7 +274,7 @@ export function Workspace({ list, style, sessions, userStateError, hiddenDead, l
     detail = (
       <>
         <DetailHeader session={selected} now={now} busy={busy} onBack={() => setSessionParam('')} onTogglePin={(pinned) => pin(selected, pinned)} onMarkSeen={() => markSeen(selected)} />
-        <AgentDetail session={selected} logStyle={logStyle} />
+        <AgentDetail session={selected} />
       </>
     );
   } else if (selectedId !== undefined && !loading) {
@@ -166,10 +297,22 @@ export function Workspace({ list, style, sessions, userStateError, hiddenDead, l
 
   return (
     <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
-      <Toolbar count={rows.length} hiddenDead={hiddenDead} show={show} onShow={(value) => setShowParam(value === 'all' ? 'all' : '')} helpOpen={helpOpen} onHelpOpenChange={setHelpOpen} />
+      <Toolbar
+        count={rows.length}
+        hiddenDead={hiddenDead}
+        show={show}
+        onShow={(value) => setShowParam(value === 'all' ? 'all' : '')}
+        mode={mode}
+        onMode={changeMode}
+        options={options}
+        onOptions={changeOptions}
+        search={{ text: searchText, onText: setSearchText, shown: shownRows.length, total: rows.length, problems: query.problems, onMove: moveBy, onEnter: openFirst }}
+        helpOpen={helpOpen}
+        onHelpOpenChange={setHelpOpen}
+      />
       {notices.length > 0 ? <div className="flex flex-col gap-1.5 border-b border-border p-2">{notices}</div> : null}
       <div className="min-h-0 flex-1">
-        <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} fixedWidth={fixedWidth} />
+        <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />
       </div>
     </div>
   );

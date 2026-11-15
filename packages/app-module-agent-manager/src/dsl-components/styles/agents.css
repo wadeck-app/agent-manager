@@ -26,7 +26,7 @@
   --am-dot: 10px;
   --am-hit: 36px;
   --am-row: 52px;
-  --am-aside: 320px;
+  --am-aside: 340px;
   --am-log-max: 1152px;
 }
 
@@ -45,7 +45,7 @@
   --am-dot: 8px;
   --am-hit: 32px;
   --am-row: 44px;
-  --am-aside: 288px;
+  --am-aside: 300px;
   --am-log-max: 1100px;
 }
 
@@ -64,7 +64,7 @@
   --am-dot: 12px;
   --am-hit: 40px;
   --am-row: 60px;
-  --am-aside: 384px;
+  --am-aside: 460px;
   --am-log-max: 1400px;
 }
 
@@ -83,6 +83,6 @@
   --am-dot: 11px;
   --am-hit: 38px;
   --am-row: 56px;
-  --am-aside: 352px;
+  --am-aside: 400px;
   --am-log-max: 1260px;
 }

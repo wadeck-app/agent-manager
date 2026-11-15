@@ -22,7 +22,7 @@ Spec folder: `.claude/specs/2026-11-14_agent-fleet-manager/`.
 | Path | Role |
 |---|---|
 | `packages/agent-manager-core` | pure model (private): `readSessionRegistry`, liveness, no console/exit |
-| `packages/app-module-agent-manager` | app-core module `agent-manager` (title Agents): routes `/sessions`, `/summary`, page `/agents`, A/B test `sessions-layout`; `npm run check`, `npm run bundle` (needs `APP_CORE_PORT` on a dead port) |
+| `packages/app-module-agent-manager` | app-core module `agent-manager` (title Agents): routes `/sessions`, `/summary`, pages `/agents` (workspace: Tree/Groups/Inbox toggle `?mode=`, search, sub-agent A/B tests) and `/agents/table`; `npm run check`, `npm run bundle` (needs `APP_CORE_PORT` on a dead port) |
 | `packages/agent-manager-cli` | source package (private). CI publishes the generated `@wadeck-app/agent-manager-cli` (dist wrapper + `-win32-x64`, `-darwin-arm64`, `-linux-x64`) |
 | `packages/agent-manager-cli/ci/` | bundle, Go launcher build, platform package generation, install/update checks |
 | `test-support/` | test isolation: redirects HOME, XDG, `AGENT_MANAGER_CONFIG_DIR`, app-core; guard fails a run that changes the real config folder |

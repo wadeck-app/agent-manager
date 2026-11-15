@@ -8,8 +8,8 @@ import type { Entry, ReadNewResult, ReadOptions, SubagentInfo, SubagentNode, Tai
 /** A meta file larger than this is not read (real ones are a few hundred bytes). */
 const MAX_META_BYTES = 256 * 1024;
 
-/** Bytes read of a sub-agent transcript to see whether it starts with a fork-context-ref line. */
-const FIRST_LINE_BYTES = 4096;
+/** Bytes read of a sub-agent transcript: its first lines (a fork-context-ref line, then the first line with a timestamp). */
+const HEAD_BYTES = 16 * 1024;
 
 export type SubagentFileProblem = { file: string; reason: string };
 
@@ -82,6 +82,7 @@ async function readMeta(dir: string, file: string): Promise<{ info: SubagentInfo
       ...(asString(meta.toolUseId) !== undefined ? { toolUseId: asString(meta.toolUseId) } : {}),
       ...(asString(meta.name) !== undefined ? { name: asString(meta.name) } : {}),
       finished: meta.finished === true,
+      stoppedByUser: meta.stoppedByUser === true,
       ...(asNumber(meta.spawnDepth) !== undefined ? { spawnDepth: asNumber(meta.spawnDepth) } : {}),
       isFork: meta.isFork === true || agentType === 'fork',
       ...(asString(meta.model) !== undefined ? { model: asString(meta.model) } : {}),
@@ -89,9 +90,9 @@ async function readMeta(dir: string, file: string): Promise<{ info: SubagentInfo
       transcriptPath,
       metaPath,
     };
-    const ref = await readForkRef(transcriptPath);
-    if (ref !== undefined) {
-      Object.assign(info, ref);
+    const head = await readTranscriptHead(transcriptPath);
+    if (head !== undefined) {
+      Object.assign(info, head);
     }
     return { info };
   } catch (error) {
@@ -99,38 +100,119 @@ async function readMeta(dir: string, file: string): Promise<{ info: SubagentInfo
   }
 }
 
-/** The fork-context-ref of the first line of a sub-agent transcript, when there is one (undefined: other first line, or no transcript yet). */
-async function readForkRef(path: string): Promise<Pick<SubagentInfo, 'parentSessionId' | 'parentLastUuid' | 'contextLength'> | undefined> {
+type HeadFields = Pick<SubagentInfo, 'parentSessionId' | 'parentLastUuid' | 'contextLength' | 'startedAt' | 'lastWriteAt' | 'readError'>;
+
+/** What the head of a transcript said once: immutable when it came from a timestamped line (the file only grows at its end). */
+interface HeadCacheEntry {
+  size: number;
+  mtimeMs: number;
+  /** The start came from a timestamp line: the head can never change, whatever the file does after. */
+  settled: boolean;
+  fields: Omit<HeadFields, 'lastWriteAt' | 'readError'>;
+}
+
+/** Bound of the cache of heads (one entry per sub-agent transcript seen): the oldest entries go first. */
+export const HEAD_CACHE_LIMIT = 2000;
+const headCache = new Map<string, HeadCacheEntry>();
+
+/** For tests: empties the cache of heads. */
+export function clearHeadCache(): void {
+  headCache.clear();
+}
+
+/** For tests: how many heads are cached. */
+export function headCacheSize(): number {
+  return headCache.size;
+}
+
+function remember(path: string, entry: HeadCacheEntry): void {
+  headCache.delete(path);
+  headCache.set(path, entry);
+  while (headCache.size > HEAD_CACHE_LIMIT) {
+    const oldest = headCache.keys().next();
+    if (oldest.done === true) {
+      break;
+    }
+    headCache.delete(oldest.value);
+  }
+}
+
+/**
+ * What the first bytes and the file times of a sub-agent transcript say (undefined: no transcript yet): the fork-context-ref of the first line when there is
+ * one, the start time (first line with a `timestamp` among the lines that fit in HEAD_BYTES, else the creation time of the file) and the last write time.
+ * The last write time comes from one stat on every call (the sub-agent is polled); the head is read and parsed once, then cached per path: it is immutable once a
+ * timestamp was found. Without a timestamp it is read again only when the size or the modification time changed. A read error that is not "no such file" is
+ * returned as `readError` (never swallowed: the status of that sub-agent is then unknown, not "just started").
+ */
+async function readTranscriptHead(path: string): Promise<HeadFields | undefined> {
   let fh;
   try {
     fh = await open(path, 'r');
-  } catch {
-    return undefined;
+  } catch (error) {
+    return isNoSuchFile(error) ? undefined : { readError: `The transcript could not be opened: ${getErrorMessage(error)}` };
   }
   try {
-    const buf = Buffer.allocUnsafe(FIRST_LINE_BYTES);
-    const { bytesRead } = await fh.read(buf, 0, FIRST_LINE_BYTES, 0);
+    const stats = await fh.stat();
+    const lastWriteAt = Math.round(stats.mtimeMs);
+    const cached = headCache.get(path);
+    if (cached !== undefined && (cached.settled || (cached.size === stats.size && cached.mtimeMs === stats.mtimeMs))) {
+      return { ...cached.fields, lastWriteAt };
+    }
+    const buf = Buffer.allocUnsafe(HEAD_BYTES);
+    const { bytesRead } = await fh.read(buf, 0, HEAD_BYTES, 0);
     const text = buf.toString('utf8', 0, bytesRead);
-    if (!text.startsWith('{"type":"fork-context-ref"')) {
-      return undefined;
+    // Only whole lines: the last one is cut when the file goes on after the window and the window does not end on a line break.
+    const lines = text.split('\n');
+    if (stats.size > bytesRead && buf[bytesRead - 1] !== 0x0a) {
+      lines.pop();
     }
-    const nl = text.indexOf('\n');
-    const line = nl < 0 ? text : text.slice(0, nl);
-    const parsed: unknown = JSON.parse(line);
-    if (!isRecord(parsed)) {
-      return undefined;
+    const fields: HeadCacheEntry['fields'] = {};
+    let startedAt: number | undefined;
+    for (const line of lines) {
+      if (line === '') {
+        continue;
+      }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        // A line that is not JSON (cut, malformed): the sub-agent is still listed, without what that line would have said.
+        continue;
+      }
+      if (!isRecord(parsed)) {
+        continue;
+      }
+      if (parsed.type === 'fork-context-ref') {
+        Object.assign(fields, {
+          ...(asString(parsed.parentSessionId) !== undefined ? { parentSessionId: asString(parsed.parentSessionId) } : {}),
+          ...(asString(parsed.parentLastUuid) !== undefined ? { parentLastUuid: asString(parsed.parentLastUuid) } : {}),
+          ...(asNumber(parsed.contextLength) !== undefined ? { contextLength: asNumber(parsed.contextLength) } : {}),
+        });
+      }
+      const stamp = asString(parsed.timestamp);
+      if (stamp !== undefined && startedAt === undefined) {
+        const time = Date.parse(stamp);
+        if (Number.isFinite(time)) {
+          startedAt = time;
+        }
+      }
+      if (startedAt !== undefined) {
+        break;
+      }
     }
-    return {
-      ...(asString(parsed.parentSessionId) !== undefined ? { parentSessionId: asString(parsed.parentSessionId) } : {}),
-      ...(asString(parsed.parentLastUuid) !== undefined ? { parentLastUuid: asString(parsed.parentLastUuid) } : {}),
-      ...(asNumber(parsed.contextLength) !== undefined ? { contextLength: asNumber(parsed.contextLength) } : {}),
-    };
-  } catch {
-    // A first line cut or malformed: the sub-agent is still listed, without the fork reference.
-    return undefined;
+    // No timestamp in the head (a first line longer than the window): the creation time of the file is the best true thing known; 0 means the file system has none.
+    fields.startedAt = startedAt ?? (stats.birthtimeMs > 0 ? Math.round(stats.birthtimeMs) : undefined);
+    remember(path, { size: stats.size, mtimeMs: stats.mtimeMs, settled: startedAt !== undefined, fields });
+    return { ...fields, lastWriteAt };
+  } catch (error) {
+    return { readError: `The transcript could not be read: ${getErrorMessage(error)}` };
   } finally {
     await fh.close().catch(() => undefined);
   }
+}
+
+function isNoSuchFile(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR');
 }
 
 /** Tool names under which a parent spawns a sub-agent (observed: Agent; Task is the older name, UNVERIFIED on 2.1.3xx). */

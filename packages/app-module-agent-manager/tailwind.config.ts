@@ -33,6 +33,15 @@ export default {
         // Reading line height of the log prose.
         'am-log': 'var(--am-lh-log)',
       },
+      keyframes: {
+        // A ring that spreads from the row and fades: where the call is (the static ring stays after it, and with reduced motion only that remains).
+        'am-pulse': {
+          '0%': { boxShadow: '0 0 0 0 var(--color-primary)' },
+          '70%': { boxShadow: '0 0 0 12px transparent' },
+          '100%': { boxShadow: '0 0 0 0 transparent' },
+        },
+      },
+      animation: { 'am-pulse': 'am-pulse 1.1s ease-out 3' },
       spacing: {
         // Icon of a row (state), icon next to text, a comfortable hit target, the height of one list row.
         'am-icon': 'var(--am-icon)',

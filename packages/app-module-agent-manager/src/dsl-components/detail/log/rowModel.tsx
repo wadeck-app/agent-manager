@@ -15,7 +15,7 @@ export interface OpenContext {
   toggle: (key: string) => void;
 }
 
-/** Everything a style needs to draw a row: the three styles lay the same model out differently. */
+/** Everything the chat frame needs to draw a row. */
 export interface RowModel {
   key: string;
   /** user: right in chat; assistant: left bubble; tool and meta: plain lines; */
@@ -23,13 +23,13 @@ export interface RowModel {
   icon: LucideIcon;
   iconClass: string;
   label: string;
-  /** One line (the compact style and every collapsed header). */
+  /** One line (every collapsed header). */
   summary: string;
   timestamp?: number;
   /** Status icon, duration, counts, at the end of the header. */
   trailing?: ReactNode;
   tone: 'normal' | 'muted' | 'error';
-  /** Collapsed until clicked in every style (tool calls, thinking, notices). Messages are open in chat and timeline, closed in compact. */
+  /** Collapsed until clicked (tool calls, thinking, notices). Messages are open. */
   expandable: boolean;
   body: ((context: OpenContext) => ReactNode) | null;
   /** The id of the tool call, for the highlight of its sub-agent. */

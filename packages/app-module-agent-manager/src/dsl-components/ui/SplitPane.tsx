@@ -48,8 +48,6 @@ export interface SplitPaneProps {
   detail: ReactNode;
   /** A session is open: on a narrow screen the detail replaces the list (stacked, with a back button in the detail header). */
   detailOpen: boolean;
-  /** A fixed width in pixels (the icon rail): no separator, no resizing. */
-  fixedWidth?: number;
 }
 
 /**
@@ -57,7 +55,7 @@ export interface SplitPaneProps {
  * presses the arrow keys (Home and End for the limits): that width is then kept in localStorage. Below the lg breakpoint (1024 px: the shell menu takes
  * 240 px of it) only one pane is shown at a time (the list, or the detail once a session is open).
  */
-export function SplitPane({ list, detail, detailOpen, fixedWidth }: SplitPaneProps) {
+export function SplitPane({ list, detail, detailOpen }: SplitPaneProps) {
   const box = useRef<HTMLDivElement>(null);
   const [container, setContainer] = useState(0);
   // The width the user chose, as saved. Only a drag or a key step writes it: showing a clamped width (a small window) never rewrites it, so the choice comes
@@ -85,7 +83,7 @@ export function SplitPane({ list, detail, detailOpen, fixedWidth }: SplitPanePro
     return () => observer?.disconnect();
   }, []);
 
-  const shown = fixedWidth ?? live ?? (chosen === undefined ? autoListWidth(container) : clampWidth(chosen, container));
+  const shown = live ?? (chosen === undefined ? autoListWidth(container) : clampWidth(chosen, container));
   const widthRef = useRef(shown);
   widthRef.current = shown;
 
@@ -132,25 +130,21 @@ export function SplitPane({ list, detail, detailOpen, fixedWidth }: SplitPanePro
       <div data-pane="list" className={`${detailOpen ? 'hidden lg:flex' : 'flex'} relative min-h-0 w-full shrink-0 flex-col lg:w-[var(--agents-list-w)]`}>
         {list}
       </div>
-      {fixedWidth === undefined ? (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize the agent list"
-          aria-valuemin={MIN_LIST_WIDTH}
-          aria-valuemax={MAX_LIST_WIDTH}
-          aria-valuenow={width}
-          tabIndex={0}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onKeyDown={onKeyDown}
-          className={`hidden w-1.5 shrink-0 cursor-col-resize border-x border-border bg-muted-bg hover:bg-primary lg:block ${FOCUS_RING}`}
-        />
-      ) : (
-        <div aria-hidden="true" className="hidden w-px shrink-0 bg-border lg:block" />
-      )}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize the agent list"
+        aria-valuemin={MIN_LIST_WIDTH}
+        aria-valuemax={MAX_LIST_WIDTH}
+        aria-valuenow={width}
+        tabIndex={0}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onKeyDown={onKeyDown}
+        className={`hidden w-1.5 shrink-0 cursor-col-resize border-x border-border bg-muted-bg hover:bg-primary lg:block ${FOCUS_RING}`}
+      />
       <div data-pane="detail" className={`${detailOpen ? 'flex' : 'hidden lg:flex'} min-h-0 min-w-0 flex-1 flex-col`}>
         {detail}
       </div>

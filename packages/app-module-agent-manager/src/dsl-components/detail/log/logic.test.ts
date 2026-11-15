@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answer, assistantText, toolCall, userPrompt } from './entryFixtures.js';
+import { answer, assistantText, subagent, toolCall, userPrompt } from './entryFixtures.js';
 import { capOutput, relativeTime } from './format.js';
 import { buildRows, summariseGroup, toggleOpen } from './grouping.js';
 import { initialLogState, logReducer, mergeAfter, prependOlder } from './logReducer.js';
@@ -40,7 +40,7 @@ describe('logReducer', () => {
   });
 
   it('keeps the newest cursor and the sub-agents on an older page', () => {
-    const start = logReducer(initialLogState, { type: 'tail', answer: answer([userPrompt('u', 'hi')], { cursor: 'newest', olderCursor: 'o1', subagents: [{ agentId: 'x', finished: false, isFork: false, children: [] }] }) });
+    const start = logReducer(initialLogState, { type: 'tail', answer: answer([userPrompt('u', 'hi')], { cursor: 'newest', olderCursor: 'o1', subagents: [subagent({ agentId: 'x', finished: false, status: 'active' })] }) });
     const next = logReducer(start, { type: 'older', answer: answer([userPrompt('u0', 'before')], { cursor: null, olderCursor: null }) });
     expect(next.cursor).toBe('newest');
     expect(next.olderCursor).toBeNull();

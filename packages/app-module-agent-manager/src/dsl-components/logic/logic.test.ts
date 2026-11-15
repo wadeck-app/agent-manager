@@ -4,7 +4,8 @@ import { filterSessions, fuzzyScore, parseQuery, resolveState } from './fuzzy.js
 import { countByState, flatten, groupSessions } from './grouping.js';
 import { firstNonEmptyTab, nextNeedingYou, tabCounts, tabSessions } from './inbox.js';
 import { isTypingTarget, navTarget } from './nav.js';
-import { worstState } from './states.js';
+import { orderedSessionIds } from './order.js';
+import { agentId, worstState } from './states.js';
 import { compactDuration, describeTimeInState, timeInState } from './time.js';
 import { buildTree, parentPath, quietFolders } from './tree.js';
 
@@ -121,7 +122,6 @@ describe('folder tree', () => {
 
   it('rolls up the worst child state and orders the folders by urgency', () => {
     expect(nodes.map((node) => `${node.cwd}:${node.rollup}`)).toEqual(['/a/shop:needs-you', '/a/docs:done', '/b/shop:working', '/a/old:idle']);
-    expect(nodes[0]?.counts).toEqual({ idle: 1, 'needs-you': 1 });
     expect(nodes[0]?.sessions.map((session) => session.state)).toEqual(['needs-you', 'idle']);
   });
 
@@ -227,5 +227,29 @@ describe('time in state', () => {
     expect(compactDuration(-5)).toBe('');
     expect(describeTimeInState(undefined, 1)).toContain('no time');
     expect(describeTimeInState(0, 125_000)).toBe('In this state for 2 min');
+  });
+});
+
+describe('orderedSessionIds (the order of the keyboard, from the data)', () => {
+  const rows = [
+    row({ sessionId: 'aaaaaaaa-0000-0000-0000-000000000001', folder: 'shop', cwd: '/w/shop', state: 'idle' }),
+    row({ sessionId: 'bbbbbbbb-0000-0000-0000-000000000002', folder: 'api', cwd: '/w/api', state: 'needs-you' }),
+    row({ sessionId: 'cccccccc-0000-0000-0000-000000000003', folder: 'shop', cwd: '/w/shop', state: 'working' }),
+  ];
+  const options = { tree: { grouping: 'workspace', expansion: 'all' }, groups: { preview: true }, inbox: { autoNext: false } } as const;
+
+  it('tree by workspace: folder by folder, the most urgent folder first; flat: most urgent first', () => {
+    const byFolder = orderedSessionIds('tree', rows, options, null);
+    expect(byFolder[0]).toBe(agentId(rows[1]!));
+    expect(byFolder).toHaveLength(3);
+    const flat = orderedSessionIds('tree', rows, { ...options, tree: { grouping: 'none', expansion: 'all' } }, null);
+    expect(flat).toEqual([rows[1], rows[2], rows[0]].map((session) => agentId(session!)));
+  });
+
+  it('groups: in the order of the groups; inbox: the rows of the tab (an unknown tab gives the first non-empty one)', () => {
+    expect(orderedSessionIds('groups', rows, options, null)).toEqual([rows[1], rows[2], rows[0]].map((session) => agentId(session!)));
+    expect(orderedSessionIds('inbox', rows, options, 'working')).toEqual([agentId(rows[2]!)]);
+    expect(orderedSessionIds('inbox', rows, options, 'nope')).toEqual([agentId(rows[1]!)]);
+    expect(orderedSessionIds('inbox', [rows[0]!], options, 'done')).toEqual([]);
   });
 });

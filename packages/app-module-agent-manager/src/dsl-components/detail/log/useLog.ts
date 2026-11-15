@@ -2,7 +2,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import type { LogOk, LogResponse } from '../deps.js';
 import { requestJson } from '../deps.js';
 import { initialLogState, logReducer, type LogState } from './logReducer.js';
-import { PAGE_LIMIT, POLL_MS } from './sizes.js';
+import { LOCATE_PAGE_LIMIT, PAGE_LIMIT, POLL_MS } from './sizes.js';
 
 /** What went wrong, with what to do. The entries already shown stay on screen. */
 export interface LogProblem {
@@ -14,6 +14,17 @@ export interface LogProblem {
   source: 'poll' | 'older';
 }
 
+/** How a search back through the transcript ended. */
+export type OlderSearch = { status: 'reached' | 'start' | 'bound' | 'cancelled'; pages: number } | { status: 'error'; pages: number; message: string; hint: string };
+
+export interface OlderSearchOptions {
+  signal: AbortSignal;
+  /** Most pages one search loads before it stops and says so. */
+  maxPages: number;
+  /** Called after each page: how many pages so far and the offset of the oldest entry held. */
+  onPage: (page: number, oldestOffset: number | undefined) => void;
+}
+
 export interface LogFeed {
   state: LogState;
   problem: LogProblem | undefined;
@@ -21,6 +32,11 @@ export interface LogFeed {
   /** Ask the server again now (the Retry button). */
   retry: () => void;
   loadOlder: () => void;
+  /**
+   * Loads older pages (500 entries each, one request at a time) until an entry at or before `offset` is held, the start of the transcript, the page bound, or
+   * the signal. Used to bring a call that is far back into the log; the entries stay in place for the user afterwards.
+   */
+  loadOlderUntil: (offset: number, options: OlderSearchOptions) => Promise<OlderSearch>;
 }
 
 function problemOf(source: LogProblem['source'], answer: Exclude<LogResponse, LogOk>): LogProblem {
@@ -42,6 +58,8 @@ export function useLog(sessionId: string): LogFeed {
   const controllerRef = useRef<AbortController | null>(null);
   const pollNow = useRef<() => void>(() => undefined);
   olderCursor.current = state.olderCursor;
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -156,6 +174,68 @@ export function useLog(sessionId: string): LogFeed {
     });
   }, [sessionId]);
 
+  const loadOlderUntil = useCallback(
+    async (offset: number, options: OlderSearchOptions): Promise<OlderSearch> => {
+      const controller = controllerRef.current;
+      if (controller === null) {
+        return { status: 'error', pages: 0, message: 'The log is not loaded yet.', hint: 'Wait for the log to appear, then try again.' };
+      }
+      // A page already being loaded by the scroll finishes first: two requests for the same cursor would put the same entries twice.
+      while (olderBusy.current && !options.signal.aborted && !controller.signal.aborted) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      // Aborted while waiting: this call never owned the lock, so it must not touch it (only the owner clears it).
+      if (options.signal.aborted || controller.signal.aborted) {
+        return { status: 'cancelled', pages: 0 };
+      }
+      olderBusy.current = true;
+      setLoadingOlder(true);
+      let pages = 0;
+      try {
+        let cursor = olderCursor.current;
+        // Starts from what is held: with everything loaded already, the real situation is told instead of "changed while searching".
+        let oldest: number | undefined = stateRef.current.entries[0]?.offset;
+        while (cursor !== null) {
+          if (options.signal.aborted) {
+            return { status: 'cancelled', pages };
+          }
+          if (pages >= options.maxPages) {
+            return { status: 'bound', pages };
+          }
+          const result = await requestJson<LogResponse>(`/sessions/${encodeURIComponent(sessionId)}/log?limit=${LOCATE_PAGE_LIMIT}&before=${encodeURIComponent(cursor)}`, { signal: options.signal });
+          // An aborted request resolves with an EMPTY text; a real failure keeps its text and is reported even when an abort followed.
+          if (!result.ok && result.text === '' && (controller.signal.aborted || options.signal.aborted)) {
+            return { status: 'cancelled', pages };
+          }
+          if (result.ok && (controller.signal.aborted || options.signal.aborted)) {
+            return { status: 'cancelled', pages };
+          }
+          if (!result.ok) {
+            return { status: 'error', pages, message: result.text, hint: 'Older entries could not be loaded; try again.' };
+          }
+          if (!result.value.ok) {
+            const { message, hint } = result.value.error;
+            return { status: 'error', pages, message, hint };
+          }
+          pages += 1;
+          dispatch({ type: 'older', answer: result.value });
+          cursor = result.value.olderCursor;
+          olderCursor.current = cursor;
+          oldest = result.value.entries[0]?.offset ?? oldest;
+          options.onPage(pages, oldest);
+          if (oldest !== undefined && oldest <= offset) {
+            return { status: 'reached', pages };
+          }
+        }
+        return oldest !== undefined && oldest <= offset ? { status: 'reached', pages } : { status: 'start', pages };
+      } finally {
+        olderBusy.current = false;
+        setLoadingOlder(false);
+      }
+    },
+    [sessionId],
+  );
+
   const retryAll = useCallback(() => {
     if (problem?.source === 'older') {
       loadOlder();
@@ -164,5 +244,5 @@ export function useLog(sessionId: string): LogFeed {
     }
   }, [problem, loadOlder, retry]);
 
-  return { state, problem, loadingOlder, retry: retryAll, loadOlder };
+  return { state, problem, loadingOlder, retry: retryAll, loadOlder, loadOlderUntil };
 }

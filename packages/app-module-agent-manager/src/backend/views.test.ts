@@ -6,7 +6,6 @@ import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 import { sessionColumns } from './columns.js';
 import { presentSession } from './present.js';
-import { checkVariant } from '../commons/variants.js';
 import { makeModule } from './testKit.js';
 
 const packageDir = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -73,8 +72,8 @@ describe('manifest.json', () => {
     expect(Object.keys(dslLib.shared ?? {}).sort()).toEqual(['@wadeck-app/dsl-renderer', '@wadeck-app/dsl-ui', 'react', 'react-router-dom']);
   });
 
-  it('declares the Agents page in the menu (/agents) and one dashboard widget', () => {
-    expect(manifest.extensionPoints.map((p) => `${p.kind}:${p.slot}:${p.path ?? '-'}:${p.label}`)).toEqual(['page:nav:/agents:Agents', 'widget:dashboard:-:Agents']);
+  it('declares the Agents page in the menu (/agents), the Agents table page (/agents/table) and one dashboard widget', () => {
+    expect(manifest.extensionPoints.map((p) => `${p.kind}:${p.slot}:${p.path ?? '-'}:${p.label}`)).toEqual(['page:nav:/agents:Agents', 'page:nav:/agents/table:Agents table', 'widget:dashboard:-:Agents']);
   });
 
   it('references each view as ./src/dsl-views/<file>, each file exists, and every file of the folder is referenced', () => {
@@ -178,42 +177,17 @@ describe('the Agents page', () => {
   const page = (): Record<string, unknown> => parseView('sessions-page.yaml');
   const sections = (): Record<string, unknown>[] => (page()['sections'] as Record<string, unknown>[]) ?? [];
 
-  it('says on the page itself that this is the partial M1b slice, in the exact words of the spec', () => {
-    const note = sections().flatMap((s) => collect(s, 'text'));
-    expect(note).toContain('M1b: sessions from the Claude Code registry (pid-only liveness). Log and replies (socket transport) are in the master-detail layouts. Daemon, hooks and live updates (SSE): planned');
+  it('is the master-detail workspace, with no A/B test of the layout (the mode is a toggle inside the component)', () => {
+    expect(sections().filter((s) => s['$type'] === 'AbTest')).toEqual([]);
+    const workspace = sections().filter((s) => s['$type'] === 'agent-manager:AgentWorkspace');
+    expect(workspace).toHaveLength(1);
+    // It gets the rows of the page source (no second request) and its own props only.
+    expect(workspace[0]).toEqual({ $type: 'agent-manager:AgentWorkspace', $if: '$sources.sessions.ok', sessions: '$sources.sessions.sessions', userStateError: '$sources.sessions.userStateError', hiddenDead: '$sources.sessions.hiddenDead' });
+    expect(readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8')).not.toMatch(/sessions-layout|layout-(groups|inbox|tree|cards|palette)-style|DataTable/);
   });
 
-  it('wires the A/B test sessions-layout on the real page: the table (initial) and five master-detail lists, each a nested A/B test of 3 sub-variants', () => {
-    const tests = sections().filter((s) => s['$type'] === 'AbTest');
-    expect(tests).toHaveLength(1);
-    type Variant = { label: string; hint: string; view: { $type: string; id?: string; initial?: string; list?: string; variant?: string; variants?: Record<string, Variant> } };
-    const test = tests[0] as { id: string; initial: string; variants: Record<string, Variant> };
-    expect(test.id).toBe('sessions-layout');
-    expect(test.initial).toBe('table');
-    expect(Object.keys(test.variants)).toEqual(['table', 'groups', 'inbox', 'tree', 'tabs-cards', 'palette']);
-    expect(test.variants['table']?.view.$type).toBe('VerticalStack');
-    // The workspace variants carry no header, note or filter of their own on the page: they have a toolbar, and they get the rows of the page source (no second request).
-    expect(JSON.stringify(test.variants['groups'])).toContain('"sessions":"$sources.sessions.sessions"');
-    const ids = new Set<string>(['sessions-layout']);
-    for (const [name, variant] of Object.entries(test.variants)) {
-      expect(variant.label, name).toEqual(expect.any(String));
-      expect(variant.hint, name).toEqual(expect.any(String));
-      if (name === 'table') {
-        continue;
-      }
-      expect(variant.view.$type).toBe('AbTest');
-      expect(ids.has(variant.view.id ?? ''), `duplicate A/B id ${variant.view.id}`).toBe(false);
-      ids.add(variant.view.id ?? '');
-      const subs = Object.entries(variant.view.variants ?? {});
-      expect(subs, name).toHaveLength(3);
-      expect(variant.view.initial).toBe(subs[0]?.[0]);
-      for (const [sub, spec] of subs) {
-        expect(spec.hint, `${name}/${sub}`).toEqual(expect.any(String));
-        // The list and variant written in the YAML must be ones the component accepts.
-        expect(spec.view).toMatchObject({ $type: 'agent-manager:AgentWorkspace', list: name, variant: sub });
-        expect(checkVariant(spec.view.list, spec.view.variant).ok, `${name}/${sub}`).toBe(true);
-      }
-    }
+  it('uses the full page width (the workspace stretches itself over the frame padding)', () => {
+    expect(page()['maxWidth']).toBe('full');
   });
 
   it('keeps no trace of the removed herdr layout', () => {
@@ -223,13 +197,13 @@ describe('the Agents page', () => {
   it('the dead sessions filter is a URL parameter (show) that reaches the source, default alive', () => {
     const sources = page()['$sources'] as Record<string, { params: Record<string, string> }>;
     expect(sources['sessions']?.params['show']).toBe('$urlParam.show');
-    const select = collect(page(), 'urlParam');
-    expect(select).toContain('show');
+    // The filter itself is in the workspace toolbar (useUrlParam('show')) and on the table page (CompactSelect urlParam).
+    expect(collect(parseView('sessions-table.yaml'), 'urlParam')).toContain('show');
   });
 
   it('shows the status as a badge with semantic variants, never a raw colour, and dates through the shell formatter', () => {
     // The columns are built by the route (the Harness badge map depends on the versions found on this machine): the view only points at them.
-    const page = readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8');
+    const page = readFileSync(join(viewsDir, 'sessions-table.yaml'), 'utf8');
     expect(page).toContain('columns: $sources.sessions.tableColumns');
     const columns = sessionColumns([]);
     const byKey = Object.fromEntries(columns.map((column) => [String(column.key), column]));
@@ -243,5 +217,28 @@ describe('the Agents page', () => {
     const text = readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8');
     expect(text).toContain('$sources.sessions.errorText');
     expect(text).toContain('$sources.sessions.unreadableText');
+  });
+});
+
+describe('the Agents table page', () => {
+  const table = (): Record<string, unknown> => parseView('sessions-table.yaml');
+  const sections = (): Record<string, unknown>[] => (table()['sections'] as Record<string, unknown>[]) ?? [];
+
+  it('says on the page itself that this is the partial M1b slice, in the exact words of the spec', () => {
+    const note = sections().flatMap((s) => collect(s, 'text'));
+    expect(note).toContain('M1b: sessions from the Claude Code registry (pid-only liveness). The log and the reply box (socket transport) are on the Agents page. Daemon, hooks and live updates (SSE): planned');
+  });
+
+  it('holds the table of the sessions, the dead-session filter, and a link back to the Agents page', () => {
+    expect(sections().some((s) => s['$type'] === 'DataTable' && s['rows'] === '$sources.sessions.sessions')).toBe(true);
+    expect(collect(table(), 'urlParam')).toContain('show');
+    expect(JSON.stringify(table())).toContain('"to":"/modules/agent-manager/agents"');
+  });
+
+  it('reads the same source as the Agents page (same URL and parameters), errors answered as data', () => {
+    const own = table()['$sources'] as Record<string, { url: string; params: Record<string, string> }>;
+    const other = parseView('sessions-page.yaml')['$sources'] as Record<string, { url: string; params: Record<string, string> }>;
+    expect(own['sessions']).toEqual(other['sessions']);
+    expect(own['sessions']?.params['inlineErrors']).toBe('true');
   });
 });

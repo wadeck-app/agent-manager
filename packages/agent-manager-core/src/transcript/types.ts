@@ -306,6 +306,14 @@ export type SubagentInfo = {
   requestShape?: string;
   transcriptPath: string;
   metaPath: string;
+  /** The meta says `stoppedByUser: true` (observed on real data: the user interrupted it). Absent field: false. */
+  stoppedByUser: boolean;
+  /** Epoch ms of the first timestamped line of its transcript (else the creation time of the file). Absent when the transcript does not exist yet. */
+  startedAt?: number;
+  /** Epoch ms of the last write to its transcript (file modification time). Absent when the transcript does not exist yet. */
+  lastWriteAt?: number;
+  /** The transcript exists but could not be opened or read (permissions, I/O): what happened, in words. Its status is then unknown, never "just started". */
+  readError?: string;
   /** From the first transcript line of a fork (type fork-context-ref). */
   parentSessionId?: string;
   parentLastUuid?: string;

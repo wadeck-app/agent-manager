@@ -1,8 +1,8 @@
-import { mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ID, SLUG, putSession, textLine, toolResultLine, toolUseLine, transcriptFile, useSandbox, userLine, writeLines } from './apiFixtures.js';
-import { LOG_LIMITS } from './logRoute.js';
+import { LOG_LIMITS, RUNNING_FRESH_MS } from './logRoute.js';
 import { makeModule } from './testKit.js';
 
 const box = useSandbox();
@@ -259,7 +259,8 @@ ${JSON.stringify(textLine(3, 'after the huge line'))}
     writeFileSync(join(dir, 'agent-a1.meta.json'), JSON.stringify({ agentType: 'Explore', description: 'look around', toolUseId: 'toolu_a' }));
     writeFileSync(join(dir, 'agent-a2.meta.json'), '{not json');
     const body = (await log()).body;
-    expect(body.subagents).toEqual([{ agentId: 'a1', agentType: 'Explore', description: 'look around', finished: false, isFork: false, toolUseId: 'toolu_a', children: [] }]);
+    // No transcript of its own yet: just started, so running, and no time is invented.
+    expect(body.subagents).toEqual([{ agentId: 'a1', status: 'active', agentType: 'Explore', description: 'look around', finished: false, isFork: false, toolUseId: 'toolu_a', children: [] }]);
     expect(body.entries[1]).toMatchObject({ kind: 'tool-call', subagentId: 'a1' });
     expect(body.subagentsNote).toContain('agent-a2.meta.json');
     expect(JSON.stringify(body)).not.toContain(JSON.stringify(box.projects).slice(1, -1));
@@ -275,5 +276,127 @@ ${JSON.stringify(textLine(3, 'after the huge line'))}
     expect(body.entries).toHaveLength(20);
     expect(texts(body.entries).at(-1)).toBe('#1499');
     expect(body.olderCursor).toEqual(expect.any(String));
+  });
+
+  describe('sub-agent status and times', () => {
+    function meta(id: string, fields: Record<string, unknown>, lastWrite?: number): void {
+      const dir = join(box.projects, SLUG, sessionOf.id, 'subagents');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, `agent-${id}.meta.json`), JSON.stringify({ agentType: 'general-purpose', description: id, ...fields }));
+      if (lastWrite !== undefined) {
+        const file = join(dir, `agent-${id}.jsonl`);
+        writeFileSync(file, JSON.stringify({ type: 'user', timestamp: new Date(lastWrite - 90_000).toISOString(), message: { role: 'user', content: 'x' } }) + '\n');
+        utimesSync(file, new Date(lastWrite), new Date(lastWrite));
+      }
+    }
+    const sessionOf = { id: '' };
+
+    it('says active (a guess: no end marker, written lately), finished, failed or idle from the meta and the time of the last write, with start and end times from the transcript', async () => {
+      sessionOf.id = putSession(box, process.pid);
+      writeLines(transcriptFile(box, sessionOf.id), [userLine(1, 'go')]);
+      const now = Date.now();
+      meta('run', {}, now - 30_000);
+      meta('fin', { finished: true }, now - 120_000);
+      meta('bad', { stoppedByUser: true }, now - 60_000);
+      meta('old', {}, now - RUNNING_FRESH_MS - 60_000);
+      const byId = Object.fromEntries((await log()).body.subagents.map((s: { agentId: string }) => [s.agentId, s]));
+      expect(byId.run).toMatchObject({ status: 'active', lastActivityAt: expect.any(Number), startedAt: expect.any(Number) });
+      expect(byId.run.endedAt).toBeUndefined();
+      expect(byId.fin).toMatchObject({ status: 'finished', finished: true });
+      expect(byId.fin.endedAt).toBe(byId.fin.lastActivityAt);
+      expect(byId.fin.endedAt - byId.fin.startedAt).toBeGreaterThan(80_000);
+      expect(byId.bad).toMatchObject({ status: 'failed', failureReason: 'Stopped by the user' });
+      expect(byId.bad.endedAt).toBe(byId.bad.lastActivityAt);
+      // Not marked finished and silent for longer than the freshness window: idle, with no end time (nothing says it ended).
+      expect(byId.old.status).toBe('idle');
+      expect(byId.old.endedAt).toBeUndefined();
+    });
+
+    it('says "unknown" with the reason when a transcript exists but cannot be read, never "active"', async () => {
+      sessionOf.id = putSession(box, process.pid);
+      writeLines(transcriptFile(box, sessionOf.id), [userLine(1, 'go')]);
+      meta('bro', {});
+      // A folder where the transcript should be: not "no such file", so not "just started".
+      mkdirSync(join(box.projects, SLUG, sessionOf.id, 'subagents', 'agent-bro.jsonl'));
+      const bro = (await log()).body.subagents.find((s: { agentId: string }) => s.agentId === 'bro');
+      expect(bro).toMatchObject({ status: 'unknown', readError: expect.stringMatching(/could not be (opened|read)/) });
+      expect(bro.lastActivityAt).toBeUndefined();
+    });
+  });
+});
+
+describe('GET /sessions/:sessionId/log/locate', () => {
+  const locate = (toolUseId: string, id = ID(process.pid)) => makeModule({ dataDir: box.data }).call('GET', `/sessions/${id}/log/locate?toolUseId=${encodeURIComponent(toolUseId)}`);
+
+  it('finds the line of a call far back, and the offset is the offset of its entry in the log', async () => {
+    const id = putSession(box, process.pid);
+    const lines = [...conversation(400, 2000), toolUseLine(500, 'toolu_far', 'Agent', { description: 'far call', prompt: 'p' }), toolResultLine(501, 'toolu_far', 'done'), ...conversation(400, 2000)];
+    writeLines(transcriptFile(box, id), lines);
+    const answer = await locate('toolu_far', id);
+    expect(answer.status).toBe(200);
+    expect(answer.body).toMatchObject({ ok: true, toolUseId: 'toolu_far', found: true, offset: expect.any(Number) });
+    // Paging back until that offset is reached holds the call, with exactly that offset.
+    let page = (await log('?limit=500', id)).body;
+    let entries = page.entries as { kind: string; id?: string; offset: number }[];
+    while (page.olderCursor !== null && entries[0]!.offset > answer.body.offset) {
+      page = (await log(`?limit=500&before=${encodeURIComponent(page.olderCursor)}`, id)).body;
+      entries = [...page.entries, ...entries];
+    }
+    expect(entries.find((entry) => entry.kind === 'tool-call' && entry.id === 'toolu_far')?.offset).toBe(answer.body.offset);
+  });
+
+  it('finds a call at the very start of the transcript (offset 0) and across a chunk boundary', async () => {
+    const id = putSession(box, process.pid);
+    writeLines(transcriptFile(box, id), [toolUseLine(1, 'toolu_first', 'Agent', {}), ...conversation(900, 3000), toolUseLine(2, 'toolu_edge', 'Agent', {})]);
+    expect((await locate('toolu_first', id)).body).toMatchObject({ found: true, offset: 0 });
+    const edge = (await locate('toolu_edge', id)).body;
+    expect(edge.found).toBe(true);
+    expect(edge.offset).toBeGreaterThan(2_000_000);
+  });
+
+  it('says not found, plainly, for a call no line has, and does not match a result that only names it', async () => {
+    const id = putSession(box, process.pid);
+    writeLines(transcriptFile(box, id), [userLine(1, 'go'), toolResultLine(2, 'toolu_only_result', 'x')]);
+    expect((await locate('toolu_missing', id)).body).toMatchObject({ ok: true, found: false, transcriptBytes: expect.any(Number) });
+    expect((await locate('toolu_only_result', id)).body.found).toBe(false);
+  });
+
+  it('skips a line that only holds the id bytes (a result that embeds the id) and finds the real call after it', async () => {
+    const id = putSession(box, process.pid);
+    // The first line has `"id":"toolu_dup"` as a key of a tool_result line: the bytes match, the line is not the call.
+    const embedded = { ...toolResultLine(1, 'toolu_other', 'x'), extra: { id: 'toolu_dup' } };
+    writeLines(transcriptFile(box, id), [userLine(0, 'go'), embedded, toolUseLine(3, 'toolu_dup', 'Agent', {})]);
+    const answer = (await locate('toolu_dup', id)).body;
+    expect(answer.found).toBe(true);
+    // Not the offset of the embedding line: it is the third line.
+    const lines = readFileSync(transcriptFile(box, id), 'utf8').split('\n');
+    expect(answer.offset).toBe(Buffer.byteLength(lines[0] + '\n' + lines[1] + '\n'));
+  });
+
+  it('says not found when only a non-call line has the id bytes', async () => {
+    const id = putSession(box, process.pid);
+    writeLines(transcriptFile(box, id), [{ ...toolResultLine(1, 'toolu_other', 'x'), extra: { id: 'toolu_dup' } }]);
+    expect((await locate('toolu_dup', id)).body.found).toBe(false);
+  });
+
+  it('finds a call in spaced JSON ("id": "<id>")', async () => {
+    const id = putSession(box, process.pid);
+    const spaced = JSON.stringify(toolUseLine(2, 'toolu_sp', 'Agent', {})).replace('"id":"toolu_sp"', '"id": "toolu_sp"');
+    expect(spaced).toContain('"id": "toolu_sp"');
+    writeFileSync(transcriptFile(box, id), JSON.stringify(userLine(1, 'go')) + '\n' + spaced + '\n');
+    const answer = (await locate('toolu_sp', id)).body;
+    expect(answer).toMatchObject({ found: true });
+    expect(answer.offset).toBeGreaterThan(0);
+  });
+
+  it('answers not found for a session without a transcript, and refuses a malformed id', async () => {
+    const id = putSession(box, process.pid);
+    expect((await locate('toolu_x', id)).body).toMatchObject({ ok: true, found: false, transcriptBytes: 0 });
+    for (const bad of ['', 'a b', '../x', 'x'.repeat(200)]) {
+      const answer = await locate(bad, id);
+      expect(answer.status).toBe(400);
+      expect(answer.body).toMatchObject({ ok: false, error: { code: 'bad-request', hint: expect.stringContaining('toolUseId') } });
+    }
+    expect((await locate('toolu_x', ID(999_999))).status).toBe(404);
   });
 });

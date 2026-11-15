@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { join } from 'node:path';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { agentCallOwners, buildAgentTree, linkSubagents, listSubagents, SubagentTailer } from './subagents.js';
+import { mkdirSync, utimesSync, writeFileSync } from 'node:fs';
+import { agentCallOwners, buildAgentTree, clearHeadCache, HEAD_CACHE_LIMIT, headCacheSize, linkSubagents, listSubagents, SubagentTailer } from './subagents.js';
 import { TranscriptTailer } from './tailer.js';
 import type { Entry, SubagentInfo, ToolCallEntry } from './types.js';
 import {
@@ -12,6 +12,7 @@ import {
   makeTempDir,
   removeDir,
   SESSION_ID,
+  ts,
   subagentPrompt,
   textBlock,
   toolResultLine,
@@ -29,6 +30,7 @@ function project(): { projectDir: string; subDir: string } {
   return { projectDir, subDir };
 }
 afterEach(() => {
+  clearHeadCache();
   dirs.splice(0).forEach(removeDir);
 });
 
@@ -57,6 +59,98 @@ describe('listSubagents', () => {
     expect(result.subagents[2]!.toolUseId).toBeUndefined();
   });
 
+  it('reads the start time from the first timestamped line (after a fork reference), the last write from the file time, and stoppedByUser from the meta', async () => {
+    const { projectDir, subDir } = project();
+    writeMeta(subDir, 'a111', { agentType: 'general-purpose', toolUseId: 'toolu_1', stoppedByUser: true });
+    writeText(join(subDir, 'agent-a111.jsonl'), jsonl([subagentPrompt(7, 'a111', 'task')]));
+    writeMeta(subDir, 'f222', { agentType: 'fork', isFork: true, toolUseId: 'toolu_2', finished: true });
+    writeText(join(subDir, 'agent-f222.jsonl'), jsonl([forkRefLine('f222'), subagentPrompt(9, 'f222', 'task')]));
+    // No transcript written yet: no times, nothing invented.
+    writeMeta(subDir, 'n333', { agentType: 'Explore' });
+    const result = await listSubagents(projectDir, SESSION_ID);
+    if (!result.ok) {
+      throw new Error('expected ok');
+    }
+    const [a, f, n] = result.subagents;
+    expect(a).toMatchObject({ stoppedByUser: true, finished: false, startedAt: Date.parse(ts(7)) });
+    expect(f).toMatchObject({ stoppedByUser: false, finished: true, startedAt: Date.parse(ts(9)) });
+    expect(a!.lastWriteAt).toBeGreaterThan(Date.now() - 60_000);
+    expect(n).toMatchObject({ stoppedByUser: false });
+    expect(n!.startedAt).toBeUndefined();
+    expect(n!.lastWriteAt).toBeUndefined();
+  });
+
+  it('falls back to the creation time of the file when no line of the first bytes has a timestamp', async () => {
+    const { projectDir, subDir } = project();
+    writeMeta(subDir, 'big1', { agentType: 'Explore' });
+    // One first line longer than the head window, without a timestamp in it.
+    writeText(join(subDir, 'agent-big1.jsonl'), JSON.stringify({ type: 'user', pad: 'x'.repeat(40_000) }) + '\n');
+    const result = await listSubagents(projectDir, SESSION_ID);
+    if (!result.ok) {
+      throw new Error('expected ok');
+    }
+    const [one] = result.subagents;
+    expect(one!.startedAt).toBeGreaterThan(Date.now() - 60_000);
+  });
+
+  it('reads the head once per transcript: a settled start time is cached while the last write time follows the file', async () => {
+    const { projectDir, subDir } = project();
+    writeMeta(subDir, 'c111', { agentType: 'Explore' });
+    const file = join(subDir, 'agent-c111.jsonl');
+    writeText(file, jsonl([subagentPrompt(3, 'c111', 'task')]));
+    const first = await listSubagents(projectDir, SESSION_ID);
+    // The file is rewritten with another first timestamp and touched later: a re-read would change startedAt, the cache keeps it; lastWriteAt is read every time.
+    writeText(file, jsonl([subagentPrompt(8, 'c111', 'task')]));
+    const later = new Date(Date.now() + 60_000);
+    utimesSync(file, later, later);
+    const second = await listSubagents(projectDir, SESSION_ID);
+    if (!first.ok || !second.ok) {
+      throw new Error('expected ok');
+    }
+    expect(second.subagents[0]!.startedAt).toBe(Date.parse(ts(3)));
+    expect(second.subagents[0]!.lastWriteAt).toBeGreaterThan(first.subagents[0]!.lastWriteAt! + 30_000);
+  });
+
+  it('bounds the cache of heads', async () => {
+    const { projectDir, subDir } = project();
+    for (let index = 0; index < 3; index += 1) {
+      writeMeta(subDir, `b${index}`, { agentType: 'Explore' });
+      writeText(join(subDir, `agent-b${index}.jsonl`), jsonl([subagentPrompt(1, `b${index}`, 'task')]));
+    }
+    await listSubagents(projectDir, SESSION_ID);
+    expect(headCacheSize()).toBe(3);
+    expect(HEAD_CACHE_LIMIT).toBeGreaterThanOrEqual(3);
+  });
+
+  it('keeps a complete last line when the file is exactly the size of the head window', async () => {
+    const { projectDir, subDir } = project();
+    writeMeta(subDir, 'e111', { agentType: 'Explore' });
+    // First line without a timestamp, the second (the last, no line break) has one; together exactly 16 KiB.
+    const second = JSON.stringify({ type: 'user', timestamp: ts(5), pad: '' });
+    const pad = 16 * 1024 - 1 - second.length - JSON.stringify({ type: 'user', pad: '' }).length;
+    const text = JSON.stringify({ type: 'user', pad: 'x'.repeat(pad) }) + '\n' + second;
+    expect(Buffer.byteLength(text)).toBe(16 * 1024);
+    writeText(join(subDir, 'agent-e111.jsonl'), text);
+    const result = await listSubagents(projectDir, SESSION_ID);
+    if (!result.ok) {
+      throw new Error('expected ok');
+    }
+    expect(result.subagents[0]!.startedAt).toBe(Date.parse(ts(5)));
+  });
+
+  it('reports a transcript that exists but cannot be read, instead of treating it as just started', async () => {
+    const { projectDir, subDir } = project();
+    writeMeta(subDir, 'd111', { agentType: 'Explore' });
+    // A folder where the transcript should be: opening or reading it fails with something other than "no such file".
+    mkdirSync(join(subDir, 'agent-d111.jsonl'));
+    const result = await listSubagents(projectDir, SESSION_ID);
+    if (!result.ok) {
+      throw new Error('expected ok');
+    }
+    expect(result.subagents[0]!.readError).toMatch(/could not be (opened|read)/);
+    expect(result.subagents[0]!.lastWriteAt).toBeUndefined();
+  });
+
   it('says so when the folder does not exist, and reports a broken meta instead of dropping it', async () => {
     const empty = makeTempDir();
     dirs.push(empty);
@@ -74,7 +168,7 @@ describe('listSubagents', () => {
   });
 });
 
-const info = (agentId: string, toolUseId?: string): SubagentInfo => ({ agentId, ...(toolUseId !== undefined ? { toolUseId } : {}), finished: false, isFork: false, transcriptPath: `${agentId}.jsonl`, metaPath: `${agentId}.meta.json` });
+const info = (agentId: string, toolUseId?: string): SubagentInfo => ({ agentId, ...(toolUseId !== undefined ? { toolUseId } : {}), finished: false, stoppedByUser: false, isFork: false, transcriptPath: `${agentId}.jsonl`, metaPath: `${agentId}.meta.json` });
 
 describe('buildAgentTree', () => {
   it('makes roots of agents spawned by the main session and children of agents spawned inside another agent', () => {

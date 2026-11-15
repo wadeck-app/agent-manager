@@ -144,8 +144,25 @@ export interface SubagentDto {
   agentType?: string;
   description?: string;
   name?: string;
-  /** The sub-agent marked itself finished. */
+  /** The sub-agent marked itself finished (its meta says `finished: true`; real metas never say false, an old one says nothing). */
   finished: boolean;
+  /**
+   * What the server can tell, from facts only: 'unknown' when its transcript exists but could not be read (`readError` says why); 'failed' when the meta says
+   * `stoppedByUser`; 'finished' when it says `finished`; else 'active' when its transcript was written in the last 10 minutes (or does not exist yet: just
+   * started), else 'idle' (not marked finished and silent: it may be done, it may be stuck). 'active' is a HEURISTIC, not a fact: there is no end marker and the
+   * file was written lately, so it is probably running; show it as such. The UI also shows a sub-agent as failed when the call that started it is loaded and failed.
+   */
+  status: 'active' | 'finished' | 'failed' | 'idle' | 'unknown';
+  /** Why `status` is 'unknown': what failed while reading its transcript. */
+  readError?: string;
+  /** Why `status` is 'failed', in words ('Stopped by the user'). */
+  failureReason?: string;
+  /** Epoch ms of the first timestamped line of its transcript, else the creation time of the file. Absent when the transcript does not exist yet. */
+  startedAt?: number;
+  /** Epoch ms of the last write to its transcript. Absent when the transcript does not exist yet. */
+  lastActivityAt?: number;
+  /** Epoch ms of the end: the last write, only for 'finished' and 'failed' (an approximation: the file is not touched after the last line). */
+  endedAt?: number;
   isFork: boolean;
   model?: string;
   /** The tool call (LogEntry kind 'tool-call', field `id`) of the parent that started it. */
@@ -154,6 +171,28 @@ export interface SubagentDto {
   parentAgentId?: string;
   children: SubagentDto[];
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// GET /sessions/:sessionId/log/locate?toolUseId=<id>
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// Where is the tool call that started a sub-agent? A byte search of the transcript (one pass, nothing parsed), so a call 20 000 lines back is found in one
+// request instead of by paging. `offset` is the `offset` of the entry of that call (a line start): load older pages (`before`) until the oldest entry you
+// hold has an offset at or below it. `found: false` means no line of the transcript of the session holds the call: it was written by another sub-agent (whose
+// own transcript is not served) or the transcript was rewritten. Local paths are never sent. 400 'bad-request' for a malformed `toolUseId`.
+
+export interface LocateOk {
+  ok: true;
+  sessionId: string;
+  toolUseId: string;
+  found: boolean;
+  /** The offset of the line of the call, when found. */
+  offset?: number;
+  /** Size of the transcript read (0 when there is none yet). */
+  transcriptBytes: number;
+}
+
+export type LocateResponse = LocateOk | ApiFailure;
 
 /** The activity of the session over the entries of THIS answer (a window, not the whole transcript): see `scope`. */
 export interface LogActivity {

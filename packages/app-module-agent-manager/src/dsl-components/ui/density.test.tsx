@@ -11,6 +11,7 @@ import {
   resolveDensity,
   setDensity,
 } from './density.js';
+import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
 import { DensityControl } from './DensityControl.js';
 import { autoHint, densityHint } from './densityScale.js';
 import { Scope } from './Scope.js';
@@ -147,7 +148,19 @@ describe('toolbar', () => {
     const { Toolbar } = await import('../workspace/Toolbar.js');
     render(
       <Scope>
-        <Toolbar count={3} hiddenDead={0} show="alive" onShow={() => undefined} helpOpen={false} onHelpOpenChange={() => undefined} />
+        <Toolbar
+          count={3}
+          hiddenDead={0}
+          show="alive"
+          onShow={() => undefined}
+          mode="tree"
+          onMode={() => undefined}
+          options={DEFAULT_VIEW_OPTIONS}
+          onOptions={() => undefined}
+          search={{ text: '', onText: () => undefined, shown: 3, total: 3, problems: [], onMove: () => undefined, onEnter: () => undefined }}
+          helpOpen={false}
+          onHelpOpenChange={() => undefined}
+        />
       </Scope>,
     );
     expect(screen.getByRole('button', { name: 'Text size' })).toBeInTheDocument();

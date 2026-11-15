@@ -21,10 +21,10 @@ export interface DensityScale {
  * stylesheet (styles/agents.css, the \`--am-*\` variables) holds exactly these numbers, so the words the user reads and the sizes the page uses cannot drift apart.
  */
 export const DENSITY_SCALE: Record<Density, DensityScale> = {
-  s: { fsXs: 12, fsSm: 14, fsBase: 16, fsMono: 13, icon: 18, iconSm: 14, dot: 8, hit: 32, row: 44, aside: 288, logMax: 1100 },
-  m: { fsXs: 13, fsSm: 15, fsBase: 16, fsMono: 14, icon: 20, iconSm: 16, dot: 10, hit: 36, row: 52, aside: 320, logMax: 1152 },
-  ml: { fsXs: 13, fsSm: 16, fsBase: 17, fsMono: 15, icon: 22, iconSm: 17, dot: 11, hit: 38, row: 56, aside: 352, logMax: 1260 },
-  l: { fsXs: 14, fsSm: 17, fsBase: 18, fsMono: 16, icon: 24, iconSm: 18, dot: 12, hit: 40, row: 60, aside: 384, logMax: 1400 },
+  s: { fsXs: 12, fsSm: 14, fsBase: 16, fsMono: 13, icon: 18, iconSm: 14, dot: 8, hit: 32, row: 44, aside: 300, logMax: 1100 },
+  m: { fsXs: 13, fsSm: 15, fsBase: 16, fsMono: 14, icon: 20, iconSm: 16, dot: 10, hit: 36, row: 52, aside: 340, logMax: 1152 },
+  ml: { fsXs: 13, fsSm: 16, fsBase: 17, fsMono: 15, icon: 22, iconSm: 17, dot: 11, hit: 38, row: 56, aside: 400, logMax: 1260 },
+  l: { fsXs: 14, fsSm: 17, fsBase: 18, fsMono: 16, icon: 24, iconSm: 18, dot: 12, hit: 40, row: 60, aside: 460, logMax: 1400 },
 };
 
 /** The CSS variable of each field of the table. */

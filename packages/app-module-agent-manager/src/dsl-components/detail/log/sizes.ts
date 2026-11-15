@@ -13,4 +13,8 @@ export const BOTTOM_SLACK_PX = 24;
 export const TOP_LOAD_PX = 80;
 /** Entries per answer. */
 export const PAGE_LIMIT = 100;
+/** Entries per page while searching back for a call (the largest the route allows): fewer requests. */
+export const LOCATE_PAGE_LIMIT = 500;
+/** Most pages one search for a call loads before it stops and offers to go on (about 20 000 entries). */
+export const LOCATE_MAX_PAGES = 40;
 export const POLL_MS = 2000;
