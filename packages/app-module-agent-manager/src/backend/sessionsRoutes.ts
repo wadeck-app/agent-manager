@@ -156,7 +156,8 @@ function registerHealth(kit: RouteKit): void {
       const unreadable = registry.unreadable.length > 0 ? `; ${registry.unreadable.length} unreadable file(s)` : '';
       checks.push({ name: 'session-registry', ok: true, detail: `${dir}: ${registry.sessions.length} session(s)${unreadable}` });
     } else {
-      checks.push({ name: 'session-registry', ok: false, detail: `${registry.error.message}. ${registry.error.hint}` });
+      const { message, hint } = registry.error;
+      checks.push({ name: 'session-registry', ok: false, detail: `${message}. ${hint}` });
     }
     try {
       await readUserState(kit.dataDir);
