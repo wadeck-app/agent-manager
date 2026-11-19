@@ -35,7 +35,7 @@ function deadPid(): number {
 
 describe('GET /sessions', () => {
   it('registers the list, summary, log (and its locate) and reply routes the two user-state write routes and the two transport setting routes, nothing else', () => {
-    expect(makeModule().routes.sort()).toEqual(['GET /csrf', 'GET /sessions', 'GET /sessions/:sessionId/log', 'GET /sessions/:sessionId/log/locate', 'GET /sessions/:sessionId/reply/status', 'GET /summary', 'POST /sessions/:sessionId/pin', 'POST /sessions/:sessionId/reply', 'POST /sessions/:sessionId/seen', 'PUT /reply/transport/default', 'PUT /sessions/:sessionId/reply/transport']);
+    expect(makeModule().routes.sort()).toEqual(['GET /csrf', 'GET /health', 'GET /sessions', 'GET /sessions/:sessionId/log', 'GET /sessions/:sessionId/log/locate', 'GET /sessions/:sessionId/reply/status', 'GET /summary', 'POST /sessions/:sessionId/pin', 'POST /sessions/:sessionId/reply', 'POST /sessions/:sessionId/seen', 'PUT /reply/transport/default', 'PUT /sessions/:sessionId/reply/transport']);
   });
 
   it('answers the alive session with the derived texts and the generation time', async () => {
@@ -139,5 +139,26 @@ describe('GET /summary', () => {
     const missing = await makeModule().call('GET', '/summary');
     expect(missing.body).toMatchObject({ ok: false, error: { code: 'missing-dir' } });
     expect(missing.body.errorText).toContain('does not exist');
+  });
+});
+
+describe('GET /health', () => {
+  it('is ok with the registry and user state checks when the registry folder exists', async () => {
+    write(`${process.pid}.json`, entry(process.pid));
+    write('9.json', 'nope');
+    const { status, body } = await makeModule({ dataDir: dir }).call('GET', '/health');
+    expect(status).toBe(200);
+    expect(body.checks.filter((check: { ok: boolean }) => !check.ok)).toEqual([]);
+    expect(body.ok).toBe(true);
+    expect(body.checks.map((check: { name: string }) => check.name)).toEqual(['session-registry', 'user-state']);
+    expect(body.checks[0].detail).toContain('1 unreadable file(s)');
+  });
+
+  it('fails with an actionable detail when the registry folder is missing', async () => {
+    process.env['AGENT_MANAGER_SESSIONS_DIR'] = join(dir, 'missing');
+    const { body } = await makeModule({ dataDir: dir }).call('GET', '/health');
+    expect(body.ok).toBe(false);
+    expect(body.checks[0]).toMatchObject({ name: 'session-registry', ok: false });
+    expect(body.checks[0].detail).toContain('does not exist');
   });
 });

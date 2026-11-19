@@ -142,6 +142,32 @@ function registerSummary(kit: RouteKit): void {
   });
 }
 
+/**
+ * GET /health: the update test of app-core-cli (contract: app-core module-authoring.md, "Update test of app-core-cli"). Read-only, no side effect:
+ * the Claude Code registry folder can be read (the one source this module cannot work without) and the user state file is readable or absent.
+ * Single unreadable registry files are reported in the detail but do not fail the check (the page lists them itself).
+ */
+function registerHealth(kit: RouteKit): void {
+  kit.route('GET', '/health', async () => {
+    const dir = resolveSessionsDir(process.env);
+    const registry = await readSessionRegistry(dir, { now: Date.now() });
+    const checks: { name: string; ok: boolean; detail?: string }[] = [];
+    if (registry.ok) {
+      const unreadable = registry.unreadable.length > 0 ? `; ${registry.unreadable.length} unreadable file(s)` : '';
+      checks.push({ name: 'session-registry', ok: true, detail: `${dir}: ${registry.sessions.length} session(s)${unreadable}` });
+    } else {
+      checks.push({ name: 'session-registry', ok: false, detail: `${registry.error.message}. ${registry.error.hint}` });
+    }
+    try {
+      await readUserState(kit.dataDir);
+      checks.push({ name: 'user-state', ok: true });
+    } catch (error) {
+      checks.push({ name: 'user-state', ok: false, detail: `${getErrorMessage(error)}${error instanceof UserStateError ? `. ${error.hint}` : ''}` });
+    }
+    return ok({ ok: checks.every((check) => check.ok), checks });
+  });
+}
+
 /** A user state that cannot be read or written is a server-side problem the user can fix: 500 with the file and what to do (never silently emptied). */
 async function guarded<T>(run: () => Promise<T>): Promise<T> {
   try {
@@ -194,6 +220,7 @@ export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {
   registerUserState(kit);
   registerSessions(kit);
   registerSummary(kit);
+  registerHealth(kit);
   registerLogRoute(kit);
   registerReplyRoutes(kit, options);
 }

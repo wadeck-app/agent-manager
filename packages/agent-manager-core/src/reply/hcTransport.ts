@@ -430,7 +430,7 @@ export function createHcTransport(options: HcTransportOptions = {}): ReplyTransp
     id: HC_TRANSPORT_ID,
     kind: 'direct',
     deliveredAs: 'typed',
-    describe: () => "herdr-core terminal typing (`hc send`): the reply is typed into the terminal of the session as the user, queued while the agent works, refused while a dialog is open",
+    describe: () => "herdr-core terminal typing (`hc send`): only for sessions started in a herdr-core terminal (hc cannot adopt a terminal it did not create); the reply is typed there as the user, queued while the agent works, refused while a dialog is open",
     probe,
     send,
   };
