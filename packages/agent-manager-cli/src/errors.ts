@@ -10,11 +10,26 @@ export class UsageError extends Error {
   }
 }
 
-/** A command failed for a reason the user can act on (exit code 1, message only, no stack). */
+/** A command failed for a reason the user can act on (exit code 1 unless said otherwise, message only, no stack). */
 export class CliError extends Error {
-  constructor(message: string) {
+  /** The exit code of the process. */
+  readonly exitCode: number;
+  /** Stable identifier written to the log. */
+  readonly logCode: string;
+
+  constructor(message: string, exitCode = 1, logCode = 'CLI_ERROR') {
     super(message);
     this.name = 'CliError';
+    this.exitCode = exitCode;
+    this.logCode = logCode;
+  }
+}
+
+/** The daemon is not running or did not answer: exit code 3 (decision 40). */
+export class DaemonUnreachableError extends CliError {
+  constructor(message: string) {
+    super(message, 3, 'DAEMON_UNREACHABLE');
+    this.name = 'DaemonUnreachableError';
   }
 }
 

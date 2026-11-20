@@ -26,17 +26,18 @@ describe('run', () => {
     }
   });
 
-  it.each(['start', 'stop', 'status'])('%s fails explicitly: exit 1 and the not-implemented message, never a success', async (name) => {
-    const result = await h.cli([name]);
-    expect(result.code).toBe(1);
-    expect(result.err).toContain('daemon not implemented yet (planned M1b)');
-    expect(result.err).toContain(`'agent-manager ${name}'`);
-    expect(result.out).toBe('');
+  // start, stop and status are real since the daemon milestone (see commands/daemon.test.ts): never run here, a run must not start a daemon.
+  it('no longer reports start, stop and status as not implemented, and lists their summaries', async () => {
+    const result = await h.cli(['--help']);
+    expect(result.out).not.toContain('daemon not implemented yet');
+    expect(result.out).toMatch(/agent-manager start +Start the daemon/);
+    expect(result.out).toMatch(/agent-manager stop +Stop the daemon/);
+    expect(result.out).toMatch(/agent-manager status +Show the daemon/);
   });
 
-  it('fails explicitly in --json mode too (no JSON success on stdout)', async () => {
-    const result = await h.cli(['start', '--json']);
-    expect(result.code).toBe(1);
+  it('exits 3 (daemon unreachable) for status when no daemon runs in the isolated config folder', async () => {
+    const result = await h.cli(['status']);
+    expect(result.code).toBe(3);
     expect(result.out).toBe('');
   });
 
@@ -81,7 +82,7 @@ describe('run', () => {
 
   it('rejects an unknown option and an unexpected argument', async () => {
     expect((await h.cli(['start', '--nope'])).code).toBe(2);
-    const extra = await h.cli(['start', 'extra']);
+    const extra = await h.cli(['status', 'extra']);
     expect(extra.code).toBe(2);
     expect(extra.err).toContain("expected no argument, got 'extra'");
   });

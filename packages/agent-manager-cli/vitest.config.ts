@@ -9,6 +9,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^@wadeck-app\/agent-manager-core$/, replacement: `${coreSrc}index.ts` },
+      { find: /^@wadeck-app\/agent-manager-core\/launch$/, replacement: `${coreSrc}launch/index.ts` },
       { find: /^@wadeck-app\/agent-manager-core\/reply$/, replacement: `${coreSrc}reply/index.ts` },
       { find: /^@wadeck-app\/agent-manager-core\/transcript$/, replacement: `${coreSrc}transcript/index.ts` },
     ],

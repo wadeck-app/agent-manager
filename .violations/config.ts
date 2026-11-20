@@ -18,5 +18,7 @@ export default {
   rules: {
     // src/dsl-components/index.ts is the dsl-lib entry the app-core SDK requires by name (module-authoring.md, "dsl-lib"): it cannot be renamed
     'ts/no-barrel-index': { $exclude: ['**/src/dsl-components/index.ts'] },
+    // the session host sits one folder deeper (launch/host/) and the core package has no path alias: its imports of ../../errors.js and ../../reply/* stay relative
+    'ts/no-deep-relative': { $exclude: ['packages/agent-manager-core/src/launch/host/**'] },
   },
 } satisfies ViolationsConfig

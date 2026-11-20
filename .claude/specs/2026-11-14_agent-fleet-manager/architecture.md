@@ -2,7 +2,7 @@
 
 **Version:** v0.3
 **Last updated:** 2026-11-14
-**Status:** Draft (derived from decisions 1-41; most decisions are provisional; design review 1 applied, see `research/design-review-1.md`)
+**Status:** Draft (derived from decisions 1-41; most decisions are provisional; design review 1 applied, see `research/design-review-1.md`). Built so far: the M1b slice, plus the daemon of the owned-sessions plan (`.claude/plans/2026-11-19_owned-sessions-x1-x3.md`, Phase 2): `start`/`stop`/`status`, session host, SSE, `owned-sessions.json`. Hooks, transcripts and the rest of this document are not built.
 
 Labels: **proposed** = design choice made here, reversible; **agent report** / **UNVERIFIED** / **[V]** as in `research/`. Nothing below is built; every measured number comes from `research/poc-report.md` (headless sessions only).
 
@@ -113,6 +113,8 @@ The module backend reads state files directly (queue pattern) and calls the daem
 | Start | on demand from the first hook or `start` (detached and hidden on Windows, `docs/windows-hidden-process.md`; M0 checks it survives the end of the session that started it and that no console flashes); registers the app-core module on every start (best-effort, as `AppCoreRegistration.ts`); purges history, logs and uploads past 90 days or 200 MB (decision 39) |
 | Idle shutdown | proposed: when no live session is registered for a grace period (value set at M1); queue uses 60 s with no pending work |
 | Hook ingress | `POST /hook` small JSON `{event, payload ref}`; payloads stored by reference (decision 10) |
+| Built: two servers | Control server (kit, 47930): `/version`, `/health`, `POST /status`, `POST /shutdown`, `POST /quit`. Sessions API (own server, OS-chosen port published as `apiPort` in `/version`), same `health_token`: `GET /status /sessions /sessions/:id /sessions/:id/permissions /events`, `POST /sessions/launch /sessions/:id/{send,interrupt,permission-mode,stop,resume,forget} /sessions/:id/permissions/:requestId`. The kit server only routes `POST /<command>`, so SSE and path parameters need the second server |
+| Built: owned sessions | X1 `stream-json` children are owned by the daemon (they end with it, proven); X3 `hc` terminals are launched but not owned (replies stay on the hc transport). `owned-sessions.json` (versioned, atomic): at start a session that was live becomes `interrupted`, `resume` runs `--resume`, the lost turn is not replayed. Stop closes every stdin, kills after a timeout, then exits. A daemon crash cannot be handled: children die, next start lists them `interrupted`; leftover pids are listed (`findLeftovers`, for `doctor`), never killed. Exit codes: 0, 1, 2 usage, 3 unreachable (`status`), 70 |
 
 ### State model (decision 14, refined by `research/w-warp-herdr-hooks.md`; the event -> state mapping is still UNVERIFIED on real payloads, M2 checks it)
 

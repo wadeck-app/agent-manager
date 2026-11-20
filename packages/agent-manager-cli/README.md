@@ -2,7 +2,7 @@
 
 `agent-manager`: follow and answer your Claude Code sessions.
 
-**Status: M1b partial slice.** The only feature is a Sessions overview in app-core (`agent-manager cli register`), fed by the Claude Code session registry (`~/.claude/sessions`, override `AGENT_MANAGER_SESSIONS_DIR`). Liveness is pid-only (a reused pid shows a dead session alive). No daemon, hooks, transcripts, replies or live push: `start`, `stop` and `status` exit 1 with `daemon not implemented yet`.
+**Status: M1b partial slice.** The only feature is a Sessions overview in app-core (`agent-manager cli register`), fed by the Claude Code session registry (`~/.claude/sessions`, override `AGENT_MANAGER_SESSIONS_DIR`). Liveness is pid-only (a reused pid shows a dead session alive). Daemon (owned sessions): `start [--detach]`, `stop`, `status` (exit 3 when it is not running); no hooks or transcripts yet.
 
 ## Install
 
@@ -28,7 +28,7 @@ agent-manager -v
 | `agent-manager cli rollback` | works: reinstalls the previous version |
 | `agent-manager cli logs [--follow]` | works |
 | `agent-manager cli self-check` | works |
-| `agent-manager start` / `stop` / `status` | fails: daemon not implemented yet |
+| `agent-manager start [--detach]` / `stop` / `status` | the daemon that hosts the sessions agent-manager launches; port 47930 or `AGENT_MANAGER_DAEMON_PORT`; `status` exits 3 when it is not running |
 | `agent-manager cli register` | works: shows the Agents pages in app-core (see below) |
 | `agent-manager cli unregister` | works: removes them, and stops updates from registering them again |
 

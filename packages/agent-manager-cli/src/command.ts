@@ -1,4 +1,5 @@
 import type { Options, OptionSpecs } from './args.js';
+import type { ExitCodeDoc } from './exitCodes.js';
 import type { InvocationLog } from './invocationLog.js';
 
 /** Where the CLI writes: one line per call, the newline is added by the writer. */
@@ -30,5 +31,7 @@ export interface Command {
   /** Required positional arguments. */
   args: string[];
   optionalArgs?: string[];
+  /** The exit codes of this command beyond the shared 0, 1, 2 and 70 (printed by --help, tested). */
+  exitCodes?: readonly ExitCodeDoc[];
   run: (context: Context, args: string[]) => CommandOutput | Promise<CommandOutput>;
 }

@@ -3,15 +3,13 @@ import type { Command, CommandOutput, Context, Io } from './command.js';
 import { COMMANDS } from './commands/commands.js';
 import { defaultConfigDir } from './configDir.js';
 import { type Dispatch, splitCommand } from './dispatch.js';
+import { EXIT } from './exitCodes.js';
 import { CliError, UsageError, getErrorMessage } from './errors.js';
 import { argsSyntax, commandHelp, groupHelp, topHelp } from './help.js';
 import { type InvocationLog, openInvocationLog } from './invocationLog.js';
 import { optionsOf } from './options.js';
 import { currentVersion } from './version.js';
 
-const EXIT_ERROR = 1;
-const EXIT_USAGE = 2;
-const EXIT_UNEXPECTED = 70;
 
 function wantsHelp(argv: readonly string[]): boolean {
   return argv.includes('--help') || argv.includes('-h');
@@ -85,19 +83,19 @@ function report(error: unknown, io: Io): Failure {
   if (error instanceof UsageError) {
     io.err(`error: ${getErrorMessage(error)}`);
     io.err(`Run '${error.command} --help' for usage.`);
-    return { exitCode: EXIT_USAGE, code: 'USAGE' };
+    return { exitCode: EXIT.usage, code: 'USAGE' };
   }
   if (error instanceof CliError) {
     io.err(`error: ${getErrorMessage(error)}`);
-    return { exitCode: EXIT_ERROR, code: 'CLI_ERROR' };
+    return { exitCode: error.exitCode, code: error.logCode };
   }
   io.err('unexpected error (this is a bug of the agent-manager CLI, please report it with the output below):');
   io.err(error instanceof Error ? (error.stack ?? String(error)) : String(error));
-  return { exitCode: EXIT_UNEXPECTED, code: 'UNEXPECTED' };
+  return { exitCode: EXIT.unexpected, code: 'UNEXPECTED' };
 }
 
 /**
- * Runs the CLI and returns the exit code: 0 success, 1 a CliError, 2 a usage error, 70 an unexpected exception.
+ * Runs the CLI and returns the exit code: 0 success, 1 a CliError (3 when the daemon is unreachable: see exitCodes.ts), 2 a usage error, 70 an unexpected exception.
  * Never touches `process`: the caller supplies argv, the writers, the environment and the working directory.
  * Every invocation is logged in <config folder>/logs (see invocationLog.ts).
  */

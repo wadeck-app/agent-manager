@@ -19,6 +19,11 @@ import { appendFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 
 const argv = process.argv.slice(2);
+// `claude --version`: answered before anything is logged (the daemon asks it at every launch). FAKE_CLAUDE_VERSION_FAILS=1 makes it fail.
+if (argv.includes('--version')) {
+  process.stdout.write('9.9.9 (Claude Code fake)\n');
+  process.exit(process.env.FAKE_CLAUDE_VERSION_FAILS === '1' ? 4 : 0);
+}
 const log = (entry) => {
   if (process.env.FAKE_CLAUDE_LOG) {
     appendFileSync(process.env.FAKE_CLAUDE_LOG, `${JSON.stringify(entry)}\n`);
