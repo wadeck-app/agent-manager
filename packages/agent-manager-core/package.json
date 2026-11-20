@@ -26,6 +26,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./launch": {
+      "types": "./dist/launch/index.d.ts",
+      "default": "./dist/launch/index.js"
+    },
     "./reply": {
       "types": "./dist/reply/index.d.ts",
       "default": "./dist/reply/index.js"

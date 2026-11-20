@@ -42,7 +42,7 @@ Question (user): a session blocked on a permission prompt cannot be answered in 
 | `hc run --bg --no-parent --no-notify ... node launcher.mjs` (launcher starts `claude --model haiku --setting-sources project --permission-mode default` with Bedrock env) | terminal live, workspace trust dialog shown |
 | `hc keys t down enter` on the trust dialog | accepted ("Yes, I trust this folder") |
 | Tool prompt displayed; `hc get` | `state: blocked`, `kind: permission`, `msg: approve Bash: touch exp2-perm-file.txt` |
-| `hc read` of the dialog | `Do you want to proceed?` / `1. Yes` / `2. Yes, and always allow access to <dir> from this project` / `3. No` / `Esc to cancel · Tab to amend` |
+| `hc read` of the dialog | `Do you want to proceed?` / `1. Yes` / `2. Yes, and always allow access to <dir> from this project` / `3. No` / `Esc to cancel [middle dot] Tab to amend` |
 | `hc keys t enter` | the command ran (file created), status `done` within seconds |
 | Not tested | `esc` (documented "Esc to cancel", `keybindings.md`: `confirm:no` = Escape, `confirm:yes` = Enter, Up/Down move, Shift+Tab allows for the session), option 2, option 3, a user typing at the same moment |
 | Cleanup | `hc kill amexp-perm` then `hc rm amexp-perm` (only my terminal); `hc ls` shows none left |

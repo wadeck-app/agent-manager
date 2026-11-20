@@ -1,7 +1,7 @@
-import { spawn } from 'node:child_process';
-import { getErrorMessage } from '../errors.js';
 import type { Session } from '../session.js';
 import { ReplyError } from './errors.js';
+import { DEFAULT_HC_COMMAND, asRecord, asText, childEnvironment, createHcRunner, excerpt, failureOf, parseJson } from './hcRunner.js';
+import type { HcRun } from './hcRunner.js';
 import type { ProbeCheck, ProbeResult, ReplyMessage, ReplyTransport, SendResult } from './types.js';
 
 /*
@@ -18,7 +18,7 @@ import type { ProbeCheck, ProbeResult, ReplyMessage, ReplyTransport, SendResult 
  */
 
 export const HC_TRANSPORT_ID = 'hc';
-export const DEFAULT_HC_COMMAND = 'hc';
+export { DEFAULT_HC_COMMAND, childEnvironment };
 /** hc waits up to 60 s (config `draft_wait`) while a person has an unfinished draft, then about 3 s of quiet. */
 export const DEFAULT_SEND_TIMEOUT_MS = 90_000;
 export const DEFAULT_QUERY_TIMEOUT_MS = 10_000;
@@ -28,10 +28,7 @@ export const DEFAULT_SNAPSHOT_TTL_MS = 15_000;
 /** CreateProcess refuses a command line above 32767 characters; quotes and backslashes are escaped (counted conservatively). */
 const WINDOWS_COMMAND_LINE_LIMIT = 30_000;
 const POSIX_ARGUMENT_LIMIT_BYTES = 100_000;
-const MAX_OUTPUT_BYTES = 2 * 1024 * 1024;
 const LIST_CONCURRENCY = 4;
-/** Environment variable that makes hc add a `<hc from="tN">` tag around the text: removed from the child. */
-const CALLER_VARIABLE = 'HC_TERMINAL_ID';
 
 export interface HcTransportOptions {
   /** Program to run. Default 'hc' (found on the PATH, started without a shell). */
@@ -45,19 +42,6 @@ export interface HcTransportOptions {
   snapshotTtlMs?: number;
   clock?: () => number;
   platform?: NodeJS.Platform;
-}
-
-interface HcRun {
-  code: number | null;
-  stdout: string;
-  stderr: string;
-}
-
-/** What hc says when it refuses: `{"error":{"kind","message","hint"}}`. */
-interface HcFailure {
-  kind: string;
-  message: string;
-  hint: string;
 }
 
 interface TerminalFacts {
@@ -74,25 +58,6 @@ type Resolved =
   | { ok: true; terminal: TerminalFacts; examined: number }
   | { ok: false; code: string; reason: string; fix: string; examined: number };
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : undefined;
-}
-
-function asText(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined;
-}
-
-/** The environment of the child: the given one without HC_TERMINAL_ID (any case), so that hc adds no `<hc from=...>` tag. */
-export function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
-  for (const [name, value] of Object.entries(base)) {
-    if (value !== undefined && name.toUpperCase() !== CALLER_VARIABLE) {
-      env[name] = value;
-    }
-  }
-  return env;
-}
-
 /**
  * The arguments of `hc send`. The one place that builds them: there is no --force, no --wait and no --if (the registry status "done" matches neither
  * idle nor working, so --if would refuse a finished turn; the blocked check is done before, and hc repeats it). `--` ends the options so that a
@@ -106,92 +71,18 @@ export function buildSendArgs(address: string, text: string): string[] {
   return args;
 }
 
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
-  }
-}
-
-function failureOf(run: HcRun): HcFailure | undefined {
-  for (const text of [run.stdout, run.stderr]) {
-    const error = asRecord(asRecord(parseJson(text.trim()))?.['error']);
-    if (error !== undefined) {
-      return { kind: asText(error['kind']) ?? 'unknown', message: asText(error['message']) ?? '(no message)', hint: asText(error['hint']) ?? '' };
-    }
-  }
-  return undefined;
-}
-
-function excerpt(text: string): string {
-  const flat = text.replace(/\s+/g, ' ').trim();
-  return flat.length > 200 ? `${flat.slice(0, 200)}...` : flat;
-}
-
-const MISSING_FIX = 'install herdr-core and put `hc` on the PATH of the process that runs agent-manager (check with: hc --version); or select the socket transport';
-
 export function createHcTransport(options: HcTransportOptions = {}): ReplyTransport {
-  const command = options.command ?? DEFAULT_HC_COMMAND;
-  const commandArgs = options.commandArgs ?? [];
-  const environment = options.env ?? ((): NodeJS.ProcessEnv => process.env);
+  const runner = createHcRunner({ ...(options.command === undefined ? {} : { command: options.command }), ...(options.commandArgs === undefined ? {} : { commandArgs: options.commandArgs }), ...(options.env === undefined ? {} : { env: options.env }) });
+  const command = runner.command;
   const sendTimeoutMs = options.sendTimeoutMs ?? DEFAULT_SEND_TIMEOUT_MS;
   const queryTimeoutMs = options.queryTimeoutMs ?? DEFAULT_QUERY_TIMEOUT_MS;
   const snapshotTtlMs = options.snapshotTtlMs ?? DEFAULT_SNAPSHOT_TTL_MS;
   const clock = options.clock ?? Date.now;
   const platform = options.platform ?? process.platform;
 
-  /** Starts hc with an argument array (no shell). Throws a ReplyError when hc is missing, cannot start, or does not end within the timeout. */
+  /** Starts hc through the shared runner (no shell); the timeout of a send says that the text may have been typed. */
   function runHc(args: readonly string[], timeoutMs: number, what: string): Promise<HcRun> {
-    return new Promise((resolve, reject) => {
-      let settled = false;
-      let stdout = '';
-      let stderr = '';
-      let overflow = false;
-      const child = spawn(command, [...commandArgs, ...args], { env: childEnvironment(environment()), stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
-      const finish = (action: () => void): void => {
-        if (!settled) {
-          settled = true;
-          clearTimeout(timer);
-          action();
-        }
-      };
-      const timer = setTimeout(() => {
-        child.kill();
-        finish(() => reject(new ReplyError('hc-timeout', `hc did not answer within ${timeoutMs} ms (${what}); it was stopped`, what === 'send' ? 'the text may or may not have been typed: look at the terminal and the transcript before sending it again; a person with an unfinished draft in the terminal delays the send (hc setting draft_wait)' : 'check that herdr-core is running (hc server status), then retry')));
-      }, timeoutMs);
-      const collect = (current: string, chunk: Buffer): string => {
-        if (current.length + chunk.length > MAX_OUTPUT_BYTES) {
-          overflow = true;
-          return current;
-        }
-        return current + chunk.toString('utf8');
-      };
-      child.stdout.on('data', (chunk: Buffer) => {
-        stdout = collect(stdout, chunk);
-      });
-      child.stderr.on('data', (chunk: Buffer) => {
-        stderr = collect(stderr, chunk);
-      });
-      child.once('error', (error: NodeJS.ErrnoException) => {
-        finish(() => {
-          if (error.code === 'ENOENT') {
-            reject(new ReplyError('hc-missing', `the program '${command}' was not found (${what})`, MISSING_FIX));
-          } else {
-            reject(new ReplyError('hc-cannot-start', `the program '${command}' cannot be started (${error.code ?? 'error'}: ${getErrorMessage(error)})`, MISSING_FIX));
-          }
-        });
-      });
-      child.once('close', (code) => {
-        finish(() => {
-          if (overflow) {
-            reject(new ReplyError('hc-output-too-large', `hc printed more than ${MAX_OUTPUT_BYTES} bytes (${what})`, 'report this: the hc output format changed'));
-          } else {
-            resolve({ code, stdout, stderr });
-          }
-        });
-      });
-    });
+    return runner.run(args, timeoutMs, what, what === 'send' ? 'the text may or may not have been typed: look at the terminal and the transcript before sending it again; a person with an unfinished draft in the terminal delays the send (hc setting draft_wait)' : undefined);
   }
 
   /** Runs a read-only hc query; returns its JSON, or throws the ReplyError that says why hc could not answer. */
