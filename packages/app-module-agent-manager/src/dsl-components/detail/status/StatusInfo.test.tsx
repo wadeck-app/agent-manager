@@ -25,7 +25,7 @@ function show(status?: SessionStatusDto, target = session) {
   if (status !== undefined) {
     publishLogStatus(target.sessionId, status);
   }
-  return render(<DetailHeader session={target} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} />);
+  return render(<DetailHeader session={target} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} />);
 }
 
 beforeEach(() => resetPublishedStatus());

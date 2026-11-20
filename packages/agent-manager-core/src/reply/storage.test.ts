@@ -40,6 +40,10 @@ describe('composeMessageText', () => {
     expect(() => composeMessageText({ text: 'a', imagePaths: ['rel/a.png'], id: 'm1' })).toThrow(/absolute/);
     expect(() => composeMessageText({ text: 'a', imagePaths: [], id: 'a b' })).toThrow(/identifier/);
   });
+  it('originMarker null: no marker line at all (the text is delivered as typed)', () => {
+    expect(composeMessageText({ text: 'fix it', imagePaths: ['/tmp/a.png'], id: 'm1', originMarker: null }).split('\n')).toEqual(['fix it', 'The user attached an image: /tmp/a.png. Read it.']);
+    expect(composeMessageText({ text: 'fix it', imagePaths: [], id: 'm1', originMarker: null })).toBe('fix it');
+  });
   it('accepts an image-only reply', () => {
     expect(composeMessageText({ text: '', imagePaths: ['/tmp/a.png'], id: 'm1' })).toBe('[web reply via agent-manager #m1]\nThe user attached an image: /tmp/a.png. Read it.');
   });

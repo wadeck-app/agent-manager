@@ -4,6 +4,7 @@ import { resolveProjectsDir, transcriptPath } from '@wadeck-app/agent-manager-co
 import type { LocateOk } from '../commons/api.js';
 import { fail, shaped } from './apiError.js';
 import { RequestError, type RouteKit, ok, queryValue } from './routeKit.js';
+import type { OwnedSource } from './daemon/ownedSource.js';
 import { findSession } from './sessionLookup.js';
 
 /** Bytes read at a time while looking for the call. */
@@ -129,7 +130,7 @@ export async function findToolCallLine(path: string, toolUseId: string): Promise
 }
 
 /** GET /sessions/:sessionId/log/locate?toolUseId=<id> (see commons/api.ts). */
-export function registerLocateRoute(kit: RouteKit): void {
+export function registerLocateRoute(kit: RouteKit, owned: OwnedSource): void {
   kit.route(
     'GET',
     '/sessions/:sessionId/log/locate',
@@ -138,7 +139,7 @@ export function registerLocateRoute(kit: RouteKit): void {
       if (toolUseId === undefined || !TOOL_USE_ID.test(toolUseId)) {
         throw new RequestError(400, `'toolUseId' must be a tool_use id (letters, digits, '_', '-', '.', at most 128 characters), got '${(toolUseId ?? '').slice(0, 40)}'`, 'Pass the toolUseId of a sub-agent of the log answer.');
       }
-      const found = await findSession(req.params?.['sessionId']);
+      const found = await findSession(req.params?.['sessionId'], owned);
       if ('registryError' in found) {
         return fail(200, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
       }

@@ -11,6 +11,13 @@ export const DELIVERED_AS_LINE: Record<TransportStatusDto['deliveredAs'], string
 /** The warning about a typed delivery lives in a tooltip only (never a permanent line). */
 export const TYPED_WARNING = 'The text is typed into the terminal as if you had written it: the agent sees it as your own message, not as a message from another session. A dialog open in that terminal blocks it.';
 
+/** The warning of a typed delivery, for the transport that does it: `owned` writes a prompt to the child, there is no terminal. */
+export function typedWarning(transportId: string): string {
+  return transportId === 'owned'
+    ? 'The text is sent to the session as a prompt from you, with no wrapper: the agent sees it as your own message, not as a message from another session.'
+    : TYPED_WARNING;
+}
+
 const ACTION = `rounded border border-border px-2 py-0.5 text-xs text-content hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 
 export interface TransportRowProps {
@@ -36,7 +43,7 @@ export function TransportRow({ transport, busy, onSession, onDefault }: Transpor
         <DeliveryIcon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
         <span>{DELIVERED_AS_LINE[deliveredAs]}</span>
         {deliveredAs === 'typed' ? (
-          <Tooltip content={TYPED_WARNING}>
+          <Tooltip content={typedWarning(transportId)}>
             <button type="button" aria-label="About typed delivery" className={`inline-flex rounded text-muted hover:text-content ${FOCUS_RING}`}>
               <Info aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </button>

@@ -82,3 +82,20 @@ describe('hideWebQueueLines', () => {
     expect(hideWebQueueLines([queue('d', 'dequeue')]).map((entry) => entry.key)).toEqual(['d']);
   });
 });
+
+describe('reconcile: a reply sent through the owned transport (the sdk origin)', () => {
+  // A stream-json child writes the user line with no wrapper and no human origin (observed: source 'other'): it is matched by its text and the time.
+  const sdkLine = (key: string, text: string, timestamp = NOW + 800): LogEntry => ({ ...userPrompt(key, text, timestamp), source: 'other' }) as LogEntry;
+
+  it('is echoed by text, so the sent message becomes the user line of the timeline', () => {
+    expect(echoes(sdkLine('s', 'run the tests'), message({ text: 'run the tests' }))).toBe(true);
+    const { echoed, waiting } = reconcilePending([sdkLine('s', 'run the tests')], [message({ text: 'run the tests' })]);
+    expect(echoed).toHaveLength(1);
+    expect(waiting).toHaveLength(0);
+  });
+
+  it('does not take an older line or a different text for its echo', () => {
+    expect(echoes(sdkLine('s', 'run the tests', NOW - 60_000), message({ text: 'run the tests' }))).toBe(false);
+    expect(echoes(sdkLine('s', 'something else'), message({ text: 'run the tests' }))).toBe(false);
+  });
+});

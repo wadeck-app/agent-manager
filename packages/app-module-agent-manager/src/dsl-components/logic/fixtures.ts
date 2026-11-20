@@ -1,4 +1,4 @@
-import type { SessionRowDto } from '../shared.js';
+import type { OwnedSessionDto, SessionRowDto } from '../shared.js';
 
 let counter = 0;
 
@@ -24,9 +24,34 @@ export function row(overrides: Partial<SessionRowDto> = {}): SessionRowDto {
     lastActivity: '',
     activityNote: '',
     subagentCount: 0,
+    launchedBy: 'discovered',
+    host: null,
+    pendingPermissions: 0,
     harness: 'Claude Code 2.1.325',
     harnessVariant: 'success',
     version: '2.1.325',
     ...overrides,
   };
+}
+
+/** One owned session record as the daemon reports it (GET /owned), for tests and stories. */
+export function ownedDto(overrides: Partial<OwnedSessionDto> = {}): OwnedSessionDto {
+  return {
+    id: '11111111-1111-4111-8111-111111111111',
+    hostKind: 'stream-json',
+    cwd: '/work/shop',
+    claudeVersion: '2.1.325 (Claude Code)',
+    startedAt: 1_000_000,
+    status: 'live',
+    state: 'idle',
+    resumable: false,
+    pendingPermissions: 0,
+    messages: [],
+    ...overrides,
+  };
+}
+
+/** A row of a session launched from agent-manager: a live Web session unless the overrides say otherwise. */
+export function ownedRow(overrides: Partial<SessionRowDto> = {}): SessionRowDto {
+  return row({ launchedBy: 'agent-manager', host: 'stream-json', ownedState: 'idle', ...overrides });
 }

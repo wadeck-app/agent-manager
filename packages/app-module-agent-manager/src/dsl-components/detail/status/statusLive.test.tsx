@@ -34,7 +34,7 @@ describe('the header follows the log poll', () => {
     );
     render(
       <>
-        <DetailHeader session={session} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} />
+        <DetailHeader session={session} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} />
         <LogViewer session={session} />
       </>,
     );
@@ -57,7 +57,7 @@ describe('the header follows the log poll', () => {
     );
     render(
       <>
-        <DetailHeader session={session} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} />
+        <DetailHeader session={session} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} />
         <LogViewer session={session} />
       </>,
     );

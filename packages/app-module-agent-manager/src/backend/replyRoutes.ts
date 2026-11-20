@@ -1,6 +1,6 @@
 import { readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { defaultConfigDir, getErrorMessage, readSessionRegistry, resolveSessionsDir, type Session } from '@wadeck-app/agent-manager-core';
+import { defaultConfigDir, getErrorMessage, readSessionRegistry, resolveSessionsDir, type RegistryResult, type Session } from '@wadeck-app/agent-manager-core';
 import {
   DEFAULT_REPLY_CONFIG,
   DELIVERED_AS_TEXT,
@@ -15,6 +15,7 @@ import {
   setSessionTransport,
   type AuditRecord,
   type DeliveryRecord,
+  type DeliveryStatus,
   type ReplyService,
   type ReplyTranscriptEntry,
   type ReplyTransport,
@@ -22,14 +23,24 @@ import {
 import { readTail, resolveProjectsDir, transcriptPath, type Entry } from '@wadeck-app/agent-manager-core/transcript';
 import type { DeliveryStateName, DeliveryUi, ReplyDefaultTransportSetOk, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyStatusLimits, ReplyStatusOk, ReplyTransportSetOk, TransportStatusDto } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
+import type { DaemonApi } from './daemon/daemonApi.js';
+import { ownedDeliveryStatus } from './daemon/ownedDelivery.js';
+import { sessionFromOwned } from './daemon/ownedJoin.js';
+import type { OwnedSource } from './daemon/ownedSource.js';
+import { OWNED_TRANSPORT_ID, createOwnedTransport } from './daemon/ownedTransport.js';
 import { findSession } from './sessionLookup.js';
 import type { RouteAnswer, RouteKit } from './routeKit.js';
 import { ok, queryValue } from './routeKit.js';
 
 /** What a test (or a future caller) can replace; app-core calls the module with the context only. */
 export interface ModuleOptions {
-  /** The transports the module offers. Default: the implemented ones (socket, hc). */
+  /**
+   * The transports the module offers. Default: the implemented ones (socket, hc) plus `owned` (see below). A list given here is used as it is, plus `owned`
+   * only when `daemon` is given too (a test that lists its transports does not get one it did not ask for).
+   */
   transports?: readonly ReplyTransport[];
+  /** The client of the agent-manager daemon (owned sessions). Default: found like the CLI does (config folder, config.port, health_token). Tests give their own. */
+  daemon?: DaemonApi;
 }
 
 /** Images of one reply. */
@@ -158,7 +169,9 @@ function statusOfReplyError(code: string): number {
   if (code === 'unknown-session') {
     return 404;
   }
-  if (code === 'session-dead' || code === 'registry-unreadable' || code === 'terminal-blocked' || code === 'no-terminal' || code === 'ambiguous-terminal' || code === 'terminal-gone') {
+  // The last six are the codes of the daemon (owned transport): a state conflict, not a gateway failure.
+  const conflicts = ['session-dead', 'registry-unreadable', 'terminal-blocked', 'no-terminal', 'ambiguous-terminal', 'terminal-gone', 'daemon-not-running', 'not-owned', 'session-not-live', 'session-exited', 'session-closing', 'host-stopping', 'outcome-unknown'];
+  if (conflicts.includes(code)) {
     return 409;
   }
   if (code === 'rate-limited') {
@@ -179,9 +192,49 @@ function replyFailure(error: ReplyError, status?: number): RouteAnswer {
 // The service
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ * Which transport a session uses when nobody chose one (after the per-session override of transports.json, before its global default): an owned stream-json
+ * session uses `owned`. When the daemon cannot be asked, the host kind of the last successful list decides, so that the answer is "the daemon is not running"
+ * (the probe of `owned` says so) and not the unrelated refusal of another transport.
+ * It NEVER throws (the reply service would fail the whole send or status): a failure is "no preference" and is recorded in `problems` (by session id), which the
+ * status route shows as a warning.
+ */
+export function createPreferredTransport(owned: OwnedSource, problems: Map<string, string>): (session: Session) => Promise<string | undefined> {
+  return async (session) => {
+    try {
+      const found = await owned.find(session.sessionId);
+      const host = found.ok ? found.view?.hostKind : owned.lastKnownHost(session.sessionId);
+      problems.delete(session.sessionId);
+      return host === 'stream-json' ? OWNED_TRANSPORT_ID : undefined;
+    } catch (error) {
+      problems.set(session.sessionId, `Whether this session is owned by the daemon could not be decided (${getErrorMessage(error)}): the default transport is shown. This is a bug of the module, report it.`);
+      return undefined;
+    }
+  };
+}
+
 /** One service per config folder: it remembers the ids it sent (no double send on a retry), so it lives as long as the module. */
-function serviceFactory(options: ModuleOptions): () => { service: ReplyService; configDir: string; transports: readonly ReplyTransport[] } {
-  const transports = options.transports ?? implementedTransports;
+function serviceFactory(options: ModuleOptions, owned: OwnedSource, problems: Map<string, string>): () => { service: ReplyService; configDir: string; transports: readonly ReplyTransport[] } {
+  const given = options.transports ?? implementedTransports;
+  const withOwned = options.transports === undefined || options.daemon !== undefined;
+  const transports = withOwned && !given.some((transport) => transport.id === OWNED_TRANSPORT_ID) ? [...given, createOwnedTransport(owned)] : given;
+  const askOwned = createPreferredTransport(owned, problems);
+  const preferredTransport = (session: Session): Promise<string | undefined> => (transports.some((transport) => transport.id === OWNED_TRANSPORT_ID) ? askOwned(session) : Promise.resolve(undefined));
+  // The registry sessions plus the owned live ones that have no registry file yet (a stream-json child writes it with its first message).
+  const readSessions = async (): Promise<RegistryResult> => {
+    const registry = await readSessionRegistry(resolveSessionsDir(process.env));
+    if (!registry.ok) {
+      return registry;
+    }
+    const listed = await owned.list();
+    if (!listed.ok) {
+      return registry;
+    }
+    const now = Date.now();
+    const known = new Set(registry.sessions.map((session) => session.sessionId.toLowerCase()));
+    const pending = listed.sessions.filter((view) => !known.has(view.id.toLowerCase()) && view.status === 'live').map((view) => sessionFromOwned(view, now));
+    return pending.length === 0 ? registry : { ...registry, sessions: [...registry.sessions, ...pending] };
+  };
   let current: { service: ReplyService; configDir: string; transports: readonly ReplyTransport[] } | undefined;
   return () => {
     const configDir = defaultConfigDir(process.env);
@@ -189,7 +242,7 @@ function serviceFactory(options: ModuleOptions): () => { service: ReplyService; 
       current = {
         configDir,
         transports,
-        service: createReplyService({ configDir, transports, readSessions: () => readSessionRegistry(resolveSessionsDir(process.env)), config: DEFAULT_REPLY_CONFIG }),
+        service: createReplyService({ configDir, transports, readSessions, preferredTransport, config: DEFAULT_REPLY_CONFIG }),
       };
     }
     return current;
@@ -234,7 +287,7 @@ async function configWarnings(configDir: string): Promise<string[]> {
     : [];
 }
 
-async function messagesOf(session: Session, service: ReplyService, configDir: string, transports: readonly ReplyTransport[], warnings: string[]): Promise<ReplyMessageDto[]> {
+async function messagesOf(session: Session, service: ReplyService, configDir: string, transports: readonly ReplyTransport[], owned: OwnedSource, warnings: string[]): Promise<ReplyMessageDto[]> {
   const now = Date.now();
   let records: AuditRecord[] = [];
   try {
@@ -263,32 +316,61 @@ async function messagesOf(session: Session, service: ReplyService, configDir: st
       }
     }
   }
+  // The daemon knows how its own messages went (command_lifecycle): asked once, only when a reply of the owned transport is listed.
+  const ownedSent = records.some((record) => record.outcome === 'sent' && record.transport === OWNED_TRANSPORT_ID);
+  const ownedView = ownedSent ? await owned.find(session.sessionId) : undefined;
+  if (ownedView !== undefined && !ownedView.ok) {
+    const { message, hint } = ownedView.error;
+    warnings.push(`The daemon cannot be asked, so the replies sent through the owned transport are confirmed from the transcript only: ${message}. ${hint}`);
+  }
+  // Oldest first, so that two identical replies ("ok", "ok") each claim their own transcript line.
+  const claimed = new Set<ReplyTranscriptEntry>();
+  const ownedStatuses = new Map<string, DeliveryStatus | undefined>();
+  for (const record of [...records].reverse()) {
+    if (record.outcome === 'sent' && record.transport === OWNED_TRANSPORT_ID) {
+      const uuid = owned.deliveryOf(record.msgId)?.uuid;
+      const daemonMessage = uuid === undefined || ownedView === undefined || !ownedView.ok ? undefined : ownedView.view?.messages.find((message) => message.uuid === uuid);
+      ownedStatuses.set(record.msgId, ownedDeliveryStatus(record, daemonMessage, transcript, claimed));
+    }
+  }
   return records.map((record): ReplyMessageDto => {
     const common = { messageId: record.msgId, sentAt: record.time, text: record.text, imageCount: record.imagePaths.length, transportId: record.transport, priority: record.priority };
+    // A send whose outcome is not known (timeout, lost connection): not a failure to retry, the message may have arrived.
+    if (record.outcome.startsWith('maybe-sent')) {
+      return { ...common, state: 'unconfirmed', ui: 'failed', reason: record.outcome, hint: 'The message may have been delivered. Check the log of the session before sending it again.' };
+    }
     if (record.outcome !== 'sent') {
       return { ...common, state: 'failed', ui: 'failed', reason: record.outcome, hint: '' };
     }
     const kind = transports.find((transport) => transport.id === record.transport)?.kind ?? 'direct';
     const delivery: DeliveryRecord = { id: record.msgId, sessionId: record.sessionId, state: kind === 'mailbox' ? 'queued' : 'sent', transportId: record.transport, kind, sentAt: record.time, priority: record.priority };
-    const status = service.deliveryState(delivery, transcript, { sessionStatus: session.statusGroup });
+    let status = ownedStatuses.get(record.msgId);
+    status ??= service.deliveryState(delivery, transcript, { sessionStatus: session.statusGroup });
     return { ...common, state: status.state, ui: deliveryUiOf(status.state), reason: status.reason, hint: status.hint ?? '' };
   });
 }
 
-export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}): void {
-  const services = serviceFactory(options);
+export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned: OwnedSource): void {
+  const preferenceProblems = new Map<string, string>();
+  const services = serviceFactory(options, owned, preferenceProblems);
 
   kit.route(
     'POST',
     '/sessions/:sessionId/reply',
     shaped(async (req) => {
       const request = parseBody(req.body);
-      const found = await findSession(req.params?.['sessionId']);
+      const found = await findSession(req.params?.['sessionId'], owned);
       if ('registryError' in found) {
         return fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
       }
       const { session } = found;
       const { service, transports } = services();
+      // An owned stream-json session whose process ended: "start a new session" (the answer of a dead registry entry) would be wrong, it can be resumed.
+      const ownedFound = await owned.find(session.sessionId);
+      if (ownedFound.ok && ownedFound.view?.hostKind === 'stream-json' && (ownedFound.view.state === 'exited' || ownedFound.view.state === 'interrupted')) {
+        const { view } = ownedFound;
+        return fail(409, 'owned-session-ended', `The owned session ${session.sessionId} is ${view.state}: ${view.state === 'interrupted' ? 'the daemon that owned it ended while it was live and its claude process ended with it' : 'its claude process ended'}`, 'Resume it (POST /owned/:id/resume): the conversation continues, the turn that was lost is not replayed. Then send the reply again.');
+      }
       try {
         const record = await service.send({
           sessionId: session.sessionId,
@@ -314,6 +396,14 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
         return ok(body satisfies ReplyResponse);
       } catch (error) {
         if (error instanceof ReplyError) {
+          // The service does not see an owned session when the daemon cannot be asked: say that (and the fix) instead of a bare "no such session".
+          if (error.code === 'unknown-session') {
+            const listed = await owned.list();
+            if (!listed.ok) {
+              const { code, message, hint } = listed.error;
+              return fail(409, code, `${error.reason}; the agent-manager daemon cannot be asked, so a session it owns is not known: ${message}`, hint);
+            }
+          }
           return replyFailure(error);
         }
         throw error;
@@ -327,7 +417,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
     '/sessions/:sessionId/reply/transport',
     shaped(async (req) => {
       const transportId = parseTransportBody(req.body, true);
-      const found = await findSession(req.params?.['sessionId']);
+      const found = await findSession(req.params?.['sessionId'], owned);
       if ('registryError' in found) {
         return fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
       }
@@ -375,7 +465,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
     'GET',
     '/sessions/:sessionId/reply/status',
     shaped(async (req) => {
-      const found = await findSession(req.params?.['sessionId']);
+      const found = await findSession(req.params?.['sessionId'], owned);
       if ('registryError' in found) {
         return fail(200, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
       }
@@ -386,6 +476,10 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
         const config = await readTransportsConfig(configDir);
         // Only the selected transport is probed on a plain poll (an hc probe spawns one process per terminal); ?probe=all is what the transport menu sends when it opens.
         const [status] = await service.getTransportStatus([session], { probe: queryValue(req.query, 'probe') === 'all' ? 'all' : 'selected' });
+        const preferenceProblem = preferenceProblems.get(session.sessionId);
+        if (preferenceProblem !== undefined) {
+          warnings.push(preferenceProblem);
+        }
         if (status === undefined) {
           return fail(200, 'transport-status-empty', 'The reply service returned no transport status', 'Report this: it is a bug of the module.');
         }
@@ -393,7 +487,8 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
           () => true,
           () => false,
         );
-        const selectedFrom = config.perSession[session.sessionId] !== undefined ? 'transports.json (session override)' : hasFile ? 'transports.json' : 'default';
+        const preferredOwned = config.perSession[session.sessionId] === undefined && status.selectedTransportId === OWNED_TRANSPORT_ID && config.default !== OWNED_TRANSPORT_ID;
+        const selectedFrom = config.perSession[session.sessionId] !== undefined ? 'transports.json (session override)' : preferredOwned ? 'owned session (default for sessions launched by agent-manager)' : hasFile ? 'transports.json' : 'default';
         const list = status.transports.map((entry): TransportStatusDto => {
           const probeWarnings: unknown = entry.probe.details['warnings'];
           return {
@@ -415,7 +510,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions = {}):
         if (!list.some((entry) => entry.selected)) {
           warnings.push(`The selected transport '${status.selectedTransportId}' (${selectedFrom}) is not one the module offers (${list.map((entry) => entry.transportId).join(', ')}): replies fail until ${join(configDir, 'transports.json')} names one of them.`);
         }
-        const messages = await messagesOf(session, service, configDir, transports, warnings);
+        const messages = await messagesOf(session, service, configDir, transports, owned, warnings);
         const body: ReplyStatusOk = { ok: true, sessionId: session.sessionId, sessionAlive: session.alive, selectedFrom, selectedTransportId: status.selectedTransportId, defaultTransportId: status.defaultTransportId, sessionOverrideTransportId: status.sessionOverrideTransportId, transports: list, messages, warnings, limits: REPLY_LIMITS };
         return ok(body);
       } catch (error) {

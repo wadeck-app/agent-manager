@@ -9,6 +9,11 @@ import { sessionColumns } from './columns.js';
 import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
 import { registerLogRoute } from './logRoute.js';
 import { registerReplyRoutes, type ModuleOptions } from './replyRoutes.js';
+import { createDaemonApi } from './daemon/daemonApi.js';
+import { DISCOVERED, joinOwned } from './daemon/ownedJoin.js';
+import { createOwnedSource, errorTextOf, type OwnedSource } from './daemon/ownedSource.js';
+import { registerOwnedRoutes } from './ownedRoutes.js';
+import { daemonNote } from './sessionLookup.js';
 import { RequestError, type RouteKit, ok, queryValue } from './routeKit.js';
 
 const SHOW_VALUES = ['alive', 'all'] as const;
@@ -33,7 +38,7 @@ const PRUNE_EVERY_MS = 60 * 60 * 1000;
  * Always 200 when the route itself worked: a registry that cannot be read is `ok: false` with `error` and `errorText` (never an empty list that
  * looks like "no sessions"); the files that could not be read are in `unreadable`.
  */
-function registerSessions(kit: RouteKit): void {
+function registerSessions(kit: RouteKit, source: OwnedSource): void {
   let lastPruneAt = 0;
   kit.route('GET', '/sessions', async (req) => {
     const show = showOf(req.query);
@@ -46,10 +51,13 @@ function registerSessions(kit: RouteKit): void {
       const errorText = `${message}. ${hint}`;
       return ok({ ok: false, show, dir, generatedAt, sessions: [], userStateError: '', unreadable: [], error: registry.error, errorText, summary: null });
     }
-    const all = sortByStatusUpdatedDesc(registry.sessions);
+    // The registry rows joined with the owned records by session id (one daemon call, cached): a daemon that cannot be asked is data (`ownedError`), the rows stay.
+    const joined = await joinOwned(registry.sessions, source, now);
+    const all = sortByStatusUpdatedDesc(joined.sessions);
     pruneDigestCache(new Set(all.map((session) => session.sessionId)), now);
     const latest = latestVersion(all);
-    const shown = (show === 'all' ? all : all.filter((session) => session.alive)).map((session) => presentSession(session, latest));
+    // An interrupted owned session stays listed when dead: a resume brings it back.
+    const shown = (show === 'all' ? all : all.filter((session) => session.alive || joined.keep.has(session.sessionId.toLowerCase()))).map((session) => presentSession(session, latest));
     const hiddenDead = all.length - shown.length;
     // The pins and seen markers: unreadable ones are reported as data (userStateError), the sessions stay listed.
     let user: UserState = { pinned: [], seen: {} };
@@ -105,6 +113,7 @@ function registerSessions(kit: RouteKit): void {
         lastActivity: digest.lastActivity,
         activityNote: digest.note,
         subagentCount: digest.subagentCount,
+        ...(joined.fields.get(row.sessionId.toLowerCase()) ?? DISCOVERED),
       };
     });
     return ok({
@@ -116,6 +125,8 @@ function registerSessions(kit: RouteKit): void {
       latestVersion: latest,
       tableColumns: sessionColumns(shown),
       userStateError,
+      ownedError: joined.ownedError,
+      ownedErrorText: joined.ownedError === null ? '' : errorTextOf(joined.ownedError),
       unreadable: registry.unreadable,
       unreadableText: unreadableText(registry.unreadable),
       hiddenDead,
@@ -127,7 +138,7 @@ function registerSessions(kit: RouteKit): void {
 }
 
 /** GET /summary: what the dashboard widget shows, counts of the alive sessions by status group (`alive` is their total). */
-function registerSummary(kit: RouteKit): void {
+function registerSummary(kit: RouteKit, source: OwnedSource): void {
   kit.route('GET', '/summary', async () => {
     const now = Date.now();
     const dir = resolveSessionsDir(process.env);
@@ -137,8 +148,10 @@ function registerSummary(kit: RouteKit): void {
       const { message, hint } = registry.error;
       return ok({ ok: false, generatedAt, error: registry.error, errorText: `${message}. ${hint}` });
     }
-    const counts = summarize(registry.sessions);
-    return ok({ ok: true, generatedAt, ...counts, unreadable: registry.unreadable.length, unreadableText: unreadableText(registry.unreadable) });
+    // Joined with the owned sessions like GET /sessions (one cached daemon call): a pending permission counts as waiting, a session with no registry file yet is counted.
+    const joined = await joinOwned(registry.sessions, source, now);
+    const counts = summarize(joined.sessions);
+    return ok({ ok: true, generatedAt, ...counts, ownedError: joined.ownedError, ownedErrorText: joined.ownedError === null ? '' : errorTextOf(joined.ownedError), unreadable: registry.unreadable.length, unreadableText: unreadableText(registry.unreadable) });
   });
 }
 
@@ -189,7 +202,7 @@ function registerCsrf(kit: RouteKit): void {
  * POST /sessions/:sessionId/seen (no body): the user saw the finished work of the session; a Done session goes back to Idle until its status changes again.
  * The session must be in the registry (404 otherwise: nothing to mark).
  */
-function registerUserState(kit: RouteKit): void {
+function registerUserState(kit: RouteKit, source: OwnedSource): void {
   kit.route('POST', '/sessions/:sessionId/pin', async (req) => {
     const sessionId = parseSessionId(req.params?.['sessionId']);
     const pinned = parsePinBody(req.body);
@@ -206,8 +219,11 @@ function registerUserState(kit: RouteKit): void {
       const { message, hint } = registry.error;
       throw new RequestError(409, `The session registry cannot be read: ${message}`, hint);
     }
-    if (!registry.sessions.some((session) => session.sessionId.toLowerCase() === sessionId)) {
-      throw new RequestError(404, `No session ${sessionId} in the registry ${dir}`, 'It may have been removed since the page was loaded: wait for the next refresh (5 s).');
+    // An owned session has no registry file until its first message: the daemon's record is enough to mark it seen.
+    const owned = registry.sessions.some((session) => session.sessionId.toLowerCase() === sessionId) ? undefined : await source.find(sessionId);
+    const ownedKnown = owned !== undefined && owned.ok && owned.view !== undefined;
+    if (owned !== undefined && !ownedKnown) {
+      throw new RequestError(404, `No session ${sessionId} in the registry ${dir}`, `It may have been removed since the page was loaded: wait for the next refresh (5 s).${owned !== undefined && !owned.ok ? daemonNote(owned.error) : ''}`);
     }
     await guarded(() =>
       updateUserState(kit.dataDir, (current) => ({ ...current, seen: { ...current.seen, [sessionId]: now } })),
@@ -217,11 +233,13 @@ function registerUserState(kit: RouteKit): void {
 }
 
 export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {}): void {
+  const source = createOwnedSource(options.daemon ?? createDaemonApi());
   registerCsrf(kit);
-  registerUserState(kit);
-  registerSessions(kit);
-  registerSummary(kit);
+  registerUserState(kit, source);
+  registerSessions(kit, source);
+  registerSummary(kit, source);
   registerHealth(kit);
-  registerLogRoute(kit);
-  registerReplyRoutes(kit, options);
+  registerLogRoute(kit, source);
+  registerReplyRoutes(kit, options, source);
+  registerOwnedRoutes(kit, source);
 }

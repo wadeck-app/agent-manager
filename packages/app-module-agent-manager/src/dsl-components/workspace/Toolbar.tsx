@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import type { ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
 import { DensityControl } from '../ui/DensityControl.js';
@@ -21,13 +22,15 @@ export interface ToolbarProps {
   search: SearchBoxProps;
   helpOpen: boolean;
   onHelpOpenChange: (open: boolean) => void;
+  /** Opens the New session dialog. */
+  onNewSession: () => void;
 }
 
 /**
  * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the toggle between the listing modes, the search, which
  * sessions to show, then the icon buttons (view options of the mode, text size, shortcut help).
  */
-export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange }: ToolbarProps) {
+export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession }: ToolbarProps) {
   return (
     <div className="flex min-h-am-hit flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1">
       <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
@@ -38,6 +41,14 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
       <ModeToggle mode={mode} onMode={onMode} />
       <SearchBox {...search} />
       <div className="ml-auto flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onNewSession}
+          className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-primary bg-primary-light px-3 text-sm font-medium text-primary ${FOCUS_RING}`}
+        >
+          <Plus aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+          New session
+        </button>
         <label className="sr-only" htmlFor="agents-show">
           Sessions to show
         </label>

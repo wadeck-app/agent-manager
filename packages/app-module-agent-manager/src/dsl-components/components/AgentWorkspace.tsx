@@ -1,5 +1,5 @@
 import { Scope } from '../ui/Scope.js';
-import type { SessionRowDto } from '../shared.js';
+import type { ApiError, SessionRowDto } from '../shared.js';
 import { Workspace } from '../workspace/Workspace.js';
 
 export interface AgentWorkspaceProps {
@@ -9,6 +9,10 @@ export interface AgentWorkspaceProps {
   userStateError?: string;
   /** `$sources.sessions.hiddenDead`: ended sessions the filter hides. */
   hiddenDead?: number;
+  /** `$sources.sessions.ownedError`: why the agent-manager daemon could not be asked (null when it answered). The New session dialog says it, with the fix. */
+  ownedError?: ApiError | null;
+  /** `$sources.sessions.ownedErrorText`: message and hint in one line, empty when there is none. */
+  ownedErrorText?: string;
 }
 
 /**
@@ -19,10 +23,10 @@ export interface AgentWorkspaceProps {
  * @registryCategory composite
  * @registryTags agents sessions master-detail
  */
-export function AgentWorkspace({ sessions, userStateError, hiddenDead }: AgentWorkspaceProps) {
+export function AgentWorkspace({ sessions, userStateError, hiddenDead, ownedError, ownedErrorText }: AgentWorkspaceProps) {
   return (
     <Scope>
-      <Workspace sessions={sessions} userStateError={userStateError ?? ''} hiddenDead={hiddenDead ?? 0} />
+      <Workspace sessions={sessions} userStateError={userStateError ?? ''} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} />
     </Scope>
   );
 }

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { requestJson } from '../data/http.js';
 import { AgentDetail } from '../detail/AgentDetail.js';
 import { DetailHeader } from '../detail/DetailHeader.js';
+import { NewSessionDialog } from '../launch/NewSessionDialog.js';
 import type { ListProps } from '../lists/common.js';
 import { EmptyNote } from '../lists/EmptyNote.js';
 import { GroupsList } from '../lists/GroupsList.js';
@@ -14,7 +15,7 @@ import { navTarget } from '../logic/nav.js';
 import { orderedSessionIds } from '../logic/order.js';
 import { agentId } from '../logic/states.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
-import { MODE_LABEL, type ModeId, type SessionRowDto } from '../shared.js';
+import { MODE_LABEL, type ApiError, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
 import { focusComposer, useNow } from '../ui/hooks.js';
@@ -24,6 +25,7 @@ import { SplitPane } from '../ui/SplitPane.js';
 import { Toolbar } from './Toolbar.js';
 import { useInFlight } from './useInFlight.js';
 import { useOptimisticRows } from './useOptimisticRows.js';
+import { useOwnedRows } from './useOwnedRows.js';
 import { usePageShortcuts } from './usePageShortcuts.js';
 
 const LISTS: Record<ModeId, (props: ListProps) => ReactNode> = {
@@ -40,14 +42,19 @@ export interface WorkspaceProps {
   sessions: readonly SessionRowDto[] | undefined;
   userStateError: string;
   hiddenDead: number;
+  /** `ownedError` of the page source: why the daemon could not be asked, null when it answered. */
+  ownedError: ApiError | null;
+  ownedErrorText: string;
 }
 
-export function Workspace({ sessions, userStateError, hiddenDead }: WorkspaceProps) {
+export function Workspace({ sessions, userStateError, hiddenDead, ownedError, ownedErrorText }: WorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
   useFillContentArea(root, 360);
   const now = useNow();
   const optimistic = useOptimisticRows(sessions ?? []);
-  const rows = optimistic.rows;
+  // The user's own launch, stop, resume and forget show at once, before the next poll.
+  const ownedRows = useOwnedRows(optimistic.rows);
+  const rows = ownedRows.rows;
   const loading = sessions === undefined;
   const [showParam, setShowParam] = useUrlParam('show');
   const show = showParam === 'all' ? 'all' : 'alive';
@@ -87,8 +94,19 @@ export function Workspace({ sessions, userStateError, hiddenDead }: WorkspacePro
   const [focusWanted, setFocusWanted] = useState<string | undefined>(undefined);
   const { busy, track } = useInFlight();
   const [helpOpen, setHelpOpen] = useState(false);
+  const [launchOpen, setLaunchOpen] = useState(false);
 
   const select = useCallback((id: string) => setSessionParam(id), [setSessionParam]);
+
+  // A launched session is listed and selected at once, with no registry file yet (the row says it is starting).
+  const { apply: applyOwned } = ownedRows;
+  const launched = useCallback(
+    (session: OwnedSessionDto) => {
+      applyOwned({ kind: 'launched', session });
+      setSessionParam(session.id.toLowerCase());
+    },
+    [applyOwned, setSessionParam],
+  );
 
   const act = useCallback(async (path: string, body: unknown, failure: string, onFail: () => void): Promise<void> => {
     const result = await track(requestJson(path, { method: 'POST', body }));
@@ -273,7 +291,7 @@ export function Workspace({ sessions, userStateError, hiddenDead }: WorkspacePro
   if (selected !== undefined) {
     detail = (
       <>
-        <DetailHeader session={selected} now={now} busy={busy} onBack={() => setSessionParam('')} onTogglePin={(pinned) => pin(selected, pinned)} onMarkSeen={() => markSeen(selected)} />
+        <DetailHeader session={selected} now={now} busy={busy} onBack={() => setSessionParam('')} onTogglePin={(pinned) => pin(selected, pinned)} onMarkSeen={() => markSeen(selected)} onOwnedChange={applyOwned} onForgotten={() => setSessionParam('')} />
         <AgentDetail session={selected} />
       </>
     );
@@ -309,7 +327,9 @@ export function Workspace({ sessions, userStateError, hiddenDead }: WorkspacePro
         search={{ text: searchText, onText: setSearchText, shown: shownRows.length, total: rows.length, problems: query.problems, onMove: moveBy, onEnter: openFirst }}
         helpOpen={helpOpen}
         onHelpOpenChange={setHelpOpen}
+        onNewSession={() => setLaunchOpen(true)}
       />
+      {launchOpen ? <NewSessionDialog sessions={rows} ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
       {notices.length > 0 ? <div className="flex flex-col gap-1.5 border-b border-border p-2">{notices}</div> : null}
       <div className="min-h-0 flex-1">
         <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />

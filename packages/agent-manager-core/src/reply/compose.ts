@@ -21,8 +21,8 @@ export interface ComposeInput {
   /** Absolute paths of saved images. */
   imagePaths: readonly string[];
   id: string;
-  /** Default: `[web reply via agent-manager #<id>]`. */
-  originMarker?: string;
+  /** Default: `[web reply via agent-manager #<id>]`; null: no marker line at all. */
+  originMarker?: string | null;
 }
 
 /**
@@ -43,8 +43,8 @@ export function composeMessageText(input: ComposeInput): string {
       throw new ReplyError('invalid-image-path', `the image path is not a single-line absolute path: ${JSON.stringify(path)}`, 'pass the absolute path returned by saveUpload');
     }
   }
-  const marker = input.originMarker ?? originMarkerFor(input.id);
-  const lines = [marker];
+  const marker = input.originMarker === undefined ? originMarkerFor(input.id) : input.originMarker;
+  const lines = marker === null ? [] : [marker];
   if (input.text !== '') {
     lines.push(input.text);
   }

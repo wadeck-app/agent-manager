@@ -22,6 +22,10 @@ export function sessionName(session: AgentRow): string {
 
 /** The second line of a row: why it needs you, what it is doing, or what it finished. Empty when there is nothing true to say. */
 export function detailLine(session: AgentRow): string {
+  // A launched session whose registry file does not exist yet: nothing was said, and the row says so (the transcript starts with the first message).
+  if (session.registryPending === true && session.lastActivity === '' && (session.state === 'idle' || session.state === 'working')) {
+    return 'Starting... no transcript yet';
+  }
   switch (session.state) {
     case 'needs-you':
       return session.reason !== '' ? session.reason : 'Waiting for you';

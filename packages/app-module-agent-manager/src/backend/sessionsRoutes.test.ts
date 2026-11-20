@@ -34,8 +34,8 @@ function deadPid(): number {
 }
 
 describe('GET /sessions', () => {
-  it('registers the list, summary, log (and its locate) and reply routes the two user-state write routes and the two transport setting routes, nothing else', () => {
-    expect(makeModule().routes.sort()).toEqual(['GET /csrf', 'GET /health', 'GET /sessions', 'GET /sessions/:sessionId/log', 'GET /sessions/:sessionId/log/locate', 'GET /sessions/:sessionId/reply/status', 'GET /summary', 'POST /sessions/:sessionId/pin', 'POST /sessions/:sessionId/reply', 'POST /sessions/:sessionId/seen', 'PUT /reply/transport/default', 'PUT /sessions/:sessionId/reply/transport']);
+  it('registers the list, summary, log (and its locate) and reply routes the two user-state write routes, the two transport setting routes and the owned-session routes, nothing else', () => {
+    expect(makeModule().routes.sort()).toEqual(['GET /csrf', 'GET /health', 'GET /owned', 'GET /owned/:id/permissions', 'GET /sessions', 'GET /sessions/:sessionId/log', 'GET /sessions/:sessionId/log/locate', 'GET /sessions/:sessionId/reply/status', 'GET /summary', 'POST /owned/:id/forget', 'POST /owned/:id/interrupt', 'POST /owned/:id/permission-mode', 'POST /owned/:id/permissions/:requestId', 'POST /owned/:id/resume', 'POST /owned/:id/stop', 'POST /owned/launch', 'POST /sessions/:sessionId/pin', 'POST /sessions/:sessionId/reply', 'POST /sessions/:sessionId/seen', 'PUT /reply/transport/default', 'PUT /sessions/:sessionId/reply/transport']);
   });
 
   it('answers the alive session with the derived texts and the generation time', async () => {

@@ -13,8 +13,12 @@ const ENDED = 'This session has ended (its process is gone), so it cannot receiv
  * Why the composer cannot send, or undefined when it can. Visible text, not a hidden control: a dead session, a status that cannot be read, no
  * transport selected or the selected one unavailable (with the fix the server gives).
  */
-export function composerBlock(input: { alive: boolean; loading: boolean; status?: ReplyStatusOk; error?: string }): ComposerBlock | undefined {
+export function composerBlock(input: { alive: boolean; loading: boolean; status?: ReplyStatusOk; error?: string; ownedState?: string }): ComposerBlock | undefined {
   if (!input.alive) {
+    // A session launched from agent-manager that ended is not lost: it can be resumed from its header.
+    if (input.ownedState === 'interrupted' || input.ownedState === 'exited') {
+      return { kind: 'blocked', text: `This session is ${input.ownedState}, so it cannot receive messages. Use Resume in the header above: the conversation comes back, then send your message again.` };
+    }
     return { kind: 'blocked', text: ENDED };
   }
   const { status } = input;

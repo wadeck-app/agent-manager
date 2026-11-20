@@ -36,3 +36,6 @@ sections:
     sessions: $sources.sessions.sessions
     userStateError: $sources.sessions.userStateError
     hiddenDead: $sources.sessions.hiddenDead
+    # Why the daemon (owned sessions) could not be asked: the New session dialog shows it with the fix. Never a failure of the page itself.
+    ownedError: $sources.sessions.ownedError
+    ownedErrorText: $sources.sessions.ownedErrorText

@@ -160,6 +160,7 @@ describe('toolbar', () => {
           search={{ text: '', onText: () => undefined, shown: 3, total: 3, problems: [], onMove: () => undefined, onEnter: () => undefined }}
           helpOpen={false}
           onHelpOpenChange={() => undefined}
+          onNewSession={() => undefined}
         />
       </Scope>,
     );

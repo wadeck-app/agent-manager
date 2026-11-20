@@ -103,15 +103,24 @@ export async function readAudit(configDir: string, options: AuditReadOptions = {
   return { records: records.sort((a, b) => b.time - a.time).slice(0, limit), unreadable };
 }
 
-/** The most recent record of this message id with outcome 'sent', newest day first; undefined when none. Used to dedupe after a restart. */
-export async function findSentInAudit(configDir: string, msgId: string, fs: ReplyFs = realFs): Promise<AuditRecord | undefined> {
+async function findInAudit(configDir: string, msgId: string, fs: ReplyFs, wanted: (outcome: string) => boolean): Promise<AuditRecord | undefined> {
   const unreadable: AuditReadResult['unreadable'] = [];
   for (const file of await dayFiles(fs, configDir)) {
     const matches = await readFileRecords(fs, configDir, file, (line) => line.includes(msgId), unreadable);
-    const found = matches.reverse().find((record) => record.msgId === msgId && record.outcome === 'sent');
+    const found = matches.reverse().find((record) => record.msgId === msgId && wanted(record.outcome));
     if (found !== undefined) {
       return found;
     }
   }
   return undefined;
+}
+
+/** The most recent record of this message id with outcome 'sent', newest day first; undefined when none. Used to dedupe after a restart. */
+export function findSentInAudit(configDir: string, msgId: string, fs: ReplyFs = realFs): Promise<AuditRecord | undefined> {
+  return findInAudit(configDir, msgId, fs, (outcome) => outcome === 'sent');
+}
+
+/** The most recent record of this message id whose outcome is unknown (`maybe-sent: ...`): the message may have been delivered. */
+export function findMaybeSentInAudit(configDir: string, msgId: string, fs: ReplyFs = realFs): Promise<AuditRecord | undefined> {
+  return findInAudit(configDir, msgId, fs, (outcome) => outcome.startsWith('maybe-sent'));
 }

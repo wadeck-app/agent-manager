@@ -16,6 +16,17 @@ export class ReplyError extends Error {
   }
 }
 
+/**
+ * A send whose outcome is not known: the transport timed out or lost the connection after the message may have been handed over. The service does NOT refund
+ * the rate limit, keeps the uploads and audits `maybe-sent`: the message may have been delivered, so the caller must look before sending it again.
+ */
+export class OutcomeUnknownError extends ReplyError {
+  constructor(code: string, reason: string, fix: string) {
+    super(code, reason, fix);
+    this.name = 'OutcomeUnknownError';
+  }
+}
+
 /** A transport that exists as an interface only. Thrown by `send()` so that nothing can look sent when it was not. */
 export class NotImplementedError extends ReplyError {
   constructor(transportId: string, milestone: string) {

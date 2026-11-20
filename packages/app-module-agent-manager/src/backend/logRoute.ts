@@ -29,6 +29,7 @@ import { CodedRequestError, fail, shaped } from './apiError.js';
 import { registerLocateRoute } from './locateCall.js';
 import { statusOf } from './sessionStatus.js';
 import { digestOf } from './transcriptDigest.js';
+import type { OwnedSource } from './daemon/ownedSource.js';
 import { findSession } from './sessionLookup.js';
 import { RequestError, type RouteKit, type RouteRequest, ok, queryValue } from './routeKit.js';
 
@@ -380,8 +381,8 @@ function capBody(entries: Entry[], from: 'newest' | 'oldest'): { kept: Entry[]; 
   return { kept: entries.slice(0, last), dropped: entries.slice(last) };
 }
 
-export function registerLogRoute(kit: RouteKit): void {
-  registerLocateRoute(kit);
+export function registerLogRoute(kit: RouteKit, owned: OwnedSource): void {
+  registerLocateRoute(kit, owned);
   kit.route(
     'GET',
     '/sessions/:sessionId/log',
@@ -394,7 +395,7 @@ export function registerLogRoute(kit: RouteKit): void {
       const limit = limitOf(req.query);
       const before = beforeText === undefined ? undefined : decodeCursor('before', beforeText);
       const after = afterText === undefined ? undefined : decodeCursor('after', afterText);
-      const found = await findSession(req.params?.['sessionId']);
+      const found = await findSession(req.params?.['sessionId'], owned);
       if ('registryError' in found) {
         return fail(200, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
       }

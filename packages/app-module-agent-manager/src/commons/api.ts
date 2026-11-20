@@ -72,6 +72,26 @@ export interface SessionRowDto extends SessionStatusDto {
   activityNote: string;
   /** Number of sub-agents the session started (files of its subagents folder); 0 when none or unknown. */
   subagentCount: number;
+  /**
+   * 'agent-manager': launched through the daemon (the session is in GET /owned). 'discovered': found in the Claude Code registry. Unreliable while the list's
+   * `ownedError` is set (the daemon could not be asked, so every row reads 'discovered').
+   */
+  launchedBy: 'agent-manager' | 'discovered';
+  /** The id of the owned session (equal to `sessionId`); absent for a discovered session. */
+  ownedId?: string;
+  /** How an owned session is hosted: 'stream-json' (a child of the daemon) or 'hc' (a herdr-core terminal, not observed by the daemon); null when discovered. */
+  host: OwnedHostKind | null;
+  /** The state the daemon reports; absent for a discovered session. 'unknown': a state this module does not know (the raw value is in `ownedRawState`). */
+  ownedState?: OwnedStateDto;
+  /** The raw state a newer daemon sent when `ownedState` is 'unknown'. */
+  ownedRawState?: string;
+  /** Permission requests that wait for an answer (stream-json owned sessions); 0 otherwise. */
+  pendingPermissions: number;
+  /**
+   * True: an owned session that has no Claude Code registry file yet (a stream-json child writes it with its first message). The row is made from the owned
+   * record alone: `pid` is the child's pid (0 when unknown), `status` follows `ownedState`, there is no transcript yet (see `activityNote`).
+   */
+  registryPending?: boolean;
 }
 
 /** GET /sessions answer when the registry was read. */
@@ -95,6 +115,14 @@ export interface SessionsOk {
   hiddenDead: number;
   /** Text to show instead of an empty list; empty when there are sessions. */
   emptyText: string;
+  /**
+   * Set when the daemon could not be asked (not running, unreachable, refused the token): the owned fields of the rows are then NOT known (every row reads
+   * 'discovered', owned sessions without a registry file are missing). `code` 'daemon-not-running' is the normal state of a user who launches no session
+   * from agent-manager: show it as a quiet note, not as a failure; any other code is a real problem. null when the daemon answered.
+   */
+  ownedError: ApiError | null;
+  /** `ownedError` message and hint in one line; empty when there is none. */
+  ownedErrorText: string;
 }
 
 /** GET /sessions answer when the registry cannot be read (HTTP 200, no list). */
@@ -553,3 +581,203 @@ export interface CsrfOk {
 
 /** Codes of the 403 of a write route (body `{ ok: false, error }`): 'csrf-required' (no `Sec-Fetch-Site: same-origin`, or no token header), 'csrf-invalid' (token not issued by this module run: fetch a new one, retry once). */
 export type CsrfResponse = CsrfOk | ApiFailure;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// Owned sessions: GET /owned, POST /owned/launch, POST /owned/:id/{interrupt,permission-mode,stop,resume,forget}, GET /owned/:id/permissions,
+// POST /owned/:id/permissions/:requestId
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// The module calls the agent-manager daemon (which owns the sessions launched from here). The daemon is optional: when it is not running, GET routes answer
+// HTTP 200 `{ ok: false, error }` (never an empty list), and a write route answers 409 'daemon-not-running' with the fix ('agent-manager start --detach').
+// Every write route needs the CSRF header like the other write routes. Errors of the daemon keep its code, status and fix (reason -> message, fix -> hint).
+// Codes of this layer: 'daemon-not-running' (GET: 200, write: 409), 'daemon-unreachable' / 'daemon-unauthorized' / 'daemon-bad-answer' (GET: 200, write: 502),
+// 'bad-request' (400). Codes of the daemon (status as the daemon gave it): 'unknown-session' (404), 'session-not-live' / 'session-exited' / 'already-live' /
+// 'session-live' / 'too-many-sessions' / 'leftover-alive' / 'not-owned' / 'permission-being-answered' (409), 'invalid-*' / 'cwd-*' (400), others 422 or 502.
+
+export type OwnedHostKind = 'stream-json' | 'hc';
+
+/**
+ * idle / running / requires_action: a live stream-json child (requires_action: it waits for a permission decision); exited: the process ended; interrupted: the
+ * daemon that owned it ended while it was live (a resume continues the conversation, the lost turn is NOT replayed); unobserved: an hc session (the daemon does
+ * not see its terminal: its state is the registry's); unknown: a state of a newer daemon (the raw value is in `rawState`; show it, do not guess).
+ */
+export type OwnedStateDto = 'idle' | 'running' | 'requires_action' | 'exited' | 'interrupted' | 'unobserved' | 'unknown';
+
+export interface OwnedMessageDto {
+  uuid: string;
+  /** 'unknown': a state of a newer daemon (the raw value is in `rawState`). */
+  state: 'queued' | 'started' | 'completed' | 'cancelled' | 'lost' | 'unknown';
+  rawState?: string;
+  /** Epoch ms of the last change. */
+  at: number;
+}
+
+export interface OwnedExitDto {
+  cause: string;
+  code: number | null;
+  signal: string | null;
+  by: 'self' | 'user' | 'daemon-shutdown';
+  /** Bounded tail of the stderr of the process (may be empty). */
+  stderrTail: string;
+  at: number;
+}
+
+export interface OwnedSessionDto {
+  /** The Claude Code session id (the registry id, the transcript name). */
+  id: string;
+  hostKind: OwnedHostKind;
+  cwd: string;
+  model?: string;
+  /** The mode at start, then the last one set through the daemon. */
+  permissionMode?: string;
+  /** The label given at launch (stream-json) or the terminal name (hc). */
+  name?: string;
+  /** `claude --version` as the daemon ran it at launch. */
+  claudeVersion: string;
+  /** Epoch ms. */
+  startedAt: number;
+  /** What the state file remembers: 'live', 'exited' or 'interrupted'. */
+  status: 'live' | 'exited' | 'interrupted';
+  state: OwnedStateDto;
+  /** The raw state a newer daemon sent when `state` is 'unknown'. */
+  rawState?: string;
+  /** True when POST /owned/:id/resume is accepted now. */
+  resumable: boolean;
+  pendingPermissions: number;
+  /** What to know about the state, in words (an interrupted turn is not replayed). */
+  note?: string;
+  pid?: number;
+  /** hc: the terminal address ('t1z'). */
+  hcAddress?: string;
+  /** A claude process of an interrupted session that is still alive after a daemon crash (never killed automatically; a resume then needs acknowledgeLeftover). */
+  leftoverPid?: number;
+  lastResult?: { subtype: string; isError: boolean; stopReason?: string; text?: string; at: number };
+  /** The last messages sent through the daemon and what became of them (at most 50). */
+  messages: OwnedMessageDto[];
+  exit?: OwnedExitDto;
+  interruptedAt?: number;
+  resumedAt?: number;
+}
+
+export interface DaemonStatusDto {
+  pid: number;
+  startedAt: number;
+  uptimeMs: number;
+  owned: { total: number; live: number; idle: number; running: number; requiresAction: number; exited: number; interrupted: number; unobserved: number };
+  /** Processes of lost children that are still alive (see `leftoverPid`). */
+  leftovers: number;
+  /** The daemon is shutting down: launches are refused. */
+  stopping: boolean;
+  version?: string;
+  /** Control port, sessions API port, and the config folder the daemon runs for. */
+  port?: number;
+  apiPort?: number;
+  configDir?: string;
+}
+
+/** GET /owned. Polled by the UI; the daemon is asked once for the list (cached 1.5 s) and once for its status. */
+export interface OwnedListOk {
+  ok: true;
+  generatedAt: string;
+  daemon: DaemonStatusDto;
+  /** Newest launch first. */
+  sessions: OwnedSessionDto[];
+}
+
+/** GET /owned when the daemon cannot be asked (HTTP 200). `error.code`: 'daemon-not-running' | 'daemon-unreachable' | 'daemon-unauthorized' | 'daemon-bad-answer'. */
+export interface OwnedListFailed {
+  ok: false;
+  generatedAt: string;
+  error: ApiError;
+  /** message and hint in one line. */
+  errorText: string;
+  daemon: null;
+  sessions: [];
+}
+
+export type OwnedListResponse = OwnedListOk | OwnedListFailed;
+
+/** Body of POST /owned/launch (no other field). `cwd` must be an absolute path of an existing folder. */
+export interface OwnedLaunchRequest {
+  hostKind: OwnedHostKind;
+  cwd: string;
+  model?: string;
+  permissionMode?: string;
+  name?: string;
+}
+
+/** POST /owned/launch, /stop and /resume answer `{ ok: true, session }`; a launched session is in the list at once (its registry file comes with its first message). */
+export interface OwnedSessionOk {
+  ok: true;
+  session: OwnedSessionDto;
+}
+export type OwnedSessionResponse = OwnedSessionOk | ApiFailure;
+
+/** POST /owned/:id/interrupt (no body): stops the running turn through the daemon (no text is sent). */
+export interface OwnedInterruptOk {
+  ok: true;
+  sessionId: string;
+  /** Messages that stay queued and run next. */
+  stillQueued: string[];
+  /** Messages the interrupt dropped. */
+  cancelled: string[];
+}
+export type OwnedInterruptResponse = OwnedInterruptOk | ApiFailure;
+
+/** Body of POST /owned/:id/permission-mode: a mode Claude Code knows ('default', 'acceptEdits', 'plan', 'auto'); the daemon validates it. */
+export interface OwnedPermissionModeRequest {
+  mode: string;
+}
+export interface OwnedPermissionModeOk {
+  ok: true;
+  sessionId: string;
+  mode: string;
+}
+export type OwnedPermissionModeResponse = OwnedPermissionModeOk | ApiFailure;
+
+/** Body (optional) of POST /owned/:id/resume. `acknowledgeLeftover`: resume although a claude process of the old daemon may still be alive (see `leftoverPid`). */
+export interface OwnedResumeRequest {
+  acknowledgeLeftover?: boolean;
+}
+
+/** POST /owned/:id/forget (no body): removes an ended session from the list; a live one is refused (409 'session-live'). */
+export interface OwnedForgetOk {
+  ok: true;
+  id: string;
+}
+export type OwnedForgetResponse = OwnedForgetOk | ApiFailure;
+
+/** One permission request that waits for an answer, in full: `input` is what the user decides on (show it escaped, never as HTML). */
+export interface OwnedPermissionDto {
+  requestId: string;
+  toolName: string;
+  displayName?: string;
+  input: unknown;
+  description?: string;
+  toolUseId?: string;
+  blockedPath?: string;
+  /** Epoch ms. */
+  receivedAt: number;
+}
+
+/** GET /owned/:id/permissions (HTTP 200 `{ ok: false, error }` when the daemon cannot be asked). */
+export interface OwnedPermissionsOk {
+  ok: true;
+  sessionId: string;
+  permissions: OwnedPermissionDto[];
+}
+export type OwnedPermissionsResponse = OwnedPermissionsOk | ApiFailure;
+
+/** Body of POST /owned/:id/permissions/:requestId. `message` is the reason shown to the model, only with 'deny' (default: 'Denied by the user through agent-manager'). An allow is once. */
+export interface OwnedDecisionRequest {
+  decision: 'allow' | 'deny';
+  message?: string;
+}
+export interface OwnedDecisionOk {
+  ok: true;
+  sessionId: string;
+  requestId: string;
+  decision: 'allow' | 'deny';
+}
+/** Codes: 'unknown-permission-request' (404: already answered or the session ended), 'permission-being-answered' (409), 'session-not-live' (409). */
+export type OwnedDecisionResponse = OwnedDecisionOk | ApiFailure;

@@ -2,7 +2,7 @@
 import { hcTransport } from './hcTransport.js';
 import { socketTransport } from './socketTransport.js';
 import type { ReplyTransport } from './types.js';
-export { NotImplementedError, ReplyError, SAFE_ID, assertSafeId } from './errors.js';
+export { NotImplementedError, OutcomeUnknownError, ReplyError, SAFE_ID, assertSafeId } from './errors.js';
 export type { ReplyFs } from './fsTypes.js';
 export { DEFAULT_PRIORITY, REPLY_PRIORITIES } from './types.js';
 export { DELIVERED_AS_TEXT } from './types.js';

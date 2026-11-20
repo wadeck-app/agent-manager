@@ -13,7 +13,7 @@ import { DEFAULT_REPLY_CONFIG, parseReplyConfig, readTransportsConfig, writeTran
 import type { ReplyFs } from './fsTypes.js';
 import { deliveryState } from './deliveryState.js';
 import type { DeliveryRecord, ReplyTranscriptEntry } from './deliveryState.js';
-import { NotImplementedError, ReplyError } from './errors.js';
+import { NotImplementedError, OutcomeUnknownError, ReplyError } from './errors.js';
 import { asyncRewakeTransport, herdrTransport, hotWaitTransport, queueModTransport } from './hookTransports.js';
 import { createReplyService, DEFAULT_RATE_LIMIT, withDeliveredAs } from './replyService.js';
 import { createSocketTransport } from './socketTransport.js';
@@ -537,6 +537,73 @@ describe('ReplyService.send: failure handling', () => {
     now += 25 * 60 * 60_000;
     expect(await service.send({ sessionId: session.sessionId, text: 'a', id: 'old' })).toMatchObject({ duplicate: true });
     expect(socket.sent).toHaveLength(1);
+  });
+});
+
+describe('ReplyService: preferredTransport and marker none', () => {
+  it('a transport with marker none gets the text as typed; the others keep the marker', async () => {
+    const session = await liveSession();
+    const plain = { ...fakeTransport('plain'), marker: 'none' as const };
+    const socket = fakeTransport('socket');
+    const { service } = serviceWith(session, [socket, plain]);
+    await service.send({ sessionId: session.sessionId, text: 'hello', id: 'p1', transportId: 'plain' });
+    await service.send({ sessionId: session.sessionId, text: 'hello', id: 's1' });
+    expect(plain.sent[0]!.text).toBe('hello');
+    expect(socket.sent[0]!.text).toBe('[web reply via agent-manager #s1]\nhello');
+  });
+
+  it('the preferred transport sits between the per-session override and the global default; an explicit transport wins over all', async () => {
+    const session = await liveSession();
+    const socket = fakeTransport('socket');
+    const owned = fakeTransport('owned');
+    const other = fakeTransport('other');
+    const configDir = tempDir();
+    const service = createReplyService({
+      configDir,
+      transports: [socket, owned, other],
+      clock: () => 10_000,
+      readSessions: () => Promise.resolve({ ok: true, dir: 'x', sessions: [{ ...session, alive: true }], unreadable: [] }),
+      preferredTransport: (candidate) => (candidate.sessionId === session.sessionId ? 'owned' : undefined),
+    });
+    expect((await service.send({ sessionId: session.sessionId, text: 'a', id: 'a1' })).transportId).toBe('owned');
+    expect((await service.getTransportStatus([session]))[0]).toMatchObject({ selectedTransportId: 'owned', defaultTransportId: 'socket', sessionOverrideTransportId: null });
+    expect((await service.send({ sessionId: session.sessionId, text: 'b', id: 'b1', transportId: 'other' })).transportId).toBe('other');
+    await writeTransportsConfig(configDir, { default: 'socket', perSession: { [session.sessionId]: 'other' } });
+    expect((await service.send({ sessionId: session.sessionId, text: 'c', id: 'c1' })).transportId).toBe('other');
+    expect((await service.getTransportStatus([session]))[0]).toMatchObject({ selectedTransportId: 'other', sessionOverrideTransportId: 'other' });
+  });
+
+  it('a preferred transport that is not offered is the error "unknown-transport" (no silent fallback)', async () => {
+    const session = await liveSession();
+    const service = createReplyService({
+      configDir: tempDir(),
+      transports: [fakeTransport('socket')],
+      clock: () => 10_000,
+      readSessions: () => Promise.resolve({ ok: true, dir: 'x', sessions: [{ ...session, alive: true }], unreadable: [] }),
+      preferredTransport: () => 'owned',
+    });
+    expect(await service.send({ sessionId: session.sessionId, text: 'a', id: 'a1' }).catch((error: unknown) => error)).toMatchObject({ code: 'unknown-transport' });
+  });
+});
+
+describe('ReplyService: a send with an unknown outcome', () => {
+  it('is audited maybe-sent, is not refunded from the rate limit and keeps its uploads', async () => {
+    const session = await liveSession();
+    const unsure: ReplyTransport = { ...fakeTransport('socket'), send: () => Promise.reject(new OutcomeUnknownError('daemon-unreachable', 'the daemon did not answer', 'check the log')) };
+    const configDir = tempDir();
+    const service = createReplyService({
+      configDir,
+      transports: [unsure],
+      clock: () => 10_000,
+      rateLimit: { max: 2, windowMs: 60_000 },
+      readSessions: () => Promise.resolve({ ok: true, dir: 'x', sessions: [{ ...session, alive: true }], unreadable: [] }),
+    });
+    const first = await service.send({ sessionId: session.sessionId, text: 'a', id: 'u1', images: [{ base64: fakePng().toString('base64'), declaredMime: 'image/png' }] }).catch((error: unknown) => error);
+    expect(first).toBeInstanceOf(OutcomeUnknownError);
+    expect((await readAudit(configDir)).records.map((record) => record.outcome)).toEqual([expect.stringMatching(/^maybe-sent: /)]);
+    expect(readdirSync(join(configDir, 'uploads', session.sessionId))).toHaveLength(1);
+    await service.send({ sessionId: session.sessionId, text: 'b', id: 'u2' }).catch(() => undefined);
+    expect(await service.send({ sessionId: session.sessionId, text: 'c', id: 'u3' }).catch((error: unknown) => error)).toMatchObject({ code: 'rate-limited' });
   });
 });
 

@@ -73,6 +73,11 @@ export interface ReplyTransport {
   readonly kind: TransportKind;
   /** How the session sees what this transport delivers. */
   readonly deliveredAs: DeliveredAs;
+  /**
+   * Whether the service puts the origin marker line (`[web reply via agent-manager #id]`) before the text. Default 'default' (the marker is added); 'none': the
+   * text is delivered as the user typed it (D-2026-11-19-a: the owned transport, whose confirmation does not rely on the marker).
+   */
+  readonly marker?: 'default' | 'none';
   describe(): string;
   /** Never throws for an unavailable transport: the answer is `available: false` with a reason and a fix. */
   probe(session: Session, context?: ProbeContext): Promise<ProbeResult>;

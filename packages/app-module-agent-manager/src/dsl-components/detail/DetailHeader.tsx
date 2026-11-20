@@ -6,6 +6,8 @@ import { IconButton } from '../ui/IconButton.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
+import { OwnedBar } from '../owned/OwnedBar.js';
+import type { OwnedChange } from '../workspace/useOwnedRows.js';
 import { StatusInfo } from './status/StatusInfo.js';
 import { useSessionStatus } from './status/useSessionStatus.js';
 
@@ -17,10 +19,14 @@ export interface DetailHeaderProps {
   onBack: () => void;
   onTogglePin: (pinned: boolean) => void;
   onMarkSeen: () => void;
+  /** The daemon confirmed a Stop, Resume or Forget of an owned session. */
+  onOwnedChange: (change: OwnedChange) => void;
+  /** The owned session was forgotten: leave its detail. */
+  onForgotten: () => void;
 }
 
 /** Name, folder, state, harness, pid and the two actions of the selected session. The back button only exists on a narrow screen (stacked panes). */
-export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen }: DetailHeaderProps) {
+export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen, onOwnedChange, onForgotten }: DetailHeaderProps) {
   const look = STATE_LOOK[session.state];
   const since = timeInState(session.statusUpdatedAt, now);
   const canMarkSeen = session.state === 'done';
@@ -49,6 +55,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
           ) : null}
         </div>
         <StatusInfo session={session} status={status} />
+        <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} />
         {session.state === 'needs-you' && session.reason !== '' ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">

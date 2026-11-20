@@ -31,3 +31,13 @@ describe('needsPolling', () => {
     expect(needsPolling([], local('sending', now - 10 * 60_000), now)).toBe(false);
   });
 });
+
+describe('composerBlock: a session launched from agent-manager that ended', () => {
+  it('points to Resume instead of "start it again"', () => {
+    for (const ownedState of ['interrupted', 'exited']) {
+      const block = composerBlock({ alive: false, loading: false, status: statusFixture(), ownedState });
+      expect(block?.kind).toBe('blocked');
+      expect(block?.text).toMatch(new RegExp(`is ${ownedState}.*Use Resume in the header`));
+    }
+  });
+});

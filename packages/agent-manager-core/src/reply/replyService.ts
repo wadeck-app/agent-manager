@@ -3,13 +3,13 @@ import * as realFs from 'node:fs/promises';
 import { getErrorMessage } from '../errors.js';
 import { readSessionRegistry } from '../readSessionRegistry.js';
 import type { RegistryResult, Session } from '../session.js';
-import { appendAudit, findSentInAudit } from './audit.js';
+import { appendAudit, findMaybeSentInAudit, findSentInAudit } from './audit.js';
 import { assertTextLength, composeMessageText } from './compose.js';
 import { DEFAULT_REPLY_CONFIG, readTransportsConfig } from './config.js';
 import type { ReplyConfig } from './config.js';
 import { deliveryState } from './deliveryState.js';
 import type { DeliveryContext, DeliveryRecord, DeliveryStatus, ReplyTranscriptEntry } from './deliveryState.js';
-import { ReplyError, assertSafeId } from './errors.js';
+import { OutcomeUnknownError, ReplyError, assertSafeId } from './errors.js';
 import { errorCode } from './fsTypes.js';
 import type { ReplyFs } from './fsTypes.js';
 import { saveUpload } from './uploads.js';
@@ -48,6 +48,12 @@ export interface ReplyServiceDeps {
   clock?: () => number;
   fs?: ReplyFs;
   config?: ReplyConfig;
+  /**
+   * The transport a session uses when nobody chose one: asked after the per-session override of transports.json and before the global default (so an
+   * explicit request and a per-session override still win). Return undefined for "no preference". It must not throw (a failure of its own source is the
+   * caller's to turn into undefined: the probe of the transport it prefers then says why that one is unavailable).
+   */
+  preferredTransport?: (session: Session) => Promise<string | undefined> | string | undefined;
   newId?: () => string;
   /** Most replies accepted per session in the window, whatever the transport (T-08: a runaway script cannot flood a session). Default 6 per 60 s. */
   rateLimit?: { max: number; windowMs: number };
@@ -157,12 +163,12 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
     return transport;
   }
 
-  async function chooseTransport(sessionId: string, explicit: string | undefined): Promise<ReplyTransport> {
+  async function chooseTransport(session: Session, explicit: string | undefined): Promise<ReplyTransport> {
     if (explicit !== undefined) {
       return transportById(explicit);
     }
     const transports = await readTransportsConfig(deps.configDir, fs);
-    return transportById(transports.perSession[sessionId] ?? transports.default);
+    return transportById(transports.perSession[session.sessionId] ?? (await deps.preferredTransport?.(session)) ?? transports.default);
   }
 
   async function findLiveSession(sessionId: string): Promise<Session> {
@@ -193,7 +199,7 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
     let refundSlot: (() => void) | undefined;
     try {
       const session = await findLiveSession(request.sessionId);
-      const transport = await chooseTransport(request.sessionId, request.transportId);
+      const transport = await chooseTransport(session, request.transportId);
       transportId = transport.id;
       // No silent fallback: an unavailable transport is an error naming the probe's reason and fix.
       const probe = await transport.probe(session);
@@ -206,7 +212,7 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
         const saved = await saveUpload({ configDir: deps.configDir, sessionId: request.sessionId, msgId: id, index, base64: image.base64, declaredMime: image.declaredMime, fs });
         imagePaths.push(saved.path);
       }
-      const text = composeMessageText({ text: request.text, imagePaths, id });
+      const text = composeMessageText({ text: request.text, imagePaths, id, ...(transport.marker === 'none' ? { originMarker: null } : {}) });
       const result = await transport.send(session, { id, text, imagePaths, priority, origin });
       if (!result.accepted) {
         throw new ReplyError('transport-refused', `the '${transport.id}' transport did not accept the message (${result.detail})`, 'switch transport or retry');
@@ -224,14 +230,18 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
     } catch (caught) {
       let error: unknown = caught;
       // An attempt that delivered nothing (a refusal, a timeout, a bad image) does not count against the limit: a blocked terminal must not lock the session out.
-      refundSlot?.();
-      const leftovers = await removeUploads(imagePaths);
+      const unknownOutcome = caught instanceof OutcomeUnknownError;
+      if (!unknownOutcome) {
+        refundSlot?.();
+      }
+      // An unknown outcome keeps its uploads: the message may have been delivered and refers to them.
+      const leftovers = unknownOutcome ? undefined : await removeUploads(imagePaths);
       if (leftovers !== undefined) {
         error = error instanceof ReplyError
           ? Object.assign(new ReplyError(error.code, `${error.reason} (and ${leftovers})`, error.fix), { cause: error })
           : new ReplyError('upload-cleanup-failed', `${getErrorMessage(error)} (and ${leftovers})`, 'delete the listed files by hand');
       }
-      const outcome = `${error instanceof ReplyError && (error.code === 'transport-unavailable' || error.code === 'rate-limited' || error.code === 'unknown-session' || error.code === 'session-dead') ? 'refused' : 'failed'}: ${getErrorMessage(error)}`;
+      const outcome = `${unknownOutcome ? 'maybe-sent' : error instanceof ReplyError && (error.code === 'transport-unavailable' || error.code === 'rate-limited' || error.code === 'unknown-session' || error.code === 'session-dead') ? 'refused' : 'failed'}: ${getErrorMessage(error)}`;
       // The failure itself is the answer: a failing audit write must not hide it or change its code; it is attached as `auditError`.
       try {
         await audit(transportId, outcome, []);
@@ -292,6 +302,12 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
         const transport = byId.get(fromAudit.transport);
         return { id, sessionId: fromAudit.sessionId, state: transport?.kind === 'mailbox' ? 'queued' : 'sent', transportId: fromAudit.transport, kind: transport?.kind ?? 'direct', sentAt: fromAudit.time, priority: fromAudit.priority, duplicate: true };
       }
+      // An earlier attempt of this id whose outcome is not known may have been delivered: sending again could duplicate the prompt. The caller looks at the
+      // session first, then sends with a NEW id (the same id never silently resends).
+      const maybe = await findMaybeSentInAudit(deps.configDir, id, fs);
+      if (maybe !== undefined) {
+        throw new ReplyError('outcome-unknown', `an earlier attempt to send message ${id} (via ${maybe.transport}) has an unknown outcome and may have been delivered (state: unconfirmed)`, 'check the log of the session; if the message did not arrive, send it again with a new message id (leave the id out to get one)');
+      }
       return doSend(request, id, priority);
     })();
     const entry: SentEntry = { promise: attempt, at: now, settled: false };
@@ -337,7 +353,8 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
         if (mode !== undefined) {
           context.permissionMode = mode;
         }
-        const selectedId = transportsConfig.perSession[session.sessionId] ?? transportsConfig.default;
+        const override = transportsConfig.perSession[session.sessionId] ?? null;
+        const selectedId = override ?? (await deps.preferredTransport?.(session)) ?? transportsConfig.default;
         const transports = await Promise.all(
           [...byId.values()].map(async (transport): Promise<TransportStatusEntry> => {
             // Lazy: a transport nobody selected is probed only on demand (an hc probe spawns one process per terminal).
@@ -354,8 +371,7 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
             return { transportId: transport.id, description: transport.describe(), kind: transport.kind, deliveredAs: transport.deliveredAs, probe, probed: true };
           }),
         );
-        const override = transportsConfig.perSession[session.sessionId] ?? null;
-        return { sessionId: session.sessionId, selectedTransportId: override ?? transportsConfig.default, defaultTransportId: transportsConfig.default, sessionOverrideTransportId: override, transports };
+        return { sessionId: session.sessionId, selectedTransportId: selectedId, defaultTransportId: transportsConfig.default, sessionOverrideTransportId: override, transports };
       }),
     );
   }

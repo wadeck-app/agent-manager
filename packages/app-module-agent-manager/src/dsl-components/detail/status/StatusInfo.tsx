@@ -27,7 +27,7 @@ export function StatusInfo({ session, status }: { session: AgentRow; status: Ses
         {status.role === undefined ? null : <RoleChip role={status.role} />}
         <BypassChips bypasses={status.bypasses} error={status.bypassError} />
         {session.harness !== undefined ? <span className="rounded bg-muted-bg px-1.5 py-0.5 text-content">{session.harness}</span> : null}
-        <span className="tabular-nums">pid {session.pid}</span>
+        {session.pid > 0 ? <span className="tabular-nums">pid {session.pid}</span> : null}
         <SessionIdChip sessionId={session.sessionId} name={session.displayName} />
       </div>
       {status.statusNote === undefined || status.statusNote === '' ? null : (

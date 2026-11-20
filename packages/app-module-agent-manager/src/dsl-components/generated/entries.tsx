@@ -13,7 +13,9 @@ export const AgentWorkspaceEntry: ComponentRegistryEntry = {
 		const sessions = coerceProp(resolveExpressionValue(node['sessions'], ctx), 'AgentWorkspace.sessions', 'array', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['sessions']
 		const userStateError = coerceProp(resolveExpressionValue(node['userStateError'], ctx), 'AgentWorkspace.userStateError', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['userStateError']
 		const hiddenDead = coerceProp(resolveExpressionValue(node['hiddenDead'], ctx), 'AgentWorkspace.hiddenDead', 'primitive', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['hiddenDead']
-		return <AgentWorkspace sessions={sessions} userStateError={userStateError} hiddenDead={hiddenDead} />
+		const ownedError = coerceProp(resolveExpressionValue(node['ownedError'], ctx), 'AgentWorkspace.ownedError', 'object', false, true) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['ownedError']
+		const ownedErrorText = coerceProp(resolveExpressionValue(node['ownedErrorText'], ctx), 'AgentWorkspace.ownedErrorText', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['ownedErrorText']
+		return <AgentWorkspace sessions={sessions} userStateError={userStateError} hiddenDead={hiddenDead} ownedError={ownedError} ownedErrorText={ownedErrorText} />
 	},
 }
 // ─── All entries ──────────────────────────────────────────────────────────────
@@ -24,4 +26,4 @@ export const allEntries: ComponentRegistryEntry[] = [
 
 // ─── Auto-detected metadata (allowedChildren, providesContext, requiresContext) ─
 // Generated from @slot JSDoc tags and createContext/useContext calls in component sources.
-AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["hiddenDead","sessions","userStateError"] : [];
+AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["hiddenDead","ownedError","ownedErrorText","sessions","userStateError"] : [];

@@ -12,7 +12,7 @@ import { ImageThumbs } from './ImageThumbs.js';
 import { formatBytes, sendProblem } from './limits.js';
 import { PriorityControl } from './PriorityControl.js';
 import { TransportPicker } from './TransportPicker.js';
-import { TYPED_WARNING } from './TransportRow.js';
+import { typedWarning } from './TransportRow.js';
 import type { AttachedImage } from './types.js';
 import { useAttachImages } from './useAttachImages.js';
 import { useReplyStatus } from './useReplyStatus.js';
@@ -38,10 +38,21 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const live = useReplyStatus(sessionId, (answer) => needsPolling(answer?.messages ?? [], getPending(sessionId), Date.now()), menuOpen);
   const status = live.status;
+  // The session came back (a resume) or went away (a stop): the transports are probed again, the last answer was about the other state.
+  const { refresh: refreshStatus } = live;
+  const lifeKey = `${session.alive}:${session.ownedState ?? ''}`;
+  const lastLife = useRef(lifeKey);
+  useEffect(() => {
+    if (lastLife.current !== lifeKey) {
+      lastLife.current = lifeKey;
+      refreshStatus();
+    }
+  }, [lifeKey, refreshStatus]);
   const { send, sending } = useSendReply(sessionId);
-  const block = composerBlock({ alive: session.alive, loading: live.loading, status, error: live.error });
+  const block = composerBlock({ alive: session.alive, loading: live.loading, status, error: live.error, ownedState: session.ownedState });
   const limits = status?.limits;
-  const typed = status?.transports.find((transport) => transport.selected)?.deliveredAs === 'typed';
+  const selectedTransport = status?.transports.find((transport) => transport.selected);
+  const typed = selectedTransport?.deliveredAs === 'typed';
 
   // The state of the sent messages follows the server; the log shows them (marks on the bubbles), there is no list here.
   useSyncDelivery(sessionId, status?.messages);
@@ -227,7 +238,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           className="max-h-64 min-h-am-hit min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
         {typed ? (
-          <Tooltip content={`Sends as typed by you. ${TYPED_WARNING}`}>
+          <Tooltip content={`Sends as typed by you. ${typedWarning(selectedTransport?.transportId ?? '')}`}>
             <span data-typed-cue="" tabIndex={0} aria-label="Sends as typed by you" className={`inline-flex h-am-hit shrink-0 items-center text-muted ${FOCUS_RING}`}>
               <Keyboard aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </span>
