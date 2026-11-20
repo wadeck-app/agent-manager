@@ -32,9 +32,14 @@ export class RequestError extends Error {
   }
 }
 
+export interface RouteOptions {
+  /** Registered with effect 'sensitive': app-core refuses the request without an access token (the PIN). See commons/routeClasses.ts. */
+  sensitive?: boolean;
+}
+
 export interface RouteKit {
   /** Registers a route; every error thrown by `run` becomes its HTTP answer. */
-  route(method: string, subPath: string, run: (req: RouteRequest) => Promise<RouteAnswer>): void;
+  route(method: string, subPath: string, run: (req: RouteRequest) => Promise<RouteAnswer>, options?: RouteOptions): void;
   /** A token for the write routes (served by GET /csrf). */
   csrfToken(): string;
   /** The persistent folder of the module (ctx.dataDir): pins and seen markers live there. */
@@ -73,6 +78,29 @@ function inline(failure: { status: number; body: Record<string, unknown> }): { s
   return { status: 200, body: { ...failure.body, ok: false, failed: true, httpStatus: failure.status, errorText: `${message}.${hint}` } };
 }
 
+/**
+ * app-core's shell fetcher (the only client that can answer the PIN dialog) throws the top-level `message` of an error body and nothing else, so a sensitive
+ * route also puts "message. hint" there (the nested { error: { message, hint } } of the reply routes would become "[object Object]").
+ */
+function forShellFetcher(body: unknown): unknown {
+  if (!isRecord(body)) {
+    return body;
+  }
+  const nested = body['error'];
+  const source = isRecord(nested) ? nested : body;
+  const message = source['message'];
+  const hint = source['hint'];
+  if (typeof message !== 'string') {
+    return body;
+  }
+  const text = typeof hint === 'string' && !message.includes(hint) ? `${message.replace(/.$/, '')}. ${hint}` : message;
+  return { ...body, message: text };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 /** Methods that never change state: every other method needs the same-origin and token check (T-08), whoever registers the route. */
 const READ_METHODS = ['GET', 'HEAD'];
 
@@ -81,9 +109,10 @@ export function createRouteKit(ctx: ModuleContext, writeStderr: (text: string) =
   return {
     dataDir: ctx.dataDir,
     csrfToken: csrf.issue,
-    route(method, subPath, run) {
+    route(method, subPath, run, options) {
       ctx.registerRoute(method, subPath, async (req, reply) => {
-        const out = reply as unknown as Reply;
+        const raw = reply as unknown as Reply;
+        const out: Reply = options?.sensitive === true ? { code: (status) => ({ send: (body) => raw.code(status).send(status >= 400 ? forShellFetcher(body) : body) }) } : raw;
         try {
           if (!READ_METHODS.includes(method.toUpperCase())) {
             const refusal = csrf.check((req as unknown as RouteRequest).headers);
@@ -105,7 +134,7 @@ export function createRouteKit(ctx: ModuleContext, writeStderr: (text: string) =
           const answer = asData ? inline(failure) : failure;
           return out.code(answer.status).send(answer.body);
         }
-      });
+      }, options?.sensitive === true ? { effect: 'sensitive' } : undefined);
     },
   };
 }

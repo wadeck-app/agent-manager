@@ -106,7 +106,8 @@ describe('OwnedBar: an interrupted session', () => {
     expect(document.querySelector('[data-owned-state="interrupted"]')).toHaveTextContent('Interrupted');
     await userEvent.click(await screen.findByRole('button', { name: 'Resume' }));
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: resumed }));
-    expect(calls.find((call) => call.method === 'POST')?.body).toBeUndefined();
+    // The shell fetcher sends {} for a write without a body; the point is that no acknowledgeLeftover goes along.
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({});
     expect(await screen.findByText(/Send your message again if the lost turn still matters/)).toBeInTheDocument();
   });
 

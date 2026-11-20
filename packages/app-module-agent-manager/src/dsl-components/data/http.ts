@@ -1,4 +1,6 @@
-import { CSRF_HEADER, CSRF_PATH } from '../shared.js';
+import { appFetcher } from '@wadeck-app/app-core-sdk/shell';
+import { getErrorMessage } from '../logic/errorText.js';
+import { CSRF_HEADER, CSRF_PATH, isSensitiveRequest } from '../shared.js';
 
 /** Where the routes of this module live (relative: the shell and the module share an origin). */
 export const API_BASE = '/api/modules/agent-manager';
@@ -66,6 +68,25 @@ export function resetCsrfToken(): void {
   tokenPromise = undefined;
 }
 
+/**
+ * What the user reads when a PIN-protected call fails through the shell fetcher (it throws an Error with the server's message and a status).
+ * Cancelled dialog, shell too old and PIN not set get their own instruction; anything else is the server's message.
+ */
+export function shellFailureText(error: unknown): string {
+  const message = getErrorMessage(error);
+  const status = error instanceof Error ? Reflect.get(error, 'status') : undefined;
+  if (message.includes('Sensitive action cancelled')) {
+    return 'Sensitive action cancelled: PIN not entered. Do the action again and enter the PIN to send it.';
+  }
+  if (message.includes('the app-core shell does not provide')) {
+    return "This action is protected by a PIN and this app-core is too old to ask for it (needs app-core-cli 2026.11.20-212 or later). Run 'app-core-cli update', restart app-core, reload this page, then retry.";
+  }
+  if (status === 403 && message.includes('pin set')) {
+    return "This action is protected by a PIN and no PIN is set. Run 'app-core-cli pin set' in a terminal (once), then retry and enter the PIN when asked.";
+  }
+  return typeof status === 'number' ? message : networkText(error);
+}
+
 function errorCode(body: unknown): string | undefined {
   const error = isRecord(body) ? body['error'] : undefined;
   return isRecord(error) && typeof error['code'] === 'string' ? error['code'] : undefined;
@@ -79,6 +100,7 @@ function errorCode(body: unknown): string | undefined {
 export async function requestJson<T>(path: string, init?: { method?: Method; body?: unknown; signal?: AbortSignal }): Promise<Outcome<T>> {
   const method = init?.method ?? 'GET';
   try {
+    const sensitive = isSensitiveRequest(method, path);
     for (let attempt = 0; ; attempt += 1) {
       const headers: Record<string, string> = {};
       if (init?.body !== undefined) {
@@ -91,6 +113,20 @@ export async function requestJson<T>(path: string, init?: { method?: Method; bod
           return { ok: false, text: token.error };
         }
         headers[token.header] = token.token;
+      }
+      if (sensitive) {
+        // The shell's own fetcher: Bearer token, refresh, PIN dialog, one retry. It throws the server's message (see forShellFetcher in routeKit.ts).
+        try {
+          const value = await appFetcher(`${method} ${API_BASE}${path}`, undefined, init?.body, headers);
+          return { ok: true, value: value as T };
+        } catch (error) {
+          // A refusal before the handler ran (stale CSRF token after a module restart): fetch a new token and send ONCE more. Not for the PIN refusals.
+          if (attempt === 0 && error instanceof Error && Reflect.get(error, 'status') === 403 && !getErrorMessage(error).includes('pin set')) {
+            tokenPromise = undefined;
+            continue;
+          }
+          return { ok: false, text: shellFailureText(error) };
+        }
       }
       const response = await fetch(`${API_BASE}${path}`, {
         method,

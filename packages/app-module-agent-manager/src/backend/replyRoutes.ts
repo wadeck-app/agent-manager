@@ -409,6 +409,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
         throw error;
       }
     }),
+    { sensitive: true },
   );
 
   // The transport is a setting of transports.json (decision 19), never a field of a reply: the same file is read by the CLI (agent-manager transport).

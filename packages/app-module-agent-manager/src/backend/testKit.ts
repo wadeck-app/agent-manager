@@ -22,23 +22,28 @@ export interface CallOptions {
 
 interface Route {
   method: string;
+  /** The path as registered ('/owned/:id/stop'). */
+  subPath: string;
+  /** The options the module gave to registerRoute (effect 'sensitive'). */
+  options: { effect?: string } | undefined;
   segments: string[];
   handler: (req: unknown, reply: unknown) => unknown;
 }
 
 /** A module context that only records the routes, and `call` runs one the way app-core's router does (method, segments, decoded params). */
-export function makeModule(setup: { dataDir?: string; options?: ModuleOptions } = {}): { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[] } {
+export function makeModule(setup: { dataDir?: string; options?: ModuleOptions } = {}): { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[]; registered: { key: string; effect: string | undefined }[] } {
   const routes: Route[] = [];
   const ctx = {
     dataDir: setup.dataDir ?? tmpdir(),
-    registerRoute: (method: string, subPath: string, handler: Route['handler']) => {
-      routes.push({ method, segments: subPath.split('/').filter(Boolean), handler });
+    registerRoute: (method: string, subPath: string, handler: Route['handler'], options?: { effect?: string }) => {
+      routes.push({ method, subPath, options, segments: subPath.split('/').filter(Boolean), handler });
     },
   } as unknown as ModuleContext;
   // The default of the module also offers the hc transport, whose probe runs the real `hc`: tests get the socket transport alone unless they give their own.
   registerRoutes(ctx, { ...setup.options, transports: setup.options?.transports ?? [socketTransport] });
 
-  const module: { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[] } = {
+  const module: { call: (method: string, path: string, options?: CallOptions) => Promise<Call>; routes: string[]; registered: { key: string; effect: string | undefined }[] } = {
+    registered: routes.map((r) => ({ key: `${r.method} ${r.subPath}`, effect: r.options?.effect })),
     routes: routes.map((r) => `${r.method} /${r.segments.join('/')}`),
     async call(method, path, options = {}) {
       const [pathOnly = '', queryString] = path.split('?');

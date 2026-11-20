@@ -39,7 +39,8 @@ describe('the owned header when another session is selected', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Resume' }));
     await waitFor(() => expect(calls.some((call) => call.path === `/owned/${B}/resume`)).toBe(true));
     const resumeOfB = calls.find((call) => call.path === `/owned/${B}/resume`);
-    expect(resumeOfB?.body).toBeUndefined();
+    // The shell fetcher sends {} for a write without a body: what matters is that no acknowledgeLeftover goes along.
+    expect(resumeOfB?.body).toEqual({});
     expect(calls.filter((call) => call.path === `/owned/${A}/resume`).map((call) => call.body)).toEqual([{ acknowledgeLeftover: true }]);
   });
 

@@ -132,6 +132,7 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       const session = await source.daemon.launch({ ...request });
       return ok({ ok: true, session: toOwnedDto(session) } satisfies OwnedSessionOk);
     }),
+    { sensitive: true },
   );
 
   kit.route(
@@ -143,6 +144,7 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       const receipt = await source.daemon.interrupt(id);
       return ok({ ok: true, sessionId: id, stillQueued: receipt.stillQueued, cancelled: receipt.cancelled ?? [] } satisfies OwnedInterruptOk);
     }),
+    { sensitive: true },
   );
 
   kit.route(
@@ -154,6 +156,7 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       const applied = await source.daemon.setPermissionMode(id, mode);
       return ok({ ok: true, sessionId: id, mode: applied.mode } satisfies OwnedPermissionModeOk);
     }),
+    { sensitive: true },
   );
 
   kit.route(
@@ -164,6 +167,7 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       requireNoBody(req.body);
       return ok({ ok: true, session: toOwnedDto(await source.daemon.stop(id)) } satisfies OwnedSessionOk);
     }),
+    { sensitive: true },
   );
 
   kit.route(
@@ -174,6 +178,7 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       const acknowledge = parseResumeBody(req.body);
       return ok({ ok: true, session: toOwnedDto(await source.daemon.resume(id, acknowledge)) } satisfies OwnedSessionOk);
     }),
+    { sensitive: true },
   );
 
   kit.route(
@@ -209,5 +214,6 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       const answer = await source.daemon.decide(id, requestId, decision.decision === 'allow' ? { decision: 'allow' } : { decision: 'deny', message: decision.message });
       return ok({ ok: true, sessionId: id, requestId: answer.requestId, decision: answer.decision } satisfies OwnedDecisionOk);
     }),
+    { sensitive: true },
   );
 }
