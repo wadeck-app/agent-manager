@@ -39,3 +39,6 @@ sections:
     ownedErrorText: $sources.sessions.ownedErrorText
     unreadableText: $sources.sessions.unreadableText
     guardrailsErrorText: $sources.sessions.guardrailsErrorText
+    # Owned sessions listed in owned-sessions.json while the daemon is down (their actions are missing), and an unusable owned-sessions.json: persistent warnings.
+    ownedDownText: $sources.sessions.ownedDownText
+    ownedStateErrorText: $sources.sessions.ownedStateErrorText

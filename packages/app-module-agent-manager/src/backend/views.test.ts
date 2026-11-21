@@ -182,7 +182,7 @@ describe('the Agents page', () => {
     const workspace = sections().filter((s) => s['$type'] === 'agent-manager:AgentWorkspace');
     expect(workspace).toHaveLength(1);
     // It gets the rows of the page source (no second request) and its own props only.
-    expect(workspace[0]).toEqual({ $type: 'agent-manager:AgentWorkspace', $if: '$sources.sessions.ok', sessions: '$sources.sessions.sessions', userStateError: '$sources.sessions.userStateError', customGroups: '$sources.sessions.customGroups', hiddenDead: '$sources.sessions.hiddenDead', ownedError: '$sources.sessions.ownedError', ownedErrorText: '$sources.sessions.ownedErrorText', unreadableText: '$sources.sessions.unreadableText', guardrailsErrorText: '$sources.sessions.guardrailsErrorText' });
+    expect(workspace[0]).toEqual({ $type: 'agent-manager:AgentWorkspace', $if: '$sources.sessions.ok', sessions: '$sources.sessions.sessions', userStateError: '$sources.sessions.userStateError', customGroups: '$sources.sessions.customGroups', hiddenDead: '$sources.sessions.hiddenDead', ownedError: '$sources.sessions.ownedError', ownedErrorText: '$sources.sessions.ownedErrorText', unreadableText: '$sources.sessions.unreadableText', guardrailsErrorText: '$sources.sessions.guardrailsErrorText', ownedDownText: '$sources.sessions.ownedDownText', ownedStateErrorText: '$sources.sessions.ownedStateErrorText' });
     expect(readFileSync(join(viewsDir, 'sessions-page.yaml'), 'utf8')).not.toMatch(/sessions-layout|layout-(groups|inbox|tree|cards|palette)-style|DataTable/);
   });
 

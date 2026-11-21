@@ -19,7 +19,9 @@ export const AgentWorkspaceEntry: ComponentRegistryEntry = {
 		const ownedErrorText = coerceProp(resolveExpressionValue(node['ownedErrorText'], ctx), 'AgentWorkspace.ownedErrorText', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['ownedErrorText']
 		const unreadableText = coerceProp(resolveExpressionValue(node['unreadableText'], ctx), 'AgentWorkspace.unreadableText', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['unreadableText']
 		const guardrailsErrorText = coerceProp(resolveExpressionValue(node['guardrailsErrorText'], ctx), 'AgentWorkspace.guardrailsErrorText', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['guardrailsErrorText']
-		return <AgentWorkspace sessions={sessions} userStateError={userStateError} customGroups={customGroups} hiddenDead={hiddenDead} ownedError={ownedError} ownedErrorText={ownedErrorText} unreadableText={unreadableText} guardrailsErrorText={guardrailsErrorText} />
+		const ownedDownText = coerceProp(resolveExpressionValue(node['ownedDownText'], ctx), 'AgentWorkspace.ownedDownText', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['ownedDownText']
+		const ownedStateErrorText = coerceProp(resolveExpressionValue(node['ownedStateErrorText'], ctx), 'AgentWorkspace.ownedStateErrorText', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['ownedStateErrorText']
+		return <AgentWorkspace sessions={sessions} userStateError={userStateError} customGroups={customGroups} hiddenDead={hiddenDead} ownedError={ownedError} ownedErrorText={ownedErrorText} unreadableText={unreadableText} guardrailsErrorText={guardrailsErrorText} ownedDownText={ownedDownText} ownedStateErrorText={ownedStateErrorText} />
 	},
 }
 
@@ -40,5 +42,5 @@ export const allEntries: ComponentRegistryEntry[] = [
 
 // ─── Auto-detected metadata (allowedChildren, providesContext, requiresContext) ─
 // Generated from @slot JSDoc tags and createContext/useContext calls in component sources.
-AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["customGroups","guardrailsErrorText","hiddenDead","ownedError","ownedErrorText","sessions","unreadableText","userStateError"] : [];
+AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["customGroups","guardrailsErrorText","hiddenDead","ownedDownText","ownedError","ownedErrorText","ownedStateErrorText","sessions","unreadableText","userStateError"] : [];
 GuardrailsPageEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["overview"] : [];

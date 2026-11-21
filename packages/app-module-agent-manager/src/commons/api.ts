@@ -175,6 +175,18 @@ export interface SessionsOk {
   ownedError: ApiError | null;
   /** `ownedError` message and hint in one line; empty when there is none. */
   ownedErrorText: string;
+  /** Set only when the daemon cannot be asked AND owned-sessions.json lists at least one session: those owned sessions turned into plain rows (no Stop, Resume, Move). null otherwise (never for a user who never used the daemon). */
+  ownedDown: OwnedDown | null;
+  /** The banner text of `ownedDown` (count, why the actions are missing, the fix); empty when null. */
+  ownedDownText: string;
+  /** Set when the daemon is down and owned-sessions.json cannot be used (unreadable, not JSON, unknown version): the file, why and the fix. Empty otherwise. */
+  ownedStateErrorText: string;
+}
+
+/** Owned sessions listed in owned-sessions.json while the daemon cannot be asked: how many, and the command or hint that fixes it. */
+export interface OwnedDown {
+  count: number;
+  fix: string;
 }
 
 /** GET /sessions answer when the registry cannot be read (HTTP 200, no list). */

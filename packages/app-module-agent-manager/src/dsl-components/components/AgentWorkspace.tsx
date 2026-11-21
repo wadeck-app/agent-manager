@@ -20,6 +20,10 @@ export interface AgentWorkspaceProps {
   unreadableText?: string;
   /** `$sources.sessions.guardrailsErrorText`: the w-guardrails counters behind the blocked chip could not be read (details on the Guardrails page). */
   guardrailsErrorText?: string;
+  /** `$sources.sessions.ownedDownText`: owned sessions are listed but the daemon is down (their actions are missing), with the fix; empty when none. */
+  ownedDownText?: string;
+  /** `$sources.sessions.ownedStateErrorText`: owned-sessions.json cannot be used while the daemon is down; empty when none. */
+  ownedStateErrorText?: string;
 }
 
 /**
@@ -30,12 +34,12 @@ export interface AgentWorkspaceProps {
  * @registryCategory composite
  * @registryTags agents sessions master-detail
  */
-export function AgentWorkspace({ sessions, userStateError, customGroups, hiddenDead, ownedError, ownedErrorText, unreadableText, guardrailsErrorText }: AgentWorkspaceProps) {
+export function AgentWorkspace({ sessions, userStateError, customGroups, hiddenDead, ownedError, ownedErrorText, unreadableText, guardrailsErrorText, ownedDownText, ownedStateErrorText }: AgentWorkspaceProps) {
   return (
     <Scope>
       {/* The design questions of the UI audit: one A/B dock for the whole page (see logic/uiVariants.ts). */}
       <UiVariants>
-        <Workspace sessions={sessions} userStateError={userStateError ?? ''} customGroups={customGroups} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} unreadableText={unreadableText ?? ''} guardrailsErrorText={guardrailsErrorText ?? ''} />
+        <Workspace sessions={sessions} userStateError={userStateError ?? ''} customGroups={customGroups} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} unreadableText={unreadableText ?? ''} guardrailsErrorText={guardrailsErrorText ?? ''} ownedDownText={ownedDownText ?? ''} ownedStateErrorText={ownedStateErrorText ?? ''} />
       </UiVariants>
     </Scope>
   );

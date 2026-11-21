@@ -51,11 +51,14 @@ export interface WorkspaceProps {
   /** The registry files that could not be read (empty when none) and the unreadable guardrails counters: warnings above the list. */
   unreadableText?: string;
   guardrailsErrorText?: string;
+  /** Owned sessions that lost their actions because the daemon is down (with the fix), and the unusable owned-sessions.json: persistent warnings. */
+  ownedDownText?: string;
+  ownedStateErrorText?: string;
 }
 
 const NO_GROUPS: readonly CustomGroupDto[] = [];
 
-export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, hiddenDead, ownedError, ownedErrorText, unreadableText = '', guardrailsErrorText = '' }: WorkspaceProps) {
+export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, hiddenDead, ownedError, ownedErrorText, unreadableText = '', guardrailsErrorText = '', ownedDownText = '', ownedStateErrorText = '' }:WorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
   useFillContentArea(root, 360);
   const now = useNow();
@@ -305,6 +308,20 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         }
       >
         {searchNote}
+      </Banner>,
+    );
+  }
+  if (ownedDownText !== '') {
+    notices.push(
+      <Banner key="owned-down" tone="warning">
+        {ownedDownText}
+      </Banner>,
+    );
+  }
+  if (ownedStateErrorText !== '') {
+    notices.push(
+      <Banner key="owned-state" tone="warning">
+        {ownedStateErrorText}
       </Banner>,
     );
   }

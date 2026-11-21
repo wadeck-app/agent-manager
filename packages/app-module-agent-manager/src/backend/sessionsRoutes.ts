@@ -15,6 +15,7 @@ import { registerLogRoute } from './logRoute.js';
 import { registerReplyRoutes, type ModuleOptions } from './replyRoutes.js';
 import { createDaemonApi } from './daemon/daemonApi.js';
 import { DISCOVERED, joinOwned } from './daemon/ownedJoin.js';
+import { ownedDownOf } from './daemon/ownedDown.js';
 import { createOwnedSource, errorTextOf, type OwnedSource } from './daemon/ownedSource.js';
 import { registerOwnedRoutes } from './ownedRoutes.js';
 import { registerHcPermissionRoutes } from './hcPermissionRoutes.js';
@@ -81,6 +82,8 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
     }
     // The registry rows joined with the owned records by session id (one daemon call, cached): a daemon that cannot be asked is data (`ownedError`), the rows stay.
     const joined = await joinOwned(registry.sessions, source, now);
+    // Owned sessions whose daemon is down turned into plain rows: a persistent banner says why (only when owned-sessions.json lists some).
+    const ownedDown = await ownedDownOf(joined.ownedError);
     const all = sortByStatusUpdatedDesc(joined.sessions);
     pruneDigestCache(new Set(all.map((session) => session.sessionId)), now);
     const latest = latestVersion(all);
@@ -170,6 +173,9 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
       guardrailsErrorText: guardrails.errorText,
       ownedError: joined.ownedError,
       ownedErrorText: joined.ownedError === null ? '' : errorTextOf(joined.ownedError),
+      ownedDown: ownedDown.ownedDown,
+      ownedDownText: ownedDown.ownedDownText,
+      ownedStateErrorText: ownedDown.ownedStateErrorText,
       unreadable: registry.unreadable,
       unreadableText: unreadableText(registry.unreadable),
       hiddenDead,
