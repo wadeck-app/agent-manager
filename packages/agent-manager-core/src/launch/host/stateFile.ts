@@ -5,7 +5,7 @@ import { getErrorMessage } from '../../errors.js';
 import { LaunchError } from '../errors.js';
 import { HOST_KINDS } from './types.js';
 import { MAX_QUOTE_CHARS } from './validation.js';
-import type { ExitBy, HostKind, OwnedExit, OwnedSessionRecord, PersistedStatus } from './types.js';
+import type { ExitBy, HostKind, OwnedExit, OwnedSessionRecord, PersistedStatus, SwitchFailure, SwitchRecord } from './types.js';
 
 /*
  * `<config dir>/owned-sessions.json`: the sessions the daemon launched, so that a restart can list them and resume them. Versioned; written
@@ -99,6 +99,43 @@ function parseExit(value: unknown, where: string): OwnedExit {
   return { cause: cause as OwnedExit['cause'], code, signal, by: by as ExitBy, stderrTail, at: reader.number('at') };
 }
 
+function parseSwitches(value: unknown, where: string): SwitchRecord[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`${where} must be an array`);
+  }
+  return value.map((entry: unknown, index): SwitchRecord => {
+    const at = `${where}[${index}]`;
+    if (!isRecord(entry)) {
+      throw new Error(`${at} must be an object`);
+    }
+    const reader = new Reader(entry, at);
+    const from = reader.string('from');
+    const to = reader.string('to');
+    if (!isHostKind(from)) {
+      throw new Error(`${at}.from ${JSON.stringify(from)} is not one of ${HOST_KINDS.join(', ')}`);
+    }
+    if (!isHostKind(to)) {
+      throw new Error(`${at}.to ${JSON.stringify(to)} is not one of ${HOST_KINDS.join(', ')}`);
+    }
+    if (typeof entry['forced'] !== 'boolean') {
+      throw new Error(`${at}.forced must be true or false`);
+    }
+    return { at: reader.number('at'), from, to, forced: entry['forced'] };
+  });
+}
+
+function parseSwitchFailure(value: unknown, where: string): SwitchFailure {
+  if (!isRecord(value)) {
+    throw new Error(`${where} must be an object`);
+  }
+  const reader = new Reader(value, where);
+  const target = reader.string('target');
+  if (!isHostKind(target)) {
+    throw new Error(`${where}.target ${JSON.stringify(target)} is not one of ${HOST_KINDS.join(', ')}`);
+  }
+  return { at: reader.number('at'), target, reason: reader.string('reason') };
+}
+
 function parseRecord(value: unknown, index: number): OwnedSessionRecord {
   const where = `sessions[${index}]`;
   if (!isRecord(value)) {
@@ -161,6 +198,8 @@ function parseRecord(value: unknown, index: number): OwnedSessionRecord {
     ...(forkedFrom === undefined ? {} : { forkedFrom }),
     ...(forkedAtMessage === undefined ? {} : { forkedAtMessage }),
     ...(forkedAtQuote === undefined ? {} : { forkedAtQuote }),
+    ...(value['switches'] === undefined ? {} : { switches: parseSwitches(value['switches'], `${where}.switches`) }),
+    ...(value['switchFailure'] === undefined ? {} : { switchFailure: parseSwitchFailure(value['switchFailure'], `${where}.switchFailure`) }),
   };
 }
 

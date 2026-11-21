@@ -1,7 +1,7 @@
-import { LaunchError, MAX_QUOTE_CHARS, assertResumeSessionAt, parseDecisionBody, parseLaunchBody, parsePermissionModeBody } from '@wadeck-app/agent-manager-core/launch';
+import { LaunchError, MAX_QUOTE_CHARS, assertResumeSessionAt, parseDecisionBody, parseLaunchBody, parsePermissionModeBody, parseSwitchBody } from '@wadeck-app/agent-manager-core/launch';
 import { SAFE_ID } from '@wadeck-app/agent-manager-core/reply';
 import { forkNameOf } from '../commons/forkName.js';
-import type { OwnedDecisionOk, OwnedForgetOk, OwnedForkOk, OwnedInterruptOk, OwnedListResponse, OwnedPermissionModeOk, OwnedPermissionsOk, OwnedSessionDto, OwnedSessionOk } from '../commons/api.js';
+import type { OwnedDecisionOk, OwnedForgetOk, OwnedForkOk, OwnedInterruptOk, OwnedListResponse, OwnedPermissionModeOk, OwnedPermissionsOk, OwnedSessionDto, OwnedSessionOk, OwnedSwitchOk } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import { DaemonError } from './daemon/daemonApi.js';
 import type { OwnedView } from './daemon/daemonApi.js';
@@ -296,6 +296,23 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       return ok({ ok: true, id: forgotten.id, ...(forgotten.supervisorNote === undefined ? {} : { supervisorNote: forgotten.supervisorNote }) } satisfies OwnedForgetOk);
     }),
     // Sensitive since the bg host: forgetting a background session also removes it from the Claude Code supervisor (`claude rm`).
+    { sensitive: true },
+  );
+
+  /*
+   * POST /owned/:id/switch {target, force?}: moves the session to another host (X1 <-> hc), same id (#71, research/adopt-host-switch.md). The DAEMON decides
+   * (it computes the readiness again; the colour of the button is only a hint): a session that is not free is refused 409 `switch-not-ready` with the reasons, and
+   * moves only when the body carries `force: true`, which the page sends after the user confirmed those reasons. It stops one process and starts another: PIN class.
+   */
+  kit.route(
+    'POST',
+    '/owned/:id/switch',
+    writing(async (req) => {
+      const id = sessionIdOf(req);
+      const { target, force } = parseSwitchBody(req.body);
+      const answer = await source.daemon.switchHost(id, target, force);
+      return ok({ ok: true, session: toOwnedDto(answer.session), from: answer.from, to: answer.to, forced: answer.forced, readiness: answer.readiness, notes: answer.notes } satisfies OwnedSwitchOk);
+    }),
     { sensitive: true },
   );
 

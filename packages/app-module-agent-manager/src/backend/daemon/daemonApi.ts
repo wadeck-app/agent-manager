@@ -73,6 +73,16 @@ export class DaemonError extends Error {
   }
 }
 
+/** What the daemon answers a switch: the session on its new host, what it found, what stays to know. */
+export interface SwitchAnswer {
+  session: OwnedView;
+  from: OwnedView['hostKind'];
+  to: OwnedView['hostKind'];
+  forced: boolean;
+  readiness: { state: 'free' | 'busy' | 'unknown'; reasons: string[] };
+  notes: string[];
+}
+
 export interface DaemonApi {
   status(): Promise<DaemonStatusDto>;
   /** The owned sessions, newest launch first. One daemon call per `cacheMs` (default 1.5 s) however many requests ask; a write drops the cache. */
@@ -84,6 +94,8 @@ export interface DaemonApi {
   stop(id: string): Promise<OwnedView>;
   resume(id: string, acknowledgeLeftover: boolean): Promise<OwnedView>;
   forget(id: string): Promise<{ id: string; supervisorNote?: string }>;
+  /** Moves the session to another host (#71): the daemon recomputes the readiness, refuses with switch-not-ready unless `force`. Can take a minute (stop, then claude starts). */
+  switchHost(id: string, target: 'stream-json' | 'hc', force: boolean): Promise<SwitchAnswer>;
   permissions(id: string): Promise<PendingPermission[]>;
   decide(id: string, requestId: string, body: { decision: 'allow' | 'deny'; message?: string }): Promise<{ requestId: string; decision: 'allow' | 'deny' }>;
 }
@@ -97,6 +109,8 @@ export interface DaemonApiOptions {
   timeoutMs?: number;
   /** launch and resume start a claude process (its `initialize` took 4.5 s when measured). Default 30 s. */
   slowTimeoutMs?: number;
+  /** A switch stops a process (up to 20 s), then starts one (hc: up to 60 s for the terminal to register). Default 120 s. */
+  switchTimeoutMs?: number;
   /** Default 1500. */
   cacheMs?: number;
   clock?: () => number;
@@ -104,6 +118,7 @@ export interface DaemonApiOptions {
 
 const DEFAULT_TIMEOUT_MS = 4000;
 const DEFAULT_SLOW_TIMEOUT_MS = 30_000;
+const DEFAULT_SWITCH_TIMEOUT_MS = 120_000;
 const DEFAULT_CACHE_MS = 1500;
 const PORT_FILE = 'config.port';
 /** Errors of a connection that was open and went away (undici names its own socket error). */
@@ -137,6 +152,7 @@ export function createDaemonApi(options: DaemonApiOptions = {}): DaemonApi {
   const doFetch = options.fetch ?? fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const slowTimeoutMs = options.slowTimeoutMs ?? DEFAULT_SLOW_TIMEOUT_MS;
+  const switchTimeoutMs = options.switchTimeoutMs ?? DEFAULT_SWITCH_TIMEOUT_MS;
   const cacheMs = options.cacheMs ?? DEFAULT_CACHE_MS;
   const clock = options.clock ?? Date.now;
 
@@ -220,7 +236,8 @@ export function createDaemonApi(options: DaemonApiOptions = {}): DaemonApi {
   }
 
   /** One HTTP call. The endpoint is forgotten (and found again once) when the daemon went away or the token changed, so a restarted daemon is picked up. */
-  async function call<T>(method: string, path: string, init: { body?: unknown; slow?: boolean } = {}): Promise<T> {
+  async function call<T>(method: string, path: string, init: { body?: unknown; slow?: boolean; switching?: boolean } = {}): Promise<T> {
+    const limitMs = init.switching === true ? switchTimeoutMs : init.slow === true ? slowTimeoutMs : timeoutMs;
     const configDir = configDirOf();
     for (let attempt = 0; ; attempt += 1) {
       const target = await endpointFor(configDir);
@@ -231,7 +248,7 @@ export function createDaemonApi(options: DaemonApiOptions = {}): DaemonApi {
           method,
           headers: { authorization: `Bearer ${target.token}`, ...(init.body === undefined ? {} : { 'content-type': 'application/json' }) },
           ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
-          signal: AbortSignal.timeout(init.slow === true ? slowTimeoutMs : timeoutMs),
+          signal: AbortSignal.timeout(limitMs),
         });
         text = await response.text();
       } catch (error) {
@@ -247,7 +264,7 @@ export function createDaemonApi(options: DaemonApiOptions = {}): DaemonApi {
         }
         if (code === 'TIMEOUT') {
           // A timeout of a WRITE does not say that nothing happened (the daemon may have done it): say so.
-          const limit = init.slow === true ? slowTimeoutMs : timeoutMs;
+          const limit = limitMs;
           throw new DaemonError('unreachable', 'daemon-unreachable', `the daemon did not answer ${method} ${path} within ${limit} ms${method === 'GET' ? '' : ' (it may still have done it: look at the session list before trying again)'}`, 'if it stays stuck, end the daemon process and run `' + START_COMMAND + '`', undefined, method !== 'GET');
         }
         const lost = method !== 'GET' && RESET_CODES.includes(code);
@@ -369,6 +386,16 @@ export function createDaemonApi(options: DaemonApiOptions = {}): DaemonApi {
         }
         const note = answer['supervisorNote'];
         return { id: answer['id'], ...(typeof note === 'string' ? { supervisorNote: note } : {}) };
+      }),
+    switchHost: (id, target, force) =>
+      write(async () => {
+        const answer = await call<unknown>('POST', `/sessions/${enc(id)}/switch`, { body: { target, force }, switching: true });
+        const readiness = isRecord(answer) ? answer['readiness'] : undefined;
+        const state = isRecord(readiness) ? readiness['state'] : undefined;
+        if (!isRecord(answer) || !isRecord(answer['session']) || typeof answer['session']['id'] !== 'string' || !isRecord(readiness) || (state !== 'free' && state !== 'busy' && state !== 'unknown') || !isStrings(readiness['reasons']) || !isStrings(answer['notes']) || typeof answer['from'] !== 'string' || typeof answer['to'] !== 'string' || typeof answer['forced'] !== 'boolean') {
+          throw badWriteAnswer('the switch', '{"session", "from", "to", "forced", "readiness", "notes"}');
+        }
+        return { session: normalizeView(answer['session'] as unknown as OwnedSessionView), from: answer['from'] as OwnedView['hostKind'], to: answer['to'] as OwnedView['hostKind'], forced: answer['forced'], readiness: { state, reasons: readiness['reasons'] }, notes: answer['notes'] };
       }),
     async permissions(id) {
       return arrayOf<PendingPermission>(await call<unknown>('GET', `/sessions/${enc(id)}/permissions`), 'permissions', 'the permission list');

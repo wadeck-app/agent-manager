@@ -6,7 +6,7 @@ import { MAX_TEXT_CHARS } from '../../reply/compose.js';
 import { MAX_UPLOAD_BYTES } from '../../reply/uploads.js';
 import { removeDir } from '../../testFixtures.js';
 import { LaunchError } from '../errors.js';
-import { DEFAULT_DENY_MESSAGE, MAX_IMAGES, parseDecisionBody, parseLaunchBody, parsePermissionModeBody, parseSendBody } from './validation.js';
+import { DEFAULT_DENY_MESSAGE, MAX_IMAGES, parseDecisionBody, parseLaunchBody, parsePermissionModeBody, parseSendBody, parseSwitchBody } from './validation.js';
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -161,5 +161,24 @@ describe('permission bodies', () => {
     ['a number as message', { decision: 'deny', message: 5 }],
   ])('refuses %s', (_name, body) => {
     expect(error(() => parseDecisionBody(body)).fix).not.toBe('');
+  });
+});
+
+describe('parseSwitchBody', () => {
+  it('accepts a target, with force off by default', () => {
+    expect(parseSwitchBody({ target: 'hc' })).toEqual({ target: 'hc', force: false });
+    expect(parseSwitchBody({ target: 'stream-json', force: true })).toEqual({ target: 'stream-json', force: true });
+  });
+
+  it('refuses a bg target (out of scope) and an unknown one, with the fix', () => {
+    expect(() => parseSwitchBody({ target: 'bg' })).toThrow(/stream-json|hc/);
+    expect(() => parseSwitchBody({ target: 'nowhere' })).toThrow(LaunchError);
+    expect(() => parseSwitchBody({})).toThrow(/target is required/);
+  });
+
+  it('refuses a non boolean force and unknown fields (a typo is never ignored)', () => {
+    expect(() => parseSwitchBody({ target: 'hc', force: 'yes' })).toThrow(/force must be true or false/);
+    expect(() => parseSwitchBody({ target: 'hc', frce: true })).toThrow(/not accepted/);
+    expect(() => parseSwitchBody(null)).toThrow(/JSON object/);
   });
 });

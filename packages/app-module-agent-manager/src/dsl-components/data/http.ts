@@ -1,6 +1,8 @@
 import { appFetcher } from '@wadeck-app/app-core-sdk/shell';
 import { getErrorMessage } from '../logic/errorText.js';
 import { CSRF_HEADER, CSRF_PATH, isSensitiveRequest } from '../shared.js';
+// violations-suppress: ts/no-deep-relative the module has no path alias; commons/ is shared by the backend and the page
+import { unmarkMessage } from '../../commons/errorMarks.js';
 
 /** Where the routes of this module live (relative: the shell and the module share an origin). */
 export const API_BASE = '/api/modules/agent-manager';
@@ -172,7 +174,9 @@ export async function requestJson<T>(path: string, init?: { method?: Method; bod
             tokenPromise = undefined;
             continue;
           }
-          return { ok: false, text: shellFailureText(error) };
+          // A machine code that the route put in front of the text (the shell fetcher throws nothing else): taken off, and returned as `code`.
+          const { text, code } = unmarkMessage(shellFailureText(error));
+          return { ok: false, text, ...(code === undefined ? {} : { code }) };
         }
       }
       const response = await fetch(`${API_BASE}${path}`, {

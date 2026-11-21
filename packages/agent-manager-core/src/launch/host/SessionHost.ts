@@ -1,9 +1,19 @@
 import { randomBytes } from 'node:crypto';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { getErrorMessage } from '../../errors.js';
 import { isPidAlive } from '../../pidAlive.js';
+import { readSessionRegistry } from '../../readSessionRegistry.js';
+import type { RegistryResult, Session } from '../../session.js';
+import { resolveSessionsDir } from '../../sessionsDir.js';
+import { classifyReadiness } from '../../transcript/readiness.js';
+import type { AdoptReadiness } from '../../transcript/readiness.js';
+import { readInFlight, readSubagentActivity } from '../../transcript/readInFlight.js';
 import { BgLauncher } from '../BgLauncher.js';
 import type { BgAgent, BgLaunchRequest, BgLaunchResult } from '../BgLauncher.js';
 import { LaunchError } from '../errors.js';
+import { HcControl, promptDraft } from '../HcControl.js';
+import type { HcControlLike, HcTerminalInfo } from '../HcControl.js';
 import { HcLauncher } from '../HcLauncher.js';
 import type { HcLaunchRequest, HcLaunchResult } from '../HcLauncher.js';
 import { transcriptHasUuid } from '../../transcript/hasEntry.js';
@@ -19,8 +29,10 @@ import type { HostAuditAction } from './hostAudit.js';
 import { describeLeftover, findLeftovers } from './leftovers.js';
 import type { Leftover } from './leftovers.js';
 import { ownedStatePath, readOwnedState, writeOwnedState } from './stateFile.js';
-import { MAX_MESSAGES_PER_SESSION, MAX_RESULT_TEXT_CHARS, MAX_STDERR_TAIL_CHARS } from './types.js';
-import type { ExitBy, HostEventType, LastResult, MessageStatus, OwnedExit, OwnedSessionRecord, OwnedSessionView, OwnedState } from './types.js';
+import { checkFolderTrust } from './trust.js';
+import type { FolderTrust } from './trust.js';
+import { MAX_MESSAGES_PER_SESSION, MAX_RESULT_TEXT_CHARS, MAX_STDERR_TAIL_CHARS, MAX_SWITCH_HISTORY } from './types.js';
+import type { ExitBy, HostEventType, HostKind, LastResult, MessageStatus, OwnedExit, OwnedSessionRecord, OwnedSessionView, OwnedState, SwitchRecord } from './types.js';
 import type { DecisionRequest, LaunchRequest, SendRequest } from './validation.js';
 
 /*
@@ -39,6 +51,9 @@ export const DEFAULT_MAX_LIVE_SESSIONS = 10;
 /** Live threads (forks that stop at a message) of one source session. */
 export const DEFAULT_MAX_THREADS_PER_SESSION = 3;
 export const DEFAULT_MAX_RECORDS = 200;
+/** The longest a switch waits for an hc terminal to end after the keys (claude exits in about a second when idle, measured). */
+export const DEFAULT_SWITCH_STOP_TIMEOUT_MS = 20_000;
+export const DEFAULT_SWITCH_POLL_MS = 300;
 
 export interface HcLauncherLike {
   launch(request: HcLaunchRequest): Promise<HcLaunchResult>;
@@ -69,6 +84,18 @@ export interface SessionHostOptions {
   claude?: { command?: string; commandArgs?: readonly string[]; env?: NodeJS.ProcessEnv };
   /** The X3 launcher. Default: a HcLauncher that runs `hc` on the PATH. */
   hcLauncher?: HcLauncherLike;
+  /** What the switch needs of herdr-core besides launching (read, keys, kill, remove). Default: HcControl on the PATH, when no custom hcLauncher is given; a custom launcher without control makes a switch FROM hc fail with a message. */
+  hcControl?: HcControlLike;
+  /** Test seam: the Claude Code registry now. Default: readSessionRegistry of the sessions folder of the claude environment. */
+  readRegistry?: () => Promise<RegistryResult>;
+  /** Test seam: is the folder trusted by Claude Code (an interactive claude there would block on the trust dialog)? Default: reads ~/.claude.json. */
+  trustCheck?: (cwd: string) => Promise<FolderTrust>;
+  /** Test seam: a pause. Default: setTimeout. */
+  sleep?: (ms: number) => Promise<void>;
+  /** How long a switch waits for a stopped hc terminal to end. Default DEFAULT_SWITCH_STOP_TIMEOUT_MS. */
+  switchStopTimeoutMs?: number;
+  /** The period of that wait. Default DEFAULT_SWITCH_POLL_MS. */
+  switchPollMs?: number;
   /** The X2 launcher and observer. Default: a BgLauncher that runs `claude` like the X1 children (same program and environment). */
   bgLauncher?: BgLauncherLike;
   /** The period of the poll of `claude agents --json` while a bg session is live. Default DEFAULT_BG_OBSERVE_INTERVAL_MS. */
@@ -112,6 +139,34 @@ export interface HostStatus {
   owned: { total: number; live: number; idle: number; running: number; requiresAction: number; exited: number; interrupted: number; unobserved: number };
   leftovers: number;
   stopping: boolean;
+}
+
+/** What a switch found on the source host. */
+interface SwitchSource {
+  live: boolean;
+  /** The pids this switch is about to stop. */
+  pids: number[];
+  /** hc: the terminal as hc reports it. */
+  info?: HcTerminalInfo;
+}
+
+export interface SwitchResult {
+  /** The same session (same id) on its new host. */
+  session: OwnedSessionView;
+  from: HostKind;
+  to: HostKind;
+  /** The caller asked to go on although the session was not free. */
+  forced: boolean;
+  /** What the server found at the moment of the switch (the reasons the caller acknowledged). */
+  readiness: AdoptReadiness;
+  /** What stays to know after the switch (a stale registry file, an orphaned tool, a terminal that could not be removed). */
+  notes: string[];
+}
+
+/** The config file of Claude Code that holds the trust of the folders: `$CLAUDE_CONFIG_DIR/.claude.json`, else `~/.claude.json`. */
+function claudeJsonPath(env: NodeJS.ProcessEnv): string {
+  const dir = env['CLAUDE_CONFIG_DIR'];
+  return dir !== undefined && dir.trim() !== '' ? join(dir, '.claude.json') : join(env['HOME'] ?? env['USERPROFILE'] ?? homedir(), '.claude.json');
 }
 
 export interface InitResult {
@@ -171,6 +226,14 @@ export class SessionHost {
   readonly #statePath: string;
   readonly #claude: NonNullable<SessionHostOptions['claude']>;
   readonly #hcLauncher: HcLauncherLike;
+  readonly #hcControl: HcControlLike | undefined;
+  readonly #readRegistry: () => Promise<RegistryResult>;
+  readonly #trustCheck: (cwd: string) => Promise<FolderTrust>;
+  readonly #sleep: (ms: number) => Promise<void>;
+  readonly #switchStopTimeoutMs: number;
+  readonly #switchPollMs: number;
+  /** Ids being switched from one host to another: one switch per id, and no stop, resume or forget meanwhile. */
+  readonly #switching = new Set<string>();
   readonly #bg: BgLauncherLike;
   readonly #bgIntervalMs: number;
   /** What the last successful poll said about each bg session (by session id). Never persisted: it is read again at the first poll after a start. */
@@ -224,6 +287,13 @@ export class SessionHost {
     this.#statePath = ownedStatePath(options.configDir);
     this.#claude = options.claude ?? {};
     this.#hcLauncher = options.hcLauncher ?? new HcLauncher();
+    this.#hcControl = options.hcControl ?? (options.hcLauncher === undefined ? new HcControl() : undefined);
+    const claudeEnv = this.#claude.env ?? process.env;
+    this.#readRegistry = options.readRegistry ?? (() => readSessionRegistry(resolveSessionsDir(claudeEnv)));
+    this.#trustCheck = options.trustCheck ?? ((cwd) => checkFolderTrust(cwd, claudeJsonPath(claudeEnv)));
+    this.#sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+    this.#switchStopTimeoutMs = options.switchStopTimeoutMs ?? DEFAULT_SWITCH_STOP_TIMEOUT_MS;
+    this.#switchPollMs = options.switchPollMs ?? DEFAULT_SWITCH_POLL_MS;
     this.#bg = options.bgLauncher ?? new BgLauncher({ onWarning: (text) => this.#warnOnce(text), ...(this.#claude.command === undefined ? {} : { command: this.#claude.command }), ...(this.#claude.commandArgs === undefined ? {} : { commandArgs: this.#claude.commandArgs }), ...(this.#claude.env === undefined ? {} : { env: this.#claude.env }) });
     this.#bgIntervalMs = options.bgObserveIntervalMs ?? DEFAULT_BG_OBSERVE_INTERVAL_MS;
     this.#bgGraceMs = options.bgRespawnGraceMs ?? DEFAULT_BG_RESPAWN_GRACE_MS;
@@ -423,6 +493,7 @@ export class SessionHost {
   async resume(id: string, options: { acknowledgeLeftover?: boolean } = {}): Promise<OwnedSessionView> {
     return this.#audited('resume', id, {}, async () => {
       this.#assertRunning();
+      this.#assertNotSwitching(id);
       const record = this.#record(id);
       if (record.hostKind === 'bg') {
         return await this.#resumeBg(record);
@@ -479,6 +550,7 @@ export class SessionHost {
 
   async send(id: string, request: SendRequest): Promise<{ uuid: string; state: 'queued' }> {
     return this.#audited('send', id, { textChars: request.text.length, images: request.images.length }, async () => {
+      this.#assertNotSwitching(id);
       const live = this.#liveSession(id, 'receive a message');
       const sent = await live.session.send(request.text, request.images);
       this.#upsertMessage(live, sent.uuid, 'queued');
@@ -488,6 +560,7 @@ export class SessionHost {
 
   async interrupt(id: string): Promise<InterruptReceipt> {
     return this.#audited('interrupt', id, {}, async () => {
+      this.#assertNotSwitching(id);
       const live = this.#liveSession(id, 'be interrupted');
       const receipt = await live.session.interrupt();
       this.#emit('session.interrupt', id, { stillQueued: receipt.stillQueued.length, cancelled: receipt.cancelled?.length ?? 0 });
@@ -497,6 +570,7 @@ export class SessionHost {
 
   async setPermissionMode(id: string, mode: string): Promise<{ mode: string }> {
     return this.#audited('permission-mode', id, { mode }, async () => {
+      this.#assertNotSwitching(id);
       const live = this.#liveSession(id, 'change its permission mode');
       const applied = await live.session.setPermissionMode(mode);
       const record = this.#record(id);
@@ -517,6 +591,7 @@ export class SessionHost {
   async decide(id: string, requestId: string, decision: DecisionRequest): Promise<{ requestId: string; decision: 'allow' | 'deny' }> {
     const toolName = this.#live.get(id)?.session.pendingPermissions().find((pending) => pending.requestId === requestId)?.toolName ?? null;
     return this.#audited('permission-decision', id, { requestId, toolName, decision: decision.decision }, async () => {
+      this.#assertNotSwitching(id);
       const live = this.#liveSession(id, 'receive a permission decision');
       if (decision.decision === 'allow') {
         await live.session.allow(requestId);
@@ -530,6 +605,7 @@ export class SessionHost {
   /** Ends an owned X1 session: stdin closed (claude finishes and exits), killed when it does not end in time. The record stays, resumable. */
   async stop(id: string): Promise<OwnedSessionView> {
     return this.#audited('stop', id, {}, async () => {
+      this.#assertNotSwitching(id);
       const record = this.#record(id);
       if (record.hostKind === 'bg') {
         return await this.#stopBg(record);
@@ -550,6 +626,7 @@ export class SessionHost {
   /** Removes an ended (or hc) entry from the list. A live session is never forgotten: stop it first. */
   async forget(id: string): Promise<{ id: string; supervisorNote?: string }> {
     return this.#audited('forget', id, {}, async () => {
+      this.#assertNotSwitching(id);
       const record = this.#record(id);
       if (record.hostKind === 'bg') {
         return await this.#forgetBg(record);
@@ -568,6 +645,450 @@ export class SessionHost {
       this.#emit('session.forgotten', id, {});
       return { id };
     });
+  }
+
+  /**
+   * Moves a session from one host to another (#71, research/adopt-host-switch.md): X1 `stream-json` <-> `hc`. The session keeps its id and its record; what
+   * changes is the process that hosts it. Order, every step checked before the next, nothing deleted that Claude Code owns:
+   *   1. the source is looked at (live? which pid? which terminal?) and the transcript must exist (a session with no message cannot be resumed);
+   *   2. readiness is computed HERE (the page's colour is only a hint): not free and no `force` = refused with the reasons, nothing touched;
+   *   3. the target is feasible (hc: the folder is trusted, else the terminal would block on the trust dialog; X1: a live slot, `claude --version`);
+   *   4. no OTHER live process holds the id (registry, supervisor): two writers on one transcript lose messages;
+   *   5. the source is stopped (X1: stdin closed; hc: `ctrl+c ctrl+c` when the session is quiet, `hc kill` otherwise), then proved dead before 6;
+   *   6. the target starts with `--resume <same id>` and the model and permission mode passed explicitly (they are not restored by every host);
+   *   7. the same record is updated, the finished source terminal is removed with `hc rm` (the one the daemon started, by its address).
+   * A failure after step 5 leaves the source stopped and says which step failed, the id and the command to resume by hand; it never starts the old host again.
+   */
+  async switchHost(id: string, target: HostKind, options: { force?: boolean } = {}): Promise<SwitchResult> {
+    const force = options.force === true;
+    const steps: string[] = [];
+    const from = this.#records.get(id)?.hostKind;
+    const details = (extra: Record<string, string | number | boolean | null> = {}): Record<string, string | number | boolean | null> => ({ from: from ?? null, to: target, forced: force, steps: steps.join('; '), ...extra });
+    try {
+      const result = await this.#runSwitch(id, target, force, steps);
+      await this.#writeAudit('switch', id, 'ok', details({ readiness: result.readiness.state, reasons: result.readiness.reasons.length }));
+      return result;
+    } catch (error) {
+      await this.#writeAudit('switch', id, `failed: ${truncate(getErrorMessage(error), 300)}`, details());
+      throw error;
+    }
+  }
+
+  async #runSwitch(id: string, target: HostKind, force: boolean, steps: string[]): Promise<SwitchResult> {
+    this.#assertRunning();
+    const record = this.#record(id);
+    const from = record.hostKind;
+    if ((target !== 'stream-json' && target !== 'hc') || from === 'bg') {
+      throw new LaunchError('switch-host-unsupported', `moving a session ${from === 'bg' ? 'from' : 'to'} the host ${JSON.stringify(from === 'bg' ? from : target)} is not supported`, "only 'stream-json' (Web) and 'hc' (a herdr-core terminal) can be switched, in both directions; a background session is stopped with claude stop");
+    }
+    if (from === target) {
+      throw new LaunchError('switch-same-host', `the session ${id} is already hosted by ${target}`, 'pick the other host');
+    }
+    if (this.#switching.has(id) || this.#starting.has(id)) {
+      throw new LaunchError('switch-in-progress', `the session ${id} is being switched, started or resumed`, 'wait for that action to end (it is bounded by its own timeouts), then look at the session list');
+    }
+    this.#switching.add(id);
+    // Counted as a start in progress: a shutdown waits for the switch (it must not leave a terminal or a child started after it).
+    const releaseCount = this.#reserve({ stream: false, created: false });
+    let releaseSlot: (() => void) | undefined;
+    let releaseThread: (() => void) | undefined;
+    let stopped = false;
+    try {
+      const notes: string[] = [];
+      // 1. The source and the transcript.
+      const source = await this.#switchSource(record);
+      const located = await this.#locateTranscript(record.cwd, id, this.#projectsDir());
+      if (!located.ok) {
+        // violations-suppress: ts/no-err-message-direct a TranscriptError value ({ message, fix }), not a caught Error
+        throw new LaunchError('switch-no-conversation', `the session ${id} has no transcript (${located.error.message}): there is no conversation for ${target} to resume`, `${located.error.fix} A session that has not received a message yet cannot be moved: send a message first, or launch a new one.`);
+      }
+      // 2. Readiness, recomputed here.
+      let readiness: AdoptReadiness = { state: 'free', reasons: [] };
+      if (source.live) {
+        readiness = await this.#readiness(record, source, located);
+        if (readiness.state !== 'free' && !force) {
+          throw new LaunchError(
+            'switch-not-ready',
+            `the session ${id} is not free to move to ${target}: ${readiness.reasons.join('; ')}`,
+            'wait for it to finish, or confirm these items and send the switch again with force: true (what runs is interrupted or left behind, and the reasons are written to the audit)',
+          );
+        }
+      } else {
+        notes.push(from === 'hc' ? 'the hc terminal of this session was already gone: there was no process to stop, the session is resumed on the target' : 'the session was not running: there was no process to stop, it is resumed on the target');
+        steps.push('source not running, nothing to stop');
+      }
+      // 3. The target is feasible.
+      const claudeVersion = await this.#readVersion();
+      if (target === 'hc') {
+        const trust = await this.#trustCheck(record.cwd);
+        if (!trust.trusted) {
+          if (trust.inherited === undefined) {
+            throw new LaunchError('switch-untrusted-folder', trust.reason, 'trust the folder once as the message says, then switch again (nothing was stopped)');
+          }
+          if (!force) {
+            throw new LaunchError('switch-untrusted-folder', trust.reason, `open claude once in the folder to trust it (cd "${record.cwd}", run claude, accept the dialog), then switch again; or switch with force: true at your own risk: the terminal may stop on the trust dialog after the old host was stopped (nothing was stopped)`);
+          }
+          notes.push(`the folder ${record.cwd} has no trust of its own, only its parent ${trust.inherited} is trusted: not verified that Claude Code honours it (forced); if the terminal waits on the trust dialog, accept it there`);
+        }
+      } else {
+        this.#assertRoom({ stream: true, created: false });
+        // A stopped thread comes back as a live thread: the cap of its source applies to a switch as to a resume, BEFORE anything is stopped.
+        if (record.forkedFrom !== undefined && record.forkedAtMessage !== undefined) {
+          releaseThread = this.#reserveThread(record.forkedFrom);
+        }
+        releaseSlot = this.#reserve({ stream: true, created: false });
+      }
+      // 4. No other process holds the id (one look at the supervisor, here: the check after the stop reads the registry only).
+      const unverified = await this.#assertNotHeld(id, source);
+      if (unverified.length > 0) {
+        if (!force) {
+          throw new LaunchError(
+            'switch-not-ready',
+            `the session ${id} may be held by something that could not be checked: ${unverified.join('; ')}`,
+            'check it (claude agents, the registry), or confirm and send the switch again with force: true (the old host is stopped, and the audit says what was not checked)',
+          );
+        }
+        notes.push(...unverified.map((reason) => `not checked (forced): ${reason}`));
+      }
+      // 5. Stop the source, then prove it dead.
+      let finishedTerminal: string | undefined;
+      if (source.live) {
+        finishedTerminal = await this.#stopSource(record, source, readiness.state === 'free', force, target, steps, notes);
+      } else if (from === 'hc' && source.info?.finished === true) {
+        finishedTerminal = record.hcAddress;
+      }
+      stopped = true;
+      await this.#proveNotHeld(id, notes);
+      steps.push('proved no live process holds the id');
+      // The daemon began to stop while the source was being stopped: nothing may be started after the shutdown.
+      if (this.#stopping) {
+        throw new LaunchError('switch-host-stopping', `the daemon is stopping: the session ${id} was stopped on ${from} and was NOT started on ${target}`, `start the daemon again (agent-manager start), then start the session on ${target} from its page (or resume it by hand: cd "${record.cwd}" and run claude --resume ${id})`);
+      }
+      // 6. Start the target.
+      const snapshot = { ...record };
+      const started = await this.#startTarget(record, target, steps);
+      // 7. The same record, now on the target.
+      const now = this.#clock();
+      const entry: SwitchRecord = { at: now, from, to: target, forced: force };
+      record.switches = [...(record.switches ?? []), entry].slice(-MAX_SWITCH_HISTORY);
+      record.hostKind = target;
+      record.status = 'live';
+      delete record.switchFailure;
+      record.claudeVersion = claudeVersion;
+      record.resumedAt = now;
+      delete record.exit;
+      delete record.interruptedAt;
+      if (started.kind === 'hc') {
+        record.hcAddress = started.address;
+        delete record.pid;
+        delete record.daemonPid;
+      } else {
+        record.pid = started.session.pid;
+        record.daemonPid = this.#daemonPid;
+        delete record.hcAddress;
+      }
+      this.#leftovers.delete(id);
+      try {
+        await this.#persist();
+      } catch (error) {
+        if (started.kind === 'stream-json') {
+          await this.#undoStart(id, started.session, started.live);
+          this.#restore(record, snapshot);
+        }
+        throw new LaunchError('state-file-write-failed', getErrorMessage(error), started.kind === 'hc' ? `the session is now running in the hc terminal ${started.address} (the file will be rewritten by the next change); fix the problem above` : 'the new claude process was ended again; fix the problem above, then retry (nothing runs on the old host any more)');
+      }
+      steps.push(`recorded the session on ${target}`);
+      await this.#writeAudit('resume', id, 'ok', { hostKind: target, via: 'switch', ...(started.kind === 'hc' ? { hcAddress: started.address } : { pid: started.session.pid }) });
+      this.#emit('session.switched', id, { from, to: target, forced: force, readiness: readiness.state, ...(started.kind === 'hc' ? { hcAddress: started.address } : { pid: started.session.pid }) });
+      if (finishedTerminal !== undefined) {
+        await this.#removeFinishedTerminal(finishedTerminal, notes);
+      }
+      return { session: this.#view(record), from, to: target, forced: force, readiness, notes };
+    } catch (error) {
+      if (stopped) {
+        // The old host is gone and the target did not start: the record says where it was meant to go, so the page can offer "Start on <target>".
+        await this.#recordSwitchFailure(record, target, error);
+      }
+      throw error;
+    } finally {
+      releaseSlot?.();
+      releaseThread?.();
+      releaseCount();
+      this.#switching.delete(id);
+    }
+  }
+
+  /** The projects folder of the child's environment (the one claude writes the transcripts to). */
+  #projectsDir(): string {
+    const env = this.#claude.env ?? process.env;
+    return resolveProjectsDir(env, env['HOME'] ?? env['USERPROFILE']);
+  }
+
+  async #recordSwitchFailure(record: OwnedSessionRecord, target: HostKind, error: unknown): Promise<void> {
+    const reason = error instanceof LaunchError ? error.reason : getErrorMessage(error);
+    record.switchFailure = { at: this.#clock(), target, reason: truncate(reason, 400) };
+    await this.#persistOrWarn();
+  }
+
+  #assertNotSwitching(id: string): void {
+    if (this.#switching.has(id)) {
+      throw new LaunchError('switch-in-progress', `the session ${id} is being switched to another host`, 'wait for the switch to end, then look at the session list');
+    }
+  }
+
+  #restore(record: OwnedSessionRecord, snapshot: OwnedSessionRecord): void {
+    for (const key of Object.keys(record)) {
+      Reflect.deleteProperty(record, key);
+    }
+    Object.assign(record, snapshot);
+  }
+
+  #controlOrThrow(): HcControlLike {
+    if (this.#hcControl === undefined) {
+      throw new LaunchError('hc-control-unavailable', 'this daemon has no control over herdr-core terminals (it was given a custom hc launcher without one)', 'this is a bug of agent-manager, or a test setup: report it; meanwhile the terminal can be ended with hc kill <terminal> (or hc keys <terminal> ctrl+c ctrl+c when it is idle)');
+    }
+    return this.#hcControl;
+  }
+
+  /** What is running on the source host now. `pids` are the processes this switch is about to stop (they never count as "another holder"). */
+  async #switchSource(record: OwnedSessionRecord): Promise<SwitchSource> {
+    if (record.hostKind === 'stream-json') {
+      return { live: this.#live.has(record.id), pids: record.pid === undefined ? [] : [record.pid] };
+    }
+    if (record.status !== 'live' || record.hcAddress === undefined) {
+      return { live: false, pids: [] };
+    }
+    const info = await this.#controlOrThrow().get(record.hcAddress);
+    return { live: info !== undefined && !info.finished, pids: info?.foregroundPid === undefined ? [] : [info.foregroundPid], ...(info === undefined ? {} : { info }) };
+  }
+
+  async #readiness(record: OwnedSessionRecord, source: SwitchSource, located: { path: string; projectDir: string }): Promise<AdoptReadiness> {
+    const now = this.#clock();
+    const registry = await this.#readRegistry();
+    const mine = registry.ok ? registry.sessions.filter((session) => session.alive && session.sessionId.toLowerCase() === record.id.toLowerCase()) : [];
+    const entry = mine.find((session) => source.pids.includes(session.pid)) ?? (mine.length === 1 ? mine[0] : undefined);
+    const live = this.#live.get(record.id);
+    let turn: Parameters<typeof classifyReadiness>[0]['turn'];
+    const streamState = live === undefined ? undefined : this.#stateOf(record);
+    if (streamState === 'running') {
+      turn = { status: 'busy', alive: true };
+    } else if (streamState === 'requires_action') {
+      turn = { status: 'waiting', waitingFor: 'a permission prompt', alive: true };
+    } else if (entry !== undefined) {
+      turn = { status: entry.status, ...(entry.waitingFor === undefined ? {} : { waitingFor: entry.waitingFor }), ...(entry.statusAgeMs === undefined ? {} : { ageMs: entry.statusAgeMs }), alive: entry.alive };
+    } else if (live !== undefined) {
+      // A Web session before its first registry write: the daemon's own word, the age counted from the last thing it saw.
+      turn = { status: 'idle', ageMs: now - (live.lastResult?.at ?? record.resumedAt ?? record.startedAt), alive: true };
+    } else {
+      // violations-suppress: ts/no-err-message-direct a TranscriptError value ({ message, fix }), not a caught Error
+      turn = { unavailable: registry.ok ? `no live registry entry for this session in ${registry.dir}` : `the Claude Code registry cannot be read (${registry.error.message})` };
+    }
+    const [transcript, subagents] = await Promise.all([readInFlight(located.path), readSubagentActivity(located.projectDir, record.id)]);
+    return classifyReadiness({
+      now,
+      turn,
+      transcript,
+      subagents,
+      ...(live === undefined ? {} : { pendingPermissions: live.session.pendingPermissions().length }),
+      ...(record.hostKind === 'hc' ? { hcTerminal: source.info === undefined ? { found: false as const, reason: 'hc does not know the terminal' } : { found: true as const, ...(source.info.state === undefined ? {} : { state: source.info.state }), ...(source.info.kind === undefined ? {} : { kind: source.info.kind }) } } : {}),
+    });
+  }
+
+  /**
+   * Who else holds the id, before anything is stopped. `hard`: another live claude is certainly there (an entry that is not the source's own while the
+   * source's own was found, or any entry when nothing of ours runs): refused with `session-held`. `unverified`: something that cannot be told (an entry that
+   * cannot be matched to the process this switch stops, a supervisor that cannot be asked): returned as reasons, the caller needs `force` for them.
+   */
+  async #assertNotHeld(id: string, source: SwitchSource): Promise<string[]> {
+    const registry = await this.#registryEntries(id);
+    const own = registry.filter((entry) => source.pids.includes(entry.pid));
+    const others = registry.filter((entry) => !source.pids.includes(entry.pid));
+    const unverified: string[] = [];
+    const hard: string[] = [];
+    if (source.live && own.length === 0) {
+      for (const entry of others) {
+        unverified.push(`the claude process ${entry.pid} (registry file ${entry.file}, ${entry.status}) holds this session and cannot be matched to the process that is stopped (${source.pids.length === 0 ? 'its pid is unknown' : `pid ${source.pids.join(', ')}`}): it may be the session itself behind a wrapper process, or another claude on the same conversation`);
+      }
+    } else {
+      hard.push(...others.map((entry) => `the claude process ${entry.pid} (registry file ${entry.file}, ${entry.status})`));
+    }
+    try {
+      for (const agent of await this.#bg.list()) {
+        if (agent.sessionId !== undefined && agent.sessionId.toLowerCase() === id.toLowerCase() && agent.state !== 'stopped' && agent.state !== 'failed') {
+          hard.push(`the background session ${agent.id} (state ${agent.state ?? 'unknown'})`);
+        }
+      }
+    } catch (error) {
+      unverified.push(`the supervisor of background sessions could not be asked (${getErrorMessage(error)}), so it is not proved that no background session holds this session (run claude agents to see why it fails)`);
+    }
+    if (hard.length > 0) {
+      throw new LaunchError('session-held', `the session ${id} is held by another live process: ${hard.join('; ')}`, 'end that process (exit the claude that runs it, or claude stop <job> for a background session), then switch again; two claude processes on one conversation lose messages (nothing was stopped)');
+    }
+    return unverified;
+  }
+
+  /** After the stop: nothing at all may hold the id (the source included), else the target must not start. Reads the registry only (no process is spawned here). */
+  async #proveNotHeld(id: string, notes: string[]): Promise<void> {
+    const holders = (await this.#registryEntries(id)).map((entry) => `the claude process ${entry.pid} (registry file ${entry.file}, ${entry.status})`);
+    if (this.#live.has(id)) {
+      holders.push('a Web session of this daemon');
+    }
+    if (holders.length > 0) {
+      throw new LaunchError('switch-stop-incomplete', `the session ${id} is still held after the stop: ${holders.join('; ')}`, 'end that process by hand (Task Manager, or claude stop for a background session), then switch again; the target was NOT started');
+    }
+    const registry = await this.#readRegistry();
+    if (registry.ok) {
+      for (const stale of registry.sessions.filter((session) => !session.alive && session.sessionId.toLowerCase() === id.toLowerCase())) {
+        notes.push(`a stale registry file ${stale.file} (pid ${stale.pid}, status ${stale.status}, not alive) of this session is left in place: Claude Code did not remove it and agent-manager never deletes files it does not own`);
+      }
+    }
+  }
+
+  /** The live registry entries of the id. An unreadable registry cannot prove anything: `holder-check-failed`, nothing was stopped. */
+  async #registryEntries(id: string): Promise<Session[]> {
+    const registry = await this.#readRegistry();
+    if (!registry.ok) {
+      // violations-suppress: ts/no-err-message-direct a TranscriptError value ({ message, fix }), not a caught Error
+      throw new LaunchError('holder-check-failed', `the Claude Code registry cannot be read (${registry.error.message}), so it cannot be proved that no process holds the session ${id}`, `${registry.error.hint}; nothing was stopped`);
+    }
+    return registry.sessions.filter((session) => session.alive && session.sessionId.toLowerCase() === id.toLowerCase());
+  }
+
+  /** Stops the source and returns the address of the finished terminal to remove, when there is one. Writes the audit line of the stop. */
+  async #stopSource(record: OwnedSessionRecord, source: SwitchSource, quiet: boolean, force: boolean, target: HostKind, steps: string[], notes: string[]): Promise<string | undefined> {
+    const id = record.id;
+    if (record.hostKind === 'stream-json') {
+      const live = this.#liveSession(id, 'be stopped');
+      live.stopRequested = 'user';
+      try {
+        await live.session.close();
+      } catch (error) {
+        delete live.stopRequested;
+        await this.#writeAudit('stop', id, `failed: ${truncate(getErrorMessage(error), 300)}`, { hostKind: 'stream-json', via: 'switch' });
+        throw new LaunchError('switch-stop-failed', `the Web session ${id} could not be stopped (${getErrorMessage(error)})`, `end the claude process ${record.pid ?? '?'} by hand, then switch again; the target was NOT started`);
+      }
+      steps.push(`stopped the Web session (pid ${record.pid ?? '?'})`);
+      await this.#writeAudit('stop', id, 'ok', { hostKind: 'stream-json', via: 'switch', ...(record.pid === undefined ? {} : { pid: record.pid }) });
+      return undefined;
+    }
+    const control = this.#controlOrThrow();
+    const address = record.hcAddress ?? '';
+    const deadline = this.#clock() + this.#switchStopTimeoutMs;
+    let how: 'keys' | 'kill' = quiet ? 'keys' : 'kill';
+    if (how === 'keys' && !force) {
+      // ctrl+c on a prompt with text clears the text instead of exiting: a draft would be lost, and the exit would not happen.
+      await this.#assertNoDraft(control, address);
+    }
+    try {
+      if (how === 'keys') {
+        // An idle prompt: the first press clears the (empty) prompt, the second exits; exit code 0 and the registry file removed (measured, a10).
+        await control.keys(address, ['ctrl+c', 'ctrl+c']);
+        steps.push(`typed ctrl+c twice in the terminal ${address}`);
+      } else {
+        await control.kill(address);
+        steps.push(`killed the terminal ${address} (something was running)`);
+      }
+      let ended = await this.#waitEnded(control, address, id, deadline);
+      if (!ended && how === 'keys') {
+        if (!force) {
+          throw new LaunchError('switch-stop-timeout', `the terminal ${address} did not end within ${this.#switchStopTimeoutMs} ms after ctrl+c ctrl+c (the session may have started a turn meanwhile)`, `look at it (hc read ${address}); to end it anyway run hc kill ${address} (a tool that runs may live on), or switch again with force: true`);
+        }
+        await control.kill(address);
+        how = 'kill';
+        steps.push(`killed the terminal ${address} (it did not end after the keys)`);
+        ended = await this.#waitEnded(control, address, id, deadline + this.#switchStopTimeoutMs);
+      }
+      if (!ended) {
+        throw new LaunchError('switch-stop-timeout', `the terminal ${address} still runs after hc kill`, `end it by hand (hc kill ${address}, or close the terminal), then switch again; the target was NOT started`);
+      }
+    } catch (error) {
+      await this.#writeAudit('stop', id, `failed: ${truncate(getErrorMessage(error), 300)}`, { hostKind: 'hc', via: 'switch', hcAddress: address, how });
+      throw error;
+    }
+    // The terminal is gone: the record no longer claims a live hc session (a failed target start must not leave it saying so).
+    const now = this.#clock();
+    record.status = 'exited';
+    record.exit = { cause: how === 'keys' ? 'closed' : 'killed', code: null, signal: null, by: 'user', stderrTail: `ended by a switch to ${target} (${how === 'keys' ? 'ctrl+c ctrl+c' : 'hc kill'})`, at: now };
+    await this.#persistOrWarn();
+    if (how === 'kill') {
+      notes.push(`the terminal ${address} was killed: a tool or background task it ran may keep running unseen (hc kill leaves the children of claude alive, measured), and its result will never reach the conversation`);
+    }
+    await this.#writeAudit('stop', id, 'ok', { hostKind: 'hc', via: 'switch', hcAddress: address, how, ...(source.pids[0] === undefined ? {} : { pid: source.pids[0] }) });
+    return address;
+  }
+
+  async #assertNoDraft(control: HcControlLike, address: string): Promise<void> {
+    const prompt = promptDraft(await control.screen(address));
+    if (!prompt.found) {
+      throw new LaunchError('switch-draft', `the prompt box of the terminal ${address} cannot be found on its screen (a dialog, or a layout this version does not know), so it is not known whether a draft would be lost`, `look at it (hc read ${address}), clear the draft or force: the draft will be lost (nothing was stopped)`);
+    }
+    if (prompt.draft !== '') {
+      throw new LaunchError('switch-draft', `the terminal ${address} has text typed in its prompt (${truncate(prompt.draft, 80)}): ending claude would lose it`, 'clear the draft or force: the draft will be lost (nothing was stopped)');
+    }
+  }
+
+  /** True when the terminal is finished (or unknown to hc) and no live registry entry holds the id. */
+  async #waitEnded(control: HcControlLike, address: string, id: string, deadline: number): Promise<boolean> {
+    for (;;) {
+      const info: HcTerminalInfo | undefined = await control.get(address);
+      const finished = info === undefined || info.finished;
+      if (finished) {
+        const registry = await this.#readRegistry();
+        const alive = registry.ok && registry.sessions.some((session) => session.alive && session.sessionId.toLowerCase() === id.toLowerCase() && (info?.foregroundPid === undefined || session.pid === info.foregroundPid));
+        if (!alive) {
+          return true;
+        }
+      }
+      if (this.#clock() >= deadline) {
+        return false;
+      }
+      await this.#sleep(this.#switchPollMs);
+    }
+  }
+
+  async #startTarget(record: OwnedSessionRecord, target: HostKind, steps: string[]): Promise<{ kind: 'hc'; address: string } | { kind: 'stream-json'; session: StreamJsonSession; live: Live }> {
+    const id = record.id;
+    const manual = `cd "${record.cwd}" and run: claude --resume ${id}${record.model === undefined ? '' : ` --model ${record.model}`}${record.permissionMode === undefined ? '' : ` --permission-mode ${record.permissionMode}`}`;
+    const failed = (error: unknown, how: string): LaunchError => {
+      const reason = error instanceof LaunchError ? error.reason : getErrorMessage(error);
+      const fix = error instanceof LaunchError ? error.fix : 'check the message above';
+      return new LaunchError('switch-target-failed', `the session ${id} was stopped on ${record.hostKind} (steps: ${steps.join(', ')}) but could not be started on ${target}: ${reason}`, `${how}: ${fix}. Resume it by hand: ${manual}`);
+    };
+    if (target === 'hc') {
+      const name = `am-${randomBytes(4).toString('hex')}`;
+      const args = ['--resume', id, ...(record.model === undefined ? [] : ['--model', record.model]), ...(record.permissionMode === undefined ? [] : ['--permission-mode', record.permissionMode])];
+      let launched: HcLaunchResult;
+      try {
+        launched = await this.#hcLauncher.launch({ cwd: record.cwd, name, args });
+      } catch (error) {
+        await this.#writeAudit('resume', id, `failed: ${truncate(getErrorMessage(error), 300)}`, { hostKind: 'hc', via: 'switch' });
+        throw failed(error, 'retry the switch (nothing runs on the old host, so nothing more is stopped)');
+      }
+      if (launched.session.sessionId.toLowerCase() !== id.toLowerCase()) {
+        await this.#writeAudit('resume', id, `failed: the terminal registered ${launched.session.sessionId}`, { hostKind: 'hc', via: 'switch', hcAddress: launched.address });
+        throw new LaunchError('switch-id-mismatch', `the terminal ${launched.address} registered the session ${launched.session.sessionId}, not ${id}: it is not the conversation that was moved, and it was NOT adopted (the old host is stopped)`, `close that terminal (hc kill ${launched.address}) and check ${manual}`);
+      }
+      steps.push(`started claude --resume in the terminal ${launched.address}`);
+      return { kind: 'hc', address: launched.address };
+    }
+    let session: StreamJsonSession;
+    try {
+      session = await this.#startSession({ ...this.#sessionOptions(record.cwd, record.model, record.permissionMode), resume: id });
+    } catch (error) {
+      await this.#writeAudit('resume', id, `failed: ${truncate(getErrorMessage(error), 300)}`, { hostKind: 'stream-json', via: 'switch' });
+      throw failed(error, 'retry the switch (nothing runs on the old host, so nothing more is stopped)');
+    }
+    const live = this.#attach(id, session);
+    steps.push(`started claude --resume as a Web session (pid ${session.pid})`);
+    return { kind: 'stream-json', session, live };
+  }
+
+  async #removeFinishedTerminal(address: string, notes: string[]): Promise<void> {
+    try {
+      await this.#controlOrThrow().remove(address);
+    } catch (error) {
+      notes.push(`the finished terminal ${address} could not be removed (${getErrorMessage(error)}): remove it with hc rm ${address}`);
+    }
   }
 
   /**
@@ -626,9 +1147,7 @@ export class SessionHost {
    */
   async #assertForkSource(sourceId: string, cwd: string, anchor?: string): Promise<void> {
     // The same folder the child will read: its own environment (the one given to the child, else this process's).
-    const env = this.#claude.env ?? process.env;
-    const home = env['HOME'] ?? env['USERPROFILE'];
-    const projectsDir = resolveProjectsDir(env, home);
+    const projectsDir = this.#projectsDir();
     const found = await this.#locateTranscript(cwd, sourceId, projectsDir);
     if (!found.ok) {
       const { message, fix } = found.error;

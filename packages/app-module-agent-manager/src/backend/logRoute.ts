@@ -8,6 +8,7 @@ import {
   createModelTrackerState,
   parseModelId,
   insertModelChanges,
+  isSubagentRunning,
   linkSubagents,
   listSubagents,
   mergeToolCallEntries,
@@ -15,6 +16,7 @@ import {
   readRange,
   readTail,
   resolveProjectsDir,
+  RUNNING_FRESH_MS,
   summarizeActivity,
   transcriptPath,
   type Entry,
@@ -279,8 +281,8 @@ function runningOffsets(entries: readonly Entry[]): number[] {
 // The answer
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 
-/** A sub-agent that is not marked finished counts as active (probably running: a heuristic) while its transcript was written within this time. */
-export const RUNNING_FRESH_MS = 10 * 60_000;
+/** A sub-agent that is not marked finished counts as active (probably running: a heuristic) while its transcript was written within this time (the rule is core's, shared with the adopt readiness). */
+export { RUNNING_FRESH_MS };
 
 /** The status of a sub-agent from facts only (see SubagentDto.status). */
 export function subagentStatus(info: SubagentNode['info'], now: number): SubagentDto['status'] {
@@ -294,8 +296,8 @@ export function subagentStatus(info: SubagentNode['info'], now: number): Subagen
   if (info.finished) {
     return 'finished';
   }
-  // No transcript yet: just started, nothing says otherwise.
-  return info.lastWriteAt === undefined || now - info.lastWriteAt <= RUNNING_FRESH_MS ? 'active' : 'idle';
+  // No transcript yet: just started, nothing says otherwise (the same rule as the adopt readiness).
+  return isSubagentRunning(info, now) ? 'active' : 'idle';
 }
 
 function subagentDto(node: SubagentNode, now: number): SubagentDto {

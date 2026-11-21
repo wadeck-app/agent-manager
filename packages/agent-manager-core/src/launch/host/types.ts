@@ -28,6 +28,26 @@ export interface OwnedExit {
   at: number;
 }
 
+/** A switch that stopped the session and could not start it on the target (#71): what the page offers as "Start on <target>". Cleared by the next start. */
+export interface SwitchFailure {
+  /** Epoch ms. */
+  at: number;
+  /** The host the session was being moved to. */
+  target: HostKind;
+  /** Why, in one line (the error of the failed step, cut). */
+  reason: string;
+}
+
+/** One change of host of a session (#71): the session kept its id, only the process that hosts it changed. */
+export interface SwitchRecord {
+  /** Epoch ms. */
+  at: number;
+  from: HostKind;
+  to: HostKind;
+  /** The caller acknowledged that something was running (readiness not free) and asked to go on. */
+  forced: boolean;
+}
+
 /** One entry of `<config dir>/owned-sessions.json`. No token and no message text is ever stored here. */
 export interface OwnedSessionRecord {
   /** The Claude Code session id (the registry id, the transcript name). */
@@ -63,6 +83,10 @@ export interface OwnedSessionRecord {
   forkedAtMessage?: string;
   /** stream-json thread: a short one-line quote of that message (at most MAX_QUOTE_CHARS) for the chip of the thread; presentation only, never sent to claude. */
   forkedAtQuote?: string;
+  /** The changes of host, oldest first (at most MAX_SWITCH_HISTORY: the oldest are dropped). The session id never changes. */
+  switches?: SwitchRecord[];
+  /** Set when a switch stopped the old host and the target did not start: the session is stopped, and this says where it was meant to go. */
+  switchFailure?: SwitchFailure;
 }
 
 /**
@@ -153,6 +177,8 @@ export type HostEventType =
   /** bg: the supervisor says the session waits on something only a terminal answers (`waitingFor`, `attachCommand`). */
   | 'session.bg_waiting'
   | 'session.forgotten'
+  /** The session changed host (X1 <-> hc): same id, new host. */
+  | 'session.switched'
   | 'session.warning'
   | 'host.warning'
   | 'host.stopping'
@@ -162,3 +188,4 @@ export type HostEventType =
 export const MAX_RESULT_TEXT_CHARS = 4000;
 export const MAX_STDERR_TAIL_CHARS = 1000;
 export const MAX_MESSAGES_PER_SESSION = 50;
+export const MAX_SWITCH_HISTORY = 20;

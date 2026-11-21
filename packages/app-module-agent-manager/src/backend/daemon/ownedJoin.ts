@@ -15,6 +15,7 @@ export interface OwnedRowFields {
   pendingPermissions: number;
   forkedFrom?: string;
   threadOf?: { sessionId: string; messageId: string; quote?: string };
+  switchFailure?: { at: number; target: 'stream-json' | 'hc' | 'bg'; reason: string };
   registryPending?: true;
 }
 
@@ -115,13 +116,15 @@ export function rowFieldsOf(view: OwnedView, registryPending: boolean): OwnedRow
     pendingPermissions: view.pendingPermissions,
     ...(view.forkedFrom === undefined ? {} : { forkedFrom: view.forkedFrom }),
     ...(view.forkedFrom === undefined || view.forkedAtMessage === undefined ? {} : { threadOf: { sessionId: view.forkedFrom, messageId: view.forkedAtMessage, ...(view.forkedAtQuote === undefined ? {} : { quote: view.forkedAtQuote }) } }),
+    ...(view.switchFailure === undefined ? {} : { switchFailure: view.switchFailure }),
     ...(registryPending ? { registryPending: true as const } : {}),
   };
 }
 
 /** Stays in the default list although its process is gone: an interrupted session, and an exited one that can be resumed (a stop by the user or the end of the daemon: the stop dialog promises it). */
 function staysListed(view: OwnedView): boolean {
-  return view.state === 'interrupted' || (view.state === 'exited' && view.resumable);
+  // A stopped record whose last move failed stays: its page offers "Start on <target>" (an exited hc record is not resumable, so it would vanish).
+  return view.state === 'interrupted' || (view.state === 'exited' && (view.resumable || view.switchFailure !== undefined));
 }
 
 export interface JoinedSessions {

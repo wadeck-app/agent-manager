@@ -108,3 +108,18 @@ describe('owned-sessions.json', () => {
     expect(readdirSync(dir)).toEqual(['owned-sessions.json']);
   });
 });
+
+describe('the switch history of a record', () => {
+  it('is written and read back as it is', async () => {
+    const path = ownedStatePath(configDir());
+    const switched: OwnedSessionRecord = { ...record, switches: [{ at: 5000, from: 'stream-json', to: 'hc', forced: false }, { at: 6000, from: 'hc', to: 'stream-json', forced: true }] };
+    await writeOwnedState(path, [switched]);
+    expect((await readOwnedState(path))[0]?.switches).toEqual(switched.switches);
+  });
+
+  it('a malformed entry makes the file unreadable, loudly (never silently dropped)', async () => {
+    const path = ownedStatePath(configDir());
+    writeFileSync(path, JSON.stringify({ version: STATE_FILE_VERSION, sessions: [{ ...record, switches: [{ at: 1, from: 'stream-json', to: 'nowhere', forced: false }] }] }));
+    await expect(readOwnedState(path)).rejects.toThrow(/switches\[0\]\.to/);
+  });
+});

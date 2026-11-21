@@ -2,6 +2,7 @@ import { getErrorMessage, readSessionRegistry, resolveSessionsDir, sortByStatusU
 import type { CsrfOk, SessionRowDto } from '../commons/api.js';
 import { CSRF_HEADER, CSRF_PATH } from '../commons/csrf.js';
 import { stateOf } from './agentState.js';
+import { adoptReadinessOf } from './adoptReadiness.js';
 import { digestOf, pruneDigestCache } from './transcriptDigest.js';
 import { statusOf } from './sessionStatus.js';
 import { emptyUserState, guarded, parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserGroup, type UserState } from './userState.js';
@@ -151,6 +152,7 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
         lastActivity: digest.lastActivity,
         activityNote: digest.note,
         subagentCount: digest.subagentCount,
+        adoptReadiness: adoptReadinessOf({ status: row.status, ...(row.waitingFor === undefined ? {} : { waitingFor: row.waitingFor }), ...(row.statusAgeMs === undefined ? {} : { statusAgeMs: row.statusAgeMs }), alive: row.alive, pendingPermissions: (joined.fields.get(row.sessionId.toLowerCase()) ?? DISCOVERED).pendingPermissions }, digest, now),
         ...(joined.fields.get(row.sessionId.toLowerCase()) ?? DISCOVERED),
         ...(guardrails.byId.has(row.sessionId.toLowerCase()) ? { guardrailBlocks: guardrails.byId.get(row.sessionId.toLowerCase()) } : {}),
       };

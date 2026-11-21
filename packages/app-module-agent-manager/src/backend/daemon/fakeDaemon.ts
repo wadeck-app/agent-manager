@@ -26,6 +26,8 @@ export interface FakeDaemon {
   hang: Set<string>;
   /** `METHOD /path` keys whose connection is destroyed after the request was received (a lost connection). */
   reset: Set<string>;
+  /** When set, POST /sessions/:id/switch answers this body (a malformed one, to test the module). Default: the session on the other host. */
+  switchAnswer?: unknown;
   /** When set, every `GET /sessions` after this many answered ones fails with HTTP 500 (a daemon that goes away in the middle of one request). */
   failListAfter?: number;
   /** Writes config.port and health_token (done at start; a test calls it again after a stop to simulate a restart). */
@@ -186,6 +188,22 @@ export async function startFakeDaemon(configDir: string, options: { token?: stri
       session.status = 'live';
       session.state = 'idle';
       reply(res, 200, { session });
+    } else if (action === 'switch' && method === 'POST') {
+      if (daemon.switchAnswer !== undefined) {
+        reply(res, 200, daemon.switchAnswer);
+        return;
+      }
+      const request = body as { target: OwnedSessionView['hostKind']; force?: boolean };
+      const from = session.hostKind;
+      session.hostKind = request.target;
+      if (request.target === 'hc') {
+        session.hcAddress = 't9';
+        delete session.pid;
+      } else {
+        session.pid = 4343;
+        delete session.hcAddress;
+      }
+      reply(res, 200, { session, from, to: request.target, forced: request.force === true, readiness: { state: 'free', reasons: [] }, notes: [] });
     } else if (action === 'forget' && method === 'POST') {
       daemon.sessions = daemon.sessions.filter((candidate) => candidate.id !== id);
       reply(res, 200, { id });

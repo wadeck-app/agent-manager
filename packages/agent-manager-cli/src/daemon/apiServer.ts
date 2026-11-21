@@ -1,7 +1,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { LaunchError, parseDecisionBody, parseLaunchBody, parsePermissionModeBody, parseSendBody } from '@wadeck-app/agent-manager-core/launch';
+import { LaunchError, parseDecisionBody, parseLaunchBody, parsePermissionModeBody, parseSendBody, parseSwitchBody } from '@wadeck-app/agent-manager-core/launch';
 import type { SessionHost } from '@wadeck-app/agent-manager-core/launch';
 import { SAFE_ID } from '@wadeck-app/agent-manager-core/reply';
 import { getErrorMessage } from '../errors.js';
@@ -69,6 +69,13 @@ const CONFLICT = new Set([
   'session-exited',
   'session-closing',
   'bg-action-in-progress',
+  'switch-not-ready',
+  'switch-in-progress',
+  'switch-same-host',
+  'session-held',
+  'switch-stop-incomplete',
+  'switch-draft',
+  'switch-host-stopping',
 ]);
 const NOT_FOUND = new Set(['unknown-session', 'unknown-permission-request', 'fork-source-not-found', 'fork-anchor-not-found']);
 const VALIDATION = new Set([
@@ -104,8 +111,11 @@ const VALIDATION = new Set([
   'resume-at-without-fork',
   'invalid-quote',
   'quote-without-anchor',
+  'invalid-switch-target',
+  'switch-host-unsupported',
+  'invalid-terminal-address',
 ]);
-const SERVER_SIDE = new Set(['state-file-write-failed', 'state-file-unreadable', 'kill-failed', 'host-not-ready', 'host-already-initialized', 'fork-anchor-unreadable']);
+const SERVER_SIDE = new Set(['state-file-write-failed', 'state-file-unreadable', 'kill-failed', 'host-not-ready', 'host-already-initialized', 'fork-anchor-unreadable', 'hc-control-unavailable']);
 
 /** The HTTP status of a LaunchError: what the caller did wrong (400), what does not exist (404), what the session state forbids (409), the daemon's own trouble (500), else the launch could not be done (422). */
 export function statusOfLaunchError(code: string): number {
@@ -321,7 +331,7 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
       sendJson(res, 200, await host.decide(id, requestId, parseDecisionBody(await readJson(req, true))));
       return;
     }
-    if (parts.length === 3 && method !== 'POST' && ['send', 'interrupt', 'permission-mode', 'stop', 'resume', 'forget'].includes(third ?? '')) {
+    if (parts.length === 3 && method !== 'POST' && ['send', 'interrupt', 'permission-mode', 'stop', 'resume', 'forget', 'switch'].includes(third ?? '')) {
       notAllowed('POST');
     }
     if (parts.length === 3 && method === 'POST') {
@@ -353,11 +363,16 @@ export function createApiServer(options: ApiServerOptions): ApiServer {
           await readJson(req, false);
           sendJson(res, 200, await host.forget(id));
           return;
+        case 'switch': {
+          const request = parseSwitchBody(await readJson(req, true));
+          sendJson(res, 200, await host.switchHost(id, request.target, { force: request.force }));
+          return;
+        }
         default:
           throw new HttpError(404, 'not-found', `no route ${method} ${path}`, 'see GET /status for the daemon and the routes in the architecture document');
       }
     }
-    throw new HttpError(404, 'not-found', `no route ${method} ${path}`, 'routes: GET /sessions, GET /sessions/:id, POST /sessions/launch, POST /sessions/:id/{send,interrupt,permission-mode,stop,resume,forget}, GET /sessions/:id/permissions, POST /sessions/:id/permissions/:requestId, GET /events, GET /status');
+    throw new HttpError(404, 'not-found', `no route ${method} ${path}`, 'routes: GET /sessions, GET /sessions/:id, POST /sessions/launch, POST /sessions/:id/{send,interrupt,permission-mode,stop,resume,forget,switch}, GET /sessions/:id/permissions, POST /sessions/:id/permissions/:requestId, GET /events, GET /status');
   }
 
   const server: Server = createServer((req, res) => {

@@ -26,6 +26,7 @@ export function row(overrides: Partial<SessionRowDto> = {}): SessionRowDto {
     lastActivity: '',
     activityNote: '',
     subagentCount: 0,
+    adoptReadiness: { state: 'free', reasons: [] },
     launchedBy: 'discovered',
     host: null,
     pendingPermissions: 0,

@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach } from 'vitest';
+import { markMessage } from '../commons/errorMarks.js';
 import { seedCsrfToken } from './data/http.js';
 
 /**
@@ -17,9 +18,9 @@ const fakeShell = {
     if (!response.ok) {
       // The route kit adds a top-level "message. hint" to the error body of a sensitive route (backend/routeKit.ts, tested there): the stubs of the
       // tests answer the nested shape, so this stand-in does the same folding.
-      const nested = data?.error !== null && typeof data?.error === 'object' ? (data.error as { message?: string; hint?: string }) : data;
+      const nested = data?.error !== null && typeof data?.error === 'object' ? (data.error as { message?: string; hint?: string; code?: string }) : data;
       const folded = nested?.message === undefined ? undefined : nested.hint === undefined || nested.message.includes(nested.hint) ? nested.message : `${nested.message.replace(/\.$/, '')}. ${nested.hint}`;
-      const reason = folded ?? data?.error;
+      const reason = folded === undefined ? data?.error : markMessage((nested as { code?: string } | undefined)?.code, folded);
       throw Object.assign(new Error(typeof reason === 'string' ? reason : `${method} ${path} answered ${response.status}`), { status: response.status });
     }
     return data;

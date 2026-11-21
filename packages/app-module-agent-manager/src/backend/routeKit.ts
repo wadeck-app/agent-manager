@@ -1,6 +1,7 @@
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
 import type { ModuleContext } from '@wadeck-app/app-core-sdk';
 import { createCsrf } from './csrf.js';
+import { markMessage } from '../commons/errorMarks.js';
 
 /** The parts of a Fastify request the routes read (the SDK types them loosely). */
 export interface RouteRequest {
@@ -94,7 +95,9 @@ function forShellFetcher(body: unknown): unknown {
     return body;
   }
   const text = typeof hint === 'string' && !message.includes(hint) ? `${message.replace(/.$/, '')}. ${hint}` : message;
-  return { ...body, message: text };
+  const code = source['code'];
+  // The one machine code the page acts on travels in front of the text (commons/errorMarks.ts): the shell fetcher throws nothing else.
+  return { ...body, message: markMessage(typeof code === 'string' ? code : undefined, text) };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

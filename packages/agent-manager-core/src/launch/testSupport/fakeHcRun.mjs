@@ -1,7 +1,7 @@
-// Test-only fake of herdr-core's `hc` for the launcher (never the real one): the tests run it as `node fakeHcRun.mjs <hc arguments>`.
-// FAKE_HC_SCENARIO: path of a JSON file {run: {exit, stdout, delayMs}, get: {<address>: [answer, ...]}} where each `hc get` of an address takes the next
-// answer of its list (the last one repeats). An answer is an object (exit 0) or {plain, exit} (plain text, nonzero exit). FAKE_HC_LOG: ndjson file that records every call
-// (argv, whether HC_TERMINAL_ID was in the environment). It starts no terminal and sends nothing anywhere.
+// Test-only fake of herdr-core's `hc` for the launcher and the terminal control (never the real one): the tests run it as `node fakeHcRun.mjs <hc arguments>`.
+// FAKE_HC_SCENARIO: path of a JSON file {run: {exit, stdout, delayMs}, get: {<address>: [answer, ...]}, keys|kill|rm: {exit, stdout}} where each `hc get` of an address takes
+// the next answer of its list (the last one repeats). An answer is an object (exit 0) or {plain, exit} (plain text, nonzero exit). FAKE_HC_LOG: ndjson file that
+// records every call (argv, whether HC_TERMINAL_ID was in the environment). It starts no terminal, types nothing and kills nothing.
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 
 const scenario = JSON.parse(readFileSync(process.env.FAKE_HC_SCENARIO, 'utf8'));
@@ -35,6 +35,11 @@ if (args[0] === 'run') {
       print(answer, 0);
     }
   }
+} else if (args[0] === 'read') {
+  print(scenario.read?.[positional[0]] ?? { error: { kind: 'not_found', message: `no terminal "${positional[0]}"`, hint: 'see `hc ls --all`' } }, scenario.read?.[positional[0]] === undefined ? 3 : 0);
+} else if (args[0] === 'keys' || args[0] === 'kill' || args[0] === 'rm') {
+  const answer = scenario[args[0]] ?? { stdout: { ok: true } };
+  print(answer.stdout, answer.exit ?? 0);
 } else {
   print({ error: { kind: 'usage', message: `unexpected arguments ${args.join(' ')}`, hint: '' } }, 2);
 }

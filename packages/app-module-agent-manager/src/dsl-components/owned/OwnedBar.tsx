@@ -11,6 +11,7 @@ import { FOCUS_RING, IconButton } from '../ui/IconButton.js';
 import { BgAttach } from './BgAttach.js';
 import { HostBadge } from './OwnedChips.js';
 import { OwnedStateChip } from './OwnedStateChip.js';
+import { SwitchAction } from './SwitchAction.js';
 import { useOwnedSession } from './useOwnedSession.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 
@@ -174,6 +175,13 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
           {dto?.note !== undefined && dto.note !== '' ? <p>{dto.note}</p> : dto === undefined || resumable ? <p>{RESUME_TEXT}</p> : null}
         </Banner>
       ) : null}
+      {session.switchFailure !== undefined && !session.alive ? (
+        <Banner tone="warning">
+          <p className="font-medium">{`The last move to ${session.switchFailure.target === 'hc' ? 'herdr-core' : 'Web'} failed after the old host was stopped.`}</p>
+          <p>{session.switchFailure.reason}</p>
+          <p>Nothing runs now. Use the Start button to try again on that host.</p>
+        </Banner>
+      ) : null}
       {session.ownedState === 'exited' && dto?.exit !== undefined ? (
         <Banner tone="info">
           <p>{`The claude process ended (${dto.exit.cause}${dto.exit.code === null ? '' : `, exit code ${dto.exit.code}`}).`}</p>
@@ -205,6 +213,7 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
             Stop
           </button>
         ) : null}
+        <SwitchAction session={session} disabled={busy} onChange={onChange} onNote={setNote} onError={setError} />
         {ended && resumable ? (
           <button type="button" disabled={busy} onClick={() => (leftover === undefined ? void resume() : setPending('resume'))} className={`${ACTION} border-primary bg-primary-light text-primary`}>
             <RotateCcw aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />

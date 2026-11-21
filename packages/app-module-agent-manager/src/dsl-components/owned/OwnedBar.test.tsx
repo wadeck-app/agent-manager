@@ -159,7 +159,8 @@ describe('OwnedBar: a Terminal session', () => {
     const { calls } = stubFetch({});
     bar(ownedRow({ sessionId: ID, host: 'hc', ownedState: 'unobserved' }));
     expect(document.querySelector('[data-host-badge="hc"]')).toHaveTextContent('Terminal');
-    expect(screen.queryByRole('button')).toBeNull();
+    // The only action is the Move button (back to Web): no stop, interrupt or resume.
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Move to Web']);
     expect(calls).toHaveLength(0);
   });
 });

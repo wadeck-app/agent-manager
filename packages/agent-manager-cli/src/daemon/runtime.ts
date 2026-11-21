@@ -29,6 +29,8 @@ export interface DaemonRuntimeOptions {
   /** Test seams, passed to the session host. Production passes none: `claude` and `hc` on the PATH. */
   claude?: SessionHostOptions['claude'];
   hcLauncher?: HcLauncherLike;
+  /** Test seams of the host switch (hc control, registry, transcript lookup, trust check, supervisor, pauses): passed to the session host as they are. */
+  hostSeams?: Pick<SessionHostOptions, 'hcControl' | 'readRegistry' | 'locateTranscript' | 'trustCheck' | 'bgLauncher' | 'sleep' | 'switchPollMs' | 'switchStopTimeoutMs'>;
   closeTimeoutMs?: number;
   controlTimeoutMs?: number;
   maxLiveSessions?: number;
@@ -70,6 +72,7 @@ export async function startDaemon(options: DaemonRuntimeOptions): Promise<Daemon
     configDir: options.configDir,
     ...(options.claude === undefined ? {} : { claude: options.claude }),
     ...(options.hcLauncher === undefined ? {} : { hcLauncher: options.hcLauncher }),
+    ...options.hostSeams,
     ...(options.closeTimeoutMs === undefined ? {} : { closeTimeoutMs: options.closeTimeoutMs }),
     ...(options.controlTimeoutMs === undefined ? {} : { controlTimeoutMs: options.controlTimeoutMs }),
     ...(options.maxLiveSessions === undefined ? {} : { maxLiveSessions: options.maxLiveSessions }),

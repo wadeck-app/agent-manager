@@ -141,12 +141,15 @@ export function rowFromOwned(dto: OwnedSessionDto, now: number): SessionRowDto {
     lastActivity: '',
     activityNote: 'No transcript yet: Claude Code writes it with the first message.',
     subagentCount: 0,
+    // No transcript yet: nothing can be read of what runs, so it is not free (the next poll replaces this row with the real one).
+    adoptReadiness: { state: 'unknown', reasons: ['Cannot tell whether something is running (no transcript yet: Claude Code writes it with the first message). Treated as busy.'] },
     launchedBy: 'agent-manager',
     ownedId: dto.id,
     host: dto.hostKind,
     ownedState: dto.state,
     ...(dto.rawState === undefined ? {} : { ownedRawState: dto.rawState }),
     pendingPermissions: dto.pendingPermissions,
+    ...(dto.switchFailure === undefined ? {} : { switchFailure: dto.switchFailure }),
     ...(dto.forkedFrom === undefined ? {} : { forkedFrom: dto.forkedFrom }),
     ...(dto.forkedFrom === undefined || dto.forkedAtMessage === undefined ? {} : { threadOf: { sessionId: dto.forkedFrom, messageId: dto.forkedAtMessage, ...(dto.forkedAtQuote === undefined ? {} : { quote: dto.forkedAtQuote }) } }),
     registryPending: true,
@@ -156,8 +159,13 @@ export function rowFromOwned(dto: OwnedSessionDto, now: number): SessionRowDto {
 /** The row with what the daemon just said about the session (the answer of Stop or Resume), until the next poll says the same. */
 export function applyOwnedDto(row: SessionRowDto, dto: OwnedSessionDto): SessionRowDto {
   const live = dto.status === 'live';
+  const moved = row.host !== dto.hostKind;
+  const { switchFailure: _previous, ...rest } = row;
   return {
-    ...row,
+    ...rest,
+    ...(dto.switchFailure === undefined ? {} : { switchFailure: dto.switchFailure }),
+    // A switch changes the host: the new one shows at once, and the readiness of the old one is forgotten (the next refresh reads the new process).
+    ...(moved ? { host: dto.hostKind, adoptReadiness: { state: 'unknown' as const, reasons: ['The session just moved to another host: its state is read again at the next refresh. Treated as busy.'] } } : {}),
     alive: live,
     ownedState: dto.state,
     ...(dto.rawState === undefined ? {} : { ownedRawState: dto.rawState }),

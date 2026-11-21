@@ -146,6 +146,30 @@ export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
   };
 }
 
+export interface SwitchRequest {
+  /** The host the session moves to: 'stream-json' (Web, owned by the daemon) or 'hc' (a herdr-core terminal). */
+  target: 'stream-json' | 'hc';
+  /** True only after the user confirmed the reasons the session is not free to move (something runs). */
+  force: boolean;
+}
+
+/** The body of a switch: the target host and, after a confirmation, force. A bg target is refused (not built yet). */
+export function parseSwitchBody(value: unknown): SwitchRequest {
+  const body = objectBody(value, ['target', 'force'], '{"target":"hc"}');
+  const target = body['target'];
+  if (target === undefined) {
+    return bad('invalid-field', 'target is required', 'send {"target":"hc"} or {"target":"stream-json"}');
+  }
+  if (target !== 'stream-json' && target !== 'hc') {
+    return bad('invalid-switch-target', `the target ${JSON.stringify(target)} is not valid`, "use 'stream-json' (Web) or 'hc' (a herdr-core terminal); moving to or from a background session is not supported yet");
+  }
+  const force = body['force'];
+  if (force !== undefined && typeof force !== 'boolean') {
+    return bad('invalid-field', 'force must be true or false', 'send force: true only after the user confirmed what is running, or leave it out');
+  }
+  return { target, force: force === true };
+}
+
 export interface SendRequest {
   text: string;
   images: ImageInput[];

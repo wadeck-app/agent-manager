@@ -110,6 +110,15 @@ export interface SessionRowDto extends SessionStatusDto {
   ownedRawState?: string;
   /** Permission requests that wait for an answer (stream-json owned sessions); 0 otherwise. */
   pendingPermissions: number;
+  /**
+   * Can this session change host now without losing something (#71)? `free`: nothing runs. `busy`: something runs that a switch would interrupt, kill, orphan or not
+   * restore (`reasons`: one line per thing, naming what would be lost). `unknown`: a signal could not be read (`reasons`: why): the UI treats it as busy, never as
+   * free. A hint computed from the registry, the transcript tail and the sub-agent files; the daemon computes it again when the switch is asked, and its answer wins.
+   * The state of an hc terminal is not read for the list (it is, at the moment of the switch).
+   */
+  adoptReadiness: AdoptReadinessDto;
+  /** A stopped owned session whose last move to another host failed after the old host was stopped: where it was going and why it failed. Cleared by the next start. */
+  switchFailure?: SwitchFailureDto;
   /** The id of the session this owned session was forked from; absent when it is not a fork. */
   forkedFrom?: string;
   /** A thread (a fork that stops at a message): the source session and the uuid of its transcript entry (a log row). Always with `forkedFrom`; absent for a plain fork. */
@@ -119,6 +128,20 @@ export interface SessionRowDto extends SessionStatusDto {
    * record alone: `pid` is the child's pid (0 when unknown), `status` follows `ownedState`, there is no transcript yet (see `activityNote`).
    */
   registryPending?: boolean;
+}
+
+/** A switch that stopped the session and could not start it on the target (#71): the page offers "Start on <target>" and says why. */
+export interface SwitchFailureDto {
+  /** Epoch ms. */
+  at: number;
+  target: OwnedHostKind;
+  reason: string;
+}
+
+export interface AdoptReadinessDto {
+  state: 'free' | 'busy' | 'unknown';
+  /** Empty when free. */
+  reasons: string[];
 }
 
 /** GET /sessions answer when the registry was read. */
@@ -717,6 +740,10 @@ export interface OwnedSessionDto {
   forkedAtMessage?: string;
   /** stream-json thread: a one-line quote (at most 80 characters) of that message, for the chip. */
   forkedAtQuote?: string;
+  /** The changes of host of this session, oldest first (the id never changes). */
+  switches?: { at: number; from: OwnedHostKind; to: OwnedHostKind; forced: boolean }[];
+  /** Set when a move stopped the old host and the target did not start (see SwitchFailureDto). */
+  switchFailure?: SwitchFailureDto;
   /** bg: the `state` of `claude agents --json` at the last poll (working, blocked, done, failed, stopped). */
   bgState?: string;
   /** bg: what the session waits on (`permission prompt`, `input needed`, ...). Answered only in a terminal: see `attachCommand`. */
@@ -799,6 +826,28 @@ export interface OwnedForkOk {
   session: OwnedSessionDto;
   inherited: { model?: string; permissionMode?: string };
 }
+
+/** Body of POST /owned/:id/switch: the host to move to, and `force` only after the user confirmed the reasons the session is not free. */
+export interface OwnedSwitchRequest {
+  target: 'stream-json' | 'hc';
+  force?: boolean;
+}
+
+/**
+ * POST /owned/:id/switch answer: the same session (same id) on its new host. `readiness` is what the daemon found AT THE MOMENT of the switch (the reasons the user
+ * acknowledged when `forced`); `notes` is what stays to know (a stale registry file, an orphaned tool, a terminal that could not be removed).
+ * A refusal (409 `switch-not-ready`) carries the reasons in its message and `force` in its hint: nothing was stopped.
+ */
+export interface OwnedSwitchOk {
+  ok: true;
+  session: OwnedSessionDto;
+  from: OwnedHostKind;
+  to: OwnedHostKind;
+  forced: boolean;
+  readiness: AdoptReadinessDto;
+  notes: string[];
+}
+export type OwnedSwitchResponse = OwnedSwitchOk | ApiFailure;
 
 /** POST /owned/launch, /stop and /resume answer `{ ok: true, session }`; a launched session is in the list at once (its registry file comes with its first message). */
 export interface OwnedSessionOk {

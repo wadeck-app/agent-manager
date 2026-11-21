@@ -8,7 +8,7 @@ import { auditDay } from '../../reply/audit.js';
  * show up as web replies, and the retention purge (by file age) covers them like the rest of `audit/`.
  */
 
-export type HostAuditAction = 'launch' | 'resume' | 'send' | 'interrupt' | 'permission-mode' | 'permission-decision' | 'stop' | 'forget' | 'shutdown';
+export type HostAuditAction = 'launch' | 'resume' | 'send' | 'interrupt' | 'permission-mode' | 'permission-decision' | 'stop' | 'forget' | 'switch' | 'shutdown';
 
 export interface HostAuditRecord {
   /** Epoch ms. */

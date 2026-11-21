@@ -3,18 +3,23 @@ import { join } from 'node:path';
 import type { Session } from '@wadeck-app/agent-manager-core';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
 import {
+  isSubagentRunning,
   listSubagents,
   mergeToolCallEntries,
   pageBackwards,
   parseModelId,
+  readInFlight,
+  readSubagentActivity,
   readTail,
   resolveProjectsDir,
   rollupModelUsage,
   toolSummary,
   transcriptPath,
   type Entry,
+  type InFlightRead,
   type ModelInfoEntry,
   type ModelUsageRollup,
+  type SubagentActivityRead,
 } from '@wadeck-app/agent-manager-core/transcript';
 
 /** What the list shows about the transcript of a session. */
@@ -26,6 +31,10 @@ export interface TranscriptDigest {
   subagentCount: number;
   /** Model and token figures of the tail window (see ModelUsageRollup); absent when there is no transcript or it could not be read. */
   usage?: ModelUsageRollup;
+  /** What is in flight at the end of the transcript (open calls, background tasks, queued messages), or why it could not be read: the adopt readiness reads it. */
+  inFlight: InFlightRead;
+  /** The sub-agents as the readiness rule needs them (running ones are re-read at each call: their meta file is rewritten in place when they finish). */
+  subagents: SubagentActivityRead;
 }
 
 /** Bytes of the end of the transcript read to find the latest activity: bounded whatever the size of the file. */
@@ -53,6 +62,8 @@ interface Cached {
   lastActivity: string;
   subagentCount: number;
   usage: ModelUsageRollup | undefined;
+  inFlight: InFlightRead;
+  subs: SubagentActivityRead;
   /** The model attachments seen (tail or scan), by canonical model id: the exact names, kept while the session lives. */
   infos: Record<string, ModelInfoEntry>;
   /** Canonical ids whose attachment was already looked for backwards (found or not): the scan runs once per model. */
@@ -110,7 +121,7 @@ export async function digestOf(session: Session, now: number): Promise<Transcrip
   const id = session.sessionId;
   const absent = missing.get(id);
   if (absent !== undefined && absent.until > now) {
-    return { lastActivity: '', note: absent.note, subagentCount: 0 };
+    return missingDigest(absent.note);
   }
   try {
     let cached = found.get(id);
@@ -123,14 +134,18 @@ export async function digestOf(session: Session, now: number): Promise<Transcrip
           missing.clear();
         }
         missing.set(id, { until: now + MISSING_RECHECK_MS, note });
-        return { lastActivity: '', note, subagentCount: 0 };
+        return missingDigest(note);
       }
       missing.delete(id);
-      cached = { path: located.path, projectDir: located.projectDir, mtimeMs: -1, size: -1, subMtimeMs: undefined, tailNote: '', subNote: '', lastActivity: '', subagentCount: 0, usage: undefined, infos: {}, scanned: [] };
+      cached = { path: located.path, projectDir: located.projectDir, mtimeMs: -1, size: -1, subMtimeMs: undefined, tailNote: '', subNote: '', lastActivity: '', subagentCount: 0, usage: undefined, inFlight: { ok: false, reason: 'not read yet' }, subs: { ok: true, infos: [] }, infos: {}, scanned: [] };
     }
     const info = await stat(cached.path);
     const subMtime = await mtimeOf(join(cached.projectDir, id, 'subagents'));
     if (info.mtimeMs === cached.mtimeMs && info.size === cached.size && subMtime === cached.subMtimeMs) {
+      // A sub-agent that runs rewrites its meta file in place when it ends: the folder does not change, so a running one is looked at again.
+      if (cached.subs.ok && cached.subs.infos.some((sub) => isSubagentRunning(sub, now))) {
+        cached.subs = await readSubagentActivity(cached.projectDir, id);
+      }
       return answerOf(cached);
     }
     const next: Cached = { ...cached, mtimeMs: info.mtimeMs, size: info.size, subMtimeMs: subMtime };
@@ -141,11 +156,16 @@ export async function digestOf(session: Session, now: number): Promise<Transcrip
         next.tailNote = `Transcript unreadable: ${message} ${hint}`;
         next.lastActivity = '';
         next.usage = undefined;
+        next.inFlight = { ok: false, reason: `${message} ${hint}`.trim() };
       } else {
         next.tailNote = '';
         next.lastActivity = latestActivity(mergeToolCallEntries(tail.entries));
         await updateUsage(next, tail.entries, tail.startOffset);
+        next.inFlight = await readInFlight(cached.path, { firstWindow: { entries: tail.entries, startOffset: tail.startOffset, endOffset: tail.endOffset } });
       }
+    }
+    if (subMtime !== cached.subMtimeMs || (next.subs.ok && next.subs.infos.some((sub) => isSubagentRunning(sub, now)))) {
+      next.subs = await readSubagentActivity(cached.projectDir, id);
     }
     if (subMtime !== cached.subMtimeMs) {
       const subs = await listSubagents(cached.projectDir, id);
@@ -165,12 +185,17 @@ export async function digestOf(session: Session, now: number): Promise<Transcrip
   } catch (error) {
     // The file vanished or cannot be read: forget it so that the next poll looks again, and say so.
     found.delete(id);
-    return { lastActivity: '', note: `Transcript unreadable: ${getErrorMessage(error)}`, subagentCount: 0 };
+    return missingDigest(`Transcript unreadable: ${getErrorMessage(error)}`);
   }
 }
 
 function answerOf(cached: Cached): TranscriptDigest {
-  return { lastActivity: cached.lastActivity, note: joinNotes(cached.tailNote, cached.subNote), subagentCount: cached.subagentCount, ...(cached.usage !== undefined ? { usage: cached.usage } : {}) };
+  return { lastActivity: cached.lastActivity, note: joinNotes(cached.tailNote, cached.subNote), subagentCount: cached.subagentCount, inFlight: cached.inFlight, subagents: cached.subs, ...(cached.usage !== undefined ? { usage: cached.usage } : {}) };
+}
+
+/** The digest of a session whose transcript is not there or cannot be read: nothing is known of what is in flight, and it says why. */
+function missingDigest(note: string): TranscriptDigest {
+  return { lastActivity: '', note, subagentCount: 0, inFlight: { ok: false, reason: note }, subagents: { ok: true, infos: [] } };
 }
 
 /**
