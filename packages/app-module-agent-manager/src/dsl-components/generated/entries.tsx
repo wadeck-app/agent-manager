@@ -4,6 +4,7 @@ import React from 'react'
 import { coerceProp, renderChildren, resolveExpressionValue } from '@wadeck-app/dsl-renderer'
 import type { ComponentRegistryEntry, RegistryRenderProps } from '@wadeck-app/dsl-renderer'
 import { AgentWorkspace } from '../components/AgentWorkspace.js'
+import { GuardrailsPage } from '../components/GuardrailsPage.js'
 declare const process: { env: { NODE_ENV?: string } }
 
 export const AgentWorkspaceEntry: ComponentRegistryEntry = {
@@ -18,12 +19,23 @@ export const AgentWorkspaceEntry: ComponentRegistryEntry = {
 		return <AgentWorkspace sessions={sessions} userStateError={userStateError} hiddenDead={hiddenDead} ownedError={ownedError} ownedErrorText={ownedErrorText} />
 	},
 }
+
+export const GuardrailsPageEntry: ComponentRegistryEntry = {
+	name: 'GuardrailsPage', category: 'composite', tags: ["guardrails","bypass","denials","read-only"],
+	nodeSchema: null as never,
+	render: ({ node, ctx }: RegistryRenderProps) => {
+		const overview = coerceProp(resolveExpressionValue(node['overview'], ctx), 'GuardrailsPage.overview', 'object', false) as import('../components/GuardrailsPage.js').GuardrailsPageProps['overview']
+		return <GuardrailsPage overview={overview} />
+	},
+}
 // ─── All entries ──────────────────────────────────────────────────────────────
 
 export const allEntries: ComponentRegistryEntry[] = [
 	AgentWorkspaceEntry,
+	GuardrailsPageEntry,
 ]
 
 // ─── Auto-detected metadata (allowedChildren, providesContext, requiresContext) ─
 // Generated from @slot JSDoc tags and createContext/useContext calls in component sources.
 AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["hiddenDead","ownedError","ownedErrorText","sessions","userStateError"] : [];
+GuardrailsPageEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["overview"] : [];

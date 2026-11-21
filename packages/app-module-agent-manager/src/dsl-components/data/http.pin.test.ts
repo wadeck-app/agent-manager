@@ -130,3 +130,33 @@ describe('sensitive routes go through the app-core shell fetcher (PIN)', () => {
     expect(result).toEqual({ ok: false, text: 'The body must be a JSON object. Send no body.' });
   });
 });
+
+describe('a sensitive call that the caller gives up (AbortSignal)', () => {
+  it('answers an empty failure at once, drops the late answer of the shell, and the next call waits for the first PIN dialog instead of opening a second one', async () => {
+    const releases: ((value: unknown) => void)[] = [];
+    shell(() => new Promise((resolve) => releases.push(resolve)));
+    const first = new AbortController();
+    const firstResult = requestJson('/guardrails/denials/commands?day=a', { signal: first.signal });
+    await vi.waitFor(() => expect(shellCalls).toHaveLength(1));
+    // The user changes a filter while the PIN dialog of the first call is open.
+    first.abort();
+    expect(await firstResult).toEqual({ ok: false, text: '' });
+    const second = requestJson('/guardrails/denials/commands?day=b');
+    // The second call does not reach the shell while the first dialog is still open.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(shellCalls).toHaveLength(1);
+    // The PIN is typed: the first answer is dropped, the second call goes through (the shell has its token now).
+    releases[0]!({ ok: true, which: 'first' });
+    await vi.waitFor(() => expect(shellCalls).toHaveLength(2));
+    releases[1]!({ ok: true, which: 'second' });
+    expect(await second).toEqual({ ok: true, value: { ok: true, which: 'second' } });
+  });
+
+  it('a signal already aborted never calls the shell', async () => {
+    shell(() => ({ ok: true }));
+    const controller = new AbortController();
+    controller.abort();
+    expect(await requestJson('/guardrails/denials/commands', { signal: controller.signal })).toEqual({ ok: false, text: '' });
+    expect(shellCalls).toEqual([]);
+  });
+});

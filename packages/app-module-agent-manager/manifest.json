@@ -31,6 +31,16 @@
       }
     },
     {
+      "kind": "page",
+      "slot": "nav",
+      "label": "Guardrails",
+      "path": "/guardrails",
+      "view": {
+        "type": "path",
+        "value": "./src/dsl-views/guardrails-page.yaml"
+      }
+    },
+    {
       "kind": "widget",
       "slot": "dashboard",
       "label": "Agents",

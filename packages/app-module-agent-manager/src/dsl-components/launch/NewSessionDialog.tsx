@@ -1,33 +1,30 @@
 import { Globe, LoaderCircle, Rocket, SquareTerminal } from 'lucide-react';
-import { useId, useMemo, useState } from 'react';
+import { useId, useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
 import {
   HOST_CHOICES,
   MODEL_OPTIONS,
   PERMISSION_MODE_OPTIONS,
   cwdProblem,
-  cwdSuggestions,
   launchBody,
   nameProblem,
   readLaunchPrefs,
   saveLaunchPrefs,
   type LaunchPrefs,
 } from '../logic/launchForm.js';
-import type { ApiError, OwnedHostKind, OwnedSessionDto, OwnedSessionResponse, SessionRowDto } from '../shared.js';
+import type { FolderPick } from '../logic/folderPicker.js';
+import type { ApiError, OwnedHostKind, OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
 import { Modal } from '../ui/Modal.js';
 import { DaemonNotRunning } from './DaemonNotRunning.js';
 import { Field } from './Field.js';
+import { FolderPicker } from '../folders/FolderPicker.js';
 
 const FIELD = `w-full rounded border border-border bg-surface px-2.5 py-1.5 text-base text-content placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS_RING}`;
 const HOST_ICON: Record<OwnedHostKind, typeof Globe> = { 'stream-json': Globe, hc: SquareTerminal };
-/** How many recent folders are offered as buttons. */
-const SUGGESTIONS_SHOWN = 6;
 
 export interface NewSessionDialogProps {
-  /** The sessions of the list: their working directories are the suggestions (most recent first). */
-  sessions: readonly SessionRowDto[];
   /** `ownedError` of GET /sessions: why the daemon cannot be asked, null when it answered. */
   ownedError: ApiError | null;
   ownedErrorText: string;
@@ -41,15 +38,16 @@ export interface NewSessionDialogProps {
  * model and mode are remembered (localStorage `agent-manager.launch.v1`); the folder and name are not. A daemon that is not running is said with its fix and
  * Launch stays disabled; any other problem with the daemon is shown as the server wrote it. A refused launch is written in the dialog with its hint.
  */
-export function NewSessionDialog({ sessions, ownedError, ownedErrorText, onClose, onLaunched }: NewSessionDialogProps) {
+export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunched }: NewSessionDialogProps) {
   const ids = { cwd: useId(), model: useId(), mode: useId(), name: useId() };
   const [prefs, setPrefs] = useState<LaunchPrefs>(readLaunchPrefs);
   const [cwd, setCwd] = useState('');
+  // What the picker knows of the folder in the field (name, branch): shown only while the field still holds that path.
+  const [picked, setPicked] = useState<FolderPick | undefined>(undefined);
   const [name, setName] = useState('');
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState('');
   const [prefsNote, setPrefsNote] = useState('');
-  const suggestions = useMemo(() => cwdSuggestions(sessions).slice(0, SUGGESTIONS_SHOWN), [sessions]);
 
   const daemonDown = ownedError?.code === 'daemon-not-running';
   const cwdText = cwdProblem(cwd);
@@ -102,41 +100,25 @@ export function NewSessionDialog({ sessions, ownedError, ownedErrorText, onClose
                 {cwdText}
               </span>
             ) : (
-              'The absolute path of the project folder. It must exist, and Claude Code asks for its trust the first time.'
+              'The absolute path of the project folder: type it, or choose it below. It must exist, and Claude Code asks for its trust the first time.'
             )
           }
         >
-          <input
-            id={ids.cwd}
-            data-autofocus=""
-            type="text"
+          <FolderPicker
+            inputId={ids.cwd}
             value={cwd}
-            onChange={(event) => setCwd(event.target.value)}
+            onChange={setCwd}
+            onPick={(pick) => {
+              setPicked(pick);
+              setCwd(pick.path);
+            }}
+            onKnow={setPicked}
+            picked={picked}
             disabled={launching}
-            spellCheck={false}
-            autoComplete="off"
-            aria-invalid={cwdText !== ''}
+            invalid={cwdText !== ''}
             // violations-suppress: shared/no-out-of-repo-path an example of the path the user types, not a path the code reads
             placeholder="C:\Projects\shop"
-            className={`${FIELD} font-mono ${cwdText !== '' ? 'border-danger' : ''}`}
           />
-          {suggestions.length > 0 ? (
-            <ul aria-label="Recent folders" className="flex flex-wrap gap-1.5">
-              {suggestions.map((suggestion) => (
-                <li key={suggestion} className="min-w-0 max-w-full">
-                  <button
-                    type="button"
-                    title={suggestion}
-                    disabled={launching}
-                    onClick={() => setCwd(suggestion)}
-                    className={`max-w-full truncate rounded border border-border px-2 py-0.5 text-xs text-content hover:bg-muted-bg disabled:opacity-50 ${suggestion === cwd.trim() ? 'bg-primary-light' : ''} ${FOCUS_RING}`}
-                  >
-                    {suggestion}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
         </Field>
 
         <fieldset className="flex flex-col gap-2" disabled={launching}>

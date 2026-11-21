@@ -16,6 +16,7 @@ import {
   type AuditRecord,
   type DeliveryRecord,
   type DeliveryStatus,
+  type HcApproval,
   type ReplyMarkerMode,
   type ReplyService,
   type ReplyTranscriptEntry,
@@ -29,6 +30,7 @@ import { ownedDeliveryStatus } from './daemon/ownedDelivery.js';
 import { sessionFromOwned } from './daemon/ownedJoin.js';
 import type { OwnedSource } from './daemon/ownedSource.js';
 import { OWNED_TRANSPORT_ID, createOwnedTransport } from './daemon/ownedTransport.js';
+import type { GuardrailsOptions } from './guardrailsRoutes.js';
 import { findSession } from './sessionLookup.js';
 import type { RouteAnswer, RouteKit } from './routeKit.js';
 import { ok, queryValue } from './routeKit.js';
@@ -42,6 +44,10 @@ export interface ModuleOptions {
   transports?: readonly ReplyTransport[];
   /** The client of the agent-manager daemon (owned sessions). Default: found like the CLI does (config folder, config.port, health_token). Tests give their own. */
   daemon?: DaemonApi;
+  /** Where the Guardrails page reads (home folder, journal budget). Default: the user home. Tests give a temp folder. */
+  guardrails?: GuardrailsOptions;
+  /** The approval of permission dialogs through herdr-core (`hc keys`). Default: the real hc, the audit in the config folder. Tests give one backed by a fake. */
+  hcApproval?: HcApproval;
 }
 
 /** Images of one reply. */

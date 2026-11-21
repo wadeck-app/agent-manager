@@ -1,3 +1,4 @@
+import * as realFsPromises from 'node:fs/promises';
 import { afterEach, describe, expect, it } from 'vitest';
 import { getErrorMessage } from '../errors.js';
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -618,5 +619,31 @@ describe('writeTransportsConfig', () => {
     ]);
     expect(await readTransportsConfig(configDir)).toEqual({ default: 'c', perSession: {} });
     expect(readdirSync(configDir)).toEqual(['transports.json']);
+  });
+
+  it('retries a rename that another process holds for a moment (EPERM), like config.yml', async () => {
+    const configDir = tempDir();
+    let renames = 0;
+    const flaky = {
+      ...realFsPromises,
+      rename: async (from: string, to: string) => {
+        renames += 1;
+        if (renames < 3) {
+          throw Object.assign(new Error('busy'), { code: 'EPERM' });
+        }
+        return realFsPromises.rename(from, to);
+      },
+    };
+    await writeTransportsConfig(configDir, { default: 'a', perSession: {} }, flaky as never);
+    expect(renames).toBe(3);
+    expect(await readTransportsConfig(configDir)).toEqual({ default: 'a', perSession: {} });
+  });
+
+  it('a rename that keeps failing is a ReplyError naming the file and the fix, with no temp file left', async () => {
+    const configDir = tempDir();
+    const broken = { ...realFsPromises, rename: async () => Promise.reject(Object.assign(new Error('denied'), { code: 'EACCES' })) };
+    await expect(writeTransportsConfig(configDir, { default: 'a', perSession: {} }, broken as never)).rejects.toMatchObject({ code: 'transports-not-written', message: expect.stringContaining('transports.json') });
+    await expect(writeTransportsConfig(configDir, { default: 'a', perSession: {} }, broken as never)).rejects.toThrow(/Fix: close what holds transports.json open/);
+    expect(readdirSync(configDir)).toEqual([]);
   });
 });

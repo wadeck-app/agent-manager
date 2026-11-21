@@ -9,7 +9,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-export type Outcome<T> = { ok: true; value: T } | { ok: false; text: string };
+/** A failure carries the machine code of the server's error when it sent one (the folder pickers tell a path outside the roots from a folder that does not exist). */
+export type Outcome<T> = { ok: true; value: T } | { ok: false; text: string; code?: string };
 
 /**
  * The one line to show for a failed answer: "message. hint". Understands the two error shapes of this module ({ message, hint } from the
@@ -92,6 +93,49 @@ function errorCode(body: unknown): string | undefined {
   return isRecord(error) && typeof error['code'] === 'string' ? error['code'] : undefined;
 }
 
+// The shell fetcher cannot be cancelled: when a caller gives up (a filter changed) its call may still be showing the PIN dialog. It is kept here, and the next
+// sensitive call waits for it, so the user types the PIN once (the shell keeps the token) instead of meeting a second dialog on top of the first.
+let abandoned: Promise<void> = Promise.resolve();
+
+const abortError = (): DOMException => new DOMException('The request was cancelled', 'AbortError');
+
+/** appFetcher with the caller's AbortSignal: on abort it rejects at once with an AbortError and the late answer of the shell is dropped, never applied. */
+async function sensitiveCall(url: string, body: unknown, headers: Record<string, string>, signal: AbortSignal | undefined): Promise<unknown> {
+  // A function, read at each check: the signal may be aborted while this call waits for an abandoned dialog.
+  const aborted = (): boolean => signal?.aborted === true;
+  if (aborted()) {
+    throw abortError();
+  }
+  await abandoned;
+  if (aborted()) {
+    throw abortError();
+  }
+  const call = appFetcher(url, undefined, body, headers);
+  if (signal === undefined) {
+    return call;
+  }
+  return new Promise<unknown>((resolve, reject) => {
+    const onAbort = (): void => {
+      abandoned = call.then(
+        () => undefined,
+        () => undefined,
+      );
+      reject(abortError());
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    call.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 /**
  * GET, POST or PUT JSON. Resolves with the parsed body or a user-readable failure, never rejects (an aborted request resolves as an empty failure).
  * Every non-GET request carries the CSRF header (see commons/csrf.ts). On a 403 'csrf-invalid' (the module restarted) the token is fetched again and the
@@ -117,9 +161,12 @@ export async function requestJson<T>(path: string, init?: { method?: Method; bod
       if (sensitive) {
         // The shell's own fetcher: Bearer token, refresh, PIN dialog, one retry. It throws the server's message (see forShellFetcher in routeKit.ts).
         try {
-          const value = await appFetcher(`${method} ${API_BASE}${path}`, undefined, init?.body, headers);
+          const value = await sensitiveCall(`${method} ${API_BASE}${path}`, init?.body, headers, init?.signal);
           return { ok: true, value: value as T };
         } catch (error) {
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            return { ok: false, text: '' };
+          }
           // A refusal before the handler ran (stale CSRF token after a module restart): fetch a new token and send ONCE more. Not for the PIN refusals.
           if (attempt === 0 && error instanceof Error && Reflect.get(error, 'status') === 403 && !getErrorMessage(error).includes('pin set')) {
             tokenPromise = undefined;
@@ -145,7 +192,7 @@ export async function requestJson<T>(path: string, init?: { method?: Method; bod
         continue;
       }
       if (!response.ok) {
-        return { ok: false, text: failureText(body, response.status) };
+        return { ok: false, text: failureText(body, response.status), ...(errorCode(body) === undefined ? {} : { code: errorCode(body) }) };
       }
       return { ok: true, value: body as T };
     }

@@ -1,5 +1,6 @@
 import type { AgentRow } from '../data/types.js';
 import { Composer } from './composer/Composer.js';
+import { HcPermissionCard } from '../owned/HcPermissionCard.js';
 import { PermissionCard } from '../owned/PermissionCard.js';
 import { LogViewer } from './log/LogViewer.js';
 
@@ -16,6 +17,7 @@ export function AgentDetail({ session }: AgentDetailProps) {
     <div data-agent-detail="" className="flex min-h-0 flex-1 flex-col">
       <LogViewer session={session} />
       <PermissionCard key={session.sessionId.toLowerCase()} session={session} />
+      <HcPermissionCard key={`hc-${session.sessionId.toLowerCase()}`} session={session} />
       <Composer session={session} />
     </div>
   );

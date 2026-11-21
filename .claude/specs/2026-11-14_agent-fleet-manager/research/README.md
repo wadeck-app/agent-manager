@@ -15,6 +15,7 @@ Status: each file marks claims `[V]` (lead re-read the source), `agent report` (
 | `agent-fleet-reuse.md` | Ranked reusable code and UX from the agent-fleet repo |
 | `poc-report.md` | PoC measurements on Claude Code 2.1.325 (socket, asyncRewake, Stop hot-wait, image by path, footprint); replaces `poc/REPORT.md`, which the tool refused to write for a sub-agent |
 | `permission-prompt-remote-answer.md` | How to answer a pending permission prompt from another process: `hc keys` (herdr-core, proven), PermissionRequest hook (proven, future prompts), inbox socket frames (none), Remote Control/Channels (not on Bedrock); ranked, with measurements |
+| `hc-keys-approval.md` | Keys measured on the real dialog (enter = allow once, esc = deny, same as option 3), dialog layout, trust-dialog trap, live test of HcLauncher + HcApproval |
 | `../../../../poc/` | PoC scripts (`scripts/`) and raw results (`results/*.json`); not specs, delete only after the lead's cleanup request |
 
 ## How to re-verify

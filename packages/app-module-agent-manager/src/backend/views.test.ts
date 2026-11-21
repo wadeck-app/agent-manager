@@ -72,8 +72,8 @@ describe('manifest.json', () => {
     expect(Object.keys(dslLib.shared ?? {}).sort()).toEqual(['@wadeck-app/dsl-renderer', '@wadeck-app/dsl-ui', 'react', 'react-router-dom']);
   });
 
-  it('declares the Agents page in the menu (/agents), the Table page (/table) and one dashboard widget', () => {
-    expect(manifest.extensionPoints.map((p) => `${p.kind}:${p.slot}:${p.path ?? '-'}:${p.label}`)).toEqual(['page:nav:/agents:Agents', 'page:nav:/table:Table', 'widget:dashboard:-:Agents']);
+  it('declares the Agents page in the menu (/agents), the Table page (/table), the Guardrails page (/guardrails) and one dashboard widget', () => {
+    expect(manifest.extensionPoints.map((p) => `${p.kind}:${p.slot}:${p.path ?? '-'}:${p.label}`)).toEqual(['page:nav:/agents:Agents', 'page:nav:/table:Table', 'page:nav:/guardrails:Guardrails', 'widget:dashboard:-:Agents']);
   });
 
   it('references each view as ./src/dsl-views/<file>, each file exists, and every file of the folder is referenced', () => {

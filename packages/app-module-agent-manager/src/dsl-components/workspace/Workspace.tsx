@@ -329,7 +329,7 @@ export function Workspace({ sessions, userStateError, hiddenDead, ownedError, ow
         onHelpOpenChange={setHelpOpen}
         onNewSession={() => setLaunchOpen(true)}
       />
-      {launchOpen ? <NewSessionDialog sessions={rows} ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
+      {launchOpen ? <NewSessionDialog ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
       {notices.length > 0 ? <div className="flex flex-col gap-1.5 border-b border-border p-2">{notices}</div> : null}
       <div className="min-h-0 flex-1">
         <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />

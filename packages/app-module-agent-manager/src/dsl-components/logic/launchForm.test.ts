@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_LAUNCH_PREFS, LAUNCH_STORAGE_KEY, cwdProblem, cwdSuggestions, launchBody, nameProblem, readLaunchPrefs, saveLaunchPrefs } from './launchForm.js';
+import { DEFAULT_LAUNCH_PREFS, LAUNCH_STORAGE_KEY, cwdProblem, launchBody, nameProblem, readLaunchPrefs, saveLaunchPrefs } from './launchForm.js';
 
 afterEach(() => window.localStorage.clear());
 
@@ -47,18 +47,6 @@ describe('launchBody', () => {
   });
 });
 
-describe('cwdSuggestions', () => {
-  it('lists each folder once, the most recently active first', () => {
-    const list = cwdSuggestions([
-      { cwd: '/old', statusUpdatedAt: 10 },
-      { cwd: '/new', statusUpdatedAt: 500 },
-      { cwd: '/old', statusUpdatedAt: 900 },
-      { cwd: '/none' },
-      { cwd: '', statusUpdatedAt: 1000 },
-    ]);
-    expect(list).toEqual(['/old', '/new', '/none']);
-  });
-});
 
 describe('remembered choices', () => {
   it('start with the defaults, keep what was saved, and survive a reload', () => {

@@ -2,6 +2,8 @@ import type { Session } from '../session.js';
 import { ReplyError } from './errors.js';
 import { DEFAULT_HC_COMMAND, asRecord, asText, childEnvironment, createHcRunner, excerpt, failureOf, parseJson } from './hcRunner.js';
 import type { HcRun } from './hcRunner.js';
+import { DEFAULT_QUERY_TIMEOUT_MS, DEFAULT_SNAPSHOT_TTL_MS, createHcTerminals } from './hcTerminals.js';
+import type { Resolved, TerminalFacts } from './hcTerminals.js';
 import type { ProbeCheck, ProbeResult, ReplyMessage, ReplyTransport, SendResult } from './types.js';
 
 /*
@@ -21,14 +23,10 @@ export const HC_TRANSPORT_ID = 'hc';
 export { DEFAULT_HC_COMMAND, childEnvironment };
 /** hc waits up to 60 s (config `draft_wait`) while a person has an unfinished draft, then about 3 s of quiet. */
 export const DEFAULT_SEND_TIMEOUT_MS = 90_000;
-export const DEFAULT_QUERY_TIMEOUT_MS = 10_000;
-/** A snapshot of the terminals is reused this long by the probes (they run once per transport and session). A send always re-reads its terminal. */
-/** How long one list of terminals is reused by probes (a send re-reads its one terminal fresh, so a stale list never types into the wrong place). */
-export const DEFAULT_SNAPSHOT_TTL_MS = 15_000;
+export { DEFAULT_QUERY_TIMEOUT_MS, DEFAULT_SNAPSHOT_TTL_MS };
 /** CreateProcess refuses a command line above 32767 characters; quotes and backslashes are escaped (counted conservatively). */
 const WINDOWS_COMMAND_LINE_LIMIT = 30_000;
 const POSIX_ARGUMENT_LIMIT_BYTES = 100_000;
-const LIST_CONCURRENCY = 4;
 
 export interface HcTransportOptions {
   /** Program to run. Default 'hc' (found on the PATH, started without a shell). */
@@ -43,20 +41,6 @@ export interface HcTransportOptions {
   clock?: () => number;
   platform?: NodeJS.Platform;
 }
-
-interface TerminalFacts {
-  address: string;
-  /** `foreground.pid`: the program that has the terminal now (claude.exe for a Claude Code terminal). */
-  foregroundPid: number | undefined;
-  /** `status.state`: idle, working, done, blocked or error; undefined when the program reports none. */
-  statusState: string | undefined;
-  /** `status.kind` of a blocked terminal: permission, question or auth. */
-  statusKind: string | undefined;
-}
-
-type Resolved =
-  | { ok: true; terminal: TerminalFacts; examined: number }
-  | { ok: false; code: string; reason: string; fix: string; examined: number };
 
 /**
  * The arguments of `hc send`. The one place that builds them: there is no --force, no --wait and no --if (the registry status "done" matches neither
@@ -80,121 +64,11 @@ export function createHcTransport(options: HcTransportOptions = {}): ReplyTransp
   const clock = options.clock ?? Date.now;
   const platform = options.platform ?? process.platform;
 
+  const { resolveTerminal, freshTerminal } = createHcTerminals({ runner, queryTimeoutMs, snapshotTtlMs, clock });
+
   /** Starts hc through the shared runner (no shell); the timeout of a send says that the text may have been typed. */
   function runHc(args: readonly string[], timeoutMs: number, what: string): Promise<HcRun> {
     return runner.run(args, timeoutMs, what, what === 'send' ? 'the text may or may not have been typed: look at the terminal and the transcript before sending it again; a person with an unfinished draft in the terminal delays the send (hc setting draft_wait)' : undefined);
-  }
-
-  /** Runs a read-only hc query; returns its JSON, or throws the ReplyError that says why hc could not answer. */
-  async function query(args: readonly string[], what: string): Promise<unknown> {
-    const run = await runHc(args, queryTimeoutMs, what);
-    const failure = failureOf(run);
-    if (run.code !== 0 || failure !== undefined) {
-      const reason = failure === undefined ? `hc ${args.join(' ')} failed (exit ${String(run.code)}): ${excerpt(run.stderr || run.stdout) || 'no output'}` : `hc says ${failure.kind}: ${failure.message}`;
-      throw new ReplyError(failure?.kind === 'not_found' ? 'terminal-gone' : 'hc-query-failed', reason, failure?.hint !== undefined && failure.hint !== '' ? `${failure.hint}; check that herdr-core runs (hc server status)` : 'check that herdr-core runs (hc server status), then retry');
-    }
-    const value = parseJson(run.stdout.trim());
-    if (value === undefined) {
-      throw new ReplyError('hc-bad-answer', `hc ${args.join(' ')} did not print JSON (${excerpt(run.stdout) || 'no output'})`, 'report this: the hc output format changed (tested with hc 0.1.21)');
-    }
-    return value;
-  }
-
-  function factsOf(value: unknown, address: string): TerminalFacts {
-    const record = asRecord(value);
-    const foreground = asRecord(record?.['foreground']);
-    const status = asRecord(record?.['status']);
-    const pid = foreground?.['pid'];
-    return {
-      address,
-      foregroundPid: typeof pid === 'number' ? pid : undefined,
-      statusState: asText(status?.['state']),
-      statusKind: asText(status?.['kind']),
-    };
-  }
-
-  async function getTerminal(address: string): Promise<TerminalFacts> {
-    return factsOf(await query(['get', '--json', '--', address], `get ${address}`), address);
-  }
-
-  // One snapshot of the claude terminals at a time, shared by concurrent probes.
-  let snapshot: { at: number; promise: Promise<{ terminals: TerminalFacts[]; examined: number }> } | undefined;
-
-  async function takeSnapshot(): Promise<{ terminals: TerminalFacts[]; examined: number }> {
-    const list = asRecord(await query(['ls', '--json'], 'ls'));
-    const rows = Array.isArray(list?.['terminals']) ? (list['terminals'] as unknown[]) : undefined;
-    if (rows === undefined) {
-      throw new ReplyError('hc-bad-answer', 'hc ls --json has no "terminals" list', 'report this: the hc output format changed (tested with hc 0.1.21)');
-    }
-    // Only the terminals that run Claude Code can hold the session; the others are not asked (one hc call per terminal).
-    const addresses = rows
-      .map(asRecord)
-      .filter((row) => row !== undefined && row['state'] === 'live' && row['agent'] === 'claude-code')
-      .map((row) => asText(row?.['address']))
-      .filter((address): address is string => address !== undefined);
-    const terminals: TerminalFacts[] = [];
-    for (let index = 0; index < addresses.length; index += LIST_CONCURRENCY) {
-      const batch = addresses.slice(index, index + LIST_CONCURRENCY);
-      const facts = await Promise.all(
-        batch.map(async (address) => {
-          try {
-            return await getTerminal(address);
-          } catch (error) {
-            // A terminal that ended between ls and get is not a candidate; any other failure stops the probe (the answer would be a guess).
-            if (error instanceof ReplyError && error.code === 'terminal-gone') {
-              return undefined;
-            }
-            throw error;
-          }
-        }),
-      );
-      terminals.push(...facts.filter((entry): entry is TerminalFacts => entry !== undefined));
-    }
-    return { terminals, examined: addresses.length };
-  }
-
-  function currentSnapshot(fresh: boolean): Promise<{ terminals: TerminalFacts[]; examined: number }> {
-    const now = clock();
-    if (fresh || snapshot === undefined || now - snapshot.at > snapshotTtlMs) {
-      const promise = takeSnapshot();
-      snapshot = { at: now, promise };
-      // A failed snapshot is not kept.
-      promise.catch(() => {
-        if (snapshot?.promise === promise) {
-          snapshot = undefined;
-        }
-      });
-    }
-    return snapshot!.promise;
-  }
-
-  // The terminal the last probe matched, by session pid: a send re-reads this one terminal instead of listing all of them again.
-  const lastMatch = new Map<number, string>();
-
-  /** The one terminal whose foreground program is the process of the session. */
-  async function resolveTerminal(session: Session, fresh: boolean): Promise<Resolved> {
-    const { terminals, examined } = await currentSnapshot(fresh);
-    const matches = terminals.filter((terminal) => terminal.foregroundPid === session.pid);
-    if (matches.length === 1) {
-      lastMatch.set(session.pid, matches[0]!.address);
-      return { ok: true, terminal: matches[0]!, examined };
-    }
-    if (matches.length === 0) {
-      return {
-        ok: false,
-        code: 'no-terminal',
-        reason: `no herdr-core terminal runs the session process (pid ${session.pid}; ${examined} Claude Code terminal(s) examined): the session was not started in a herdr-core terminal, or claude is not the foreground program of it`,
-        fix: 'start the session with `hc run --bg claude` (or in a herdr pane), or select the socket transport for this session',
-        examined,
-      };
-    }
-    return {
-      ok: false,
-      code: 'ambiguous-terminal',
-      reason: `${matches.length} herdr-core terminals (${matches.map((terminal) => terminal.address).join(', ')}) report the same foreground pid ${session.pid}: the target cannot be told apart`,
-      fix: 'close the duplicate terminal, or select the socket transport for this session; agent-manager never guesses a terminal',
-      examined,
-    };
   }
 
   function blockedFailure(terminal: TerminalFacts): ReplyError {
@@ -256,28 +130,6 @@ export function createHcTransport(options: HcTransportOptions = {}): ReplyTransp
     } else if (Buffer.byteLength(text) > POSIX_ARGUMENT_LIMIT_BYTES) {
       throw new ReplyError('text-too-long-for-hc', `the reply is larger than ${POSIX_ARGUMENT_LIMIT_BYTES} bytes, too long for the argument of hc send`, 'shorten the reply, or select the socket transport');
     }
-  }
-
-  async function freshTerminal(session: Session): Promise<TerminalFacts> {
-    const known = lastMatch.get(session.pid);
-    if (known !== undefined) {
-      try {
-        const facts = await getTerminal(known);
-        if (facts.foregroundPid === session.pid) {
-          return facts;
-        }
-      } catch (error) {
-        if (!(error instanceof ReplyError && error.code === 'terminal-gone')) {
-          throw error;
-        }
-      }
-      lastMatch.delete(session.pid);
-    }
-    const resolved = await resolveTerminal(session, true);
-    if (!resolved.ok) {
-      throw new ReplyError(resolved.code, resolved.reason, resolved.fix);
-    }
-    return resolved.terminal;
   }
 
   async function send(session: Session, message: ReplyMessage): Promise<SendResult> {

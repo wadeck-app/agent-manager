@@ -1,4 +1,4 @@
-import type { OwnedHostKind, OwnedLaunchRequest, SessionRowDto } from '../shared.js';
+import type { OwnedHostKind, OwnedLaunchRequest } from '../shared.js';
 
 /** The remembered choices of the New session dialog (host, model, permission mode). The folder and the name are never remembered. */
 export const LAUNCH_STORAGE_KEY = 'agent-manager.launch.v1';
@@ -155,17 +155,4 @@ export function launchBody(form: LaunchForm): OwnedLaunchRequest {
   const permissionMode = form.permissionMode.trim();
   const name = form.name.trim();
   return { hostKind: form.hostKind, cwd: form.cwd.trim(), ...(model === '' ? {} : { model }), ...(permissionMode === '' ? {} : { permissionMode }), ...(name === '' ? {} : { name }) };
-}
-
-/** The distinct working directories of the sessions, the most recently active first (a folder you work in now comes before one you left last week). */
-export function cwdSuggestions(sessions: readonly Pick<SessionRowDto, 'cwd' | 'statusUpdatedAt'>[]): string[] {
-  const latest = new Map<string, number>();
-  for (const session of sessions) {
-    if (session.cwd === '') {
-      continue;
-    }
-    const at = session.statusUpdatedAt ?? 0;
-    latest.set(session.cwd, Math.max(latest.get(session.cwd) ?? 0, at));
-  }
-  return [...latest.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([cwd]) => cwd);
 }

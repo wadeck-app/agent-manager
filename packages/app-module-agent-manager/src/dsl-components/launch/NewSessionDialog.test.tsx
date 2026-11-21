@@ -2,13 +2,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LAUNCH_STORAGE_KEY } from '../logic/launchForm.js';
-import { ownedDto, row } from '../logic/fixtures.js';
+import { ownedDto } from '../logic/fixtures.js';
 import { stubFetch } from '../owned/testFetch.js';
 import type { ApiError } from '../shared.js';
 import { DAEMON_START_COMMAND } from './DaemonNotRunning.js';
 import { NewSessionDialog } from './NewSessionDialog.js';
 
-beforeEach(() => window.localStorage.clear());
+// The folder picker reads the folder routes as soon as the dialog opens: an empty machine unless a test routes its own.
+beforeEach(() => {
+  window.localStorage.clear();
+  stubFetch({});
+});
 afterEach(() => vi.unstubAllGlobals());
 
 const NOT_RUNNING: ApiError = { code: 'daemon-not-running', message: 'The agent-manager daemon is not running', hint: 'Start it with: agent-manager start --detach' };
@@ -16,7 +20,7 @@ const NOT_RUNNING: ApiError = { code: 'daemon-not-running', message: 'The agent-
 function open(props: Partial<Parameters<typeof NewSessionDialog>[0]> = {}) {
   const onClose = vi.fn();
   const onLaunched = vi.fn();
-  const view = render(<NewSessionDialog sessions={[]} ownedError={null} ownedErrorText="" onClose={onClose} onLaunched={onLaunched} {...props} />);
+  const view = render(<NewSessionDialog ownedError={null} ownedErrorText="" onClose={onClose} onLaunched={onLaunched} {...props} />);
   return { onClose, onLaunched, ...view };
 }
 
@@ -47,12 +51,29 @@ describe('New session dialog: the form', () => {
     expect(launchButton()).toBeDisabled();
   });
 
-  it('offers the working directories of the sessions, most recent first, one click fills the folder', async () => {
-    open({ sessions: [row({ cwd: '/work/old', statusUpdatedAt: 1 }), row({ cwd: '/work/new', statusUpdatedAt: 99 }), row({ cwd: '/work/new', statusUpdatedAt: 5 })] });
-    const buttons = screen.getByRole('list', { name: 'Recent folders' }).querySelectorAll('button');
-    expect(Array.from(buttons).map((button) => button.textContent)).toEqual(['/work/new', '/work/old']);
+  it('offers the recent folders of the server (the default picker), one click fills the folder and shows its branch', async () => {
+    stubFetch({
+      'GET /folders/recent': {
+        body: {
+          ok: true,
+          warnings: [],
+          folders: [
+            { name: 'new', path: '/work/new', hasGit: true, isRecent: true, isKnownProject: true, isLink: false, branch: 'main', lastUsedAt: 99, uses: 2, exists: true },
+            { name: 'old', path: '/work/old', hasGit: false, isRecent: true, isKnownProject: true, isLink: false, lastUsedAt: 1, uses: 1, exists: true },
+          ],
+        },
+      },
+    });
+    open();
+    const buttons = await screen.findAllByRole('button', { name: /^(new|old)/ });
+    expect(buttons.map((button) => button.getAttribute('title'))).toEqual(['/work/new', '/work/old']);
     await userEvent.click(buttons[0]!);
     expect(folder().value).toBe('/work/new');
+    expect(document.querySelector('[data-picked-folder]')).toHaveTextContent('new');
+    expect(document.querySelector('[data-picked-folder]')).toHaveTextContent('main');
+    // Typing another path forgets what was known of the picked folder.
+    await userEvent.type(folder(), 'x');
+    expect(document.querySelector('[data-picked-folder]')).toBeNull();
   });
 
   it('describes both hosts honestly and remembers the host, model and mode (not the folder)', async () => {
@@ -105,9 +126,11 @@ describe('New session dialog: launching', () => {
     await userEvent.click(launchButton());
     await waitFor(() => expect(onLaunched).toHaveBeenCalledWith(dto));
     expect(onClose).toHaveBeenCalled();
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toMatchObject({ method: 'POST', path: '/owned/launch', body: { hostKind: 'stream-json', cwd: '/work/shop', model: 'haiku' } });
-    expect(calls[0]?.headers['X-Agent-Manager-Csrf']).toBe('test-token');
+    // The picker's own reads (GET /folders/...) are not launches: exactly one write.
+    const writes = calls.filter((call) => call.method === 'POST');
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ path: '/owned/launch', body: { hostKind: 'stream-json', cwd: '/work/shop', model: 'haiku' } });
+    expect(writes[0]?.headers['X-Agent-Manager-Csrf']).toBe('test-token');
   });
 
   it('a refused launch stays in the dialog with what the daemon said and its hint, and Launch is available again', async () => {

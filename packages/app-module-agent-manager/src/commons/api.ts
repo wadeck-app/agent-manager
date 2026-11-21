@@ -11,6 +11,7 @@
 
 // Type-only: erased at build time, so the UI bundle gets nothing from the core package.
 import type { ReplyMarkerMode } from '@wadeck-app/agent-manager-core/reply';
+import type { GuardrailBlocksDto } from './guardrails.js';
 
 /** The error object of the log and reply routes. */
 export interface ApiError {
@@ -75,6 +76,8 @@ export interface SessionRowDto extends SessionStatusDto {
   activityNote: string;
   /** Number of sub-agents the session started (files of its subagents folder); 0 when none or unknown. */
   subagentCount: number;
+  /** Times the w-guardrails plugin blocked this session (counters of its folder), with the categories; absent when none. */
+  guardrailBlocks?: GuardrailBlocksDto;
   /**
    * 'agent-manager': launched through the daemon (the session is in GET /owned). 'discovered': found in the Claude Code registry. Unreliable while the list's
    * `ownedError` is set (the daemon could not be asked, so every row reads 'discovered').
@@ -805,3 +808,187 @@ export interface OwnedDecisionOk {
 }
 /** Codes: 'unknown-permission-request' (404: already answered or the session ended), 'permission-being-answered' (409), 'session-not-live' (409). */
 export type OwnedDecisionResponse = OwnedDecisionOk | ApiFailure;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// Folders: the picker of the New session dialog (GET /folders/roots, /folders/list, /folders/search, /folders/recent)
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * One folder, as the pickers show it. Only the names of folders are ever sent: no file, no file content. Failures are `ApiFailure` with a 4xx status
+ * ('path-not-absolute', 'path-traversal', 'path-unc', 'folder-not-browsable' 403, 'folder-not-found' 404, 'not-a-folder', 'folder-unreadable' 403,
+ * each with its hint.
+ */
+export interface FolderEntryDto {
+  /** The last segment of the path. */
+  name: string;
+  /** The absolute path as the host writes it (the text that fills the Folder field). */
+  path: string;
+  /** The folder holds a `.git` (folder or file: a worktree). */
+  hasGit: boolean;
+  /** A session or a launch of this machine ran in exactly this folder. */
+  isRecent: boolean;
+  /** A folder the search knows: a recent one or a git repository. */
+  isKnownProject: boolean;
+  /** The entry is a symbolic link or junction (it is listed only when its target is inside the browsable roots). */
+  isLink: boolean;
+  /** The checked out branch, when the folder is a git repository on a branch (absent on a detached HEAD, or when HEAD cannot be read). */
+  branch?: string;
+}
+
+/** A folder the pickers may browse from. `source`: 'config' = `launchRoots` of config.yml, 'sessions' = the parent of the folder a session or a launch ran in. */
+export interface FolderRootDto {
+  path: string;
+  name: string;
+  source: 'config' | 'sessions';
+}
+
+/** GET /folders/roots. `note` is filled when nothing can be browsed or something was skipped (a configured root that no longer exists): always shown by the pickers. */
+export interface FolderRootsOk {
+  ok: true;
+  roots: FolderRootDto[];
+  /** The file whose `launchRoots` key holds the configured roots. */
+  configFile: string;
+  /** Why the launchRoots of config.yml were not used (file, line and fix), '' when they were: the roots are then only the ones derived from the sessions. */
+  configProblem: string;
+  note: string;
+}
+export type FolderRootsResponse = FolderRootsOk | ApiFailure;
+
+/** One step of the path from the root to the folder (the first is the root itself, named by its full path). */
+export interface FolderCrumbDto {
+  name: string;
+  path: string;
+}
+
+/** GET /folders/list?path=<absolute folder>: the subfolders of a folder inside the roots, sorted by name (digits as numbers), hidden and technical folders left out. */
+export interface FolderListOk {
+  ok: true;
+  path: string;
+  name: string;
+  /** The parent folder, null at a root (the picker cannot leave the roots). */
+  parent: string | null;
+  breadcrumbs: FolderCrumbDto[];
+  entries: FolderEntryDto[];
+  /** More subfolders exist than `limit` entries (or the scan limit was hit): narrow down with the filter, or type the path. */
+  truncated: boolean;
+  limit: number;
+  /** Subfolders not listed: hidden (dot) or technical folders, and links that lead outside the roots. */
+  skipped: number;
+  hasGit: boolean;
+  /** What could not be read or was left out (the registry, a launchRoots problem, working directories that are not local absolute paths), in words; empty when everything was read. */
+  warnings: string[];
+  branch?: string;
+}
+export type FolderListResponse = FolderListOk | ApiFailure;
+
+export interface FolderSearchResultDto extends FolderEntryDto {
+  /** Epoch ms of the last session or launch in this folder, when it is a recent one. */
+  lastUsedAt?: number;
+}
+
+/** GET /folders/search?q=: fuzzy search over the known projects (recent folders, and the folders at depth 1 and 2 of the roots; the scan is cached for 30 s). */
+export interface FolderSearchOk {
+  ok: true;
+  query: string;
+  results: FolderSearchResultDto[];
+  /** More matches exist than were sent, or the scan stopped at its limit. */
+  truncated: boolean;
+  /** How many folders were looked at. */
+  scanned: number;
+  /** What could not be read (the registry, the launch roots), in words; empty when everything was read. */
+  warnings: string[];
+}
+export type FolderSearchResponse = FolderSearchOk | ApiFailure;
+
+export interface FolderRecentDto extends FolderEntryDto {
+  /** Epoch ms of the last session or launch in this folder. */
+  lastUsedAt: number;
+  /** How many sessions and launches ran there. */
+  uses: number;
+  /** The folder still exists (a deleted one is listed so that the user sees why it is not offered for launch). */
+  exists: boolean;
+}
+
+/** GET /folders/recent: the distinct working directories of the sessions and launches of this machine, most recent first (at most 50). */
+export interface FolderRecentOk {
+  ok: true;
+  folders: FolderRecentDto[];
+  warnings: string[];
+}
+export type FolderRecentResponse = FolderRecentOk | ApiFailure;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// GET and POST /sessions/:sessionId/hc-permission
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+//
+// A Claude Code permission dialog of a session that runs in a herdr-core terminal, answered by TYPING the key into that terminal (`hc keys`): enter for
+// "Allow once", esc for "Deny". Never "always allow". POST is PIN-sensitive (commons/routeClasses.ts) and needs the CSRF header like every write.
+
+export interface HcPermissionOptionDto {
+  number: number;
+  label: string;
+}
+
+/** The dialog as the terminal shows it now. The decision must carry `promptId`: when the dialog changed in the meantime the server answers 409 'prompt-changed'. */
+export interface HcPermissionPromptDto {
+  promptId: string;
+  /** The herdr-core terminal address (`t21`). */
+  terminal: string;
+  /** `Bash` for `approve Bash: ...` (what hc reports); absent when it did not say. */
+  tool?: string;
+  /** First line of the dialog ("Bash command"). */
+  header: string;
+  /** What the agent said it does ("Create am-allow.txt file"); empty when none. */
+  description: string;
+  /** The command or change the dialog shows, whole (a dialog longer than the server shows whole is answered in the terminal: state 'unsupported', code 'dialog-too-long'). */
+  body: string;
+  question: string;
+  options: HcPermissionOptionDto[];
+  statusMessage: string;
+}
+
+/** `state` 'prompt': a dialog waits. 'none': the terminal is not blocked. 'unsupported': blocked on something this module does not answer (see `reason`, `fix`). */
+export type HcPermissionOk =
+  | { ok: true; sessionId: string; state: 'prompt'; prompt: HcPermissionPromptDto }
+  | { ok: true; sessionId: string; state: 'none'; terminal: string; status: string }
+  | { ok: true; sessionId: string; state: 'unsupported'; terminal: string; code: string; reason: string; fix: string };
+
+/**
+ * GET: a session that has no herdr-core terminal, or hc that cannot be asked, is `ok: false` with HTTP 200 (data, the card says why it cannot be used).
+ * Codes: 'no-terminal' (reason: "... not started in a herdr-core terminal ..."), 'ambiguous-terminal', 'hc-missing', 'hc-cannot-start', 'hc-timeout', 'hc-query-failed',
+ * 'hc-bad-answer', 'terminal-gone', 'unknown-session' (404), 'registry-unreadable'.
+ */
+export type HcPermissionResponse = HcPermissionOk | ApiFailure;
+
+export interface HcPermissionDecisionRequest {
+  decision: 'allow' | 'deny';
+  /** The `promptId` of the GET answer the user decided on. */
+  promptId: string;
+}
+
+export interface HcPermissionDecisionOk {
+  ok: true;
+  sessionId: string;
+  decision: 'allow' | 'deny';
+  promptId: string;
+  terminal: string;
+  /** The keys typed ("enter" or "esc"). */
+  keys: string[];
+  tool?: string;
+  /**
+   * 'closed': the dialog went away after the keys. 'unchanged': it was still displayed after a few seconds: look at the terminal.
+   * 'unknown': the key was sent (or may have been: a timeout) and the terminal could not be read afterwards, see `note`.
+   */
+  effect: 'closed' | 'unchanged' | 'unknown';
+  /** '' unless `effect` is 'unknown': what happened and what to do. */
+  note: string;
+  /** The status of the terminal after the wait. */
+  statusAfter: string;
+}
+
+/**
+ * Codes of the failures (the message says whether a key was typed; for these codes none was, except 'hc-keys-failed' without a refusal from hc, whose message says it is not known): 'bad-request' (400), 'invalid-decision' (400), 'unknown-session' (404), 'prompt-changed' (409),
+ * 'already-answered' (409), 'not-blocked' (409), 'not-a-permission-dialog' (409), 'dialog-not-recognized' (409), 'no-terminal' (409), 'ambiguous-terminal' (409),
+ * 'terminal-gone' (409), 'dialog-too-long' (409), 'audit-unwritable' (502), 'hc-missing' / 'hc-cannot-start' / 'hc-timeout' / 'hc-query-failed' / 'hc-keys-failed' / 'hc-bad-answer' (502).
+ */
+export type HcPermissionDecisionResponse = HcPermissionDecisionOk | ApiFailure;

@@ -34,3 +34,6 @@ export const implementedTransports: readonly ReplyTransport[] = [socketTransport
 
 // The duration parser lives one level up (shared with the CLI); re-exported so that the reply side is self-contained.
 export { DurationError, parseDuration } from '../duration.js';
+
+export { ALLOW_KEYS, AUDIT_COMMAND_CHARS, DENY_KEYS, HC_APPROVAL_DECISIONS, assertAnswerable, buildKeysArgs, createHcApproval, parsePermissionDialog } from './HcApproval.js';
+export type { HcApproval, HcApprovalAuditRecord, HcApprovalDecision, HcApprovalOptions, HcDecisionResult, HcPrompt, HcPromptOption, HcPromptState, ParsedDialog } from './HcApproval.js';

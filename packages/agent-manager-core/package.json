@@ -26,6 +26,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./folders": {
+      "types": "./dist/folders/index.d.ts",
+      "default": "./dist/folders/index.js"
+    },
     "./launch": {
       "types": "./dist/launch/index.d.ts",
       "default": "./dist/launch/index.js"

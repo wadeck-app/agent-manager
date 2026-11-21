@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import * as realFs from 'node:fs/promises';
 import { getErrorMessage } from '../errors.js';
+import { AtomicWriteError, replaceFileAtomic } from '../fsAtomic.js';
 import { ReplyError } from './errors.js';
 import { errorCode } from './fsTypes.js';
 import type { ReplyFs } from './fsTypes.js';
@@ -104,34 +104,15 @@ export async function readReplyMarker(configDir: string, fs: ReplyFs = realFs): 
   return { mode: parseReplyMarker(scalarOf(rest), `${file} line ${found[0]! + 1}`), source: 'config.yml', file };
 }
 
-const RENAME_RETRYABLE = new Set(['EPERM', 'EACCES', 'EBUSY']);
-const RENAME_ATTEMPTS = 5;
-
-const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * Replaces `file` by `next` (temp file in the same folder, then rename). On Windows a rename onto a file another process has open fails with EPERM/EACCES/EBUSY
- * for a moment (an editor, an antivirus, the updater reading config.yml): retried a few times briefly, then a clear error. NO LOCK: two processes changing config.yml at the
- * same instant can lose one change (out of scope: the file is replaced whole, never half written).
- */
+/** Replaces config.yml whole (see replaceFileAtomic); a failure is a ReplyError with the fix. */
 async function replaceFile(file: string, next: string, fs: ReplyFs): Promise<void> {
-  const temp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
   try {
-    await fs.writeFile(temp, next, 'utf8');
-    for (let attempt = 1; ; attempt++) {
-      try {
-        await fs.rename(temp, file);
-        return;
-      } catch (error) {
-        if (!RENAME_RETRYABLE.has(errorCode(error) ?? '') || attempt >= RENAME_ATTEMPTS) {
-          throw error;
-        }
-        await pause(25 * attempt);
-      }
-    }
+    await replaceFileAtomic(file, next, fs);
   } catch (error) {
-    await fs.unlink(temp).catch(() => undefined);
-    throw new ReplyError('config-not-written', `cannot write ${file} (${getErrorMessage(error)})`, 'close what holds config.yml open (an editor, a sync tool), check the permissions of the folder, then run the command again');
+    if (error instanceof AtomicWriteError) {
+      throw new ReplyError('config-not-written', getErrorMessage(error), 'close what holds config.yml open (an editor, a sync tool), check the permissions of the folder, then run the command again');
+    }
+    throw error;
   }
 }
 

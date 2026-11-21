@@ -1,8 +1,8 @@
-import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import * as realFs from 'node:fs/promises';
 import { DurationError, parseDuration } from '../duration.js';
 import { getErrorMessage } from '../errors.js';
+import { AtomicWriteError, replaceFileAtomic } from '../fsAtomic.js';
 import { ReplyError, assertSafeId } from './errors.js';
 import { errorCode } from './fsTypes.js';
 import type { ReplyFs } from './fsTypes.js';
@@ -104,16 +104,16 @@ async function chained(file: string, work: () => Promise<void>): Promise<void> {
   }
 }
 
+/** Replaces transports.json whole, with the Windows retry of replaceFileAtomic; a failure is a ReplyError that says what to do. */
 async function writeAtomic(configDir: string, config: TransportsConfig, fs: ReplyFs): Promise<void> {
   const file = join(configDir, 'transports.json');
   await fs.mkdir(configDir, { recursive: true });
-  const temp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
   try {
-    await fs.writeFile(temp, `${JSON.stringify(config, null, 2)}
-`, 'utf8');
-    await fs.rename(temp, file);
+    await replaceFileAtomic(file, `${JSON.stringify(config, null, 2)}\n`, fs);
   } catch (error) {
-    await fs.unlink(temp).catch(() => undefined);
+    if (error instanceof AtomicWriteError) {
+      throw new ReplyError('transports-not-written', getErrorMessage(error), 'close what holds transports.json open (an editor, a sync tool), check the permissions of the folder, then retry');
+    }
     throw error;
   }
 }

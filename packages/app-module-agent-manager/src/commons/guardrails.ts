@@ -1,0 +1,157 @@
+/**
+ * HTTP contract of the Guardrails page (phase 1, read-only): GET /guardrails/overview, GET /guardrails/denials and the PIN-protected
+ * GET /guardrails/denials/commands. TYPES ONLY (shared by src/backend and src/dsl-components, see commons/api.ts for the conventions).
+ *
+ * Everything here is read from the files of the w-guardrails plugin by a versioned reader that refuses any shape it does not know
+ * (a `GuardrailsProblem`), never guessing. The module only reads those files.
+ */
+
+/** A file the module could not read or whose shape it does not know: shown as is, with what to do. */
+export interface GuardrailsProblem {
+  /** Absolute path of the file. */
+  file: string;
+  /** What is wrong (names the field or the parse error). */
+  message: string;
+  /** What to do about it. */
+  hint: string;
+}
+
+/** A bypass granted by the user to a session (one entry of the grants file that the hook still honours). */
+export interface GrantDto {
+  id: string;
+  category: string;
+  mode: 'once' | 'ttl';
+  /** Epoch ms of the expiry. */
+  expiresAt: number;
+  /** Milliseconds left at `generatedAt` (never negative: expired entries are not listed). */
+  remainingMs: number;
+  /** The full session id of the grant. */
+  sessionId: string;
+  /** The registry name of that session, empty when the session is not in the registry (any more). */
+  sessionName: string;
+  /** Working directory of the project whose folder holds the grant. */
+  project: string;
+  /** The reason the agent gave (cut to 160 characters). */
+  rationale: string;
+  /** Uses so far; `maxUses` is null for a time-boxed grant (no limit). */
+  used: number;
+  maxUses: number | null;
+}
+
+/** What the counters of one session in one project say (the plugin's state file of the project). */
+export interface SessionBlocksDto {
+  /** The key of the file: the full session id. */
+  sessionId: string;
+  /** The first 8 characters (what the journals carry). */
+  prefix: string;
+  sessionName: string;
+  project: string;
+  /** Times each category blocked the session, most first. Counts only the denials that carry a bypass hint (the journal counts every deny and ask). */
+  blocks: { category: string; count: number }[];
+  total: number;
+  /** Refused or ignored bypass requests (3 start a 30 minute timeout). */
+  refusedCount: number;
+  /** Epoch ms of the end of the timeout, null when there is none running. */
+  timeoutUntil: number | null;
+  /** Epoch ms of the last bypass request, null when none. */
+  lastRequestAt: number | null;
+}
+
+/** The project rules file (.claude/guardrails.json) as written. The defaults of the plugin are not shown (they live in plugin code, see `rulesNote`). */
+export interface ProjectConfigDto {
+  project: string;
+  file: string;
+  /** absent: the project has no file (the hook uses its built-in defaults); malformed: JSON that cannot be parsed or has an unknown shape (the hook IGNORES it). */
+  state: 'absent' | 'ok' | 'malformed' | 'unreadable';
+  /** The decisions given in the file. */
+  categories: { name: string; decision: string }[];
+  categoryMessages: number;
+  protectedFiles: { glob: string; decision: string }[];
+  hasSecrets: boolean;
+  /** Unknown keys or values: the file is shown but these need a look. */
+  warnings: string[];
+  /** Why the state is malformed or unreadable ("message. hint"), empty otherwise. */
+  errorText: string;
+}
+
+/** A project folder the overview looked at, and why. */
+export interface ScannedProject {
+  path: string;
+  /** registry: a session of the Claude Code registry works there; owned: a session of the daemon; journal: a denial of the journal names it. */
+  sources: ('registry' | 'owned' | 'journal')[];
+  /** The folder has at least one plugin state file (grants, counters or rules). */
+  hasFiles: boolean;
+}
+
+export interface GuardrailsOverviewDto {
+  ok: true;
+  generatedAt: string;
+  /** The kill switch file exists: ALL protections are off. */
+  killSwitch: { active: boolean; path: string; errorText: string };
+  projects: ScannedProject[];
+  /** What the project list was built from, one sentence per source, with the count or why it is missing. */
+  sourcesText: string[];
+  grants: GrantDto[];
+  sessions: SessionBlocksDto[];
+  configs: ProjectConfigDto[];
+  /** Files that could not be read or whose shape is unknown: never silent. */
+  problems: GuardrailsProblem[];
+  /** Entries the hook ignores (expired, used up, more than 24 h ahead) that were left out of `grants`. */
+  hiddenEntries: number;
+  /** Why the effective rules are not shown. */
+  rulesNote: string;
+  /** The version of the file shapes this reader knows. */
+  formatVersion: number;
+}
+
+/** One denial or ask of the blocked journal. `command` is only present in the PIN-protected route. */
+export interface DenialDto {
+  /** Epoch ms. */
+  at: number;
+  day: string;
+  /** The journal's session text: 8 characters then ":M" (main agent) or ":A:<4>:<type>" (sub-agent). */
+  session: string;
+  prefix: string;
+  sessionName: string;
+  decision: 'deny' | 'ask';
+  /** The category (or rule) that fired. */
+  category: string;
+  project: string;
+  tool: string;
+  /** The file of a Write or Edit, empty otherwise. */
+  file: string;
+  hasCommand: boolean;
+  /** The command as the journal holds it (up to 500 characters, NOT masked). Absent unless the PIN-protected route answered. */
+  command?: string;
+}
+
+export interface DenialsDto {
+  ok: true;
+  generatedAt: string;
+  denials: DenialDto[];
+  /** The day files of the journal, newest first (the day filter's choices). */
+  days: string[];
+  /** The categories among the examined records (the category filter's choices). */
+  categories: string[];
+  /** The filters as understood. */
+  filter: { day: string; category: string; session: string; limit: number };
+  /** True when older records exist that were not read (byte budget or limit reached). */
+  truncated: boolean;
+  bytesRead: number;
+  /** Lines of the journal this reader does not understand (unknown field, bad JSON), with the first one named. Never skipped silently. */
+  skipped: { count: number; example: string };
+  /** The command texts are included (PIN-protected route). */
+  withCommands: boolean;
+  /** Always set: the texts of the journal are not masked. */
+  note: string;
+  problems: GuardrailsProblem[];
+}
+
+/** What a session row says about the guardrails (counters of the plugin for its folder). Absent when none. */
+export interface GuardrailBlocksDto {
+  total: number;
+  /** Most blocked first. */
+  categories: { category: string; count: number }[];
+  /** A bypass request timeout is running for this session. */
+  timeout: boolean;
+}

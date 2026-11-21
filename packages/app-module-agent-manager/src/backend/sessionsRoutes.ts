@@ -7,12 +7,15 @@ import { statusOf } from './sessionStatus.js';
 import { parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserState } from './userState.js';
 import { sessionColumns } from './columns.js';
 import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
+import { guardrailBlocksFor, registerGuardrailsRoutes } from './guardrailsRoutes.js';
 import { registerLogRoute } from './logRoute.js';
 import { registerReplyRoutes, type ModuleOptions } from './replyRoutes.js';
 import { createDaemonApi } from './daemon/daemonApi.js';
 import { DISCOVERED, joinOwned } from './daemon/ownedJoin.js';
 import { createOwnedSource, errorTextOf, type OwnedSource } from './daemon/ownedSource.js';
 import { registerOwnedRoutes } from './ownedRoutes.js';
+import { registerHcPermissionRoutes } from './hcPermissionRoutes.js';
+import { registerFoldersRoutes } from './foldersRoutes.js';
 import { daemonNote } from './sessionLookup.js';
 import { RequestError, type RouteKit, ok, queryValue } from './routeKit.js';
 
@@ -99,6 +102,8 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
     const digests = await Promise.all(shown.map((row) => digestOf(row, now)));
     // The status line data (model, context, tokens, duration, branch, role, bypasses): read from the transcript digest and the registry folder of each session.
     const statuses = await Promise.all(shown.map((row, index) => statusOf(row, digests[index]!.usage, digests[index]!.note, now)));
+    // The chip "blocked by a guardrail": the counters of the plugin in each session folder (a file that cannot be read is `guardrailsErrorText`, never silence).
+    const guardrails = await guardrailBlocksFor(shown, now);
     const rows = shown.map((row, index): SessionRow & SessionRowDto => {
       const digest = digests[index]!;
       const seenAt = user.seen[row.sessionId.toLowerCase()];
@@ -114,6 +119,7 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
         activityNote: digest.note,
         subagentCount: digest.subagentCount,
         ...(joined.fields.get(row.sessionId.toLowerCase()) ?? DISCOVERED),
+        ...(guardrails.byId.has(row.sessionId.toLowerCase()) ? { guardrailBlocks: guardrails.byId.get(row.sessionId.toLowerCase()) } : {}),
       };
     });
     return ok({
@@ -125,6 +131,7 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
       latestVersion: latest,
       tableColumns: sessionColumns(shown),
       userStateError,
+      guardrailsErrorText: guardrails.errorText,
       ownedError: joined.ownedError,
       ownedErrorText: joined.ownedError === null ? '' : errorTextOf(joined.ownedError),
       unreadable: registry.unreadable,
@@ -242,4 +249,7 @@ export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {
   registerLogRoute(kit, source);
   registerReplyRoutes(kit, options, source);
   registerOwnedRoutes(kit, source);
+  registerHcPermissionRoutes(kit, options, source);
+  registerFoldersRoutes(kit, source);
+  registerGuardrailsRoutes(kit, options.guardrails ?? {}, source);
 }

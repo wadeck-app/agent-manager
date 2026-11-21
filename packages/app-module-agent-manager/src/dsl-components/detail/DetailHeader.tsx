@@ -6,6 +6,7 @@ import { IconButton } from '../ui/IconButton.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
+import { GuardrailBlocks } from '../guardrails/GuardrailBlocks.js';
 import { OwnedBar } from '../owned/OwnedBar.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 import { StatusInfo } from './status/StatusInfo.js';
@@ -55,6 +56,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
           ) : null}
         </div>
         <StatusInfo session={session} status={status} />
+        <GuardrailBlocks blocks={session.guardrailBlocks} />
         <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} />
         {session.state === 'needs-you' && session.reason !== '' ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null}
       </div>

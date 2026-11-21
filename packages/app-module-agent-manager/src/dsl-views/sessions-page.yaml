@@ -27,6 +27,11 @@ sections:
     $if: $sources.sessions.unreadableText
     label: $sources.sessions.unreadableText
     variant: warning
+  # The w-guardrails counters behind the "blocked" chip of the rows could not be read (details on the Guardrails page).
+  - $type: Badge
+    $if: $sources.sessions.guardrailsErrorText
+    label: $sources.sessions.guardrailsErrorText
+    variant: warning
   - $type: Badge
     $if: $sources.sessions.emptyText
     label: $sources.sessions.emptyText

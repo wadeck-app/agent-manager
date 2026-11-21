@@ -27,13 +27,18 @@ function Page({ ownedError = null }: { ownedError?: { code: string; message: str
 describe('the New session entry of the toolbar', () => {
   it('opens the dialog, launches, lists the new session at once as starting, and selects it', async () => {
     // violations-suppress: shared/no-out-of-repo-path a Windows path as the user types it, never read from disk
-    stubFetch({ 'POST /owned/launch': { body: { ok: true, session: ownedDto({ id: ID, cwd: 'C:\\Projects\\shop', name: 'Fresh' }) } } });
+    stubFetch({
+      // violations-suppress: shared/no-out-of-repo-path a path as a plain value (an example or a test input), never read from disk
+      'POST /owned/launch': { body: { ok: true, session: ownedDto({ id: ID, cwd: 'C:\\Projects\\shop', name: 'Fresh' }) } },
+      // The server lists the folder of the one session among the recent ones.
+      // violations-suppress: shared/no-out-of-repo-path a path as a plain value (an example or a test input), never read from disk
+      'GET /folders/recent': { body: { ok: true, warnings: [], folders: [{ name: 'shop', path: 'C:\\Projects\\shop', hasGit: false, isRecent: true, isKnownProject: true, isLink: false, lastUsedAt: 1, uses: 1, exists: true }] } },
+    });
     render(<Page />);
     await userEvent.click(screen.getByRole('button', { name: 'New session' }));
     expect(screen.getByRole('dialog', { name: 'New session' })).toBeInTheDocument();
     // The folder of the one listed session is offered.
-    // violations-suppress: shared/no-out-of-repo-path a Windows path as the user types it, never read from disk
-    await userEvent.click(screen.getByRole('button', { name: 'C:\\Projects\\shop' }));
+    await userEvent.click(await screen.findByRole('button', { name: /^shop/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Launch' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New session' })).toBeNull());
     expect(screen.getByTestId('session-param')).toHaveTextContent(ID);

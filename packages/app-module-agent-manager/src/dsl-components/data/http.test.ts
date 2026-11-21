@@ -69,13 +69,13 @@ describe('requestJson and the write token', () => {
     serve((call) => (call.url.endsWith('/csrf') ? tokenAnswer('tok') : refusal('csrf-invalid')));
     const result = await requestJson('/sessions/a/seen', { method: 'POST' });
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(2);
-    expect(result).toEqual({ ok: false, text: 'refused: csrf-invalid. the hint' });
+    expect(result).toEqual({ ok: false, text: 'refused: csrf-invalid. the hint', code: 'csrf-invalid' });
   });
 
   it("'csrf-required' is surfaced as the server wrote it (message and hint), without a retry", async () => {
     serve((call) => (call.url.endsWith('/csrf') ? tokenAnswer('tok') : refusal('csrf-required')));
     const result = await requestJson('/sessions/a/pin', { method: 'POST', body: {} });
-    expect(result).toEqual({ ok: false, text: 'refused: csrf-required. the hint' });
+    expect(result).toEqual({ ok: false, text: 'refused: csrf-required. the hint', code: 'csrf-required' });
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
   });
 

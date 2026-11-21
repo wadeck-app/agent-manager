@@ -1,5 +1,6 @@
 import { Bot, Pin } from 'lucide-react';
 import type { AgentRow } from '../data/types.js';
+import { GuardrailChip } from '../guardrails/GuardrailChip.js';
 import { HostBadge } from '../owned/OwnedChips.js';
 import { OwnedStateChip } from '../owned/OwnedStateChip.js';
 
@@ -9,6 +10,7 @@ export function RowMarks({ session }: { session: AgentRow }) {
     <>
       <HostBadge session={session} />
       <OwnedStateChip session={session} compact />
+      <GuardrailChip blocks={session.guardrailBlocks} />
       {session.pinned ? (
         <span className="inline-flex shrink-0 text-muted">
           <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
