@@ -88,6 +88,15 @@ A CLI (`agent-manager`, decision 18) wired into Claude Code global hooks, feedin
 | 55 | Both launch hosts are built to compare them in use; X1 is the default for owned sessions, X3 keeps the real terminal; remote approval of X3 prompts via `hc keys` stays out until the user decides (#36) | User ("fais X1 et X3 pour tester les deux a l'usage") | 2026-11-20 | research/session-launch-options.md (rounds 1-3) |
 | 56 | Write routes that start, stop, interrupt, change the mode of or answer a session, and the reply send, are `sensitive` (PIN of app-core, shell `appFetcher`); pins, seen markers, Forget and transport settings are not; the daemon API is not browser-callable (any Origin header refused, bearer token) | User (option B, 2026-11-20) | 2026-11-20 | threat-model.md T-01, T-12 |
 | 57 | Reply marker `replyMarker: none (default) | short | full`; the owned transport never adds one; delivery confirmation never depends on it | Derived from the user's position (only delivery confirmation matters), reversible | 2026-11-21 | .claude/session/decisions.md D-2026-11-19-a, D-2026-11-21-a |
+| 58 | Own ConPTY terminal host DISCARDED: the X1 (`stream-json`), X2 (`bg`) and X3 (`hc`) hosts cover the need (also in `out-of-scope.md`) | User (2026-11-21) | 2026-11-21 | research/session-launch-options.md |
+| 59 | Claude Code hooks approach DISCARDED (supersedes the hooks parts of decisions 13, 29, 30): state comes from the registry, transcripts and the launch hosts; no hook plugin, no `agent-manager hook` (also in `out-of-scope.md`) | User (2026-11-21) | 2026-11-21 | research/claude-code-hooks-and-transcripts.md |
+| 60 | Remote approval of permission prompts through `hc keys` INTEGRATED (settles the open point of decision 55): allow once and deny only, PIN-gated, audited | User (2026-11-21) | 2026-11-21 | threat-model.md T-15, research/hc-keys-approval.md |
+| 61 | w-guardrails managed from the module: a bypass may be granted from the browser with the app-core PIN accepted; a loopback `curl` to the module routes is NOT blocked (agents have neither the PIN nor the token; settles Q8); editing `guardrails.json` from the web page is in scope; the module never writes plugin state files directly (waits for the plugin API) | User (2026-11-21) | 2026-11-21 | research/guardrails-management.md (G-2, section 7) |
+| 62 | Launch host X2 `claude --bg` INTEGRATED (third host, observed by poll) | User (2026-11-21) | 2026-11-21 | research/session-launch-options.md (Round 4), threat-model.md T-17 |
+| 63 | Custom groups of agents in the Tree: user-defined, saved in the module state file, not PIN-gated (#66) | User (2026-11-21) | 2026-11-21 | threat-model.md T-16 |
+| 64 | Fork of an agent (`--resume --fork-session` as a new owned `stream-json` session), PIN-gated (#64) | User (2026-11-21) | 2026-11-21 | research/session-fork.md, threat-model.md T-18 |
+| 65 | Thread from a message (`--resume-session-at`, cap of 3 live threads per source); built test-first: mock tests plus an integration test gated by `AGENT_MANAGER_INTEGRATION=1` (#65) | User (2026-11-21) | 2026-11-21 | research/session-fork.md, threat-model.md T-19 |
+| 66 | Host switch of an owned session Web <-> hc keeping the same session id, with a readiness-colored Move button (free/busy/unknown); adoption of external sessions, bg and kill by pid DEFERRED (#71) | User (2026-11-21) | 2026-11-21 | research/adopt-host-switch.md, threat-model.md T-20 |
 
 ## Open Questions
 
@@ -100,7 +109,7 @@ A CLI (`agent-manager`, decision 18) wired into Claude Code global hooks, feedin
 | Q5 | Hook installation | Medium | Resolved (derived, decision 13) |
 | Q6 | State model and sub-agent tracking | Medium | Resolved provisionally (derived, decision 14) |
 | Q7 | Main screen layout and variants | High | Resolved provisionally (derived, decision 15) |
-| Q8 | w-guardrails rule denying curl to the reply route (cross-repo, D-B) | Medium | Open (pending the user) |
+| Q8 | w-guardrails rule denying curl to the reply route (cross-repo, D-B) | Medium | Resolved (user, decision 61) |
 | Q9 | `seenAt` global vs per browser and pin ordering: derived (decisions 45, 46), user may overturn | Low | Resolved provisionally (derived) |
 
 ## Modules / Sub-files

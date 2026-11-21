@@ -130,6 +130,7 @@ describe('probe', () => {
     expect(result.details['code']).toBe('no-terminal');
     expect(result.reason).toContain('pid 1234');
     expect(result.fix).toContain('hc run --bg claude');
+    expect(result.reason).toContain('only drives terminals created by herdr-core');
   });
 
   it('is unavailable, never a guess, when two terminals report the pid', async () => {

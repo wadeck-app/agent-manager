@@ -165,8 +165,8 @@ export function createHcTerminals(options: HcTerminalsOptions): HcTerminals {
       return {
         ok: false,
         code: 'no-terminal',
-        reason: `no herdr-core terminal runs the session process (pid ${session.pid}; ${examined} Claude Code terminal(s) examined): the session was not started in a herdr-core terminal, or claude is not the foreground program of it`,
-        fix: 'start the session with `hc run --bg claude` (or in a herdr pane), or select the socket transport for this session',
+        reason: `no herdr-core terminal runs the session process (pid ${session.pid}; ${examined} Claude Code terminal(s) examined): the session was not started in a herdr-core terminal (hc only drives terminals created by herdr-core, it cannot adopt another terminal), or claude is not the foreground program of it`,
+        fix: 'start the session with `hc run --bg claude` (a terminal created by herdr-core), or select the socket transport for this session',
         examined,
       };
     }
