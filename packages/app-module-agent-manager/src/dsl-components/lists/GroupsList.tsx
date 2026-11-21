@@ -64,8 +64,8 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
                       <StateIconTip session={session} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <ProjectLabel session={session} className="flex-1" terms={query.terms} />
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <ProjectLabel session={session} className="min-w-[8rem] flex-1" terms={query.terms} />
                         <RowMarks session={session} />
                         <TimeInState session={session} now={now} />
                       </div>

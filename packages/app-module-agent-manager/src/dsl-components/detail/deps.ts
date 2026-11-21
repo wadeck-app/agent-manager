@@ -12,6 +12,7 @@ export { useMinWidth, useNow, WIDE_SCREEN_PX } from '../ui/hooks.js';
 export { AUTO_ML_FROM_PX } from '../ui/density.js';
 export { Tooltip } from '../ui/Tooltip.js';
 export { usePopover } from '../ui/usePopover.js';
+export { useUiVariant } from '../ui/UiVariants.js';
 export { ThreadDialog } from '../launch/ThreadDialog.js';
 export { THREAD_MEANING, threadAnchorOf, threadChipText } from '../logic/threadForm.js';
 export type { ThreadAnchor } from '../logic/threadForm.js';

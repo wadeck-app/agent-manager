@@ -97,7 +97,7 @@ export function unreadableText(unreadable: readonly { file: string; reason: stri
     return '';
   }
   const list = unreadable.map((entry) => `${entry.file} (${entry.reason})`).join('; ');
-  return `${plural(unreadable.length, 'registry file', 'registry files')} could not be read, the sessions in them are not shown: ${list}`;
+  return `${plural(unreadable.length, 'registry file', 'registry files')} could not be read, the sessions in them are not shown: ${list}. Open the file in the Claude Code sessions folder (~/.claude/sessions unless AGENT_MANAGER_SESSIONS_DIR says otherwise); if its session is gone, delete it.`;
 }
 
 export function hiddenDeadText(hidden: number): string {

@@ -15,6 +15,9 @@ export interface ModalProps {
   children: ReactNode;
 }
 
+/** The button row of a dialog: it sticks to the bottom of the scrolling body, so the buttons never fall below the fold (audit D10). */
+export const DIALOG_FOOTER = 'sticky bottom-0 z-10 -mx-4 -mb-4 flex items-center justify-end gap-2 border-t border-border bg-surface px-4 py-3';
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**

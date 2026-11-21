@@ -2,7 +2,7 @@
 (() => {
   const spacer = document.querySelector('[data-testid="ab-dock-spacer"]');
   if (spacer) spacer.style.display = 'none';
-  const label = [...document.querySelectorAll('*')].find((e) => e.children.length === 0 && /^(Log style|Sessions layout|Sub-agents: layout)$/.test(e.textContent || ''));
+  const label = [...document.querySelectorAll('*')].find((e) => e.children.length === 0 && /^(Log style|Sessions layout|Sub-agents: layout|Header actions)$/.test(e.textContent || ''));
   let n = label; while (n && getComputedStyle(n).position !== 'fixed') n = n.parentElement;
   if (n) n.style.display = 'none';
   return JSON.stringify({ spacer: !!spacer, dock: !!n });

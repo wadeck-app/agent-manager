@@ -10,7 +10,7 @@ export type SwitchTarget = Extract<OwnedHostKind, 'stream-json' | 'hc'>;
 
 export interface SwitchView {
   target: SwitchTarget;
-  /** What the button says. Busy and unknown say so in the label: "Move to herdr-core (interrupts 2 running items)". */
+  /** What the button says. Busy and unknown say so in the label: "Move to Terminal (interrupts 2 running items)". */
   label: string;
   /** The tooltip: nothing runs, or every reason on its own line. */
   title: string;
@@ -32,7 +32,7 @@ function targetOf(session: SessionRowDto): { target: SwitchTarget; base: string 
     return undefined;
   }
   if (isLiveWeb(session)) {
-    return { target: 'hc', base: 'Move to herdr-core' };
+    return { target: 'hc', base: 'Move to Terminal' };
   }
   // A terminal the daemon started: its state comes from the registry, so "alive" is the registry's.
   if (session.host === 'hc' && session.alive) {
@@ -41,7 +41,7 @@ function targetOf(session: SessionRowDto): { target: SwitchTarget; base: string 
   return undefined;
 }
 
-const TARGET_LABEL: Record<SwitchTarget, string> = { hc: 'herdr-core', 'stream-json': 'Web' };
+const TARGET_LABEL: Record<SwitchTarget, string> = { hc: 'Terminal', 'stream-json': 'Web' };
 
 /** A stopped owned session whose last move failed: nothing runs, so there is nothing to interrupt; the start is the same switch route. */
 function recoveryOf(session: SessionRowDto): SwitchView | undefined {
@@ -77,4 +77,36 @@ export function switchViewOf(session: SessionRowDto): SwitchView | undefined {
   const count = readiness.reasons.length;
   const label = readiness.state === 'busy' ? `${where.base} (interrupts ${count} running item${count === 1 ? '' : 's'})` : `${where.base} (cannot tell what runs)`;
   return { target: where.target, label, title: readiness.reasons.join('\n'), readiness: readiness.state, tone: 'warning', needsConfirm: true, reasons: readiness.reasons };
+}
+
+export type ReasonKind = 'turn' | 'waiting' | 'subagent' | 'tool' | 'queued' | 'unknown' | 'other';
+
+export interface ReasonGroup {
+  kind: ReasonKind;
+  title: string;
+  /** One line: what the move does to this kind of thing. */
+  consequence: string;
+  reasons: string[];
+}
+
+const KINDS: { kind: ReasonKind; title: string; consequence: string; test: RegExp }[] = [
+  { kind: 'waiting', title: 'Waiting for an answer', consequence: 'The question or permission request is not replayed after the move.', test: /^Waiting on |permission request/ },
+  { kind: 'turn', title: 'A turn is running', consequence: 'Its partial answer is lost; your message stays as an unanswered line.', test: /^A turn is running|shell command/ },
+  { kind: 'subagent', title: 'Sub-agents', consequence: 'They are reported as not finished and their results are lost.', test: /sub-agent/i },
+  { kind: 'tool', title: 'Tools and background tasks', consequence: 'Their processes may keep running unseen; their results never reach the conversation.', test: /^Tool |^Background / },
+  { kind: 'queued', title: 'Queued messages', consequence: 'They stay as unanswered lines.', test: /queued message/ },
+  { kind: 'unknown', title: 'Cannot tell what runs', consequence: 'agent-manager treats the session as busy.', test: /^Cannot tell/ },
+];
+
+/** Groups the free-text reasons of a readiness by what they are about (the words are the daemon's: a reason that matches nothing is kept, under "Other"). */
+export function groupReasons(reasons: readonly string[]): ReasonGroup[] {
+  const groups = new Map<ReasonKind, ReasonGroup>();
+  for (const reason of reasons) {
+    const known = KINDS.find((entry) => entry.test.test(reason));
+    const kind = known?.kind ?? 'other';
+    const group = groups.get(kind) ?? { kind, title: known?.title ?? 'Other', consequence: known?.consequence ?? 'See the details below.', reasons: [] };
+    group.reasons.push(reason);
+    groups.set(kind, group);
+  }
+  return [...groups.values()];
 }

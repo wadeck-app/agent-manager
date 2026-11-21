@@ -3,9 +3,11 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
 import type { GroupSection } from '../logic/customGroups.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
+import { GROUP_LOOK } from '../ui/groupLook.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
+import { useUiVariant } from '../ui/UiVariants.js';
 import { DropBar } from './DropBar.js';
 import { GroupDot } from './GroupDot.js';
 import type { GroupDnd } from './useGroupDnd.js';
@@ -27,6 +29,10 @@ export interface CustomGroupSectionProps {
  */
 export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onEdit, renderRow }: CustomGroupSectionProps) {
   const { group, sessions, rollup } = section;
+  const headerStyle = useUiVariant('groupHeader');
+  const look = GROUP_LOOK[group.color ?? 'none'];
+  // The three looks of the A/B question ui-group-header; classes written in full.
+  const headerLook = headerStyle === 'bar' ? `border-l-4 ${look.edge} bg-muted-bg pl-1` : '';
   const Chevron = open ? ChevronDown : ChevronRight;
   const edge = dnd.over?.kind === 'header' && dnd.over.id === group.id ? (dnd.over.after ? 'after' : 'before') : undefined;
   const into = dnd.over?.kind === 'section' && dnd.over.id === group.id;
@@ -64,14 +70,20 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
         onClick={() => onToggle(!open)}
         onKeyDown={onKeyDown}
         {...dnd.header(group)}
-        className={`group relative flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
+        className={`group relative flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${headerLook} ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
       >
         <DropBar edge={edge} />
         <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
         <GroupDot color={group.color} />
-        <span className="truncate font-semibold text-content" title={group.name}>
-          {group.name}
-        </span>
+        {headerStyle === 'pill' ? (
+          <span className={`truncate rounded-full border border-current px-2 py-0.5 text-xs font-semibold ${look.text}`} title={group.name}>
+            {group.name}
+          </span>
+        ) : (
+          <span className="truncate font-semibold text-content" title={group.name}>
+            {group.name}
+          </span>
+        )}
         <span className="ml-auto flex shrink-0 items-center gap-2">
           <Tooltip content="Edit the group: name, color, order, delete (E)" side="left">
             <button
@@ -82,12 +94,12 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
                 event.stopPropagation();
                 onEdit();
               }}
-              className={`inline-flex h-am-icon-sm w-am-icon-sm items-center justify-center rounded text-muted opacity-0 hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+              className={`inline-flex h-6 w-6 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
             >
               <Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </button>
           </Tooltip>
-          <span className="text-xs tabular-nums text-muted">{sessions.length}</span>
+          <span className={`text-xs tabular-nums text-muted ${headerStyle === 'bar' ? 'rounded-full bg-surface px-1.5 py-0.5' : ''}`}>{sessions.length}</span>
           {rollup !== undefined ? (
             <Tooltip content={`${STATE_LOOK[rollup].label}: the most urgent state in this group`} side="left">
               <span className="inline-flex">

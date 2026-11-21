@@ -23,15 +23,7 @@ sections:
     $if: $sources.sessions.errorText
     label: $sources.sessions.errorText
     variant: danger
-  - $type: Badge
-    $if: $sources.sessions.unreadableText
-    label: $sources.sessions.unreadableText
-    variant: warning
-  # The w-guardrails counters behind the "blocked" chip of the rows could not be read (details on the Guardrails page).
-  - $type: Badge
-    $if: $sources.sessions.guardrailsErrorText
-    label: $sources.sessions.guardrailsErrorText
-    variant: warning
+  # The unreadable registry files and the unreadable w-guardrails counters are warnings of the workspace itself (props below): a pill above it pushed the whole page down.
   - $type: Badge
     $if: $sources.sessions.emptyText
     label: $sources.sessions.emptyText
@@ -45,3 +37,5 @@ sections:
     # Why the daemon (owned sessions) could not be asked: the New session dialog shows it with the fix. Never a failure of the page itself.
     ownedError: $sources.sessions.ownedError
     ownedErrorText: $sources.sessions.ownedErrorText
+    unreadableText: $sources.sessions.unreadableText
+    guardrailsErrorText: $sources.sessions.guardrailsErrorText

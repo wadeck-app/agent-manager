@@ -48,11 +48,14 @@ export interface WorkspaceProps {
   /** `ownedError` of the page source: why the daemon could not be asked, null when it answered. */
   ownedError: ApiError | null;
   ownedErrorText: string;
+  /** The registry files that could not be read (empty when none) and the unreadable guardrails counters: warnings above the list. */
+  unreadableText?: string;
+  guardrailsErrorText?: string;
 }
 
 const NO_GROUPS: readonly CustomGroupDto[] = [];
 
-export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, hiddenDead, ownedError, ownedErrorText }: WorkspaceProps) {
+export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, hiddenDead, ownedError, ownedErrorText, unreadableText = '', guardrailsErrorText = '' }: WorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
   useFillContentArea(root, 360);
   const now = useNow();
@@ -305,6 +308,20 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
       </Banner>,
     );
   }
+  if (unreadableText !== '') {
+    notices.push(
+      <Banner key="unreadable" tone="warning">
+        {unreadableText}
+      </Banner>,
+    );
+  }
+  if (guardrailsErrorText !== '') {
+    notices.push(
+      <Banner key="guardrails" tone="warning">
+        {guardrailsErrorText}
+      </Banner>,
+    );
+  }
   if (userStateError !== '') {
     notices.push(
       <Banner key="user" tone="warning">
@@ -369,6 +386,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         helpOpen={helpOpen}
         onHelpOpenChange={setHelpOpen}
         onNewSession={() => setLaunchOpen(true)}
+        detailOpen={selectedId !== undefined}
         onNewGroup={async (name) => (await grouped.api.create(name)) !== undefined}
       />
       {launchOpen ? <NewSessionDialog ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}

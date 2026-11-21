@@ -40,7 +40,7 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
     }
   };
   return (
-    <div className="relative min-w-40 max-w-lg flex-1">
+    <div className="relative min-w-32 max-w-lg flex-1">
       <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
       <input
         data-agent-search=""

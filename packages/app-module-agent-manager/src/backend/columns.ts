@@ -7,10 +7,11 @@ import type { DslNode } from './dslNode.js';
  */
 export function sessionColumns(rows: readonly SessionRow[]): DslNode[] {
   return [
-    { key: 'displayName', label: 'Session', nowrap: true, title: '{sessionId}' },
-    { key: 'folder', label: 'Folder', nowrap: true, title: '{cwd}' },
+    // Session, Folder and Detail wrap: a long name with nowrap pushed the Status and the columns after it out of the table (clipped, no scrollbar).
+    { key: 'displayName', label: 'Session', title: '{sessionId}' },
+    { key: 'folder', label: 'Folder', title: '{cwd}' },
     { key: 'statusGroup', label: 'Status', nowrap: true, badge: { busy: 'info', idle: 'success', other: 'warning' } },
-    { key: 'statusDetail', label: 'Detail', muted: true, nowrap: true },
+    { key: 'statusDetail', label: 'Detail', muted: true },
     { key: 'statusUpdatedAt', label: 'Status since', format: 'datetime', nowrap: true },
     { key: 'pid', label: 'PID', mono: true, nowrap: true },
     { key: 'harness', label: 'Harness', nowrap: true, badge: harnessBadges(rows) },

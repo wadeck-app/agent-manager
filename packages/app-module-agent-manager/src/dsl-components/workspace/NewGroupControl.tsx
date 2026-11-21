@@ -7,7 +7,7 @@ import { FOCUS_RING } from '../ui/IconButton.js';
  * The "New group" button of the toolbar. It turns into a name field in place: Enter creates, Escape (or the Cancel button) puts the button back. A bad name is
  * said next to the field; a refusal of the server is shown by the page, and the field stays so the name can be corrected.
  */
-export function NewGroupControl({ onCreate }: { onCreate: (name: string) => Promise<boolean> }) {
+export function NewGroupControl({ onCreate, iconOnly = false }: { onCreate: (name: string) => Promise<boolean>; iconOnly?: boolean }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [problem, setProblem] = useState('');
@@ -49,9 +49,9 @@ export function NewGroupControl({ onCreate }: { onCreate: (name: string) => Prom
 
   if (!open) {
     return (
-      <button ref={button} type="button" onClick={() => setOpen(true)} className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-border px-3 text-sm font-medium text-content hover:bg-muted-bg ${FOCUS_RING}`}>
+      <button ref={button} type="button" onClick={() => setOpen(true)} title={iconOnly ? 'New group' : undefined} className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-border ${iconOnly ? 'px-2' : 'px-3'} text-sm font-medium text-content hover:bg-muted-bg ${FOCUS_RING}`}>
         <FolderPlus aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        New group
+        {iconOnly ? <span className="sr-only">New group</span> : 'New group'}
       </button>
     );
   }

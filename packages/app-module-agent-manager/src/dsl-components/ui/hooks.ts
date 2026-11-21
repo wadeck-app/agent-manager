@@ -83,7 +83,11 @@ export const WIDE_SCREEN_PX = 1700;
  * DOM, and in the accessibility tree of a test). False where `matchMedia` does not exist (a test environment).
  */
 export function useMinWidth(px: number): boolean {
-  const query = `(min-width: ${px}px)`;
+  return useMediaQuery(`(min-width: ${px}px)`);
+}
+
+/** True while the media query matches (false where matchMedia does not exist, as in a test without it). */
+export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches);
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') {

@@ -5,9 +5,9 @@ export const HOST_LABEL: Record<OwnedHostKind, string> = { 'stream-json': 'Web',
 
 /** What the host means, for the tooltip of its badge. */
 export const HOST_MEANING: Record<OwnedHostKind, string> = {
-  'stream-json': 'Web session: started from agent-manager as a child of its daemon. Structured log, permission requests are answered in this page.',
-  hc: 'Terminal session: started from agent-manager in a herdr-core terminal. The real Claude Code screen, permission requests are answered in that terminal.',
-  bg: 'Background session: started from agent-manager with claude --bg. The Claude Code supervisor hosts it, so it survives agent-manager and you can attach in a terminal. Permission prompts are answered in the terminal (claude attach <id>); replies are sent as peer messages.',
+  'stream-json': 'Web: a Claude Code child process owned by the agent-manager daemon; permission requests are answered in this page.',
+  hc: 'Terminal: Claude Code running in a herdr-core terminal; permission requests are answered in that terminal.',
+  bg: 'Background: a claude --bg session hosted by the Claude Code supervisor, so it outlives agent-manager; answer permission prompts with claude attach.',
 };
 
 export function isOwned(session: Pick<SessionRowDto, 'launchedBy'>): boolean {

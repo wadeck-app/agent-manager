@@ -9,7 +9,7 @@ import { useOwnedSession } from '../owned/useOwnedSession.js';
 import type { OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
-import { Modal } from '../ui/Modal.js';
+import { DIALOG_FOOTER, Modal } from '../ui/Modal.js';
 import { Field } from './Field.js';
 
 const FIELD = `w-full rounded border border-border bg-surface px-2.5 py-1.5 text-base text-content placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS_RING}`;
@@ -137,7 +137,7 @@ export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
           </p>
         ) : null}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className={DIALOG_FOOTER}>
           <button type="button" onClick={onClose} disabled={forking} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg disabled:opacity-50 ${FOCUS_RING}`}>
             Cancel
           </button>

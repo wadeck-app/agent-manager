@@ -15,7 +15,7 @@ const MODE_HINT: Record<ModeId, string> = {
  * The toggle between the ways to list the agents: a segmented control (a radio group: arrows move, the selection follows the focus) with an icon and a label
  * per mode. The mode is in the URL (?mode=) and remembered; see logic/mode.ts.
  */
-export function ModeToggle({ mode, onMode }: { mode: ModeId; onMode: (mode: ModeId) => void }) {
+export function ModeToggle({ mode, onMode, iconOnly = false }: { mode: ModeId; onMode: (mode: ModeId) => void; iconOnly?: boolean }) {
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 0;
     if (step === 0) {
@@ -41,12 +41,12 @@ export function ModeToggle({ mode, onMode }: { mode: ModeId; onMode: (mode: Mode
             role="radio"
             aria-checked={active}
             tabIndex={active ? 0 : -1}
-            title={MODE_HINT[id]}
+            title={iconOnly ? `${MODE_LABEL[id]}: ${MODE_HINT[id]}` : MODE_HINT[id]}
             onClick={() => onMode(id)}
-            className={`inline-flex h-[calc(var(--am-hit)-0.25rem)] items-center gap-1.5 rounded px-2.5 text-sm ${active ? 'bg-surface font-medium text-content shadow-sm' : 'text-muted hover:text-content'} ${FOCUS_RING}`}
+            className={`inline-flex h-[calc(var(--am-hit)-0.25rem)] items-center gap-1.5 rounded ${iconOnly ? 'px-2' : 'px-2.5'} text-sm ${active ? 'bg-surface font-medium text-content shadow-sm' : 'text-muted hover:text-content'} ${FOCUS_RING}`}
           >
             <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
-            {MODE_LABEL[id]}
+            {iconOnly ? <span className="sr-only">{MODE_LABEL[id]}</span> : MODE_LABEL[id]}
           </button>
         );
       })}

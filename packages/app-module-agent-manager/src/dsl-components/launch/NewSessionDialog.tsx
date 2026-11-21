@@ -16,7 +16,7 @@ import type { FolderPick } from '../logic/folderPicker.js';
 import type { ApiError, OwnedHostKind, OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
-import { Modal } from '../ui/Modal.js';
+import { DIALOG_FOOTER, Modal } from '../ui/Modal.js';
 import { DaemonNotRunning } from './DaemonNotRunning.js';
 import { Field } from './Field.js';
 import { FolderPicker } from '../folders/FolderPicker.js';
@@ -137,7 +137,6 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
                     <span className="flex items-center gap-1.5 text-sm font-medium text-content">
                       <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
                       {choice.label}
-                      <span className="text-xs font-normal text-muted">({choice.tag})</span>
                     </span>
                     <span className="text-xs text-muted">{choice.description}</span>
                   </span>
@@ -202,7 +201,7 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
           </p>
         ) : null}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className={DIALOG_FOOTER}>
           <button type="button" onClick={onClose} disabled={launching} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg disabled:opacity-50 ${FOCUS_RING}`}>
             Cancel
           </button>

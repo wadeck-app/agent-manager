@@ -162,12 +162,6 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
 
   return (
     <div data-owned-bar="" className="mt-1.5 flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <HostBadge session={session} />
-        <OwnedStateChip session={session} />
-        {dto?.model !== undefined ? <span className="text-xs text-muted">{`launched with model ${dto.model}`}</span> : null}
-      </div>
-
       {session.ownedState === 'interrupted' ? (
         <Banner tone="warning">
           <p className="font-medium">This session was interrupted: the daemon that ran it ended while it was live.</p>
@@ -177,7 +171,7 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
       ) : null}
       {session.switchFailure !== undefined && !session.alive ? (
         <Banner tone="warning">
-          <p className="font-medium">{`The last move to ${session.switchFailure.target === 'hc' ? 'herdr-core' : 'Web'} failed after the old host was stopped.`}</p>
+          <p className="font-medium">{`The last move to ${session.switchFailure.target === 'hc' ? 'Terminal' : 'Web'} failed after the old host was stopped.`}</p>
           <p>{session.switchFailure.reason}</p>
           <p>Nothing runs now. Use the Start button to try again on that host.</p>
         </Banner>
@@ -194,7 +188,10 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
       {bg && dto?.observeError !== undefined ? <Banner tone="warning">{`The daemon could not read the state of background sessions (claude agents --json), so the state shown may be stale: ${dto.observeError}`}</Banner> : null}
       {liveBg ? <BgAttach command={dto?.attachCommand} waitingFor={session.ownedState === 'requires_action' ? (dto?.waitingFor ?? 'prompt') : undefined} /> : null}
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <HostBadge session={session} />
+        <OwnedStateChip session={session} />
+        {dto?.model !== undefined ? <span className="text-xs text-muted">{`launched with model ${dto.model}`}</span> : null}
         {liveWeb && session.ownedState === 'running' ? (
           <button type="button" disabled={busy} onClick={() => void interrupt()} className={ACTION}>
             <Square aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
@@ -223,7 +220,7 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
         {ended ? <IconButton icon={Trash2} label="Forget" disabled={busy} onClick={() => setPending('forget')} /> : null}
         {liveWeb ? (
           <label className="flex items-center gap-1.5 text-sm text-muted">
-            Permission mode
+            Mode
             <select
               aria-label="Permission mode"
               value={mode}
@@ -248,18 +245,21 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
       </div>
 
       {liveBg ? (
-        <ul className="list-none text-xs text-muted">
-          <li id="bg-no-interrupt">{BG_NO_INTERRUPT}</li>
-          <li id="bg-no-mode" data-bg-no-mode="">
-            <label className="inline-flex items-center gap-1.5">
-              Permission mode
-              <select aria-label="Permission mode" disabled title={BG_NO_MODE} aria-describedby="bg-no-mode" value={dto?.permissionMode ?? ''} onChange={() => undefined} className={MODE_SELECT}>
-                <option value={dto?.permissionMode ?? ''}>{dto?.permissionMode ?? '(set at launch)'}</option>
-              </select>
-            </label>{' '}
-            {BG_NO_MODE}
-          </li>
-        </ul>
+        <details data-bg-limits="" className="text-xs text-muted">
+          <summary className={`cursor-pointer rounded ${FOCUS_RING}`}>Why are Interrupt and Permission mode not available?</summary>
+          <ul className="mt-1 list-none">
+            <li id="bg-no-interrupt">{BG_NO_INTERRUPT}</li>
+            <li id="bg-no-mode" data-bg-no-mode="">
+              <label className="inline-flex items-center gap-1.5">
+                Mode
+                <select aria-label="Permission mode" disabled title={BG_NO_MODE} aria-describedby="bg-no-mode" value={dto?.permissionMode ?? ''} onChange={() => undefined} className={MODE_SELECT}>
+                  <option value={dto?.permissionMode ?? ''}>{dto?.permissionMode ?? '(set at launch)'}</option>
+                </select>
+              </label>{' '}
+              {BG_NO_MODE}
+            </li>
+          </ul>
+        </details>
       ) : null}
 
       {note !== '' ? (

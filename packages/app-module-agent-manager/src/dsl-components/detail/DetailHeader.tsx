@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCheck, GitFork, Pin, PinOff } from 'lucide-react';
+import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, GitFork } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { ForkDialog } from '../launch/ForkDialog.js';
@@ -7,15 +7,46 @@ import { STATE_MEANING } from '../logic/states.js';
 import { threadChipText } from '../logic/threadForm.js';
 import type { OwnedSessionDto } from '../shared.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
+import { ChipDot, chipSkin } from '../ui/chipSkin.js';
 import { IconButton } from '../ui/IconButton.js';
+import { useUiVariant } from '../ui/UiVariants.js';
+import { useMediaQuery } from '../ui/hooks.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { GuardrailBlocks } from '../guardrails/GuardrailBlocks.js';
 import { OwnedBar } from '../owned/OwnedBar.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
+import { HeaderActions } from './HeaderActions.js';
 import { StatusInfo } from './status/StatusInfo.js';
 import { useSessionStatus } from './status/useSessionStatus.js';
+
+const DETAILS_KEY = 'agent-manager.header-details.v1';
+
+/** Whether the status chips of the header are open: the user's choice (kept), else open except on a short or narrow window, where the log needs the room more. */
+function useDetailsOpen(): [boolean, (open: boolean) => void] {
+  // Short or narrow (a phone): the chips wrap one per line there and would take half of the screen.
+  const lowScreen = useMediaQuery('(max-height: 799px)');
+  const phone = useMediaQuery('(max-width: 599px)');
+  const short = lowScreen || phone;
+  const [chosen, setChosen] = useState<boolean | undefined>(() => {
+    try {
+      const saved = window.localStorage.getItem(DETAILS_KEY);
+      return saved === 'open' ? true : saved === 'closed' ? false : undefined;
+    } catch {
+      return undefined;
+    }
+  });
+  const choose = (open: boolean): void => {
+    setChosen(open);
+    try {
+      window.localStorage.setItem(DETAILS_KEY, open ? 'open' : 'closed');
+    } catch {
+      // Not kept: the choice resets on reload. Nothing the user could fix.
+    }
+  };
+  return [chosen ?? !short, choose];
+}
 
 export interface DetailHeaderProps {
   session: AgentRow;
@@ -41,6 +72,7 @@ export interface DetailHeaderProps {
 /** Name, folder, state, harness, pid and the two actions of the selected session. The back button only exists on a narrow screen (stacked panes). */
 export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen, onOwnedChange, onForgotten, onForked, forkedFrom, onOpenSource, onLocateAnchor }: DetailHeaderProps) {
   const look = STATE_LOOK[session.state];
+  const chipStyle = useUiVariant('chipStyle');
   const since = timeInState(session.statusUpdatedAt, now);
   const canMarkSeen = session.state === 'done';
   // The status line data: the live one of the log poll, else the one of the session row (one source at a time).
@@ -51,8 +83,9 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
   // Leaving the session forgets the dialog (coming back does not reopen it).
   useEffect(() => setForkFor(undefined), [forkId]);
   const forkBlocked = forkBlockedReason(session);
+  const [detailsOpen, setDetailsOpen] = useDetailsOpen();
   return (
-    <header className="flex items-start gap-2 border-b border-border px-4 py-3">
+    <header className="flex max-h-[50vh] shrink-0 items-start gap-2 overflow-y-auto border-b border-border px-4 py-3">
       <span className="lg:hidden">
         <IconButton icon={ArrowLeft} label="Back to the list" onClick={onBack} />
       </span>
@@ -62,8 +95,8 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
             {session.displayName}
           </h2>
           <Tooltip content={STATE_MEANING[session.state]}>
-            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs ${look.bg} ${look.text}`}>
-              <StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs ${chipSkin(chipStyle, look.bg, look.text)}`}>
+              {chipStyle === 'dot' ? <ChipDot text={look.text} /> : <StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />}
               {look.label}
             </span>
           </Tooltip>
@@ -97,15 +130,15 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
             )}
           </p>
         )}
-        <StatusInfo session={session} status={status} />
+        <StatusInfo session={session} status={status} collapsed={!detailsOpen} />
         <GuardrailBlocks blocks={session.guardrailBlocks} />
         <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} />
-        {session.state === 'needs-you' && session.reason !== '' ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null}
+        {/* A permission request of a Web session is already shown by its card under the log: the reason would say the same a third time. */}
+        {session.state === 'needs-you' && session.reason !== '' && !(session.host === 'stream-json' && session.pendingPermissions > 0) ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
-        <IconButton icon={GitFork} label="Fork" disabled={busy || forkBlocked !== undefined} disabledReason={forkBlocked ?? FORK_MEANING} onClick={() => setForkFor(forkId)} />
-        <IconButton icon={session.pinned ? PinOff : Pin} label={session.pinned ? 'Unpin' : 'Pin'} disabled={busy} onClick={() => onTogglePin(!session.pinned)} />
-        <IconButton icon={CheckCheck} label="Mark as seen" disabled={busy || !canMarkSeen} disabledReason={canMarkSeen ? undefined : 'only a Done session has something to mark'} onClick={onMarkSeen} />
+        <IconButton icon={detailsOpen ? ChevronsDownUp : ChevronsUpDown} label={detailsOpen ? 'Hide details' : 'Show details'} pressed={detailsOpen} onClick={() => setDetailsOpen(!detailsOpen)} />
+        <HeaderActions busy={busy} onFork={() => setForkFor(forkId)} forkBlocked={forkBlocked} forkMeaning={FORK_MEANING} pinned={session.pinned} onTogglePin={() => onTogglePin(!session.pinned)} canMarkSeen={canMarkSeen} onMarkSeen={onMarkSeen} />
       </div>
       {forkFor === forkId ? <ForkDialog key={forkId} session={session} onClose={() => setForkFor(undefined)} onForked={onForked} /> : null}
     </header>

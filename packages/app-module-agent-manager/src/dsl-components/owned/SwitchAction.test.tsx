@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow } from '../logic/fixtures.js';
 import type { AdoptReadinessDto, SessionRowDto } from '../shared.js';
+import { DEFAULT_UI_VARIANTS, type SwitchReadinessVariant } from '../logic/uiVariants.js';
+import { UiVariantsContext } from '../ui/UiVariants.js';
 import { OwnedBar } from './OwnedBar.js';
 import { stubFetch } from './testFetch.js';
 
@@ -38,7 +40,7 @@ describe('the Move button: free', () => {
     const { calls } = stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     const { onChange } = bar({ adoptReadiness: FREE });
     await screen.findByLabelText('Permission mode');
-    expect(button()).toHaveTextContent('Move to herdr-core');
+    expect(button()).toHaveTextContent('Move to Terminal');
     expect(button()).toHaveAttribute('data-readiness', 'free');
     expect(button().className).not.toMatch(/warning/);
     await userEvent.click(button());
@@ -47,7 +49,7 @@ describe('the Move button: free', () => {
     const post = calls.find((call) => call.method === 'POST' && call.path === `/owned/${ID}/switch`);
     expect(post?.body).toEqual({ target: 'hc', force: false });
     expect(post?.headers['X-Agent-Manager-Csrf']).toBe('test-token');
-    expect(await screen.findByText(/now runs in a herdr-core terminal \(t7\)/)).toBeInTheDocument();
+    expect(await screen.findByText(/now runs as a Terminal session \(herdr-core terminal t7\)/)).toBeInTheDocument();
   });
 
   it('shows what stays to know after the move (the notes of the daemon)', async () => {
@@ -64,12 +66,16 @@ describe('the Move button: busy', () => {
     const { calls } = stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     bar({ adoptReadiness: BUSY });
     await screen.findByLabelText('Permission mode');
-    expect(button()).toHaveTextContent('Move to herdr-core (interrupts 2 running items)');
+    expect(button()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
     expect(button()).toHaveAttribute('data-readiness', 'busy');
-    expect(button().className).toMatch(/warning/);
+    // The default look (badge): a neutral button, and the warning is a badge that says how many things run (the button keeps the full words for a screen reader).
+    expect(button().className).not.toMatch(/warning/);
+    const badge = document.querySelector('[data-adopt-badge]');
+    expect(badge).toHaveTextContent('2 running');
+    expect(badge?.className).toMatch(/warning/);
     expect(button().querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     await userEvent.click(button());
-    const dialog = screen.getByRole('dialog', { name: 'Move to herdr-core while something runs?' });
+    const dialog = screen.getByRole('dialog', { name: 'Move to Terminal while something runs?' });
     for (const reason of BUSY.reasons) {
       expect(within(dialog).getByText(reason)).toBeInTheDocument();
     }
@@ -110,11 +116,11 @@ describe('the Move button: unknown', () => {
     stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     bar({ adoptReadiness: UNKNOWN });
     await screen.findByLabelText('Permission mode');
-    expect(button()).toHaveTextContent('Move to herdr-core (cannot tell what runs)');
+    expect(button()).toHaveTextContent('Move to Terminal (cannot tell what runs)');
     expect(button()).toHaveAttribute('data-readiness', 'unknown');
-    expect(button().className).toMatch(/warning/);
+    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('state unknown');
     await userEvent.click(button());
-    const dialog = screen.getByRole('dialog', { name: 'Move to herdr-core without knowing what runs?' });
+    const dialog = screen.getByRole('dialog', { name: 'Move to Terminal without knowing what runs?' });
     expect(within(dialog).getByText(UNKNOWN.reasons[0] as string)).toBeInTheDocument();
   });
 });
@@ -134,7 +140,7 @@ describe('the server recomputes: its answer wins over the colour of the page', (
     const { onChange } = bar({ adoptReadiness: FREE });
     await screen.findByLabelText('Permission mode');
     await userEvent.click(button());
-    const dialog = await screen.findByRole('dialog', { name: 'Move to herdr-core while something runs?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Move to Terminal while something runs?' });
     expect(dialog).toHaveTextContent('A turn is running: its partial answer is lost');
     expect(onChange).not.toHaveBeenCalled();
     await userEvent.click(within(dialog).getByRole('button', { name: 'Move anyway' }));
@@ -219,5 +225,34 @@ describe('a draft in the terminal', () => {
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move anyway' }));
     await waitFor(() => expect(calls.filter((call) => call.method === 'POST')).toHaveLength(2));
     expect(calls.filter((call) => call.method === 'POST')[1]?.body).toMatchObject({ force: true });
+  });
+});
+
+describe('the Move readiness looks of the A/B test', () => {
+  function barWith(look: SwitchReadinessVariant): void {
+    render(
+      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, switchReadiness: look }}>
+        <OwnedBar session={ownedRow({ sessionId: ID, adoptReadiness: BUSY })} onChange={vi.fn()} onForgotten={vi.fn()} />
+      </UiVariantsContext.Provider>,
+    );
+  }
+
+  it('button: the button itself is amber and carries the count in its label, no badge', async () => {
+    stubFetch({ ...LIST });
+    barWith('button');
+    await screen.findByLabelText('Permission mode');
+    expect(button()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
+    expect(button().className).toMatch(/warning/);
+    expect(document.querySelector('[data-adopt-badge]')).toBeNull();
+  });
+
+  it('banner: a neutral button and a warning line with the first reason, still the dialog on click', async () => {
+    stubFetch({ ...LIST });
+    barWith('banner');
+    await screen.findByLabelText('Permission mode');
+    expect(button().className).not.toMatch(/warning/);
+    expect(document.querySelector('[data-adopt-banner]')).toHaveTextContent('Moving interrupts 2 running items: Tool Bash');
+    await userEvent.click(button());
+    expect(screen.getByRole('dialog', { name: 'Move to Terminal while something runs?' })).toBeInTheDocument();
   });
 });

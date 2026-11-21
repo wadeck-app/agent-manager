@@ -9,6 +9,7 @@ import { FOCUS_RING } from '../ui/IconButton.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
+import { useUiVariant } from '../ui/UiVariants.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { detailLine, type ListProps } from './common.js';
 import { EmptyNote } from './EmptyNote.js';
@@ -45,6 +46,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
   const { sections, ungrouped: sessions } = useMemo(() => partitionByGroup(shown, groups?.groups ?? [], searching), [shown, groups, searching]);
   const hasGroups = (groups?.groups.length ?? 0) > 0;
   const dnd = useGroupDnd(groups);
+  const density = useUiVariant('treeDensity');
   const [moving, setMoving] = useState<string | undefined>(undefined);
   const [editing, setEditing] = useState<string | undefined>(undefined);
   // The element to focus once the list was redrawn after a keyboard move (the row or header moved in the DOM and the browser drops its focus).
@@ -173,11 +175,30 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     const dragged = dnd.dragging?.kind === 'agent' && dnd.dragging.id === id;
     const line = detailLine(session);
     const open = agentsOpen(session);
+    const compact = density === 'compact';
+    const card = density === 'card';
+    const nameLine = showFolder ? (
+      <ProjectLabel session={session} terms={query.terms} />
+    ) : (
+      <span className="block truncate text-content" title={session.displayName}>
+        <Highlight text={session.displayName} terms={query.terms} />
+      </span>
+    );
     return (
       <Fragment key={id}>
-        <OptionShell role="treeitem" level={level} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className={`group relative min-h-am-hit py-2 pr-3 ${level === 2 ? 'pl-5' : 'pl-3'} ${dragged ? 'opacity-50' : ''}`} expanded={session.subagentCount > 0 ? open : undefined} rowProps={dnd.row(id, session.customGroupId, members)}>
+        <OptionShell
+          role="treeitem"
+          level={level}
+          session={session}
+          selected={id === selectedId}
+          tabbable={id === tabbable}
+          onSelect={onSelect}
+          className={`group relative min-h-am-hit ${compact ? 'py-1' : 'py-2'} pr-3 ${level === 2 ? 'pl-5' : 'pl-3'} ${card ? 'mx-2 my-1 rounded-md ring-1 ring-border' : ''} ${dragged ? 'opacity-50' : ''}`}
+          expanded={session.subagentCount > 0 ? open : undefined}
+          rowProps={dnd.row(id, session.customGroupId, members)}
+        >
           <DropBar edge={edge} />
-          <div className="flex items-center gap-2">
+          <div className={`flex gap-2 ${compact ? 'items-center' : 'items-start'}`}>
             {session.subagentCount > 0 ? (
               <button
                 type="button"
@@ -187,29 +208,35 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                   event.stopPropagation();
                   toggleAgents(id, !open);
                 }}
-                className={`inline-flex h-am-icon-sm w-am-icon-sm shrink-0 items-center justify-center rounded text-muted hover:text-content ${FOCUS_RING}`}
+                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
               >
                 {open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
               </button>
             ) : (
-              <span aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
+              <span aria-hidden="true" className="h-6 w-6 shrink-0" />
             )}
             <StateIconTip session={session} />
             <span className="min-w-0 flex-1">
-              {showFolder ? (
-                <ProjectLabel session={session} terms={query.terms} />
+              {compact ? (
+                <span className="flex min-w-0 items-center gap-1.5" title={line === '' ? undefined : line}>
+                  <span className="min-w-0 flex-1">{nameLine}</span>
+                  <RowMarks session={session} iconOnly />
+                </span>
               ) : (
-                <span className="block truncate text-content" title={session.displayName}>
-                  <Highlight text={session.displayName} terms={query.terms} />
-                </span>
+                <>
+                  {nameLine}
+                  {/* The detail line and the chips share the second line; the chips wrap under the text instead of squeezing the name (audit D1). */}
+                  <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                    {line !== '' ? (
+                      <span className="min-w-0 max-w-full truncate text-xs text-muted" title={line}>
+                        <Highlight text={line} terms={query.terms} />
+                      </span>
+                    ) : null}
+                    <RowMarks session={session} />
+                  </span>
+                </>
               )}
-              {line !== '' ? (
-                <span className="block truncate text-xs text-muted" title={line}>
-                  <Highlight text={line} terms={query.terms} />
-                </span>
-              ) : null}
             </span>
-            <RowMarks session={session} />
             {groups !== undefined ? (
               <Tooltip content="Move to a group (M)" side="left">
                 <button
@@ -220,7 +247,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                     event.stopPropagation();
                     setMoving(id);
                   }}
-                  className={`inline-flex h-am-icon-sm w-am-icon-sm shrink-0 items-center justify-center rounded text-muted opacity-0 hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
                 >
                   <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
                 </button>

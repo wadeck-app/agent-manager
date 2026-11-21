@@ -6,7 +6,9 @@ import { switchViewOf } from '../logic/adoptSwitch.js';
 import type { SwitchView } from '../logic/adoptSwitch.js';
 import type { OwnedSessionDto, OwnedSwitchResponse } from '../shared.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
+import { ReasonList } from './ReasonList.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
+import { useUiVariant } from '../ui/UiVariants.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 
 export interface SwitchActionProps {
@@ -20,14 +22,14 @@ export interface SwitchActionProps {
   onError: (text: string) => void;
 }
 
-const BUTTON = `inline-flex h-am-hit items-center gap-1.5 rounded border px-3 text-sm hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
+const BUTTON = `inline-flex h-am-hit shrink-0 items-center gap-1.5 whitespace-nowrap rounded border px-3 text-sm hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 const TONE: Record<SwitchView['tone'], string> = {
   neutral: 'border-primary bg-primary-light text-primary',
   warning: 'border-warning bg-warning-bg text-warning-text',
 };
 
 function movedText(dto: OwnedSessionDto, target: SwitchView['target'], notes: readonly string[]): string {
-  const where = target === 'hc' ? `in a herdr-core terminal (${dto.hcAddress ?? 'address unknown'})` : 'as a Web session';
+  const where = target === 'hc' ? `as a Terminal session (herdr-core terminal ${dto.hcAddress ?? 'address unknown'})` : 'as a Web session';
   return [`The session now runs ${where}: same session id, same conversation.`, ...notes].join(' ');
 }
 
@@ -38,6 +40,7 @@ function movedText(dto: OwnedSessionDto, target: SwitchView['target'], notes: re
  */
 export function SwitchAction({ session, disabled, onChange, onNote, onError }: SwitchActionProps) {
   const view = switchViewOf(session);
+  const readinessStyle = useUiVariant('switchReadiness');
   const [open, setOpen] = useState(false);
   const [serverText, setServerText] = useState('');
   const [sending, setSending] = useState(false);
@@ -94,12 +97,37 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError }: S
   };
 
   const unknown = view.readiness === 'unknown' && serverText === '';
+  const warn = view.tone === 'warning' && view.recovery !== true;
+  // The three looks of the A/B question ui-switch-readiness. The words of the full label stay in the accessible name in every look (the colour is never the only signal).
+  const detail = view.label.slice(baseLabel.length).trim();
+  const badgeText = view.readiness === 'busy' ? `${view.reasons.length} running` : 'state unknown';
+  const separate = warn && readinessStyle !== 'button';
+  const tone = separate ? TONE.neutral : TONE[view.tone];
   return (
     <>
-      <button type="button" data-adopt-button="" data-readiness={view.readiness} disabled={disabled || sending} title={view.title} onClick={click} className={`${BUTTON} ${TONE[view.tone]}`}>
+      <button type="button" data-adopt-button="" data-readiness={view.readiness} disabled={disabled || sending} title={view.title} onClick={click} className={`${BUTTON} ${tone}`}>
         <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        {view.label}
+        {separate ? (
+          <>
+            {baseLabel}
+            <span className="sr-only"> {detail}</span>
+          </>
+        ) : (
+          view.label
+        )}
       </button>
+      {separate && readinessStyle === 'badge' ? (
+        <span data-adopt-badge="" aria-hidden="true" title={view.title} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-xs text-warning-text">
+          <TriangleAlert className="h-am-icon-sm w-am-icon-sm" />
+          {badgeText}
+        </span>
+      ) : null}
+      {separate && readinessStyle === 'banner' ? (
+        <p data-adopt-banner="" aria-hidden="true" className="flex basis-full items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text">
+          <TriangleAlert className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0" />
+          <span>{view.readiness === 'busy' ? `Moving interrupts ${view.reasons.length} running item${view.reasons.length === 1 ? '' : 's'}: ${view.reasons[0] ?? ''}` : `agent-manager cannot tell what runs: ${view.reasons[0] ?? ''}`}</span>
+        </p>
+      ) : null}
       {open ? (
         <ConfirmDialog
           title={unknown ? `${baseLabel} without knowing what runs?` : `${baseLabel} while something runs?`}
@@ -111,16 +139,12 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError }: S
           onCancel={close}
         >
           {serverText === '' ? (
-            <ul className="list-disc pl-5">
-              {view.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
-              ))}
-            </ul>
+            <ReasonList reasons={view.reasons} />
           ) : (
             <p>{serverText}</p>
           )}
-          <p>The session keeps its id and its conversation. What is listed above is interrupted, left running unseen, or not restored.</p>
-          <p>agent-manager checks this again when you confirm: if the session moved on meanwhile, you see the new list instead.</p>
+          <p>The session keeps its id and its conversation; only what is listed above is lost.</p>
+          <p className="text-xs text-muted">agent-manager checks again when you confirm: if the session changed meanwhile, you see the new list instead.</p>
         </ConfirmDialog>
       ) : null}
     </>

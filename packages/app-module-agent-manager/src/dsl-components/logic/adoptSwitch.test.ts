@@ -18,7 +18,7 @@ describe('switchViewOf: where the action exists', () => {
   });
 
   it('a live Web session moves to herdr-core, a live terminal session moves to Web', () => {
-    expect(switchViewOf(ownedRow({ adoptReadiness: FREE }))).toMatchObject({ target: 'hc', label: 'Move to herdr-core' });
+    expect(switchViewOf(ownedRow({ adoptReadiness: FREE }))).toMatchObject({ target: 'hc', label: 'Move to Terminal' });
     expect(switchViewOf(ownedRow({ host: 'hc', ownedState: 'unobserved', alive: true, adoptReadiness: FREE }))).toMatchObject({ target: 'stream-json', label: 'Move to Web' });
   });
 });
@@ -31,9 +31,9 @@ describe('switchViewOf: the readiness is the look and the words', () => {
   it('busy: warning, confirmation, the label counts what is interrupted and the reasons are kept', () => {
     const reasons = ['A turn is running: its partial answer is lost', 'Tool Bash `node wait.mjs` is running: its process may keep running unseen after the stop'];
     const view = switchViewOf(ownedRow({ adoptReadiness: { state: 'busy', reasons } }));
-    expect(view).toMatchObject({ readiness: 'busy', tone: 'warning', needsConfirm: true, label: 'Move to herdr-core (interrupts 2 running items)', reasons });
+    expect(view).toMatchObject({ readiness: 'busy', tone: 'warning', needsConfirm: true, label: 'Move to Terminal (interrupts 2 running items)', reasons });
     expect(view?.title).toContain('node wait.mjs');
-    expect(switchViewOf(ownedRow({ adoptReadiness: { state: 'busy', reasons: ['one thing'] } }))?.label).toBe('Move to herdr-core (interrupts 1 running item)');
+    expect(switchViewOf(ownedRow({ adoptReadiness: { state: 'busy', reasons: ['one thing'] } }))?.label).toBe('Move to Terminal (interrupts 1 running item)');
   });
 
   it('unknown: warning too (never free), and it says it cannot tell', () => {
@@ -67,7 +67,7 @@ describe('switchViewOf: starting a stopped session whose last move failed (#71 r
 
   it('offers "Start on <target>" for a stopped Web record, amber, with the failure in the title, and no confirmation', () => {
     const view = switchViewOf(ownedRow({ host: 'stream-json', ownedState: 'exited', alive: false, switchFailure: FAILURE }));
-    expect(view).toMatchObject({ target: 'hc', label: 'Start on herdr-core', tone: 'warning', needsConfirm: false, recovery: true });
+    expect(view).toMatchObject({ target: 'hc', label: 'Start on Terminal', tone: 'warning', needsConfirm: false, recovery: true });
     expect(view?.title).toContain('hc run refused (busy)');
   });
 

@@ -1,4 +1,5 @@
 import { Scope } from '../ui/Scope.js';
+import { UiVariants } from '../ui/UiVariants.js';
 import type { ApiError, CustomGroupDto, SessionRowDto } from '../shared.js';
 import { Workspace } from '../workspace/Workspace.js';
 
@@ -15,6 +16,10 @@ export interface AgentWorkspaceProps {
   ownedError?: ApiError | null;
   /** `$sources.sessions.ownedErrorText`: message and hint in one line, empty when there is none. */
   ownedErrorText?: string;
+  /** `$sources.sessions.unreadableText`: the registry files that could not be read (their sessions are not shown), empty when none. */
+  unreadableText?: string;
+  /** `$sources.sessions.guardrailsErrorText`: the w-guardrails counters behind the blocked chip could not be read (details on the Guardrails page). */
+  guardrailsErrorText?: string;
 }
 
 /**
@@ -25,10 +30,13 @@ export interface AgentWorkspaceProps {
  * @registryCategory composite
  * @registryTags agents sessions master-detail
  */
-export function AgentWorkspace({ sessions, userStateError, customGroups, hiddenDead, ownedError, ownedErrorText }: AgentWorkspaceProps) {
+export function AgentWorkspace({ sessions, userStateError, customGroups, hiddenDead, ownedError, ownedErrorText, unreadableText, guardrailsErrorText }: AgentWorkspaceProps) {
   return (
     <Scope>
-      <Workspace sessions={sessions} userStateError={userStateError ?? ''} customGroups={customGroups} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} />
+      {/* The design questions of the UI audit: one A/B dock for the whole page (see logic/uiVariants.ts). */}
+      <UiVariants>
+        <Workspace sessions={sessions} userStateError={userStateError ?? ''} customGroups={customGroups} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} unreadableText={unreadableText ?? ''} guardrailsErrorText={guardrailsErrorText ?? ''} />
+      </UiVariants>
     </Scope>
   );
 }
