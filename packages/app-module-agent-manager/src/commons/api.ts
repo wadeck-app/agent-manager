@@ -112,6 +112,8 @@ export interface SessionRowDto extends SessionStatusDto {
   pendingPermissions: number;
   /** The id of the session this owned session was forked from; absent when it is not a fork. */
   forkedFrom?: string;
+  /** A thread (a fork that stops at a message): the source session and the uuid of its transcript entry (a log row). Always with `forkedFrom`; absent for a plain fork. */
+  threadOf?: { sessionId: string; messageId: string; quote?: string };
   /**
    * True: an owned session that has no Claude Code registry file yet (a stream-json child writes it with its first message). The row is made from the owned
    * record alone: `pid` is the child's pid (0 when unknown), `status` follows `ownedState`, there is no transcript yet (see `activityNote`).
@@ -711,6 +713,10 @@ export interface OwnedSessionDto {
   resumedAt?: number;
   /** stream-json: the id of the session this one was forked from (it continues a copy of that history). */
   forkedFrom?: string;
+  /** stream-json thread: the uuid of the transcript entry of the source the fork stops at. */
+  forkedAtMessage?: string;
+  /** stream-json thread: a one-line quote (at most 80 characters) of that message, for the chip. */
+  forkedAtQuote?: string;
   /** bg: the `state` of `claude agents --json` at the last poll (working, blocked, done, failed, stopped). */
   bgState?: string;
   /** bg: what the session waits on (`permission prompt`, `input needed`, ...). Answered only in a terminal: see `attachCommand`. */
@@ -778,6 +784,13 @@ export interface OwnedForkRequest {
   name?: string;
   model?: string;
   permissionMode?: string;
+  /**
+   * A thread: the uuid of a log row (`LogEntry.uuid`). The new session then knows the source only up to and including that entry (`--resume-session-at`, a hidden
+   * flag of Claude Code); the name defaults to "thread of <name>". Refused: an unknown uuid (404 fork-anchor-not-found), a fourth live thread of one source (409 too-many-threads).
+   */
+  atMessageId?: string;
+  /** With atMessageId: a one-line quote of the message (at most 80 characters), kept in the record of the thread for its chip. */
+  atMessageQuote?: string;
 }
 
 /** POST /owned/fork answer: the new session, and the model and mode that were taken from the source's record because the body did not give them (empty when none). */

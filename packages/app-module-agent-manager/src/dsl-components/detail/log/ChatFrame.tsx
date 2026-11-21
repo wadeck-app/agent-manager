@@ -1,9 +1,10 @@
 import { HIGHLIGHT } from './frameStyles.js';
 import type { FrameProps } from './frameTypes.js';
 import { RowHeader } from './RowHeader.js';
+import { ThreadButton } from './ThreadButton.js';
 import { TimeLabel } from './TimeLabel.js';
 
-export function ChatFrame({ model, open, onToggle, context, now, highlighted }: FrameProps) {
+export function ChatFrame({ model, open, onToggle, context, now, highlighted, onThread }: FrameProps) {
   const expandable = model.expandable;
   const bodyOpen = !expandable || open;
   const body = bodyOpen && model.body !== null ? model.body(context) : null;
@@ -18,6 +19,7 @@ export function ChatFrame({ model, open, onToggle, context, now, highlighted }: 
             {model.cue === 'interrupt' ? <span className="text-xs font-medium text-warning-text">interrupted the running step</span> : null}
             <TimeLabel timestamp={model.timestamp} now={now} />
             {model.trailing}
+            {model.anchor !== undefined && onThread !== undefined ? <ThreadButton anchor={model.anchor} onThread={onThread} /> : null}
           </div>
           {body}
         </div>

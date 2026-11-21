@@ -1,6 +1,7 @@
 import { ArrowLeftRight, Bell, Bot, Brain, ChevronDown, ChevronRight, CircleHelp, Clock, Cpu, GitFork, Layers, ListOrdered, Terminal, TriangleAlert, User, Users, Wrench, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
-import type { LogEntry, ReplyMessageDto } from '../deps.js';
+import type { LogEntry, ReplyMessageDto, ThreadAnchor } from '../deps.js';
+import { threadAnchorOf } from '../deps.js';
 import { UNCONFIRMED_AFTER_MS, type PendingMessage } from '../pending.js';
 import { DeliveryMark, type MarkState } from './DeliveryMark.js';
 import { PendingActions } from './PendingActions.js';
@@ -37,6 +38,8 @@ export interface RowModel {
   /** Collapsed until clicked (tool calls, thinking, notices). Messages are open. */
   expandable: boolean;
   body: ((context: OpenContext) => ReactNode) | null;
+  /** A message of the conversation: the transcript entry a thread can stop at (or why it cannot). Absent for every other row. */
+  anchor?: ThreadAnchor;
   /** The id of the tool call, for the highlight of its sub-agent. */
   callId?: string;
   subagentId?: string;
@@ -150,6 +153,12 @@ function noticeModel(entry: Extract<LogEntry, { kind: 'system-notice' }>): RowMo
 }
 
 export function describeEntry(entry: LogEntry, deliveryOf?: DeliveryLookup): RowModel {
+  const model = describeEntryBase(entry, deliveryOf);
+  const anchor = threadAnchorOf(entry);
+  return anchor === undefined ? model : { ...model, anchor };
+}
+
+function describeEntryBase(entry: LogEntry, deliveryOf?: DeliveryLookup): RowModel {
   const at = entry.timestamp === undefined ? {} : { timestamp: entry.timestamp };
   switch (entry.kind) {
     case 'user-prompt':

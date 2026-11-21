@@ -110,3 +110,33 @@ Recommendation: A for sessions that are X1 or discovered with a transcript, B as
 2. `POST /owned/fork` is PIN-sensitive; `forkOf` is also accepted by `POST /owned/launch` and `POST /sessions/launch` (same checks).
 3. The link fork -> source lives in `owned-sessions.json` (`forkedFrom`), not in the transcript (a6).
 4. The mini-fork is design only; the user chooses between A, B and C.
+
+## Test strategy, from agent-fleet
+
+Read 2026-11-21 in `C:\Workspace_Tooling\agent-fleet` ([R]).
+
+- Rule (CLAUDE.md, `.claude/docs/mock-fidelity.md`): every test uses a mock CLI; real APIs only in three "real vs mock" suites that exist to prove the mock still matches the real CLI.
+- Mocks: `packages/flow-engine/src/testing/{claude,opencode,codex}-mock.mjs`, selected by `CLAUDE_MOCK_PATH`; behaviour by env (`CLAUDE_MOCK_RESPONSE`, `_EXIT_CODE`, `_STREAMING_DELAY`). Same NDJSON shape as the real `claude -p --output-format stream-json`.
+- Integration suite: `executor/StepRunner.model.integration.test.ts`, `describe.skipIf(!shouldRunIntegration())('Claude real vs mock compatibility')`; it runs the same options on the real CLI and on the mock and compares flags, events, exit codes.
+- Gate: runs when `CLAUDE_INTEGRATION=1`, or automatically when the installed `claude --version` differs from the cached one (`testing/VersionBaseline.ts`, file `.claude/<cli>-version-tested.json`, written in `afterAll` only after every comparison passed); never when `CI` is set.
+- Drift check: `scripts/check-mock-drift.js` (`npm run mocks:verify`) fails loudly (`DRIFT`, `NEVER-VERIFIED`, `NOT-INSTALLED`...); a missing CLI fails unless acknowledged with `MOCK_DRIFT_ALLOW_MISSING=<names>`.
+- Flag contract: `processing/ProviderFlagContract.test.ts` checks every flag we emit still appears in the CLI `--help` on every run (cost: none). Weakness: `--resume-session-at` is hidden, so it cannot appear in `--help`; only the integration test can guard it.
+- Flow tests with the mock: `StepRunner.opencode.integration.test.ts` and `packages/flow-cli/src/__tests__/*.integration.test.ts` (daemon, real processes, mock CLIs via `*_MOCK_PATH`).
+- Known gap there: when the CLI is missing the real suites skip silently outside the scripts. Not copied: here a missing `claude` with the gate on FAILS.
+
+Applied here:
+
+| Layer | What |
+|---|---|
+| Mock (always) | `launch/testSupport/fakeClaude.mjs` honours `--resume-session-at` (reads `FAKE_CLAUDE_TRANSCRIPT`, keeps lines up to the uuid), plus unit/route/jsdom tests |
+| Integration (one test) | `launch/host/SessionHost.thread.integration.test.ts`, real `claude` + Haiku, gate `AGENT_MANAGER_INTEGRATION=1`; absent: reported as skipped with the reason in the title; present and `claude` missing: fails |
+
+## Thread built (#65, option A) and measured
+
+Date: 2026-11-21, claude 2.1.330 (the one installed), Haiku.
+
+- Built: `uuid` on every transcript entry (`EntryBase`, additive, a tool call keeps the uuid of its calling line); `resumeSessionAt` (core args, validation, `SessionHost.launch`, `forkedAtMessage` in `owned-sessions.json`, event and audit); anchor checked in the source transcript before a slot (`fork-anchor-not-found`); cap of 3 live threads per source (`too-many-threads`); `POST /owned/fork` takes `atMessageId`; rows carry `threadOf {sessionId, messageId}`; log rows carry `uuid`; UI: Thread button on user and assistant rows, `ThreadDialog`, chip "thread of <name> at <quote>" with a link back to the anchor row.
+- Integration test `packages/agent-manager-core/src/launch/host/SessionHost.thread.integration.test.ts`, gate `AGENT_MANAGER_INTEGRATION=1`: ONE run, 3 Haiku prompts (2 for the source, 1 in the thread), 19 s. Result: the thread launched by the real `SessionHost` (`--resume <src> --fork-session --session-id <new> --resume-session-at <uuid of the OK1 reply as read by the transcript reader>`) answered ALPHA, its transcript has no BRAVO, the source transcript sha256 is unchanged. So the hidden flag works through the product code path, and real entries carry a `uuid` that the reader exposes [M].
+- Not measured: an anchor that is not in the transcript (the host refuses it before claude runs, the fake exits 1 with its own message), an anchor in the middle of a turn (b6) or on a user line (b5): the UI offers user and assistant text rows only, each with the uuid of its own line; an assistant text row followed by tool calls of the same turn is anchored on its own line (the thread then lacks the rest of the turn: unmeasured whether claude accepts it as "typically the kept turn's last entry" suggests it may not repair a dangling tool_use).
+- The quote of the anchor message (`forkedAtQuote`, one line, at most 80 characters) is stored in the daemon record, so the chip is the same after a reload; a thread made before that field exists shows the short message id. Review fixes: `resume` of a stopped thread obeys the cap of 3, the link back searches only up to the page that holds the anchor and tells "not in the log", "search limit reached" and "load error" apart.
+- Follow-ups: group/merge-summary-back of a thread; measure b5/b6; run the integration test in a scheduled job when claude is updated (the mock-drift idea of agent-fleet).

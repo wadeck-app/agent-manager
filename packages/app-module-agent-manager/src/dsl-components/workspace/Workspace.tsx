@@ -117,8 +117,28 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   const [helpOpen, setHelpOpen] = useState(false);
   const [launchOpen, setLaunchOpen] = useState(false);
 
-  const select = useCallback((id: string) => setSessionParam(id), [setSessionParam]);
-
+  // The message a thread links back to: the source session is opened and its log brings that message into view. `from` is the thread the click came from:
+  // the focus lives only while the selection is the source or that thread, so it is cleared on EVERY other selection path (list, back, forget, launch, url).
+  const [anchorFocus, setAnchorFocus] = useState<{ sessionId: string; messageId: string; from: string | undefined } | undefined>(undefined);
+  useEffect(() => {
+    if (anchorFocus !== undefined && selectedId !== anchorFocus.sessionId && selectedId !== anchorFocus.from) {
+      setAnchorFocus(undefined);
+    }
+  }, [anchorFocus, selectedId]);
+  const select = useCallback(
+    (id: string) => {
+      setAnchorFocus(undefined);
+      setSessionParam(id);
+    },
+    [setSessionParam],
+  );
+  const locateAnchor = useCallback(
+    (sessionId: string, messageId: string) => {
+      setAnchorFocus({ sessionId: sessionId.toLowerCase(), messageId, from: selectedId });
+      setSessionParam(sessionId.toLowerCase());
+    },
+    [setSessionParam, selectedId],
+  );
   // A launched session is listed and selected at once, with no registry file yet (the row says it is starting).
   const { apply: applyOwned } = ownedRows;
   const launched = useCallback(
@@ -312,8 +332,8 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   if (selected !== undefined) {
     detail = (
       <>
-        <DetailHeader session={selected} now={now} busy={busy} onBack={() => setSessionParam('')} onTogglePin={(pinned) => pin(selected, pinned)} onMarkSeen={() => markSeen(selected)} onOwnedChange={applyOwned} onForgotten={() => setSessionParam('')} onForked={launched} onOpenSource={select} {...(selected.forkedFrom === undefined ? {} : { forkedFrom: { id: selected.forkedFrom, name: rowsById.get(selected.forkedFrom.toLowerCase())?.displayName } })} />
-        <AgentDetail session={selected} />
+        <DetailHeader session={selected} now={now} busy={busy} onBack={() => setSessionParam('')} onTogglePin={(pinned) => pin(selected, pinned)} onMarkSeen={() => markSeen(selected)} onOwnedChange={applyOwned} onForgotten={() => setSessionParam('')} onForked={launched} onOpenSource={select} onLocateAnchor={locateAnchor} {...(selected.forkedFrom === undefined ? {} : { forkedFrom: { id: selected.forkedFrom, name: rowsById.get(selected.forkedFrom.toLowerCase())?.displayName } })} />
+        <AgentDetail session={selected} onThreadStarted={launched} {...(anchorFocus !== undefined && anchorFocus.sessionId === selected.sessionId.toLowerCase() ? { focusMessageId: anchorFocus.messageId } : {})} />
       </>
     );
   } else if (selectedId !== undefined && !loading) {

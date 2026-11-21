@@ -4,6 +4,7 @@ import type { AgentRow } from '../data/types.js';
 import { ForkDialog } from '../launch/ForkDialog.js';
 import { FORK_MEANING, forkBlockedReason } from '../logic/forkForm.js';
 import { STATE_MEANING } from '../logic/states.js';
+import { threadChipText } from '../logic/threadForm.js';
 import type { OwnedSessionDto } from '../shared.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
 import { IconButton } from '../ui/IconButton.js';
@@ -33,10 +34,12 @@ export interface DetailHeaderProps {
   /** This session is a fork: the source (its name when it is in the list, else undefined) and a way to open it. */
   forkedFrom?: { id: string; name: string | undefined };
   onOpenSource: (id: string) => void;
+  /** This session is a thread: opens the source and brings the message it stops at into view. Absent: no link. */
+  onLocateAnchor?: (sessionId: string, messageId: string) => void;
 }
 
 /** Name, folder, state, harness, pid and the two actions of the selected session. The back button only exists on a narrow screen (stacked panes). */
-export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen, onOwnedChange, onForgotten, onForked, forkedFrom, onOpenSource }: DetailHeaderProps) {
+export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen, onOwnedChange, onForgotten, onForked, forkedFrom, onOpenSource, onLocateAnchor }: DetailHeaderProps) {
   const look = STATE_LOOK[session.state];
   const since = timeInState(session.statusUpdatedAt, now);
   const canMarkSeen = session.state === 'done';
@@ -70,7 +73,18 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
             </Tooltip>
           ) : null}
         </div>
-        {forkedFrom === undefined ? null : (
+        {session.threadOf !== undefined ? (
+          <p className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted">
+            <span data-thread-of="" className="min-w-0 truncate">
+              {threadChipText(forkedFrom?.name, session.threadOf.quote, session.threadOf.messageId)}
+            </span>
+            {onLocateAnchor !== undefined ? (
+              <button type="button" aria-label="Go to the message in the original" onClick={() => onLocateAnchor(session.threadOf!.sessionId, session.threadOf!.messageId)} className="shrink-0 text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                Go to the message
+              </button>
+            ) : null}
+          </p>
+        ) : forkedFrom === undefined ? null : (
           <p data-forked-from="" className="mt-0.5 truncate text-xs text-muted">
             <GitFork aria-hidden="true" className="mr-1 inline h-am-icon-sm w-am-icon-sm align-text-bottom" />
             forked from{' '}

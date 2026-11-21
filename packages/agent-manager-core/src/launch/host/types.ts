@@ -59,6 +59,10 @@ export interface OwnedSessionRecord {
   resumedAt?: number;
   /** stream-json: the session id this session was forked from (it continues a copy of that history). Never changes after the launch. */
   forkedFrom?: string;
+  /** stream-json thread: the uuid of the transcript entry of the source the fork stops at (`--resume-session-at`). Only with forkedFrom; never changes. */
+  forkedAtMessage?: string;
+  /** stream-json thread: a short one-line quote of that message (at most MAX_QUOTE_CHARS) for the chip of the thread; presentation only, never sent to claude. */
+  forkedAtQuote?: string;
 }
 
 /**

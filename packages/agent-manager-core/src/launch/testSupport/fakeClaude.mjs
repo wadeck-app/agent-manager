@@ -12,10 +12,11 @@
 //   GARBAGE   writes a non-JSON line and a JSON array line before the turn
 //   UNKNOWNEVENT writes a line of an unknown type and a system/thinking_tokens line, then answers normally
 //   CTLREQ    writes a control_request of a subtype the host does not handle, then answers normally
+//   RECALL    answers with the user texts of the transcript it was resumed from (see FAKE_CLAUDE_TRANSCRIPT below)
 //   BIGLINE   writes one 300000-character line of garbage before the turn
 // Environment: FAKE_CLAUDE_LOG (ndjson file: argv and every received line), FAKE_CLAUDE_HANG_ON_CLOSE=1 (ignores the end of stdin and never exits),
 // FAKE_CLAUDE_IGNORE_CONTROL=1 (never answers a control_request). The mode word "refuse" is answered with a control_response of subtype error.
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 
 const argv = process.argv.slice(2);
@@ -44,6 +45,25 @@ if (argv.includes('--session-id') && argv.includes('--resume') && !argv.includes
 if (argv.includes('--resume') && process.env.FAKE_CLAUDE_MISSING_SOURCE === '1') {
   process.stderr.write(`No conversation found with session ID: ${argOf('--resume')}\n`);
   process.exit(1);
+}
+// FAKE_CLAUDE_TRANSCRIPT=<file>: the transcript of the --resume source. The fake reads it like the real claude does and RECALL (a trigger word of a message)
+// answers with the text of the user lines it knows. --resume-session-at <uuid> keeps the lines up to and including the entry with that uuid (measured on the
+// real claude 2.1.330: the branch at the OK1 reply kept ALPHA and dropped BRAVO). An anchor that is not in the file exits 1: the real message of that case is
+// NOT measured, this one is the fake's own (the point is that it is never a silent full history).
+let knownUserTexts = [];
+if (argv.includes('--resume') && process.env.FAKE_CLAUDE_TRANSCRIPT) {
+  const anchor = argOf('--resume-session-at');
+  const lines = readFileSync(process.env.FAKE_CLAUDE_TRANSCRIPT, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  let kept = lines;
+  if (anchor !== undefined) {
+    const index = lines.findIndex((entry) => entry.uuid === anchor);
+    if (index === -1) {
+      process.stderr.write(`Error: no message with uuid ${anchor} in the session to resume (fake claude).\n`);
+      process.exit(1);
+    }
+    kept = lines.slice(0, index + 1);
+  }
+  knownUserTexts = kept.filter((entry) => entry.type === 'user' && typeof entry.message?.content === 'string').map((entry) => entry.message.content);
 }
 // A fork keeps the id given by --session-id; a plain resume keeps the resumed id.
 const sessionId = argOf('--session-id') ?? argOf('--resume') ?? randomUUID();
@@ -143,7 +163,7 @@ async function runTurn(message) {
     out(assistant(verdict));
   } else {
     const images = imagesOf(content);
-    const reply = `ECHO: ${text}${images.length > 0 ? ` [images: ${images.join(',')}]` : ''} [mode: ${mode}]`;
+    const reply = text.includes('RECALL') ? `RECALL: ${knownUserTexts.join(' | ')}` : `ECHO: ${text}${images.length > 0 ? ` [images: ${images.join(',')}]` : ''} [mode: ${mode}]`;
     delta(reply.slice(0, 5));
     delta(reply.slice(5));
     if (text.includes('SPLIT')) {

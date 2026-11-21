@@ -148,6 +148,7 @@ export function rowFromOwned(dto: OwnedSessionDto, now: number): SessionRowDto {
     ...(dto.rawState === undefined ? {} : { ownedRawState: dto.rawState }),
     pendingPermissions: dto.pendingPermissions,
     ...(dto.forkedFrom === undefined ? {} : { forkedFrom: dto.forkedFrom }),
+    ...(dto.forkedFrom === undefined || dto.forkedAtMessage === undefined ? {} : { threadOf: { sessionId: dto.forkedFrom, messageId: dto.forkedAtMessage, ...(dto.forkedAtQuote === undefined ? {} : { quote: dto.forkedAtQuote }) } }),
     registryPending: true,
   };
 }

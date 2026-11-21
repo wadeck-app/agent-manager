@@ -144,8 +144,8 @@ export async function startFakeDaemon(configDir: string, options: { token?: stri
     }
     if (parts[1] === 'launch' && method === 'POST') {
       counter += 1;
-      const request = body as { hostKind: OwnedSessionView['hostKind']; cwd: string; name?: string; model?: string; permissionMode?: string; forkOf?: string };
-      const session = ownedView({ id: `00000000-0000-4000-8000-${String(900 + counter).padStart(12, '0')}`, hostKind: request.hostKind, cwd: request.cwd, ...(request.name === undefined ? {} : { name: request.name }), ...(request.model === undefined ? {} : { model: request.model }), ...(request.permissionMode === undefined ? {} : { permissionMode: request.permissionMode }), ...(request.forkOf === undefined ? {} : { forkedFrom: request.forkOf }) });
+      const request = body as { hostKind: OwnedSessionView['hostKind']; cwd: string; name?: string; model?: string; permissionMode?: string; forkOf?: string; resumeSessionAt?: string; forkedAtQuote?: string };
+      const session = ownedView({ id: `00000000-0000-4000-8000-${String(900 + counter).padStart(12, '0')}`, hostKind: request.hostKind, cwd: request.cwd, ...(request.name === undefined ? {} : { name: request.name }), ...(request.model === undefined ? {} : { model: request.model }), ...(request.permissionMode === undefined ? {} : { permissionMode: request.permissionMode }), ...(request.forkOf === undefined ? {} : { forkedFrom: request.forkOf }), ...(request.resumeSessionAt === undefined ? {} : { forkedAtMessage: request.resumeSessionAt }), ...(request.forkedAtQuote === undefined ? {} : { forkedAtQuote: request.forkedAtQuote }) });
       daemon.sessions.unshift(session);
       reply(res, 201, { session });
       return;

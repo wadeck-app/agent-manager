@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
-import type { LogOk, LogResponse } from '../deps.js';
+import type { LogEntry, LogOk, LogResponse } from '../deps.js';
 import { requestJson } from '../deps.js';
 import { initialLogState, logReducer, type LogState } from './logReducer.js';
 import { LOCATE_PAGE_LIMIT, PAGE_LIMIT, POLL_MS } from './sizes.js';
@@ -23,6 +23,8 @@ export interface OlderSearchOptions {
   maxPages: number;
   /** Called after each page: how many pages so far and the offset of the oldest entry held. */
   onPage: (page: number, oldestOffset: number | undefined) => void;
+  /** Called with the entries of each page just loaded: true ends the search there (status 'reached'), so no page behind the one that holds the target is requested. */
+  stopWhen?: (page: readonly LogEntry[]) => boolean;
 }
 
 export interface LogFeed {
@@ -223,6 +225,9 @@ export function useLog(sessionId: string): LogFeed {
           olderCursor.current = cursor;
           oldest = result.value.entries[0]?.offset ?? oldest;
           options.onPage(pages, oldest);
+          if (options.stopWhen?.(result.value.entries) === true) {
+            return { status: 'reached', pages };
+          }
           if (oldest !== undefined && oldest <= offset) {
             return { status: 'reached', pages };
           }

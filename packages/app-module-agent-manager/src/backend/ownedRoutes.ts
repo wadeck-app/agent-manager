@@ -1,4 +1,4 @@
-import { LaunchError, parseDecisionBody, parseLaunchBody, parsePermissionModeBody } from '@wadeck-app/agent-manager-core/launch';
+import { LaunchError, MAX_QUOTE_CHARS, assertResumeSessionAt, parseDecisionBody, parseLaunchBody, parsePermissionModeBody } from '@wadeck-app/agent-manager-core/launch';
 import { SAFE_ID } from '@wadeck-app/agent-manager-core/reply';
 import { forkNameOf } from '../commons/forkName.js';
 import type { OwnedDecisionOk, OwnedForgetOk, OwnedForkOk, OwnedInterruptOk, OwnedListResponse, OwnedPermissionModeOk, OwnedPermissionsOk, OwnedSessionDto, OwnedSessionOk } from '../commons/api.js';
@@ -109,9 +109,12 @@ interface ForkBody {
   name?: string;
   model?: string;
   permissionMode?: string;
+  /** A thread: the uuid of the log row (transcript entry) the fork stops at. */
+  atMessageId?: string;
+  atMessageQuote?: string;
 }
 
-const FORK_FIELDS = ['sourceSessionId', 'name', 'model', 'permissionMode'];
+const FORK_FIELDS = ['sourceSessionId', 'name', 'model', 'permissionMode', 'atMessageId', 'atMessageQuote'];
 
 /** The body of POST /owned/fork: the source id (required) and three optional texts; a typo in a field name is refused, never ignored. */
 function parseForkBody(body: unknown): ForkBody {
@@ -140,7 +143,19 @@ function parseForkBody(body: unknown): ForkBody {
   const name = text('name');
   const model = text('model');
   const permissionMode = text('permissionMode');
-  return { sourceSessionId, ...(name === undefined ? {} : { name }), ...(model === undefined ? {} : { model }), ...(permissionMode === undefined ? {} : { permissionMode }) };
+  const atMessageId = text('atMessageId');
+  if (atMessageId !== undefined) {
+    // The shape first (a LaunchError, 400 with its fix): a bad value never costs a call to the daemon.
+    assertResumeSessionAt(atMessageId);
+  }
+  const atMessageQuote = text('atMessageQuote');
+  if (atMessageQuote !== undefined && atMessageId === undefined) {
+    throw new CodedRequestError(400, 'bad-request', "'atMessageQuote' needs 'atMessageId'", "Send the uuid of the message in 'atMessageId', or leave the quote out.");
+  }
+  if (atMessageQuote !== undefined && (atMessageQuote.length > MAX_QUOTE_CHARS || /[\u0000-\u001f\u007f]/.test(atMessageQuote))) {
+    throw new CodedRequestError(400, 'bad-request', `'atMessageQuote' must be one line of at most ${MAX_QUOTE_CHARS} characters`, `Cut the quote to ${MAX_QUOTE_CHARS} characters and remove line breaks.`);
+  }
+  return { sourceSessionId, ...(name === undefined ? {} : { name }), ...(model === undefined ? {} : { model }), ...(permissionMode === undefined ? {} : { permissionMode }), ...(atMessageId === undefined ? {} : { atMessageId }), ...(atMessageQuote === undefined ? {} : { atMessageQuote }) };
 }
 
 export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
@@ -212,7 +227,10 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
         hostKind: 'stream-json',
         cwd: session.cwd,
         forkOf: session.sessionId,
-        name: body.name ?? forkNameOf(shown.name ?? shown.folder),
+        name: body.name ?? (body.atMessageId === undefined ? forkNameOf(shown.name ?? shown.folder) : forkNameOf(shown.name ?? shown.folder, 'thread of')),
+        // A thread: the fork stops at this message (the core checks the shape; the daemon checks it is in the transcript and caps the live threads).
+        ...(body.atMessageId === undefined ? {} : { resumeSessionAt: body.atMessageId }),
+        ...(body.atMessageQuote === undefined ? {} : { forkedAtQuote: body.atMessageQuote }),
         ...(model === undefined ? {} : { model }),
         ...(permissionMode === undefined ? {} : { permissionMode }),
       });

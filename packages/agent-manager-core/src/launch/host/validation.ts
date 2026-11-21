@@ -4,7 +4,7 @@ import { getErrorMessage } from '../../errors.js';
 import { MAX_TEXT_CHARS } from '../../reply/compose.js';
 import { MAX_UPLOAD_BYTES, detectImageExt } from '../../reply/uploads.js';
 import { LaunchError } from '../errors.js';
-import { assertForkSourceId, assertModel, assertPermissionMode } from '../streamJsonArgs.js';
+import { assertForkSourceId, assertModel, assertPermissionMode, assertResumeSessionAt } from '../streamJsonArgs.js';
 import type { ImageInput } from '../types.js';
 import { HOST_KINDS } from './types.js';
 import type { HostKind } from './types.js';
@@ -16,6 +16,7 @@ import type { HostKind } from './types.js';
 
 export const MAX_IMAGES = 4;
 export const MAX_NAME_CHARS = 64;
+export const MAX_QUOTE_CHARS = 80;
 export const MAX_CWD_CHARS = 1024;
 export const MAX_DENY_MESSAGE_CHARS = 2000;
 export const DEFAULT_DENY_MESSAGE = 'Denied by the user through agent-manager';
@@ -61,6 +62,10 @@ export interface LaunchRequest {
   name?: string;
   /** stream-json only: the session id of the session to fork (a copy of its history continues under a new id, the source stays untouched). */
   forkOf?: string;
+  /** Needs forkOf: the uuid of the transcript entry the fork stops at (a thread). */
+  resumeSessionAt?: string;
+  /** Needs resumeSessionAt: a one-line quote of the message (at most MAX_QUOTE_CHARS), kept in the record for the chip of the thread. */
+  forkedAtQuote?: string;
 }
 
 /** The working directory: an absolute path of an existing folder (a relative one would be read against the daemon, not the caller). */
@@ -88,7 +93,7 @@ export async function assertWorkingDirectory(cwd: unknown): Promise<string> {
 }
 
 export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
-  const body = objectBody(value, ['hostKind', 'cwd', 'model', 'permissionMode', 'name', 'forkOf'], '{"hostKind":"stream-json","cwd":"<absolute folder>"}');
+  const body = objectBody(value, ['hostKind', 'cwd', 'model', 'permissionMode', 'name', 'forkOf', 'resumeSessionAt', 'forkedAtQuote'], '{"hostKind":"stream-json","cwd":"<absolute folder>"}');
   const hostKind = body['hostKind'];
   if (!HOST_KINDS.some((kind) => kind === hostKind)) {
     return bad('invalid-host-kind', `hostKind ${JSON.stringify(hostKind)} is not valid`, `use one of ${HOST_KINDS.join(', ')} ('stream-json' is owned by the daemon, 'hc' starts a herdr-core terminal, 'bg' starts a Claude Code background session)`);
@@ -113,6 +118,22 @@ export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
     }
     assertForkSourceId(forkOf);
   }
+  const resumeSessionAt = optionalText(body, 'resumeSessionAt');
+  if (resumeSessionAt !== undefined) {
+    if (forkOf === undefined) {
+      return bad('resume-at-without-fork', 'resumeSessionAt was given without forkOf', 'pass forkOf (the session to branch from): without a fork the session would be resumed in place, not branched');
+    }
+    assertResumeSessionAt(resumeSessionAt);
+  }
+  const forkedAtQuote = optionalText(body, 'forkedAtQuote');
+  if (forkedAtQuote !== undefined) {
+    if (resumeSessionAt === undefined) {
+      return bad('quote-without-anchor', 'forkedAtQuote was given without resumeSessionAt', 'pass resumeSessionAt (the message the thread stops at), or leave the quote out');
+    }
+    if (forkedAtQuote.length > MAX_QUOTE_CHARS || /[\u0000-\u001f\u007f]/.test(forkedAtQuote)) {
+      return bad('invalid-quote', `forkedAtQuote must be a single line of at most ${MAX_QUOTE_CHARS} characters`, `cut the quote of the message to ${MAX_QUOTE_CHARS} characters and remove line breaks`);
+    }
+  }
   return {
     hostKind: hostKind as HostKind,
     cwd,
@@ -120,6 +141,8 @@ export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
     ...(permissionMode === undefined ? {} : { permissionMode }),
     ...(name === undefined ? {} : { name }),
     ...(forkOf === undefined ? {} : { forkOf: forkOf.toLowerCase() }),
+    ...(resumeSessionAt === undefined ? {} : { resumeSessionAt: resumeSessionAt.toLowerCase() }),
+    ...(forkedAtQuote === undefined ? {} : { forkedAtQuote }),
   };
 }
 

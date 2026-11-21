@@ -188,6 +188,63 @@ describe('fork through POST /sessions/launch (forkOf)', () => {
   });
 });
 
+describe('thread through POST /sessions/launch (forkOf + resumeSessionAt)', () => {
+  const SOURCE = '11111111-2222-4333-8444-555555555555';
+  const ANCHOR = '27bf9648-39df-453b-bd04-99816f5c1819';
+  const MISSING = '99999999-9999-4999-8999-999999999999';
+
+  /** A projects folder with the transcript of SOURCE holding an entry with the uuid ANCHOR (AGENT_MANAGER_PROJECTS_DIR: never the real ~/.claude/projects). */
+  function projectsWithAnchor(): void {
+    const projects = join(tempRoot(), 'projects');
+    mkdirSync(join(projects, 'some-project'), { recursive: true });
+    writeFileSync(join(projects, 'some-project', `${SOURCE}.jsonl`), `${JSON.stringify({ type: 'user', uuid: ANCHOR, message: { role: 'user', content: 'x' } })}\n`);
+    vi.stubEnv('AGENT_MANAGER_PROJECTS_DIR', projects);
+  }
+
+  it('starts a thread: 201, forkedFrom and forkedAtMessage on the session and in the list', async () => {
+    projectsWithAnchor();
+    const daemon = await startTestDaemon();
+    const response = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, forkOf: SOURCE, resumeSessionAt: ANCHOR.toUpperCase() });
+    expect(response.status).toBe(201);
+    expect(response.body.session).toMatchObject({ forkedFrom: SOURCE, forkedAtMessage: ANCHOR, status: 'live' });
+    const listed = (await daemon.call('GET', '/sessions')).body.sessions as { id: string; forkedAtMessage?: string }[];
+    expect(listed.find((item) => item.id === response.body.session.id)?.forkedAtMessage).toBe(ANCHOR);
+  });
+
+  it('answers 404 fork-anchor-not-found with the fix for an anchor that is not in the transcript, and starts nothing', async () => {
+    projectsWithAnchor();
+    const daemon = await startTestDaemon();
+    const response = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, forkOf: SOURCE, resumeSessionAt: MISSING });
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('fork-anchor-not-found');
+    expect(response.body.error.fix.length).toBeGreaterThan(10);
+    expect((await daemon.call('GET', '/sessions')).body.sessions).toEqual([]);
+  });
+
+  it('answers 400 for a bad anchor shape and for an anchor without forkOf', async () => {
+    projectsWithAnchor();
+    const daemon = await startTestDaemon();
+    const bad = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, forkOf: SOURCE, resumeSessionAt: '--model' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.code).toBe('invalid-resume-session-at');
+    const alone = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, resumeSessionAt: ANCHOR });
+    expect(alone.status).toBe(400);
+    expect(alone.body.error.code).toBe('resume-at-without-fork');
+  });
+
+  it('answers 409 too-many-threads with the fix for a fourth live thread of one source', async () => {
+    projectsWithAnchor();
+    const daemon = await startTestDaemon();
+    for (let i = 0; i < 3; i += 1) {
+      expect((await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, forkOf: SOURCE, resumeSessionAt: ANCHOR })).status).toBe(201);
+    }
+    const fourth = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, forkOf: SOURCE, resumeSessionAt: ANCHOR });
+    expect(fourth.status).toBe(409);
+    expect(fourth.body.error.code).toBe('too-many-threads');
+    expect(fourth.body.error.fix).toContain('stop');
+  });
+});
+
 describe('sessions API (X1, fake claude)', () => {
   it('launches, sends, streams events, lists, changes the mode, stops, resumes and forgets', async () => {
     const daemon = await startTestDaemon();

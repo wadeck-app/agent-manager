@@ -6,6 +6,7 @@ import type { BgAgent, BgLaunchRequest, BgLaunchResult } from '../BgLauncher.js'
 import { LaunchError } from '../errors.js';
 import { HcLauncher } from '../HcLauncher.js';
 import type { HcLaunchRequest, HcLaunchResult } from '../HcLauncher.js';
+import { transcriptHasUuid } from '../../transcript/hasEntry.js';
 import { resolveProjectsDir, transcriptPath } from '../../transcript/transcriptPath.js';
 import type { TranscriptPathResult } from '../../transcript/transcriptPath.js';
 import { StreamJsonSession } from '../StreamJsonSession.js';
@@ -35,6 +36,8 @@ import type { DecisionRequest, LaunchRequest, SendRequest } from './validation.j
  */
 
 export const DEFAULT_MAX_LIVE_SESSIONS = 10;
+/** Live threads (forks that stop at a message) of one source session. */
+export const DEFAULT_MAX_THREADS_PER_SESSION = 3;
 export const DEFAULT_MAX_RECORDS = 200;
 
 export interface HcLauncherLike {
@@ -81,6 +84,10 @@ export interface SessionHostOptions {
   closeTimeoutMs?: number;
   controlTimeoutMs?: number;
   maxLiveSessions?: number;
+  /** Live threads of one source session (default DEFAULT_MAX_THREADS_PER_SESSION). */
+  maxThreadsPerSession?: number;
+  /** Test seam: does the transcript file hold an entry with this uuid? Default: transcriptHasUuid (reads the file). */
+  hasAnchor?: (transcriptFile: string, uuid: string) => Promise<boolean>;
   maxRecords?: number;
   events?: EventLog;
   clock?: () => number;
@@ -185,9 +192,13 @@ export class SessionHost {
   readonly #readVersion: () => Promise<string>;
   readonly #startSession: (options: StreamJsonSessionOptions) => Promise<StreamJsonSession>;
   readonly #locateTranscript: (cwd: string, sessionId: string, projectsDir: string) => Promise<TranscriptPathResult>;
+  readonly #hasAnchor: (transcriptFile: string, uuid: string) => Promise<boolean>;
   readonly #closeTimeoutMs: number | undefined;
   readonly #controlTimeoutMs: number | undefined;
   readonly #maxLive: number;
+  readonly #maxThreads: number;
+  /** Threads being launched, per source id (the live ones are counted from the records). */
+  readonly #threadStarts = new Map<string, number>();
   readonly #maxRecords: number;
   readonly #clock: () => number;
   readonly #daemonPid: number;
@@ -222,6 +233,8 @@ export class SessionHost {
     this.#closeTimeoutMs = options.closeTimeoutMs;
     this.#controlTimeoutMs = options.controlTimeoutMs;
     this.#maxLive = options.maxLiveSessions ?? DEFAULT_MAX_LIVE_SESSIONS;
+    this.#maxThreads = options.maxThreadsPerSession ?? DEFAULT_MAX_THREADS_PER_SESSION;
+    this.#hasAnchor = options.hasAnchor ?? transcriptHasUuid;
     this.#maxRecords = options.maxRecords ?? DEFAULT_MAX_RECORDS;
     this.#clock = options.clock ?? Date.now;
     this.#daemonPid = options.daemonPid ?? process.pid;
@@ -328,19 +341,38 @@ export class SessionHost {
   }
 
   async launch(request: LaunchRequest): Promise<OwnedSessionView> {
-    return this.#audited('launch', undefined, { hostKind: request.hostKind, cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, ...(request.forkOf === undefined ? {} : { forkOf: request.forkOf }) }, async () => {
+    return this.#audited('launch', undefined, { hostKind: request.hostKind, cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, ...(request.forkOf === undefined ? {} : { forkOf: request.forkOf }), ...(request.resumeSessionAt === undefined ? {} : { resumeSessionAt: request.resumeSessionAt }) }, async () => {
       this.#assertRunning();
+      if (request.resumeSessionAt !== undefined && request.forkOf === undefined) {
+        throw new LaunchError('resume-at-without-fork', 'resumeSessionAt was given without forkOf', 'pass forkOf (the session to branch from): without a fork the session would be resumed in place, not branched');
+      }
+      let releaseThread: (() => void) | undefined;
       if (request.forkOf !== undefined) {
         // Before a slot is taken and before `claude --version` runs: a fork that cannot start costs nothing.
         if (request.hostKind !== 'stream-json') {
           throw new LaunchError('fork-host-unsupported', `forkOf is not supported with hostKind ${JSON.stringify(request.hostKind)}`, "only 'stream-json' sessions can be started as a fork");
         }
-        await this.#assertForkSource(request.forkOf, request.cwd);
+        // Cheap pre-check: a refusal that needs no file read is given first (not authoritative: the awaited reads below let other requests in).
+        if (request.resumeSessionAt !== undefined) {
+          this.#assertThreadRoom(request.forkOf);
+        }
+        await this.#assertForkSource(request.forkOf, request.cwd, request.resumeSessionAt);
+        // The AUTHORITATIVE check: the cap check and its reservation are one synchronous step after the last await (the transcript and anchor reads), so
+        // threads asked together cannot all pass. The reservation is held until the launch ends and then given back (the live record counts from then on).
+        if (request.resumeSessionAt !== undefined) {
+          releaseThread = this.#reserveThread(request.forkOf);
+        }
       }
       const stream = request.hostKind === 'stream-json';
-      this.#assertRoom({ stream, created: true });
-      // The slot is taken BEFORE the first await: two requests that come together cannot both pass the checks above.
-      const release = this.#reserve({ stream, created: true });
+      let release: () => void;
+      try {
+        this.#assertRoom({ stream, created: true });
+        // The slot is taken BEFORE the first await: two requests that come together cannot both pass the checks above.
+        release = this.#reserve({ stream, created: true });
+      } catch (error) {
+        releaseThread?.();
+        throw error;
+      }
       try {
         const claudeVersion = await this.#readVersion();
         // A stop that began while `claude --version` ran: nothing may be started after the shutdown.
@@ -351,8 +383,41 @@ export class SessionHost {
         return await (stream ? this.#launchStream(request, claudeVersion) : this.#launchHc(request, claudeVersion));
       } finally {
         release();
+        releaseThread?.();
       }
     });
+  }
+
+  /** Throws `too-many-threads` when the source already has its live or starting threads; else returns the number of starting ones. Synchronous. */
+  #assertThreadRoom(sourceId: string): number {
+    const running = [...this.#records.values()].filter((record) => record.forkedFrom === sourceId && record.forkedAtMessage !== undefined && this.#live.has(record.id)).length;
+    const starting = this.#threadStarts.get(sourceId) ?? 0;
+    if (running + starting >= this.#maxThreads) {
+      throw new LaunchError('too-many-threads', `${running + starting} threads of the session ${sourceId} are live or starting (the limit is ${this.#maxThreads})`, 'stop one of its threads (POST /sessions/:id/stop), then retry');
+    }
+    return starting;
+  }
+
+  /**
+   * At most `maxThreadsPerSession` live threads (forks with an anchor) of one source: each is a claude process of about 450 MB (research/session-launch-options.md).
+   * Counts the live ones and the ones that are starting; a refusal names the count and the fix, nothing is queued. Returns the function that gives the place back.
+   */
+  #reserveThread(sourceId: string): () => void {
+    const starting = this.#assertThreadRoom(sourceId);
+    this.#threadStarts.set(sourceId, starting + 1);
+    let released = false;
+    return () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      const left = (this.#threadStarts.get(sourceId) ?? 1) - 1;
+      if (left <= 0) {
+        this.#threadStarts.delete(sourceId);
+      } else {
+        this.#threadStarts.set(sourceId, left);
+      }
+    };
   }
 
   async resume(id: string, options: { acknowledgeLeftover?: boolean } = {}): Promise<OwnedSessionView> {
@@ -375,6 +440,8 @@ export class SessionHost {
         );
       }
       this.#assertRoom({ stream: true, created: false });
+      // A stopped thread comes back as a live thread: the cap of its source applies to a resume as to a launch (synchronous with the reservations below).
+      const releaseThread = record.forkedFrom !== undefined && record.forkedAtMessage !== undefined ? this.#reserveThread(record.forkedFrom) : undefined;
       // Reserved before the first await (see launch): a second resume of the same id now says already-live, and the live limit counts this one.
       const release = this.#reserve({ stream: true, created: false });
       this.#starting.add(id);
@@ -405,6 +472,7 @@ export class SessionHost {
       } finally {
         this.#starting.delete(id);
         release();
+        releaseThread?.();
       }
     });
   }
@@ -556,7 +624,7 @@ export class SessionHost {
    * A fork needs the transcript of its source on this machine: checked here so that a wrong id is a 4xx with the fix, not a claude that exits at once
    * with "No conversation found". The transcript is whatever is written so far (a fork of a busy session starts from that, the turn in flight is not in it).
    */
-  async #assertForkSource(sourceId: string, cwd: string): Promise<void> {
+  async #assertForkSource(sourceId: string, cwd: string, anchor?: string): Promise<void> {
     // The same folder the child will read: its own environment (the one given to the child, else this process's).
     const env = this.#claude.env ?? process.env;
     const home = env['HOME'] ?? env['USERPROFILE'];
@@ -566,10 +634,23 @@ export class SessionHost {
       const { message, fix } = found.error;
       throw new LaunchError('fork-source-not-found', `the session to fork ${sourceId} has no transcript under ${projectsDir} (${message})`, `${fix} A session that has not received a message yet has no transcript and cannot be forked.`);
     }
+    if (anchor === undefined) {
+      return;
+    }
+    // A thread stops at a message: an unknown uuid would make claude fail (or, worse, fork the whole history), so it is refused here with the fix.
+    let present: boolean;
+    try {
+      present = await this.#hasAnchor(found.path, anchor);
+    } catch (error) {
+      throw new LaunchError('fork-anchor-unreadable', `the transcript ${found.path} of the session to fork cannot be read to check the message ${anchor} (${getErrorMessage(error)})`, 'check the file permissions (another program may hold it), then retry');
+    }
+    if (!present) {
+      throw new LaunchError('fork-anchor-not-found', `the message ${anchor} is not in the transcript ${found.path} of the session ${sourceId}`, 'reload the log and pick a message that is shown there (a message of a turn still being written may not be in the file yet); the transcript may also have been rewritten or deleted');
+    }
   }
 
   async #launchStream(request: LaunchRequest, claudeVersion: string): Promise<OwnedSessionView> {
-    const session = await this.#startSession({ ...this.#sessionOptions(request.cwd, request.model, request.permissionMode), ...(request.forkOf === undefined ? {} : { forkOf: request.forkOf }) });
+    const session = await this.#startSession({ ...this.#sessionOptions(request.cwd, request.model, request.permissionMode), ...(request.forkOf === undefined ? {} : { forkOf: request.forkOf }), ...(request.resumeSessionAt === undefined ? {} : { resumeSessionAt: request.resumeSessionAt }) });
     const id = session.sessionId;
     if (this.#records.has(id)) {
       await session.kill().catch(() => undefined);
@@ -584,6 +665,8 @@ export class SessionHost {
       ...(request.permissionMode === undefined ? {} : { permissionMode: request.permissionMode }),
       ...(request.name === undefined ? {} : { name: request.name }),
       ...(request.forkOf === undefined ? {} : { forkedFrom: request.forkOf }),
+      ...(request.resumeSessionAt === undefined ? {} : { forkedAtMessage: request.resumeSessionAt }),
+      ...(request.forkedAtQuote === undefined || request.resumeSessionAt === undefined ? {} : { forkedAtQuote: request.forkedAtQuote }),
       claudeVersion,
       startedAt: this.#clock(),
       status: 'live',
@@ -598,7 +681,7 @@ export class SessionHost {
       await this.#undoStart(id, session, live);
       throw error;
     }
-    this.#emit('session.launched', id, { hostKind: 'stream-json', cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, claudeVersion, pid: session.pid, ...(request.forkOf === undefined ? {} : { forkedFrom: request.forkOf }) });
+    this.#emit('session.launched', id, { hostKind: 'stream-json', cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, claudeVersion, pid: session.pid, ...(request.forkOf === undefined ? {} : { forkedFrom: request.forkOf }), ...(request.resumeSessionAt === undefined ? {} : { forkedAtMessage: request.resumeSessionAt }), ...(request.forkedAtQuote === undefined || request.resumeSessionAt === undefined ? {} : { forkedAtQuote: request.forkedAtQuote }) });
     return this.#view(record);
   }
 

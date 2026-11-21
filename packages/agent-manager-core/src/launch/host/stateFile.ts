@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { getErrorMessage } from '../../errors.js';
 import { LaunchError } from '../errors.js';
 import { HOST_KINDS } from './types.js';
+import { MAX_QUOTE_CHARS } from './validation.js';
 import type { ExitBy, HostKind, OwnedExit, OwnedSessionRecord, PersistedStatus } from './types.js';
 
 /*
@@ -13,6 +14,7 @@ import type { ExitBy, HostKind, OwnedExit, OwnedSessionRecord, PersistedStatus }
  */
 
 export const STATE_FILE_NAME = 'owned-sessions.json';
+const THREAD_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const STATE_FILE_VERSION = 1;
 
 export function ownedStatePath(configDir: string): string {
@@ -124,6 +126,21 @@ function parseRecord(value: unknown, index: number): OwnedSessionRecord {
   const interruptedAt = reader.optionalNumber('interruptedAt');
   const resumedAt = reader.optionalNumber('resumedAt');
   const forkedFrom = reader.optionalString('forkedFrom');
+  const forkedAtMessage = reader.optionalString('forkedAtMessage');
+  const forkedAtQuote = reader.optionalString('forkedAtQuote');
+  // A thread field that does not make sense would make the thread cap and the chip lie: refused loudly (the caller adds the file and the fix).
+  if (forkedAtMessage !== undefined && forkedFrom === undefined) {
+    throw new Error(`${where}.forkedAtMessage is set without ${where}.forkedFrom`);
+  }
+  if (forkedAtMessage !== undefined && !THREAD_UUID.test(forkedAtMessage)) {
+    throw new Error(`${where}.forkedAtMessage ${JSON.stringify(forkedAtMessage)} is not a UUID`);
+  }
+  if (forkedAtQuote !== undefined && forkedAtMessage === undefined) {
+    throw new Error(`${where}.forkedAtQuote is set without ${where}.forkedAtMessage`);
+  }
+  if (forkedAtQuote !== undefined && forkedAtQuote.length > MAX_QUOTE_CHARS) {
+    throw new Error(`${where}.forkedAtQuote is longer than ${MAX_QUOTE_CHARS} characters`);
+  }
   return {
     id: reader.string('id'),
     hostKind,
@@ -142,6 +159,8 @@ function parseRecord(value: unknown, index: number): OwnedSessionRecord {
     ...(interruptedAt === undefined ? {} : { interruptedAt }),
     ...(resumedAt === undefined ? {} : { resumedAt }),
     ...(forkedFrom === undefined ? {} : { forkedFrom }),
+    ...(forkedAtMessage === undefined ? {} : { forkedAtMessage }),
+    ...(forkedAtQuote === undefined ? {} : { forkedAtQuote }),
   };
 }
 

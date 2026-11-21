@@ -263,6 +263,198 @@ describe('fork (stream-json)', () => {
   });
 });
 
+describe('thread: a fork that stops at a message (--resume-session-at)', () => {
+  const SOURCE = '11111111-2222-4333-8444-555555555555';
+  const OTHER_SOURCE = '66666666-2222-4333-8444-555555555555';
+  const ANCHOR = '27bf9648-39df-453b-bd04-99816f5c1819';
+  const ANCHOR_2 = '8d3c1f10-39df-453b-bd04-99816f5c1819';
+
+  /** A real transcript file (the anchor check reads it), with the given uuids as entries. */
+  function transcriptWith(...uuids: string[]): string {
+    const file = join(tempDir(), `${SOURCE}.jsonl`);
+    writeFileSync(file, `${uuids.map((uuid, index) => JSON.stringify({ type: index % 2 === 0 ? 'user' : 'assistant', uuid, message: { role: 'user', content: `m${index}` } })).join('\n')}\n`);
+    return file;
+  }
+  const locate = (file: string) => async () => ({ ok: true as const, path: file, projectDir: '/projects/p', via: 'slug' as const });
+
+  async function waitForArgv(logFile: string): Promise<string[]> {
+    const deadline = Date.now() + 10_000;
+    while (!existsSync(logFile) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    const argv = readFileSync(logFile, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => (JSON.parse(line) as { argv?: string[] }).argv)
+      .find((candidate) => candidate !== undefined && candidate.includes('-p'));
+    if (argv === undefined) {
+      throw new Error('the fake claude logged no argv');
+    }
+    return argv;
+  }
+
+  it('launches the fork with --resume-session-at and records forkedAtMessage in the view, the state file, the event and the audit', async () => {
+    const logFile = join(tempDir(), 'fake.ndjson');
+    const { host, configDir, cwd } = await setup({
+      locateTranscript: locate(transcriptWith('a0000000-0000-4000-8000-000000000001', ANCHOR)),
+      claude: { command: process.execPath, commandArgs: [FAKE_CLAUDE], env: { ...process.env, FAKE_CLAUDE_LOG: logFile } },
+    });
+    const view = await host.launch({ hostKind: 'stream-json', cwd, name: 'thread: x', forkOf: SOURCE, resumeSessionAt: ANCHOR });
+    expect(view).toMatchObject({ forkedFrom: SOURCE, forkedAtMessage: ANCHOR, status: 'live' });
+    const argv = await waitForArgv(logFile);
+    expect(argv).toEqual(expect.arrayContaining(['--resume', SOURCE, '--fork-session', '--session-id', view.id, '--resume-session-at', ANCHOR]));
+    expect((await readOwnedState(ownedStatePath(configDir)))[0]).toMatchObject({ id: view.id, forkedFrom: SOURCE, forkedAtMessage: ANCHOR });
+    expect(host.events.replay(undefined).events.find((event) => event.type === 'session.launched')?.data).toMatchObject({ forkedFrom: SOURCE, forkedAtMessage: ANCHOR });
+    expect(auditLines(configDir)[0]).toMatchObject({ action: 'launch', outcome: 'ok', details: expect.objectContaining({ forkOf: SOURCE, resumeSessionAt: ANCHOR }) });
+  });
+
+  it('a plain fork has no forkedAtMessage and no --resume-session-at', async () => {
+    const logFile = join(tempDir(), 'fake.ndjson');
+    const { host, cwd } = await setup({
+      locateTranscript: locate(transcriptWith(ANCHOR)),
+      claude: { command: process.execPath, commandArgs: [FAKE_CLAUDE], env: { ...process.env, FAKE_CLAUDE_LOG: logFile } },
+    });
+    const view = await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE });
+    expect(view.forkedAtMessage).toBeUndefined();
+    expect(await waitForArgv(logFile)).not.toContain('--resume-session-at');
+  });
+
+  it('refuses an anchor that is not in the source transcript BEFORE a slot, claude --version or any process, with the fix, and audits the refusal', async () => {
+    let versionReads = 0;
+    const { host, configDir, cwd, started } = await setup({
+      maxLiveSessions: 0,
+      readVersion: async () => {
+        versionReads += 1;
+        return '9.9.9';
+      },
+      locateTranscript: locate(transcriptWith('a0000000-0000-4000-8000-000000000001', ANCHOR)),
+    });
+    const failure = await rejection(host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR_2 }));
+    expect(failure.code).toBe('fork-anchor-not-found');
+    expect(failure.reason).toContain(ANCHOR_2);
+    expect(failure.fix).not.toBe('');
+    expect(versionReads).toBe(0);
+    expect(started).toHaveLength(0);
+    expect(host.list()).toEqual([]);
+    expect(auditLines(configDir)[0]).toMatchObject({ action: 'launch', outcome: expect.stringContaining(ANCHOR_2) });
+  });
+
+  it('refuses when the transcript of the source cannot be read at all (fork-source-not-found comes first)', async () => {
+    const { host, cwd } = await setup({
+      locateTranscript: async () => ({ ok: false as const, error: { code: 'not-found' as const, message: 'none', fix: 'f', tried: [] } }),
+    });
+    expect((await rejection(host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR }))).code).toBe('fork-source-not-found');
+  });
+
+  it('refuses a fourth live thread of one source with the count and the fix; threads of another source and plain forks do not count; a stopped thread frees a place', async () => {
+    const file = transcriptWith(ANCHOR, ANCHOR_2);
+    const { host, cwd } = await setup({ locateTranscript: locate(file) });
+    const threads = [];
+    for (let i = 0; i < 3; i += 1) {
+      threads.push(await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: i % 2 === 0 ? ANCHOR : ANCHOR_2 }));
+    }
+    const failure = await rejection(host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR }));
+    expect(failure.code).toBe('too-many-threads');
+    expect(failure.reason).toContain('3');
+    expect(failure.fix).toContain('stop');
+    // Not counted: a plain fork of the same source, and a thread of another source.
+    await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE });
+    await host.launch({ hostKind: 'stream-json', cwd, forkOf: OTHER_SOURCE, resumeSessionAt: ANCHOR });
+    await host.stop(threads[0]!.id);
+    const again = await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR });
+    expect(again.forkedAtMessage).toBe(ANCHOR);
+  });
+
+  it('four threads asked together: exactly three start (the cap is taken before the first await)', async () => {
+    const { host, cwd } = await setup({ locateTranscript: locate(transcriptWith(ANCHOR)) });
+    const outcomes = await Promise.allSettled([0, 1, 2, 3].map(() => host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR })));
+    expect(outcomes.filter((outcome) => outcome.status === 'fulfilled')).toHaveLength(3);
+    const refused = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
+    expect(refused).toHaveLength(1);
+    expect((refused[0]?.reason as LaunchError).code).toBe('too-many-threads');
+  });
+
+  it('refuses resumeSessionAt for hc and bg even when the request did not come through parseLaunchBody', async () => {
+    const { host, cwd } = await setup({ locateTranscript: locate(transcriptWith(ANCHOR)) });
+    expect((await rejection(host.launch({ hostKind: 'hc', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR }))).code).toBe('fork-host-unsupported');
+    expect((await rejection(host.launch({ hostKind: 'bg', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR }))).code).toBe('fork-host-unsupported');
+  });
+
+  it('refuses resumeSessionAt without forkOf at the host too', async () => {
+    const { host, cwd } = await setup();
+    expect((await rejection(host.launch({ hostKind: 'stream-json', cwd, resumeSessionAt: ANCHOR }))).code).toBe('resume-at-without-fork');
+  });
+
+  it('resume enforces the cap too: stopped threads cannot come back above 3 live per source, with the count and the fix', async () => {
+    const { host, cwd } = await setup({ locateTranscript: locate(transcriptWith(ANCHOR)) });
+    const first = [];
+    for (let i = 0; i < 3; i += 1) {
+      first.push(await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR }));
+    }
+    for (const thread of first) {
+      await host.stop(thread.id);
+    }
+    const second = [];
+    for (let i = 0; i < 3; i += 1) {
+      second.push(await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR }));
+    }
+    const failure = await rejection(host.resume(first[0]!.id));
+    expect(failure.code).toBe('too-many-threads');
+    expect(failure.reason).toContain('3');
+    expect(failure.fix).toContain('stop');
+    // The refused resume left the session stopped and holds no place.
+    expect(host.list().find((item) => item.id === first[0]!.id)?.state).toBe('exited');
+    await host.stop(second[0]!.id);
+    expect((await host.resume(first[0]!.id)).status).toBe('live');
+  });
+
+  it('resume of a plain session or of a plain fork is not capped by threads', async () => {
+    const { host, cwd } = await setup({ locateTranscript: locate(transcriptWith(ANCHOR)) });
+    for (let i = 0; i < 3; i += 1) {
+      await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR });
+    }
+    const fork = await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE });
+    await host.stop(fork.id);
+    expect((await host.resume(fork.id)).status).toBe('live');
+  });
+
+  it('refuses a fourth thread BEFORE reading the transcript (cheap pre-check), the authoritative check stays after the read', async () => {
+    let reads = 0;
+    const file = transcriptWith(ANCHOR);
+    const { host, cwd } = await setup({
+      locateTranscript: async () => {
+        reads += 1;
+        return { ok: true as const, path: file, projectDir: '/projects/p', via: 'slug' as const };
+      },
+    });
+    for (let i = 0; i < 3; i += 1) {
+      await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR });
+    }
+    const before = reads;
+    expect((await rejection(host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR }))).code).toBe('too-many-threads');
+    expect(reads).toBe(before);
+  });
+
+  it('records the quote of the message with the thread (view, state file, event) and none for a thread launched without one', async () => {
+    const { host, configDir, cwd } = await setup({ locateTranscript: locate(transcriptWith(ANCHOR)) });
+    const view = await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR, forkedAtQuote: 'why red?' });
+    expect(view.forkedAtQuote).toBe('why red?');
+    expect((await readOwnedState(ownedStatePath(configDir)))[0]).toMatchObject({ forkedAtQuote: 'why red?' });
+    expect(host.events.replay(undefined).events.find((event) => event.type === 'session.launched')?.data).toMatchObject({ forkedAtQuote: 'why red?' });
+    expect((await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR })).forkedAtQuote).toBeUndefined();
+  });
+
+  it('a claude that refuses the flag (a future release) exits with its stderr in the exit report, never a silent full-history fork', async () => {
+    const { host, cwd } = await setup({
+      locateTranscript: locate(transcriptWith(ANCHOR)),
+      claude: { command: process.execPath, commandArgs: [FAKE_CLAUDE], env: { ...process.env, FAKE_CLAUDE_MISSING_SOURCE: '1' } },
+    });
+    const view = await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE, resumeSessionAt: ANCHOR });
+    await until(host, (event) => event.type === 'session.exit' && event.sessionId === view.id, 'the exit of the refused thread');
+    expect(host.list().find((item) => item.id === view.id)?.exit?.stderrTail).toContain('No conversation found');
+  });
+});
+
 describe('send, interrupt, permission mode, permissions', () => {
   it('sends a message, follows its lifecycle to completed and keeps the last result; the audit has no text', async () => {
     const { host, cwd, configDir } = await setup();

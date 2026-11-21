@@ -14,6 +14,7 @@ export interface OwnedRowFields {
   ownedRawState?: string;
   pendingPermissions: number;
   forkedFrom?: string;
+  threadOf?: { sessionId: string; messageId: string; quote?: string };
   registryPending?: true;
 }
 
@@ -113,6 +114,7 @@ export function rowFieldsOf(view: OwnedView, registryPending: boolean): OwnedRow
     ...(view.rawState === undefined ? {} : { ownedRawState: view.rawState }),
     pendingPermissions: view.pendingPermissions,
     ...(view.forkedFrom === undefined ? {} : { forkedFrom: view.forkedFrom }),
+    ...(view.forkedFrom === undefined || view.forkedAtMessage === undefined ? {} : { threadOf: { sessionId: view.forkedFrom, messageId: view.forkedAtMessage, ...(view.forkedAtQuote === undefined ? {} : { quote: view.forkedAtQuote }) } }),
     ...(registryPending ? { registryPending: true as const } : {}),
   };
 }

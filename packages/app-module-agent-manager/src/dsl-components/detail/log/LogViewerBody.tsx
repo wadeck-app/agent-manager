@@ -1,6 +1,6 @@
 import { ArrowDown, ChevronUp, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Banner } from '../deps.js';
+import { Banner, ThreadDialog } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
 import { useMinWidth, useNow } from '../deps.js';
 import { settlePending, useDelivery, usePending } from '../pending.js';
@@ -9,7 +9,7 @@ import { buildRows, toggleOpen, type Row } from './grouping.js';
 import { drawable, reconcilePending } from './reconcile.js';
 import { hideWebQueueLines } from './webQueue.js';
 import { describePending, describeRow, type OpenContext } from './rowModel.js';
-import { BOTTOM_SLACK_PX, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
+import { BOTTOM_SLACK_PX, LOCATE_MAX_PAGES, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
 import { LocateBanner, locateAnnouncement } from './LocateBanner.js';
 import { publishLogStatus } from '../status/useSessionStatus.js';
 import { SubagentAside } from './SubagentAside.js';
@@ -28,8 +28,25 @@ function rowMatches(row: Row, agent: { agentId: string; toolUseId?: string | und
   return row.entry.kind === 'tool-call' && hit(row.entry);
 }
 
-export function LogViewerBody({ session }: LogViewerProps) {
+export const ANCHOR_NOT_IN_LOG =
+  'The message this thread was started from is not in the log: the transcript of the original may have been rewritten, or the message is further back than the pages searched. Open the original and scroll to it by hand.';
+
+/** What the banner says when the search for the anchor row ended without it: the three outcomes are told apart, each with what to do. */
+function anchorNoteOf(ended: { kind: 'exhausted' | 'bound' | 'error'; message?: string; hint?: string }): { tone: 'warning' | 'error'; text: string } {
+  if (ended.kind === 'error') {
+    return { tone: 'error', text: `Looking for the message this thread was started from failed: ${ended.message ?? 'unknown error'} ${ended.hint ?? ''}`.trim() };
+  }
+  if (ended.kind === 'bound') {
+    return { tone: 'warning', text: `The search stopped after ${LOCATE_MAX_PAGES} pages without finding the message this thread was started from. Use "Load older entries" at the top of the log to keep going, or open the original and scroll to it by hand.` };
+  }
+  return { tone: 'warning', text: ANCHOR_NOT_IN_LOG };
+}
+
+export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogViewerProps) {
   const { state, problem, loadingOlder, retry, loadOlder, loadOlderUntil } = useLog(session.sessionId);
+  // The Thread dialog: opened on a message row, closed when it starts the thread (the page then selects it) or is cancelled.
+  const [threadAnchor, setThreadAnchor] = useState<{ uuid: string; text: string } | undefined>(undefined);
+  const openThread = useCallback((anchor: { uuid: string; text: string }) => setThreadAnchor(anchor), []);
   const now = useNow(15_000);
   // The header (outside this component) shows the live status line data: hand it each answer, and forget it when this session is left.
   const sessionId = session.sessionId;
@@ -75,7 +92,62 @@ export function LogViewerBody({ session }: LogViewerProps) {
   }, [locate.selectedId]);
   const agent = useMemo(() => (locate.selectedId === undefined ? undefined : items.find((item) => item.dto.agentId === locate.selectedId)?.dto), [locate.selectedId, items]);
   // The rows of the call that started the selected sub-agent: highlighted once it is shown (not while it is being looked for).
-  const hot = useMemo(() => new Set(agent === undefined || locate.state.phase !== 'found' ? [] : rows.filter((row) => rowMatches(row, agent)).map((row) => row.key)), [agent, rows, locate.state.phase]);
+  const subagentHot = useMemo(() => new Set(agent === undefined || locate.state.phase !== 'found' ? [] : rows.filter((row) => rowMatches(row, agent)).map((row) => row.key)), [agent, rows, locate.state.phase]);
+
+  // The link back from a thread: the row of the anchor message. Searched in the loaded entries, then in older pages (bounded, once per message); said when absent.
+  const focusRowKey = useMemo(() => (focusMessageId === undefined ? undefined : rows.find((row) => row.type === 'entry' && row.entry.uuid === focusMessageId)?.key), [focusMessageId, rows]);
+  const [focusPulse, setFocusPulse] = useState(0);
+  const [searchEnded, setSearchEnded] = useState<{ id: string; kind: 'exhausted' | 'bound' | 'error'; message?: string; hint?: string } | undefined>(undefined);
+  const pulsedFor = useRef<string | undefined>(undefined);
+  const searchedFor = useRef<string | undefined>(undefined);
+  const searchAbort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    if (focusMessageId === undefined || !state.loaded) {
+      return;
+    }
+    if (focusRowKey !== undefined) {
+      if (pulsedFor.current !== focusMessageId) {
+        pulsedFor.current = focusMessageId;
+        setFocusPulse((current) => current + 1);
+      }
+      return;
+    }
+    if (searchedFor.current === focusMessageId) {
+      return;
+    }
+    searchedFor.current = focusMessageId;
+    if (state.olderCursor === null) {
+      setSearchEnded({ id: focusMessageId, kind: 'exhausted' });
+      return;
+    }
+    // The search loads page after page, which changes `state.olderCursor`: it must not be cancelled by this effect running again (only a new message or the end of the viewer ends it).
+    searchAbort.current?.abort();
+    const controller = new AbortController();
+    searchAbort.current = controller;
+    // Stops at the page that holds the message (stopWhen), never pages on after it; the end of the transcript, the page bound and a failed page are three different notes.
+    const focusId = focusMessageId;
+    void loadOlderUntil(0, { signal: controller.signal, maxPages: LOCATE_MAX_PAGES, onPage: () => undefined, stopWhen: (page) => page.some((entry) => entry.uuid === focusId) }).then((result) => {
+      if (result.status === 'error') {
+        setSearchEnded({ id: focusId, kind: 'error', message: result.message, hint: result.hint });
+      } else if (result.status === 'bound') {
+        setSearchEnded({ id: focusId, kind: 'bound' });
+      } else if (result.status === 'start' || result.status === 'reached') {
+        // Everything was loaded (or the message was in the last page: then its row exists and the note is not shown).
+        setSearchEnded({ id: focusId, kind: 'exhausted' });
+      }
+    });
+  }, [focusMessageId, focusRowKey, state.loaded, state.olderCursor, loadOlderUntil]);
+  useEffect(() => () => searchAbort.current?.abort(), []);
+  useEffect(() => {
+    if (focusPulse === 0) {
+      return;
+    }
+    const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const frame = window.requestAnimationFrame(() => scroller.current?.querySelector('[data-focus-hot="true"]')?.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusPulse]);
+  const anchorNote = focusMessageId === undefined || focusRowKey !== undefined || searchEnded?.id !== focusMessageId ? undefined : anchorNoteOf(searchEnded);
+  const hot = useMemo(() => (focusRowKey !== undefined && focusPulse > 0 ? new Set([...subagentHot, focusRowKey]) : subagentHot), [subagentHot, focusRowKey, focusPulse]);
 
   const requestOlder = useCallback(() => {
     const element = scroller.current;
@@ -177,6 +249,11 @@ export function LogViewerBody({ session }: LogViewerProps) {
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {items.length === 0 && state.subagentsNote !== '' ? <p className={`border-b border-border px-3 py-1.5 ${LOG_META} text-warning-text`}>{state.subagentsNote}</p> : null}
+        {anchorNote !== undefined ? (
+          <div className="px-3 pt-2">
+            <Banner tone={anchorNote.tone}>{anchorNote.text}</Banner>
+          </div>
+        ) : null}
         <LocateBanner feed={locate} />
         <p role="status" aria-live="polite" className="sr-only">
           {locateAnnouncement(locate)}
@@ -211,7 +288,13 @@ export function LogViewerBody({ session }: LogViewerProps) {
             <div className={`mx-auto flex w-full max-w-am-log flex-col gap-2`}>
               {rows.map((row) => (
                 // A new key at each "shown" event restarts the pulse animation on the same row.
-                <div key={hot.has(row.key) ? `${row.key}:${locate.pulse}` : row.key} data-row-key={row.key} data-hot={hot.has(row.key) ? 'true' : undefined} className={hot.has(row.key) ? 'animate-am-pulse rounded-lg motion-reduce:animate-none' : undefined}>
+                <div
+                  key={hot.has(row.key) ? `${row.key}:${locate.pulse}:${focusPulse}` : row.key}
+                  data-row-key={row.key}
+                  data-hot={hot.has(row.key) ? 'true' : undefined}
+                  data-focus-hot={row.key === focusRowKey && focusPulse > 0 ? 'true' : undefined}
+                  className={hot.has(row.key) ? 'animate-am-pulse rounded-lg motion-reduce:animate-none' : undefined}
+                >
                   <RowFrame
                     model={describeRow(row, deliveryOf)}
                     sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.entry.kind === 'user-prompt' && row.entry.webReply !== undefined ? [row.entry, delivery.get(row.entry.webReply.messageId)] : row.entry}
@@ -220,6 +303,7 @@ export function LogViewerBody({ session }: LogViewerProps) {
                     context={context}
                     now={now}
                     highlighted={hot.has(row.key)}
+                    {...(onThreadStarted === undefined ? {} : { onThread: openThread })}
                   />
                 </div>
               ))}
@@ -254,6 +338,7 @@ export function LogViewerBody({ session }: LogViewerProps) {
           ) : null}
         </div>
       </div>
+      {threadAnchor !== undefined && onThreadStarted !== undefined ? <ThreadDialog session={session} anchor={threadAnchor} onClose={() => setThreadAnchor(undefined)} onStarted={onThreadStarted} /> : null}
       {showAside ? (
         <SubagentAside
           {...subagentProps}

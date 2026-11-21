@@ -129,10 +129,10 @@ function handleModelAttachment(sink: Sink, ctx: LineContext, line: Record<string
   return true;
 }
 
-type LineContext = { offset: number; timestamp?: number; ownerAgentId?: string; n: number };
+type LineContext = { offset: number; timestamp?: number; ownerAgentId?: string; uuid?: string; n: number };
 
 function lineContext(sink: Sink, line: Record<string, unknown>, offset: number): LineContext {
-  return { offset, timestamp: parseTimestamp(line.timestamp), ownerAgentId: asString(line.agentId) ?? sink.agentId, n: 0 };
+  return { offset, timestamp: parseTimestamp(line.timestamp), ownerAgentId: asString(line.agentId) ?? sink.agentId, uuid: asString(line.uuid), n: 0 };
 }
 
 type DOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -145,6 +145,9 @@ function push(sink: Sink, ctx: LineContext, payload: DOmit<Entry, keyof EntryBas
   }
   if (ctx.ownerAgentId !== undefined) {
     entry.ownerAgentId = ctx.ownerAgentId;
+  }
+  if (ctx.uuid !== undefined) {
+    entry.uuid = ctx.uuid;
   }
   ctx.n += 1;
   sink.entries.push(entry);

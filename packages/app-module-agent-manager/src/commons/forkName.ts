@@ -6,9 +6,22 @@ export const FORK_NAME_MAX = 64;
  * cleaned first (control characters and line breaks become a space, runs of spaces collapse: the daemon refuses a name that is not a single line, for a
  * field the caller never sent), then cut to FORK_NAME_MAX with an ellipsis mark. A name with nothing left reads "session".
  */
-export function forkNameOf(sourceName: string): string {
-  // eslint-disable-next-line no-control-regex
-  const clean = sourceName.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
-  const name = `fork of ${clean === '' ? 'session' : clean}`;
+export function forkNameOf(sourceName: string, prefix = 'fork of'): string {
+  const clean = oneLineOf(sourceName);
+  const name = `${prefix} ${clean === '' ? 'session' : clean}`;
   return name.length <= FORK_NAME_MAX ? name : `${name.slice(0, FORK_NAME_MAX - 3)}...`;
+}
+
+/** Characters of the message that name a thread. */
+export const THREAD_NAME_CHARS = 40;
+
+/** The default name of a thread opened on a message, "thread: <first 40 characters of the message>" (one line, never empty): the dialog's default. */
+export function threadNameOf(messageText: string): string {
+  const clean = oneLineOf(messageText);
+  return `thread: ${clean === '' ? 'message' : clean.slice(0, THREAD_NAME_CHARS).trim()}`;
+}
+
+function oneLineOf(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
 }

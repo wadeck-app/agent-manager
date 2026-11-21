@@ -2,7 +2,7 @@
 export { LaunchError } from './errors.js';
 export { DEFAULT_MAX_LINE_CHARS, NdjsonFramer } from './ndjsonFramer.js';
 export type { Frame } from './ndjsonFramer.js';
-export { buildStreamJsonArgs } from './streamJsonArgs.js';
+export { assertResumeSessionAt, buildStreamJsonArgs } from './streamJsonArgs.js';
 export type { StreamJsonArgsOptions } from './streamJsonArgs.js';
 export { DEFAULT_CLAUDE_COMMAND, DEFAULT_CLOSE_TIMEOUT_MS, DEFAULT_CONTROL_TIMEOUT_MS, DEFAULT_STDERR_TAIL_CHARS, StreamJsonSession } from './StreamJsonSession.js';
 export type { StreamJsonSessionOptions } from './StreamJsonSession.js';
@@ -55,6 +55,7 @@ export {
   MAX_DENY_MESSAGE_CHARS,
   MAX_IMAGES,
   MAX_NAME_CHARS,
+  MAX_QUOTE_CHARS,
   assertWorkingDirectory,
   parseDecisionBody,
   parseLaunchBody,

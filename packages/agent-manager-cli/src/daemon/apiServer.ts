@@ -60,6 +60,7 @@ const CONFLICT = new Set([
   'already-live',
   'session-live',
   'too-many-sessions',
+  'too-many-threads',
   'session-list-full',
   'host-stopping',
   'leftover-alive',
@@ -69,7 +70,7 @@ const CONFLICT = new Set([
   'session-closing',
   'bg-action-in-progress',
 ]);
-const NOT_FOUND = new Set(['unknown-session', 'unknown-permission-request', 'fork-source-not-found']);
+const NOT_FOUND = new Set(['unknown-session', 'unknown-permission-request', 'fork-source-not-found', 'fork-anchor-not-found']);
 const VALIDATION = new Set([
   'invalid-body',
   'unknown-field',
@@ -99,8 +100,12 @@ const VALIDATION = new Set([
   'invalid-job-id',
   'invalid-fork-source',
   'fork-host-unsupported',
+  'invalid-resume-session-at',
+  'resume-at-without-fork',
+  'invalid-quote',
+  'quote-without-anchor',
 ]);
-const SERVER_SIDE = new Set(['state-file-write-failed', 'state-file-unreadable', 'kill-failed', 'host-not-ready', 'host-already-initialized']);
+const SERVER_SIDE = new Set(['state-file-write-failed', 'state-file-unreadable', 'kill-failed', 'host-not-ready', 'host-already-initialized', 'fork-anchor-unreadable']);
 
 /** The HTTP status of a LaunchError: what the caller did wrong (400), what does not exist (404), what the session state forbids (409), the daemon's own trouble (500), else the launch could not be done (422). */
 export function statusOfLaunchError(code: string): number {

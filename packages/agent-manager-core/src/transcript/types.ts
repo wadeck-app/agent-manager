@@ -38,6 +38,8 @@ export type EntryBase = {
   timestamp?: number;
   /** Set on lines of a sub-agent transcript: the agent that owns the transcript (the `agentId` field of the line, or the one given to the tailer). */
   ownerAgentId?: string;
+  /** The `uuid` of the transcript line this entry comes from (an anchor for `--resume-session-at`); absent when the line has none. A tool call keeps the uuid of the line that called it. */
+  uuid?: string;
 };
 
 /**
