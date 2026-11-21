@@ -313,6 +313,7 @@ export function createHcTransport(options: HcTransportOptions = {}): ReplyTransp
       accepted: true,
       detail: `typed into ${terminal.address} by hc send (status ${status ?? 'not reported'}${typeof turn === 'number' ? `, turn ${turn}` : ''})${startedNote}; delivery is confirmed when the transcript shows a user line (origin human) with the text`,
       sentAt: clock(),
+      ...(typeof started === 'boolean' ? { started } : {}),
       ...(handle === undefined ? {} : { handle }),
     };
   }

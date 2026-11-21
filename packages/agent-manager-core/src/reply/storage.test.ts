@@ -24,8 +24,8 @@ function tempDir(): string {
 }
 
 describe('composeMessageText', () => {
-  it('puts the marker first, then the text, then one line per image', () => {
-    const text = composeMessageText({ text: 'fix it', imagePaths: ['/tmp/a.png', '/tmp/b.png'], id: 'm1' });
+  it('full: puts the marker first, then the text, then one line per image', () => {
+    const text = composeMessageText({ text: 'fix it', imagePaths: ['/tmp/a.png', '/tmp/b.png'], id: 'm1', marker: 'full' });
     expect(text.split('\n')).toEqual([
       '[web reply via agent-manager #m1]',
       'fix it',
@@ -40,12 +40,23 @@ describe('composeMessageText', () => {
     expect(() => composeMessageText({ text: 'a', imagePaths: ['rel/a.png'], id: 'm1' })).toThrow(/absolute/);
     expect(() => composeMessageText({ text: 'a', imagePaths: [], id: 'a b' })).toThrow(/identifier/);
   });
-  it('originMarker null: no marker line at all (the text is delivered as typed)', () => {
-    expect(composeMessageText({ text: 'fix it', imagePaths: ['/tmp/a.png'], id: 'm1', originMarker: null }).split('\n')).toEqual(['fix it', 'The user attached an image: /tmp/a.png. Read it.']);
-    expect(composeMessageText({ text: 'fix it', imagePaths: [], id: 'm1', originMarker: null })).toBe('fix it');
+  it('none: no marker line at all, the text exactly as typed (plus the image lines)', () => {
+    expect(composeMessageText({ text: 'fix it', imagePaths: ['/tmp/a.png'], id: 'm1', marker: 'none' }).split('\n')).toEqual(['fix it', 'The user attached an image: /tmp/a.png. Read it.']);
+    expect(composeMessageText({ text: 'fix it', imagePaths: [], id: 'm1', marker: 'none' })).toBe('fix it');
+    expect(composeMessageText({ text: '  two\n  lines ', imagePaths: [], id: 'm1', marker: 'none' })).toBe('  two\n  lines ');
+  });
+  it('the default marker is none (D-2026-11-19-a)', () => {
+    expect(composeMessageText({ text: 'fix it', imagePaths: [], id: 'm1' })).toBe('fix it');
+  });
+  it('short: a compact one-line tag with the message id', () => {
+    expect(composeMessageText({ text: 'fix it', imagePaths: [], id: 'm1', marker: 'short' })).toBe('[agent-manager-web #m1]\nfix it');
+  });
+  it('an unknown marker mode is refused with the accepted values', () => {
+    expect(() => composeMessageText({ text: 'a', imagePaths: [], id: 'm1', marker: 'loud' as never })).toThrow(/replyMarker must be one of none, short, full, got "loud"/);
   });
   it('accepts an image-only reply', () => {
-    expect(composeMessageText({ text: '', imagePaths: ['/tmp/a.png'], id: 'm1' })).toBe('[web reply via agent-manager #m1]\nThe user attached an image: /tmp/a.png. Read it.');
+    expect(composeMessageText({ text: '', imagePaths: ['/tmp/a.png'], id: 'm1' })).toBe('The user attached an image: /tmp/a.png. Read it.');
+    expect(composeMessageText({ text: '', imagePaths: ['/tmp/a.png'], id: 'm1', marker: 'full' })).toBe('[web reply via agent-manager #m1]\nThe user attached an image: /tmp/a.png. Read it.');
   });
 });
 

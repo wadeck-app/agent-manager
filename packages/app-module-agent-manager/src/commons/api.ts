@@ -9,6 +9,9 @@
  * - An error always says what happened (`message`) and what to do (`hint`).
  */
 
+// Type-only: erased at build time, so the UI bundle gets nothing from the core package.
+import type { ReplyMarkerMode } from '@wadeck-app/agent-manager-core/reply';
+
 /** The error object of the log and reply routes. */
 export interface ApiError {
   /** Stable machine code, e.g. 'unknown-session', 'transcript-missing', 'transport-unavailable'. */
@@ -416,7 +419,8 @@ export interface ReplyRequest {
 export type DeliveredAs = 'peer' | 'typed';
 
 /** The state of a reply, from the core delivery state machine. */
-export type DeliveryStateName = 'queued' | 'sent' | 'queued-in-session' | 'confirmed' | 'unconfirmed' | 'expired';
+export type DeliveryStateName = 'queued' | 'sent' | 'queued-in-session' | 'confirmed' | 'unconfirmed' | 'expired' | 'unknown';
+// 'unknown': the message WAS sent, but its state could not be computed (a bug of agent-manager); `reason` carries the error, never a guess.
 
 /** What the composer shows: 'sending' (held, not picked up yet), 'delivered' (accepted by the transport / queued in the session), 'seen' ("seen by agent"), 'failed'. */
 export type DeliveryUi = 'sending' | 'delivered' | 'seen' | 'failed';
@@ -473,6 +477,24 @@ export interface TransportStatusDto {
   deliveredAs: DeliveredAs;
   /** The wording to show: 'peer message (wrapped by Claude Code)' or 'typed prompt (as the user)'. */
   deliveredAsText: string;
+  /**
+   * The marker line a reply sent through THIS transport starts with: 'none' (the text as typed, the default), 'short' (`[agent-manager-web #<id>]`) or 'full'
+   * (`[web reply via agent-manager #<id>]`). A transport that never adds one (owned) is 'none' whatever the setting. null: the `replyMarker` setting could not
+   * be read (see `warnings` of the status).
+   */
+  marker: ReplyMarkerMode | null;
+}
+
+/** The `replyMarker` setting (config.yml, `agent-manager reply-marker`). Delivery confirmation does not depend on it (D-2026-11-19-a). */
+export type { ReplyMarkerMode };
+
+export interface ReplyMarkerDto {
+  /** null when the setting could not be read: the status warnings say why and how to fix it. */
+  mode: ReplyMarkerMode | null;
+  /** 'config.yml' when the file sets it, 'default' when not; empty when unreadable. */
+  source: 'config.yml' | 'default' | '';
+  /** One sentence for the UI: what is sent in front of the text. */
+  text: string;
 }
 
 /** One recent reply to the session. */
@@ -518,6 +540,8 @@ export interface ReplyStatusOk {
   sessionOverrideTransportId: string | null;
   /** Transports known to the module (implemented ones only) with their availability for this session. */
   transports: TransportStatusDto[];
+  /** The `replyMarker` setting: what replies start with (see also `transports[].marker`, which accounts for the transport). */
+  replyMarker: ReplyMarkerDto;
   /** The last replies to this session, newest first (at most 10, from the audit). */
   messages: ReplyMessageDto[];
   /** Problems reading the audit or the transcript (shown, never hidden); empty when fine. */

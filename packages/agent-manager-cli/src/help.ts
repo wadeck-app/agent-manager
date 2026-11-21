@@ -2,7 +2,7 @@ import type { OptionSpecs } from './args.js';
 import type { Command } from './command.js';
 import { globalOptions, optionsOf } from './options.js';
 
-const SUMMARY = 'agent-manager - follow and answer your Claude Code sessions (M1b partial slice: a sessions overview in app-core, from the Claude Code registry; replies through the socket or hc transports, see "transport list"; the daemon (start, stop, status) hosts the sessions agent-manager launches; hooks are not implemented)';
+const SUMMARY = 'agent-manager - follow and answer your Claude Code sessions (M1b partial slice: a sessions overview in app-core, from the Claude Code registry; replies through the socket or hc transports, see "transport list"; the marker line of web replies: "reply-marker show"; the daemon (start, stop, status) hosts the sessions agent-manager launches; hooks are not implemented)';
 const CONFIG_NOTE = 'The config folder is $AGENT_MANAGER_CONFIG_DIR, else $XDG_CONFIG_HOME/agent-manager, else ~/.config/agent-manager.';
 
 /** `<name> [other]`: the positional arguments of a command. */

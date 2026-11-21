@@ -28,7 +28,8 @@ afterEach(() => {
 function webEntry(messageId: string, text: string): LogEntry {
   return { ...userPrompt(`w-${messageId}`, `Another Claude session sent a message:\n[web reply via agent-manager #${messageId}]\n${text}\n\nThis came from another Claude session.`, Date.now()), source: 'peer', webReply: { messageId, text } } as LogEntry;
 }
-const queue = (key: string, operation: 'enqueue' | 'dequeue', preview?: string): LogEntry => ({ key, offset: 0, kind: 'queue-operation', operation, ...(preview === undefined ? {} : { contentPreview: preview }) }) as LogEntry;
+// webReplyId: what the log route sets on an enqueue that is a reply sent from the page (exact text and time), see backend/webReplyLinks.ts.
+const queue = (key: string, operation: 'enqueue' | 'dequeue', preview?: string, webReplyId?: string): LogEntry => ({ key, offset: 0, kind: 'queue-operation', operation, ...(preview === undefined ? {} : { contentPreview: preview }), ...(webReplyId === undefined ? {} : { webReplyId }) }) as LogEntry;
 const dto = (patch: Partial<ReplyMessageDto>): ReplyMessageDto => ({ messageId: 'm-1', sentAt: Date.now(), text: 'salut', imageCount: 0, transportId: 'socket', priority: 'next', state: 'sent', ui: 'delivered', reason: 'sent', hint: '', ...patch });
 
 describe('a message sent from the page, in the timeline', () => {
@@ -60,7 +61,7 @@ describe('a message sent from the page, in the timeline', () => {
     await screen.findByText('earlier prompt');
     act(() => addPending({ messageId: 'm-1', sessionId: SID, text: 'salut', imageCount: 0, sentAt: Date.now(), state: 'delivered', priority: 'next' }));
     expect(screen.queryByText('You, via web')).toBeNull();
-    entries = [...entries, queue('q1', 'enqueue', 'Another Claude session sent a message: [web reply via agent-manager #m-1] salut'), queue('q2', 'dequeue'), webEntry('m-1', 'salut')];
+    entries = [...entries, queue('q1', 'enqueue', 'Another Claude session sent a message: [web reply via agent-manager #m-1] salut', 'm-1'), queue('q2', 'dequeue'), webEntry('m-1', 'salut')];
     // The log polls every 2 s.
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2100);

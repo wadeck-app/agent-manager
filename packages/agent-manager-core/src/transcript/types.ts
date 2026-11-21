@@ -193,6 +193,8 @@ export type QueueOperationEntry = EntryBase & {
   contentKind?: 'task-notification' | 'cross-session-message' | 'text';
   contentPreview?: string;
   contentTruncated?: boolean;
+  /** Set by the module (not read from the transcript) on an enqueue that is a reply sent from agent-manager: the message id. Known by the exact text and the time, not by a marker. */
+  webReplyId?: string;
 };
 
 /**

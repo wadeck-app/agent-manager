@@ -25,7 +25,7 @@ function twoTransports(patch: Partial<ReplyStatusOk> = {}): ReplyStatusOk {
     ...base,
     transports: [
       { ...socket },
-      { transportId: 'hc', description: 'types into the terminal through herdr-core', kind: 'direct', probed: true, available: false, reason: 'a dialog is open in its terminal', fix: 'answer it there first', warnings: [], selected: false, isDefault: false, sessionOverride: false, deliveredAs: 'typed', deliveredAsText: 'typed prompt (as the user)' },
+      { transportId: 'hc', description: 'types into the terminal through herdr-core', kind: 'direct', probed: true, available: false, reason: 'a dialog is open in its terminal', fix: 'answer it there first', warnings: [], selected: false, isDefault: false, sessionOverride: false, deliveredAs: 'typed', deliveredAsText: 'typed prompt (as the user)', marker: 'none' },
     ],
     ...patch,
   };
@@ -126,6 +126,28 @@ describe('the transport selector', () => {
     fireEvent.focus(cue);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/Sends as typed by you.*typed into the terminal as if you had written it/);
     expect(screen.getByRole('button', { name: 'Transport: hc' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['none', /Sent as typed, with no marker line/],
+    ['short', /short marker line \(\[agent-manager-web #id\]\) is added/],
+    ['full', /marker line \(\[web reply via agent-manager #id\]\) is added/],
+  ] as const)('the Send tooltip says what the replyMarker setting does (%s)', async (marker, expected) => {
+    status = statusFixture();
+    status.transports[0] = { ...status.transports[0]!, marker };
+    render(<Composer session={session} />);
+    const send = await screen.findByRole('button', { name: 'Send' });
+    fireEvent.focus(send);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(expected);
+  });
+
+  it('the Send tooltip claims nothing about a marker when the setting could not be read', async () => {
+    status = statusFixture();
+    status.transports[0] = { ...status.transports[0]!, marker: null };
+    render(<Composer session={session} />);
+    const send = await screen.findByRole('button', { name: 'Send' });
+    fireEvent.focus(send);
+    expect(await screen.findByRole('tooltip')).not.toHaveTextContent(/marker/i);
   });
 
   it('no cue for a peer transport', async () => {

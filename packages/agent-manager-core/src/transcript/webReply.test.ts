@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { join } from 'node:path';
-import { parseWebReply } from './webReply.js';
+import { parseWebReply, stripPeerWrapper } from './webReply.js';
 import { TranscriptTailer } from './tailer.js';
 import type { UserPromptEntry } from './types.js';
 import { humanPrompt, jsonl, makeTempDir, peerPrompt, removeDir, writeText } from './testFixtures.js';
@@ -22,6 +22,31 @@ describe('parseWebReply', () => {
     expect(parseWebReply('[web reply via agent-manager #m2]\nhello')).toEqual({ messageId: 'm2', text: 'hello' });
     expect(parseWebReply('Another Claude session sent a message:\nplease review the PR')).toBeUndefined();
     expect(parseWebReply('')).toBeUndefined();
+  });
+
+  it('reads the short marker [agent-manager-web #id] with an id of our shape, and none (the default) is not a web reply', () => {
+    expect(parseWebReply('Another Claude session sent a message:\n[agent-manager-web #m-mwi1unxx-n1uaa7hq]\nhello\n\nThis came from another Claude session. Reply to it.')).toEqual({ messageId: 'm-mwi1unxx-n1uaa7hq', text: 'hello' });
+    expect(parseWebReply('[agent-manager-web #123e4567-e89b-42d3-a456-426614174000]\nhello')).toEqual({ messageId: '123e4567-e89b-42d3-a456-426614174000', text: 'hello' });
+    expect(parseWebReply('Another Claude session sent a message:\nhello\n\nThis came from another Claude session.')).toBeUndefined();
+    expect(parseWebReply('see [agent-manager-web #m-mwi1unxx-n1uaa7hq]\nabove')).toBeUndefined();
+  });
+
+  it('the short marker needs the exact id shape: a hand-typed tag with a short word is not ours', () => {
+    expect(parseWebReply('[agent-manager-web #m3]\nhello')).toBeUndefined();
+    expect(parseWebReply('[agent-manager-web #hello]\nhello')).toBeUndefined();
+    expect(parseWebReply('[agent-manager-web #m-mwi1unxx-n1uaa7hq-extra]\nhello')).toBeUndefined();
+    expect(parseWebReply('[agent-manager-web #m-MWI1UNXX-n1uaa7hq]\nhello')).toBeUndefined();
+  });
+
+  it('keeps reading the earlier [web #id] form, only with an id of our shape; the full marker keeps any safe id', () => {
+    expect(parseWebReply('[web #m-mwi1unxx-n1uaa7hq]\nhello')).toEqual({ messageId: 'm-mwi1unxx-n1uaa7hq', text: 'hello' });
+    expect(parseWebReply('[web #m3]\nhello')).toBeUndefined();
+    expect(parseWebReply('[web reply via agent-manager #m3]\nhello')).toEqual({ messageId: 'm3', text: 'hello' });
+  });
+
+  it('stripPeerWrapper removes the wrapper line and the trailing paragraph and nothing else', () => {
+    expect(stripPeerWrapper('Another Claude session sent a message:\nhello\nthere\n\nThis came from another Claude session. Reply to it.')).toBe('hello\nthere');
+    expect(stripPeerWrapper('  plain text ')).toBe('plain text');
   });
 
   it('is anchored: a marker quoted further down a message is not ours', () => {

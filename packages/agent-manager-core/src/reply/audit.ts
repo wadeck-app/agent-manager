@@ -17,6 +17,8 @@ export interface AuditRecord {
   /** 'sent' (the transport wrote it) or 'failed: <reason>' / 'refused: <reason>' (nothing was sent). */
   outcome: string;
   msgId: string;
+  /** hc only: `started` of `hc send` when the transport reported it. */
+  started?: boolean;
 }
 
 export interface AuditReadOptions {

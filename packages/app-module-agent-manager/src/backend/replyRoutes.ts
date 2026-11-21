@@ -16,12 +16,13 @@ import {
   type AuditRecord,
   type DeliveryRecord,
   type DeliveryStatus,
+  type ReplyMarkerMode,
   type ReplyService,
   type ReplyTranscriptEntry,
   type ReplyTransport,
 } from '@wadeck-app/agent-manager-core/reply';
 import { readTail, resolveProjectsDir, transcriptPath, type Entry } from '@wadeck-app/agent-manager-core/transcript';
-import type { DeliveryStateName, DeliveryUi, ReplyDefaultTransportSetOk, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyStatusLimits, ReplyStatusOk, ReplyTransportSetOk, TransportStatusDto } from '../commons/api.js';
+import type { DeliveryStateName, DeliveryUi, ReplyDefaultTransportSetOk, ReplyMarkerDto, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyStatusLimits, ReplyStatusOk, ReplyTransportSetOk, TransportStatusDto } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import type { DaemonApi } from './daemon/daemonApi.js';
 import { ownedDeliveryStatus } from './daemon/ownedDelivery.js';
@@ -152,6 +153,8 @@ export function deliveryUiOf(state: DeliveryStateName | 'failed'): DeliveryUi {
       return 'sending';
     case 'sent':
     case 'queued-in-session':
+    case 'unknown':
+      // 'unknown' was sent (the audit says so): shown as delivered, the reason says the state could not be computed.
       return 'delivered';
     case 'confirmed':
       return 'seen';
@@ -273,6 +276,18 @@ function toTranscriptEntry(entry: Entry): ReplyTranscriptEntry {
   }
 }
 
+/** What the user sees about the marker: one sentence. */
+function markerText(mode: ReplyMarkerMode): string {
+  switch (mode) {
+    case 'none':
+      return 'Replies are sent as typed, with no origin marker line.';
+    case 'short':
+      return 'Replies start with a short origin marker line: [agent-manager-web #<id>].';
+    case 'full':
+      return 'Replies start with an origin marker line: [web reply via agent-manager #<id>].';
+  }
+}
+
 /** Warns about settings the module does not read yet, instead of ignoring them silently. */
 async function configWarnings(configDir: string): Promise<string[]> {
   const file = join(configDir, 'config.yml');
@@ -333,6 +348,39 @@ async function messagesOf(session: Session, service: ReplyService, configDir: st
       ownedStatuses.set(record.msgId, ownedDeliveryStatus(record, daemonMessage, transcript, claimed));
     }
   }
+  // The other transports are confirmed from the transcript (id, marker or whole text). Oldest first with one shared set, so that two identical typed replies each claim their own line.
+  const generalStatuses = new Map<string, DeliveryStatus | { state: 'unknown'; reason: string; hint: string }>();
+  const typedClaimed = new Set<ReplyTranscriptEntry>();
+  const deliveries: DeliveryRecord[] = [];
+  for (const record of [...records].reverse()) {
+    if (record.outcome === 'sent' && ownedStatuses.get(record.msgId) === undefined) {
+      const kind = transports.find((transport) => transport.id === record.transport)?.kind ?? 'direct';
+      deliveries.push({
+        id: record.msgId,
+        sessionId: record.sessionId,
+        state: kind === 'mailbox' ? 'queued' : 'sent',
+        transportId: record.transport,
+        kind,
+        sentAt: record.time,
+        priority: record.priority,
+        // The typed text lets deliveryState confirm an hc reply (origin human line). Not for owned: its prompts carry no origin, and ownedDeliveryStatus has its own rule.
+        ...(record.transport === OWNED_TRANSPORT_ID ? {} : { text: record.text, imagePaths: record.imagePaths }),
+        ...(record.started === undefined ? {} : { started: record.started }),
+      });
+    }
+  }
+  for (const delivery of deliveries) {
+    // One reply whose state cannot be computed must not take the whole status down: it gets an explicit 'unknown' state with the error as text.
+    try {
+      generalStatuses.set(delivery.id, service.deliveryState(delivery, transcript, { sessionStatus: session.statusGroup, claimed: typedClaimed, siblings: deliveries }));
+    } catch (error) {
+      generalStatuses.set(delivery.id, {
+        state: 'unknown',
+        reason: `the delivery state of this reply could not be computed (${getErrorMessage(error)})`,
+        hint: 'The message was sent (the audit says so). Look at the log of the session, and report this: it is a bug of agent-manager.',
+      });
+    }
+  }
   return records.map((record): ReplyMessageDto => {
     const common = { messageId: record.msgId, sentAt: record.time, text: record.text, imageCount: record.imagePaths.length, transportId: record.transport, priority: record.priority };
     // A send whose outcome is not known (timeout, lost connection): not a failure to retry, the message may have arrived.
@@ -342,10 +390,8 @@ async function messagesOf(session: Session, service: ReplyService, configDir: st
     if (record.outcome !== 'sent') {
       return { ...common, state: 'failed', ui: 'failed', reason: record.outcome, hint: '' };
     }
-    const kind = transports.find((transport) => transport.id === record.transport)?.kind ?? 'direct';
-    const delivery: DeliveryRecord = { id: record.msgId, sessionId: record.sessionId, state: kind === 'mailbox' ? 'queued' : 'sent', transportId: record.transport, kind, sentAt: record.time, priority: record.priority };
-    let status = ownedStatuses.get(record.msgId);
-    status ??= service.deliveryState(delivery, transcript, { sessionStatus: session.statusGroup });
+    // Every sent record is in one of the two maps (the owned ones with no evidence are in the second): see the loops above.
+    const status = ownedStatuses.get(record.msgId) ?? generalStatuses.get(record.msgId) ?? { state: 'unknown' as const, reason: 'the delivery state of this reply was not computed', hint: 'Report this: it is a bug of agent-manager.' };
     return { ...common, state: status.state, ui: deliveryUiOf(status.state), reason: status.reason, hint: status.hint ?? '' };
   });
 }
@@ -473,6 +519,18 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
       const { session } = found;
       const { service, configDir, transports } = services();
       const warnings: string[] = await configWarnings(configDir);
+      // An unreadable or invalid replyMarker is shown with its fix (a send fails with the same message); the status still answers.
+      let replyMarker: ReplyMarkerDto;
+      try {
+        const setting = await service.getReplyMarker();
+        replyMarker = { mode: setting.mode, source: setting.source, text: markerText(setting.mode) };
+      } catch (error) {
+        if (!(error instanceof ReplyError)) {
+          throw error;
+        }
+        warnings.push(`${error.reason}. ${error.fix}`);
+        replyMarker = { mode: null, source: '', text: 'The reply marker setting cannot be read, sending is refused until it is fixed (see the warnings).' };
+      }
       try {
         const config = await readTransportsConfig(configDir);
         // Only the selected transport is probed on a plain poll (an hc probe spawns one process per terminal); ?probe=all is what the transport menu sends when it opens.
@@ -506,13 +564,14 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
             sessionOverride: entry.transportId === status.sessionOverrideTransportId,
             deliveredAs: entry.deliveredAs,
             deliveredAsText: DELIVERED_AS_TEXT[entry.deliveredAs],
+            marker: transports.find((transport) => transport.id === entry.transportId)?.marker === 'none' ? 'none' : replyMarker.mode,
           };
         });
         if (!list.some((entry) => entry.selected)) {
           warnings.push(`The selected transport '${status.selectedTransportId}' (${selectedFrom}) is not one the module offers (${list.map((entry) => entry.transportId).join(', ')}): replies fail until ${join(configDir, 'transports.json')} names one of them.`);
         }
         const messages = await messagesOf(session, service, configDir, transports, owned, warnings);
-        const body: ReplyStatusOk = { ok: true, sessionId: session.sessionId, sessionAlive: session.alive, selectedFrom, selectedTransportId: status.selectedTransportId, defaultTransportId: status.defaultTransportId, sessionOverrideTransportId: status.sessionOverrideTransportId, transports: list, messages, warnings, limits: REPLY_LIMITS };
+        const body: ReplyStatusOk = { ok: true, sessionId: session.sessionId, sessionAlive: session.alive, selectedFrom, selectedTransportId: status.selectedTransportId, defaultTransportId: status.defaultTransportId, sessionOverrideTransportId: status.sessionOverrideTransportId, transports: list, replyMarker, messages, warnings, limits: REPLY_LIMITS };
         return ok(body);
       } catch (error) {
         if (error instanceof ReplyError) {

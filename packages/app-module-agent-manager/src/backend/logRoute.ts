@@ -1,5 +1,5 @@
 import { open, stat } from 'node:fs/promises';
-import { getErrorMessage, type Session } from '@wadeck-app/agent-manager-core';
+import { defaultConfigDir, getErrorMessage, type Session } from '@wadeck-app/agent-manager-core';
 import {
   DEFAULT_MAX_LINE_BYTES,
   LIMITS,
@@ -28,6 +28,7 @@ import type { LogActivity, LogEntry, LogLimits, LogOk, LogTruncation, SessionSta
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import { registerLocateRoute } from './locateCall.js';
 import { statusOf } from './sessionStatus.js';
+import { linkWebReplies } from './webReplyLinks.js';
 import { digestOf } from './transcriptDigest.js';
 import type { OwnedSource } from './daemon/ownedSource.js';
 import { findSession } from './sessionLookup.js';
@@ -409,7 +410,10 @@ export function registerLogRoute(kit: RouteKit, owned: OwnedSource): void {
         return fail(200, 'transcript-unreadable', message, fix);
       }
       try {
-        return ok(await readLog(session, located.path, located.projectDir, limit, before, after));
+        const log = await readLog(session, located.path, located.projectDir, limit, before, after);
+        // The replies sent from this page are recognized by origin.msg_id and their exact text, not by a marker (replyMarker none is the default).
+        const linked = await linkWebReplies(log.entries, session.sessionId, defaultConfigDir(process.env));
+        return ok({ ...log, entries: linked.entries, note: [log.note, linked.note].filter((part) => part !== '').join(' ') });
       } catch (error) {
         if (error instanceof LogReadError) {
           if (error.readError.code === 'missing') {

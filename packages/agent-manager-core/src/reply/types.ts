@@ -53,6 +53,8 @@ export interface SendResult {
   sentAt: number;
   /** An identifier the transport gave the delivery, when it has one (hc: `<terminal>#turn<N>`). Informational: it is not a transcript key. */
   handle?: string;
+  /** hc only: the `started` answer of `hc send` (the program went working after the text). An early hint, not a confirmation. */
+  started?: boolean;
 }
 
 /**
@@ -74,8 +76,8 @@ export interface ReplyTransport {
   /** How the session sees what this transport delivers. */
   readonly deliveredAs: DeliveredAs;
   /**
-   * Whether the service puts the origin marker line (`[web reply via agent-manager #id]`) before the text. Default 'default' (the marker is added); 'none': the
-   * text is delivered as the user typed it (D-2026-11-19-a: the owned transport, whose confirmation does not rely on the marker).
+   * Whether the service puts the origin marker line before the text. Default 'default' (the `replyMarker` setting decides: none, short or full); 'none': the
+   * text is delivered as the user typed it whatever the setting (D-2026-11-19-a: the owned transport, whose confirmation does not rely on the marker).
    */
   readonly marker?: 'default' | 'none';
   describe(): string;

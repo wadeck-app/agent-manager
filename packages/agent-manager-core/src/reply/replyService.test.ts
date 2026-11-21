@@ -82,7 +82,7 @@ describe('ReplyService.send', () => {
     const { service, configDir } = serviceWith(session, [socket]);
     const record = await service.send({ sessionId: session.sessionId, text: 'hello', id: 'm1' });
     expect(record).toEqual({ id: 'm1', sessionId: session.sessionId, state: 'sent', transportId: 'socket', kind: 'direct', sentAt: 5_000, priority: 'next' });
-    expect(socket.sent).toEqual([{ id: 'm1', text: '[web reply via agent-manager #m1]\nhello', imagePaths: [], priority: 'next', origin: 'web' }]);
+    expect(socket.sent).toEqual([{ id: 'm1', text: 'hello', imagePaths: [], priority: 'next', origin: 'web' }]);
     const audit = await readAudit(configDir);
     expect(audit.records).toEqual([{ sessionId: session.sessionId, time: 10_000, text: 'hello', imagePaths: [], transport: 'socket', priority: 'next', outcome: 'sent', msgId: 'm1' }]);
   });
@@ -169,7 +169,7 @@ describe('ReplyService.send', () => {
     await service.send({ sessionId: session.sessionId, text: 'look', id: 'm2', images: [{ base64: fakePng().toString('base64'), declaredMime: 'image/png' }] });
     const saved = join(configDir, 'uploads', session.sessionId, 'm2-0.png');
     expect(readdirSync(join(configDir, 'uploads', session.sessionId))).toEqual(['m2-0.png']);
-    expect(socket.sent[0]?.text).toBe(`[web reply via agent-manager #m2]\nlook\nThe user attached an image: ${saved}. Read it.`);
+    expect(socket.sent[0]?.text).toBe(`look\nThe user attached an image: ${saved}. Read it.`);
     expect(socket.sent[0]?.imagePaths).toEqual([saved]);
   });
 
@@ -541,11 +541,12 @@ describe('ReplyService.send: failure handling', () => {
 });
 
 describe('ReplyService: preferredTransport and marker none', () => {
-  it('a transport with marker none gets the text as typed; the others keep the marker', async () => {
+  it('a transport with marker none gets the text as typed whatever the setting; the others follow replyMarker', async () => {
     const session = await liveSession();
     const plain = { ...fakeTransport('plain'), marker: 'none' as const };
     const socket = fakeTransport('socket');
-    const { service } = serviceWith(session, [socket, plain]);
+    const { service, configDir } = serviceWith(session, [socket, plain]);
+    writeFileSync(join(configDir, 'config.yml'), 'replyMarker: full\n');
     await service.send({ sessionId: session.sessionId, text: 'hello', id: 'p1', transportId: 'plain' });
     await service.send({ sessionId: session.sessionId, text: 'hello', id: 's1' });
     expect(plain.sent[0]!.text).toBe('hello');

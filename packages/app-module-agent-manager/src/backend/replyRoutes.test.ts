@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ReplyMessage, ReplyTransport } from '@wadeck-app/agent-manager-core/reply';
+import { wireMsgId, type ReplyMessage, type ReplyTransport } from '@wadeck-app/agent-manager-core/reply';
 import { describe, expect, it } from 'vitest';
 import { ID, deadPid, putSession, transcriptFile, useSandbox, userLine, writeLines } from './apiFixtures.js';
 import { makeModule } from './testKit.js';
@@ -40,15 +40,14 @@ const module_ = (transport: ReplyTransport | null = fakeTransport()) => makeModu
 const png = (size = 64): string => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(size - 8, 7)]).toString('base64');
 
 describe('POST /sessions/:sessionId/reply', () => {
-  it('sends through the transport with the origin marker, and answers the delivery state', async () => {
+  it('sends through the transport as typed (replyMarker none by default), and answers the delivery state', async () => {
     const id = putSession(box, process.pid);
     const transport = fakeTransport();
     const { status, body } = await module_(transport).call('POST', `/sessions/${id}/reply`, { body: { text: 'please continue' } });
     expect(status).toBe(200);
     expect(body).toEqual({ ok: true, deliveryState: 'sent', deliveryUi: 'delivered', transportId: 'socket', deliveredAs: 'peer', handle: '', messageId: expect.any(String), duplicate: false, auditWarning: '', imagesSaved: 0 });
     expect(transport.sent).toHaveLength(1);
-    expect(transport.sent[0]!.text).toContain(`[web reply via agent-manager #${body.messageId}]`);
-    expect(transport.sent[0]!.text).toContain('please continue');
+    expect(transport.sent[0]!.text).toBe('please continue');
     expect(transport.sent[0]).toMatchObject({ priority: 'next', origin: 'web', imagePaths: [] });
   });
 
@@ -376,5 +375,156 @@ describe('transport switching routes', () => {
     const answer = await withBoth().call('POST', `/sessions/${id}/reply`, { body: { text: 'x', transportId: 'hc' } });
     expect(answer.status).toBe(400);
     expect(JSON.stringify(answer.body)).toContain('PUT /sessions/:sessionId/reply/transport');
+  });
+});
+
+describe('replyMarker (D-2026-11-19-a): what is sent, what the status says, how delivery is confirmed', () => {
+  const setMarker = (mode: string): void => writeFileSync(join(box.config, 'config.yml'), `replyMarker: ${mode}\n`);
+  const statusOf = (id: string, m = module_()) => m.call('GET', `/sessions/${id}/reply/status`);
+  /** Seconds (for userLine) of "a moment after now" on the fixed clock of the fixtures. */
+  const soon = (): number => (Date.now() - Date.UTC(2026, 10, 15, 10, 0, 0)) / 1000 + 5;
+
+  it('says none by default, from the default, on the setting and on every transport', async () => {
+    const id = putSession(box, process.pid);
+    const { body } = await statusOf(id);
+    expect(body.replyMarker).toEqual({ mode: 'none', source: 'default', text: expect.stringContaining('no origin marker') });
+    expect(body.transports.map((entry: { marker: string }) => entry.marker)).toEqual(['none']);
+  });
+
+  it.each([
+    ['short', (messageId: string) => `[agent-manager-web #${messageId}]\nhi`],
+    ['full', (messageId: string) => `[web reply via agent-manager #${messageId}]\nhi`],
+  ])('replyMarker %s: the reply starts with the marker and the status says so', async (mode, expected) => {
+    const id = putSession(box, process.pid);
+    setMarker(mode);
+    const transport = fakeTransport();
+    const m = module_(transport);
+    const { body } = await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'hi' } });
+    expect(transport.sent[0]!.text).toBe(expected(body.messageId as string));
+    const status = (await statusOf(id, m)).body;
+    expect(status.replyMarker).toMatchObject({ mode, source: 'config.yml' });
+    expect(status.transports[0].marker).toBe(mode);
+  });
+
+  it('a transport that never adds a marker says none whatever the setting', async () => {
+    const id = putSession(box, process.pid);
+    setMarker('full');
+    const m = module_({ ...fakeTransport(), marker: 'none' });
+    const status = (await statusOf(id, m)).body;
+    expect(status.replyMarker.mode).toBe('full');
+    expect(status.transports[0].marker).toBe('none');
+  });
+
+  it('an invalid replyMarker: the send is refused with the fix, the status warns and says the mode is unknown', async () => {
+    const id = putSession(box, process.pid);
+    setMarker('loud');
+    const transport = fakeTransport();
+    const m = module_(transport);
+    const sent = await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'hi' } });
+    expect(sent.body).toMatchObject({ ok: false, error: { code: 'invalid-config', message: expect.stringContaining('replyMarker must be one of none, short, full') } });
+    expect(transport.sent).toEqual([]);
+    const status = (await statusOf(id, m)).body;
+    expect(status.replyMarker).toMatchObject({ mode: null, source: '' });
+    expect(status.transports[0].marker).toBeNull();
+    expect(status.warnings.join(' ')).toContain('replyMarker must be one of none, short, full');
+    expect(status.warnings.join(' ')).toContain('reply-marker set');
+  });
+
+  it('socket: confirmed by origin.msg_id with no marker in the text', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    writeLines(file, [userLine(1, 'earlier')]);
+    const m = module_();
+    const sent = await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'hello agent' } });
+    const messageId = sent.body.messageId as string;
+    expect((await statusOf(id, m)).body.messages[0]).toMatchObject({ messageId, state: 'sent' });
+    const peer = { ...userLine(soon(), 'Another Claude session sent a message:\nhello agent'), origin: { kind: 'peer', msg_id: wireMsgId(messageId) } };
+    writeLines(file, [peer], true);
+    expect((await statusOf(id, m)).body.messages[0]).toMatchObject({ messageId, state: 'confirmed', ui: 'seen', reason: expect.stringContaining('origin.msg_id') });
+  });
+
+  it('hc: confirmed by the whole text of a human line after the send, not by a longer line', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    writeLines(file, [userLine(1, 'earlier')]);
+    const m = module_(fakeTransport({ id: 'hc' }));
+    writeFileSync(join(box.config, 'transports.json'), JSON.stringify({ default: 'hc' }));
+    const sent = await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'fix the build' } });
+    const messageId = sent.body.messageId as string;
+    writeLines(file, [userLine(soon(), 'please fix the build now')], true);
+    expect((await statusOf(id, m)).body.messages[0]).toMatchObject({ messageId, state: 'sent' });
+    writeLines(file, [userLine(soon() + 1, 'fix the build')], true);
+    expect((await statusOf(id, m)).body.messages[0]).toMatchObject({ messageId, state: 'confirmed', ui: 'seen', reason: expect.stringContaining('exact text') });
+  });
+
+  it('hc: two identical replies are confirmed once each has its own line', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    writeLines(file, [userLine(1, 'earlier')]);
+    const m = module_(fakeTransport({ id: 'hc' }));
+    writeFileSync(join(box.config, 'transports.json'), JSON.stringify({ default: 'hc' }));
+    await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'ok' } });
+    await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'ok' } });
+    writeLines(file, [userLine(soon(), 'ok')], true);
+    // One line for two identical replies: which one arrived cannot be told, so neither is confirmed (it is not claimed for the first one by default).
+    expect((await statusOf(id, m)).body.messages.map((message: { state: string }) => message.state)).toEqual(['sent', 'sent']);
+    writeLines(file, [userLine(soon() + 1, 'ok')], true);
+    expect((await statusOf(id, m)).body.messages.map((message: { state: string }) => message.state)).toEqual(['confirmed', 'confirmed']);
+  });
+});
+
+describe('replies without a marker in the log, and one bad record in the status', () => {
+  const statusOf = (id: string, m = module_()) => m.call('GET', `/sessions/${id}/reply/status`);
+  const soon = (): number => (Date.now() - Date.UTC(2026, 10, 15, 10, 0, 0)) / 1000 + 5;
+  const peerLine = (seconds: number, text: string, msgId: string): Record<string, unknown> => ({ ...userLine(seconds, text), isMeta: true, promptSource: 'system', turnOrigin: 'peer', origin: { kind: 'peer', msg_id: msgId } });
+
+  it('the log gives a reply sent with marker none its web-reply shape (webReply from origin.msg_id) and marks its queue line', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    writeLines(file, [userLine(1, 'earlier')]);
+    const m = module_();
+    const sent = await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'hello agent' } });
+    const messageId = sent.body.messageId as string;
+    expect(sent.body.messageId).toEqual(expect.any(String));
+    writeLines(file, [peerLine(soon(), `Another Claude session sent a message:\nhello agent\n\nThis came from another Claude session. Reply to it.`, wireMsgId(messageId))], true);
+    const { body } = await m.call('GET', `/sessions/${id}/log`);
+    const prompt = body.entries.find((entry: { kind: string; source?: string }) => entry.kind === 'user-prompt' && entry.source === 'peer');
+    expect(prompt).toMatchObject({ webReply: { messageId, text: 'hello agent' } });
+    // The same peer line of ANOTHER message id is a plain peer message.
+    writeLines(file, [peerLine(soon() + 1, 'Another Claude session sent a message:\nhello agent\n\nThis came from another Claude session.', wireMsgId('m-someone-else'))], true);
+    const again = (await m.call('GET', `/sessions/${id}/log`)).body.entries.filter((entry: { kind: string; source?: string }) => entry.kind === 'user-prompt' && entry.source === 'peer');
+    expect(again.map((entry: { webReply?: unknown }) => entry.webReply !== undefined)).toEqual([true, false]);
+  });
+
+  it('one reply whose state cannot be computed is listed as unknown with the error; the others and the status stay fine', async () => {
+    const id = putSession(box, process.pid);
+    const m = makeModule({ dataDir: box.data, options: { transports: [fakeTransport({ id: 'socket' }), fakeTransport({ id: 'hc' })] } });
+    const { appendAudit } = await import('@wadeck-app/agent-manager-core/reply');
+    const base = { sessionId: id, imagePaths: [], priority: 'next' as const, outcome: 'sent' };
+    await appendAudit(box.config, { ...base, time: Date.now() - 2_000, text: 'fine', transport: 'socket', msgId: 'm-good' });
+    // A text over the cap cannot be composed again to look for it in the transcript: deliveryState throws for this one only.
+    await appendAudit(box.config, { ...base, time: Date.now() - 1_000, text: 'x'.repeat(25_000), transport: 'hc', msgId: 'm-bad' });
+    const { status, body } = await m.call('GET', `/sessions/${id}/reply/status`);
+    expect(status).toBe(200);
+    expect(body.ok).toBe(true);
+    const bad = body.messages.find((message: { messageId: string }) => message.messageId === 'm-bad');
+    expect(bad).toMatchObject({ state: 'unknown', ui: 'delivered', reason: expect.stringContaining('could not be computed'), hint: expect.stringContaining('The message was sent') });
+    expect(body.messages.find((message: { messageId: string }) => message.messageId === 'm-good')).toMatchObject({ state: 'sent' });
+  });
+
+  it('hc: two identical replies and only one matching line confirm neither; the second line confirms both', async () => {
+    const id = putSession(box, process.pid);
+    const file = transcriptFile(box, id);
+    writeLines(file, [userLine(1, 'earlier')]);
+    const m = module_(fakeTransport({ id: 'hc' }));
+    writeFileSync(join(box.config, 'transports.json'), JSON.stringify({ default: 'hc' }));
+    await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'ok' } });
+    await m.call('POST', `/sessions/${id}/reply`, { body: { text: 'ok' } });
+    writeLines(file, [userLine(soon(), 'ok')], true);
+    const one = (await statusOf(id, m)).body.messages;
+    expect(one.map((message: { state: string }) => message.state)).toEqual(['sent', 'sent']);
+    expect(one[0].reason).toContain('2 identical replies were sent but 1 matching line(s)');
+    writeLines(file, [userLine(soon() + 1, 'ok')], true);
+    expect((await statusOf(id, m)).body.messages.map((message: { state: string }) => message.state)).toEqual(['confirmed', 'confirmed']);
   });
 });

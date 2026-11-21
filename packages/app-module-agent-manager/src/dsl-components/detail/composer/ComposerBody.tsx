@@ -18,10 +18,23 @@ import { useAttachImages } from './useAttachImages.js';
 import { useReplyStatus } from './useReplyStatus.js';
 import { useSendReply } from './useSendReply.js';
 import { useSyncDelivery } from './useSyncDelivery.js';
+import type { ReplyMarkerMode } from '../deps.js';
 import type { ComposerProps } from './types.js';
 
 /** Height of the field in pixels: 8 lines of 20 px plus padding. Beyond it the field scrolls. */
 const MAX_FIELD_PX = 172;
+
+/** What goes in front of the text, as the status says (the replyMarker setting of config.yml, none by default): never claims a marker that is not sent. */
+const MARKER_SENTENCE: Record<ReplyMarkerMode, string> = {
+  none: 'Sent as typed, with no marker line.',
+  short: 'A short marker line ([agent-manager-web #id]) is added before the text.',
+  full: 'A marker line ([web reply via agent-manager #id]) is added before the text.',
+};
+
+// An unknown setting (null: the status could not read it, the banner says why) says nothing rather than something wrong.
+function markerSentence(marker: ReplyMarkerMode | null | undefined): string {
+  return marker === null || marker === undefined ? '' : MARKER_SENTENCE[marker];
+}
 
 export function ComposerBody({ session, reencode }: ComposerProps) {
   const sessionId = session.sessionId;
@@ -53,6 +66,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   const limits = status?.limits;
   const selectedTransport = status?.transports.find((transport) => transport.selected);
   const typed = selectedTransport?.deliveredAs === 'typed';
+  const markerTip = markerSentence(selectedTransport?.marker);
 
   // The state of the sent messages follows the server; the log shows them (marks on the bubbles), there is no list here.
   useSyncDelivery(sessionId, status?.messages);
@@ -244,7 +258,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             </span>
           </Tooltip>
         ) : null}
-        <Tooltip content={priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter'}>
+        <Tooltip content={`${priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter.'}${markerTip === '' ? '' : ` ${markerTip}`}`}>
           <button
             type="button"
             aria-label={sendLabel}

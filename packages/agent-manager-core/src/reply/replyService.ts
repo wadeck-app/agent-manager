@@ -8,6 +8,8 @@ import { assertTextLength, composeMessageText } from './compose.js';
 import { DEFAULT_REPLY_CONFIG, readTransportsConfig } from './config.js';
 import type { ReplyConfig } from './config.js';
 import { deliveryState } from './deliveryState.js';
+import { readReplyMarker } from './replyMarker.js';
+import type { ReplyMarkerSetting } from './replyMarker.js';
 import type { DeliveryContext, DeliveryRecord, DeliveryStatus, ReplyTranscriptEntry } from './deliveryState.js';
 import { OutcomeUnknownError, ReplyError, assertSafeId } from './errors.js';
 import { errorCode } from './fsTypes.js';
@@ -95,6 +97,8 @@ export interface SessionTransportStatus {
 export interface ReplyService {
   send(request: SendRequest): Promise<DeliveryRecord>;
   deliveryState(record: DeliveryRecord, transcriptEntries: readonly ReplyTranscriptEntry[], context?: DeliveryContext): DeliveryStatus;
+  /** The `replyMarker` setting now (config.yml, read at each call so that a change applies to the next reply). Throws a ReplyError when the file is unreadable or invalid. */
+  getReplyMarker(): Promise<ReplyMarkerSetting>;
   /** `probe: 'selected'` (default) probes only the transport a send would use; 'all' probes every transport (the transport menu is open). */
   getTransportStatus(sessions: readonly Session[], options?: { permissionModes?: Record<string, string>; probe?: 'selected' | 'all' }): Promise<SessionTransportStatus[]>;
 }
@@ -190,8 +194,10 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
   async function doSend(request: SendRequest, id: string, priority: ReplyPriority): Promise<DeliveryRecord> {
     const images = request.images ?? [];
     const origin = request.origin ?? 'web';
+    // The hc `started` answer of the transport, once it accepted (an early hint of the delivery, see deliveryState).
+    let started: boolean | undefined;
     const audit = (transport: string, outcome: string, imagePaths: string[]): Promise<void> =>
-      appendAudit(deps.configDir, { sessionId: request.sessionId, time: clock(), text: request.text, imagePaths, transport, priority, outcome, msgId: id }, fs);
+      appendAudit(deps.configDir, { sessionId: request.sessionId, time: clock(), text: request.text, imagePaths, transport, priority, outcome, msgId: id, ...(started === undefined ? {} : { started }) }, fs);
     let transportId = request.transportId ?? '?';
     // Files saved for this message so far; removed again when the message is not sent.
     const imagePaths: string[] = [];
@@ -206,19 +212,23 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
       if (!probe.available) {
         throw new ReplyError('transport-unavailable', `the '${transport.id}' transport is not available for this session: ${probe.reason}`, probe.fix);
       }
+      // A transport that declares marker 'none' (owned) wins over the setting. Read and validated BEFORE any side effect (rate-limit slot, saved files): an unreadable
+      // or invalid replyMarker fails the send at once, never a silent default.
+      const marker = transport.marker === 'none' ? 'none' : (await readReplyMarker(deps.configDir, fs)).mode;
       // Counted here: the transport is known to work, and the files of the reply are not saved yet.
       refundSlot = checkRate(request.sessionId);
       for (const [index, image] of images.entries()) {
         const saved = await saveUpload({ configDir: deps.configDir, sessionId: request.sessionId, msgId: id, index, base64: image.base64, declaredMime: image.declaredMime, fs });
         imagePaths.push(saved.path);
       }
-      const text = composeMessageText({ text: request.text, imagePaths, id, ...(transport.marker === 'none' ? { originMarker: null } : {}) });
+      const text = composeMessageText({ text: request.text, imagePaths, id, marker });
       const result = await transport.send(session, { id, text, imagePaths, priority, origin });
       if (!result.accepted) {
         throw new ReplyError('transport-refused', `the '${transport.id}' transport did not accept the message (${result.detail})`, 'switch transport or retry');
       }
       // Accepted by the transport: from here on the attempt counts, whatever happens to the audit.
       refundSlot = undefined;
+      started = result.started;
       const record: DeliveryRecord = { id, sessionId: request.sessionId, state: transport.kind === 'mailbox' ? 'queued' : 'sent', transportId: transport.id, kind: transport.kind, sentAt: result.sentAt, priority, ...(result.handle === undefined ? {} : { handle: result.handle }) };
       // The message is delivered from here on: a failing audit write is reported on the record, never thrown (a throw would free the id for a second send).
       try {
@@ -379,6 +389,7 @@ export function createReplyService(deps: ReplyServiceDeps): ReplyService {
   return {
     send,
     deliveryState: (record, entries, context) => deliveryState(record, entries, clock(), config, withDeliveredAs(context, byId.get(record.transportId)?.deliveredAs)),
+    getReplyMarker: () => readReplyMarker(deps.configDir, fs),
     getTransportStatus,
   };
 }

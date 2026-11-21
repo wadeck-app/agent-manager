@@ -83,15 +83,24 @@ export function sessionFromOwned(view: OwnedView, now: number): Session {
 
 /**
  * The registry row of an owned session, corrected where the daemon knows better: a permission request is answered `waiting` at once (the registry still
- * said `busy` when read at the request, measured in round 2), and the name given at launch shows when the registry has none.
+ * said `busy` when read at the request, measured in round 2), and the name given at launch shows when the registry has none or only the one Claude Code derived.
  */
 export function overlayOwned(session: Session, view: OwnedView): Session {
   const waiting = view.state === 'requires_action' && session.status !== 'waiting';
   return {
     ...session,
     ...(waiting ? { status: 'waiting', statusGroup: 'other' as const, waitingFor: 'permission prompt' } : {}),
-    ...(session.name === undefined && view.name !== undefined ? { name: view.name } : {}),
+    ...(view.name !== undefined && registryNameYields(session) ? { name: view.name } : {}),
   };
+}
+
+/**
+ * True when the name chosen at launch (the daemon record) wins over the registry name: the registry has none, or Claude Code derived it itself
+ * (`nameSource: 'derived'`, measured for a stream-json child: the folder name plus a suffix). Any other source (`user`, `peer`, a value of a newer
+ * Claude Code) is a deliberate rename made later, so the registry name stays.
+ */
+function registryNameYields(session: Session): boolean {
+  return session.name === undefined || session.nameSource === 'derived';
 }
 
 export function rowFieldsOf(view: OwnedView, registryPending: boolean): OwnedRowFields {

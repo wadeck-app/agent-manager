@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ReplyMessage, ReplyTransport } from '@wadeck-app/agent-manager-core/reply';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -74,8 +74,9 @@ describe('the owned transport', () => {
     expect(audit.map((line) => JSON.parse(line))).toEqual([expect.objectContaining({ sessionId: PENDING, transport: 'owned', outcome: 'sent', text: 'please continue' })]);
   });
 
-  it('keeps the marker on the other transports (the owned one is the only one without)', async () => {
+  it('the other transports follow the replyMarker setting (the owned one never adds a marker)', async () => {
     const { fake, socket, m } = await scene();
+    writeFileSync(join(box.config, 'config.yml'), 'replyMarker: full\n');
     const other = discoveredSession(fake);
     expect((await m.call('POST', `/sessions/${other}/reply`, { body: { text: 'hi' } })).body).toMatchObject({ transportId: 'socket' });
     expect(socket.sent[0]!.text).toContain('[web reply via agent-manager #');

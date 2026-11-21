@@ -14,7 +14,7 @@ export type { ListSubagentsResult, SubagentFileProblem } from './subagents.js';
 export { ActivityAccumulator, summarizeActivity, toolSummary } from './activity.js';
 export { stripAnsi } from './text.js';
 export { classifyHarnessText } from './harness.js';
-export { parseWebReply } from './webReply.js';
+export { parseWebReply, stripPeerWrapper } from './webReply.js';
 export { LIMITS } from './types.js';
 export { contextWindowOf, describeModel, describeModelName, MODEL_TABLE, parseModelId, sameModel } from './models.js';
 export type { ContextWindow, ModelRow, ParsedModelId, WindowSource } from './models.js';
