@@ -57,6 +57,8 @@ export interface OwnedSessionRecord {
   interruptedAt?: number;
   /** Epoch ms of the last resume. */
   resumedAt?: number;
+  /** stream-json: the session id this session was forked from (it continues a copy of that history). Never changes after the launch. */
+  forkedFrom?: string;
 }
 
 /**

@@ -5,12 +5,17 @@ import { join } from 'node:path';
 export const PROJECTS_DIR_ENV = 'AGENT_MANAGER_PROJECTS_DIR';
 
 /**
- * The folder Claude Code keeps projects in: $AGENT_MANAGER_PROJECTS_DIR when set and non-blank, else <home>/.claude/projects.
+ * The folder Claude Code keeps projects in: $AGENT_MANAGER_PROJECTS_DIR when set and non-blank (an override of agent-manager), else
+ * $CLAUDE_CONFIG_DIR/projects when that is set (documented by Claude Code: sessions are stored there instead), else <home>/.claude/projects.
  */
 export function resolveProjectsDir(env: NodeJS.ProcessEnv, home?: string): string {
   const override = env[PROJECTS_DIR_ENV];
   if (override !== undefined && override.trim() !== '') {
     return override;
+  }
+  const configDir = env['CLAUDE_CONFIG_DIR'];
+  if (configDir !== undefined && configDir.trim() !== '') {
+    return join(configDir, 'projects');
   }
   return join(home ?? homedir(), '.claude', 'projects');
 }

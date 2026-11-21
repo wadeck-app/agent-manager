@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -167,6 +167,99 @@ describe('launch (stream-json)', () => {
     expect(started).toHaveLength(1);
     expect(started[0]?.exitInfo).toBeDefined();
     expect(host.list()).toEqual([]);
+  });
+});
+
+describe('fork (stream-json)', () => {
+  const SOURCE = '11111111-2222-4333-8444-555555555555';
+  const found = async (_cwd: string, id: string) => ({ ok: true as const, path: `/projects/p/${id}.jsonl`, projectDir: '/projects/p', via: 'slug' as const });
+
+  function loggedArgv(logFile: string): string[][] {
+    return readFileSync(logFile, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => (JSON.parse(line) as { argv?: string[] }).argv)
+      .filter((argv): argv is string[] => argv !== undefined && argv.includes('-p'));
+  }
+
+  it('launches a fork under a new id, records forkedFrom in the view and the state file, and audits it', async () => {
+    const logFile = join(tempDir(), 'fake.ndjson');
+    const { host, configDir, cwd } = await setup({ locateTranscript: found, claude: { command: process.execPath, commandArgs: [FAKE_CLAUDE], env: { ...process.env, FAKE_CLAUDE_LOG: logFile } } });
+    const view = await host.launch({ hostKind: 'stream-json', cwd, name: 'fork of x', forkOf: SOURCE });
+    expect(view.id).not.toBe(SOURCE);
+    expect(view).toMatchObject({ forkedFrom: SOURCE, name: 'fork of x', status: 'live' });
+    // The fake logs its argv when node has booted, a moment after the spawn.
+    const deadline = Date.now() + 10_000;
+    while (!existsSync(logFile) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    const [argv] = loggedArgv(logFile);
+    expect(argv).toEqual(expect.arrayContaining(['--resume', SOURCE, '--fork-session', '--session-id', view.id]));
+    const records = await readOwnedState(ownedStatePath(configDir));
+    expect(records[0]).toMatchObject({ id: view.id, forkedFrom: SOURCE });
+    expect(host.events.replay(undefined).events.find((event) => event.type === 'session.launched')?.data).toMatchObject({ forkedFrom: SOURCE });
+    expect(auditLines(configDir)[0]).toMatchObject({ action: 'launch', outcome: 'ok', details: expect.objectContaining({ forkOf: SOURCE }) });
+    // A plain session has no forkedFrom.
+    const plain = await host.launch({ hostKind: 'stream-json', cwd });
+    expect(plain.forkedFrom).toBeUndefined();
+  });
+
+  it('refuses a source without transcript before starting anything, with the fix, and audits the refusal', async () => {
+    const { host, configDir, cwd, started } = await setup({
+      locateTranscript: async () => ({ ok: false as const, error: { code: 'not-found' as const, message: 'No transcript for session x', fix: 'The session may not have written a transcript yet.', tried: [] } }),
+    });
+    const failure = await rejection(host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE }));
+    expect(failure.code).toBe('fork-source-not-found');
+    expect(failure.reason).toContain('No transcript for session x');
+    expect(failure.fix).toContain('cannot be forked');
+    expect(started).toHaveLength(0);
+    expect(host.list()).toEqual([]);
+    expect(auditLines(configDir)[0]).toMatchObject({ action: 'launch', outcome: expect.stringContaining('failed: ') });
+  });
+
+  it('looks for the transcript where the child will: the projects folder of the environment given to the child, and names that folder in the refusal', async () => {
+    const seen: string[] = [];
+    const { host, cwd } = await setup({
+      claude: { command: process.execPath, commandArgs: [FAKE_CLAUDE], env: { ...process.env, AGENT_MANAGER_PROJECTS_DIR: '', CLAUDE_CONFIG_DIR: join(tempDir(), 'claude-config'), HOME: '/h' } },
+      locateTranscript: async (_cwd, _id, projectsDir) => {
+        seen.push(projectsDir);
+        return { ok: false as const, error: { code: 'not-found' as const, message: 'nothing there', fix: 'look elsewhere', tried: [] } };
+      },
+    });
+    const failure = await rejection(host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE }));
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatch(/claude-config[\\/]projects$/);
+    expect(failure.reason).toContain(seen[0]);
+  });
+
+  it('checks the source BEFORE taking a slot or running claude --version: a refused fork costs nothing', async () => {
+    let versionReads = 0;
+    const { host, cwd } = await setup({
+      maxLiveSessions: 0,
+      readVersion: async () => {
+        versionReads += 1;
+        return '9.9.9';
+      },
+      locateTranscript: async () => ({ ok: false as const, error: { code: 'not-found' as const, message: 'none', fix: 'f', tried: [] } }),
+    });
+    // The limit would say too-many-sessions: the missing source is reported first, and claude --version never ran.
+    expect((await rejection(host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE }))).code).toBe('fork-source-not-found');
+    expect(versionReads).toBe(0);
+  });
+
+  it('refuses forkOf for another host kind even when the request did not come through parseLaunchBody', async () => {
+    const { host, cwd } = await setup({ locateTranscript: found });
+    expect((await rejection(host.launch({ hostKind: 'hc', cwd, forkOf: SOURCE }))).code).toBe('fork-host-unsupported');
+    expect((await rejection(host.launch({ hostKind: 'bg', cwd, forkOf: SOURCE }))).code).toBe('fork-host-unsupported');
+  });
+
+  it('a claude that refuses the fork (exits at once) shows its stderr in the exit report, never a silent success', async () => {
+    const { host, cwd } = await setup({ locateTranscript: found, claude: { command: process.execPath, commandArgs: [FAKE_CLAUDE], env: { ...process.env, FAKE_CLAUDE_MISSING_SOURCE: '1' } } });
+    const view = await host.launch({ hostKind: 'stream-json', cwd, forkOf: SOURCE });
+    await until(host, (event) => event.type === 'session.exit' && event.sessionId === view.id, 'the exit of the refused fork');
+    const after = host.list().find((item) => item.id === view.id);
+    expect(after?.state).toBe('exited');
+    expect(after?.exit?.stderrTail).toContain('No conversation found');
   });
 });
 

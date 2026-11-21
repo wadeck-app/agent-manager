@@ -40,6 +40,10 @@ describe('resolveProjectsDir', () => {
   it('uses the override when set and non-blank, else <home>/.claude/projects', () => {
     expect(resolveProjectsDir({ [PROJECTS_DIR_ENV]: '/x/p' }, '/h')).toBe('/x/p');
     expect(resolveProjectsDir({ [PROJECTS_DIR_ENV]: '  ' }, '/h')).toBe(join('/h', '.claude', 'projects'));
+    // CLAUDE_CONFIG_DIR moves the projects of Claude Code itself; the agent-manager override wins over it.
+    expect(resolveProjectsDir({ CLAUDE_CONFIG_DIR: '/c' }, '/h')).toBe(join('/c', 'projects'));
+    expect(resolveProjectsDir({ CLAUDE_CONFIG_DIR: '/c', [PROJECTS_DIR_ENV]: '/x/p' }, '/h')).toBe('/x/p');
+    expect(resolveProjectsDir({ CLAUDE_CONFIG_DIR: ' ' }, '/h')).toBe(join('/h', '.claude', 'projects'));
   });
 });
 

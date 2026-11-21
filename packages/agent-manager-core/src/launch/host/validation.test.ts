@@ -118,6 +118,27 @@ describe('parseSendBody', () => {
   });
 });
 
+describe('parseLaunchBody forkOf', () => {
+  const source = '11111111-2222-4333-8444-555555555555';
+
+  it('accepts the id of the session to fork for a stream-json launch (lower-cased)', async () => {
+    const request = await parseLaunchBody({ hostKind: 'stream-json', cwd: folder(), forkOf: source.toUpperCase(), name: 'fork of x' });
+    expect(request).toMatchObject({ hostKind: 'stream-json', forkOf: source, name: 'fork of x' });
+  });
+
+  it('refuses forkOf for hc and bg (nothing proves it there), and a source that is not a UUID, each with a fix', async () => {
+    for (const hostKind of ['hc', 'bg']) {
+      const failure = await asyncError(parseLaunchBody({ hostKind, cwd: folder(), forkOf: source }));
+      expect(failure.code).toBe('fork-host-unsupported');
+      expect(failure.fix).toContain('stream-json');
+    }
+    const badId = await asyncError(parseLaunchBody({ hostKind: 'stream-json', cwd: folder(), forkOf: '../../x' }));
+    expect(badId.code).toBe('invalid-fork-source');
+    expect(badId.fix).not.toBe('');
+    expect((await asyncError(parseLaunchBody({ hostKind: 'stream-json', cwd: folder(), forkOf: '' }))).code).toBe('invalid-field');
+  });
+});
+
 describe('permission bodies', () => {
   it('accepts a mode and refuses anything that is not a single word', () => {
     expect(parsePermissionModeBody({ mode: 'acceptEdits' })).toEqual({ mode: 'acceptEdits' });

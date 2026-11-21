@@ -1,6 +1,10 @@
-import { ArrowLeft, CheckCheck, Pin, PinOff } from 'lucide-react';
+import { ArrowLeft, CheckCheck, GitFork, Pin, PinOff } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import type { AgentRow } from '../data/types.js';
+import { ForkDialog } from '../launch/ForkDialog.js';
+import { FORK_MEANING, forkBlockedReason } from '../logic/forkForm.js';
 import { STATE_MEANING } from '../logic/states.js';
+import type { OwnedSessionDto } from '../shared.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
 import { IconButton } from '../ui/IconButton.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
@@ -24,15 +28,26 @@ export interface DetailHeaderProps {
   onOwnedChange: (change: OwnedChange) => void;
   /** The owned session was forgotten: leave its detail. */
   onForgotten: () => void;
+  /** The daemon started a fork of this session: the page lists and selects it. */
+  onForked: (session: OwnedSessionDto) => void;
+  /** This session is a fork: the source (its name when it is in the list, else undefined) and a way to open it. */
+  forkedFrom?: { id: string; name: string | undefined };
+  onOpenSource: (id: string) => void;
 }
 
 /** Name, folder, state, harness, pid and the two actions of the selected session. The back button only exists on a narrow screen (stacked panes). */
-export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen, onOwnedChange, onForgotten }: DetailHeaderProps) {
+export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen, onOwnedChange, onForgotten, onForked, forkedFrom, onOpenSource }: DetailHeaderProps) {
   const look = STATE_LOOK[session.state];
   const since = timeInState(session.statusUpdatedAt, now);
   const canMarkSeen = session.state === 'done';
   // The status line data: the live one of the log poll, else the one of the session row (one source at a time).
   const status = useSessionStatus(session);
+  // The id of the session the dialog was opened for: selecting another session closes it (a dialog never forks a session the user did not click on).
+  const [forkFor, setForkFor] = useState<string | undefined>(undefined);
+  const forkId = session.sessionId.toLowerCase();
+  // Leaving the session forgets the dialog (coming back does not reopen it).
+  useEffect(() => setForkFor(undefined), [forkId]);
+  const forkBlocked = forkBlockedReason(session);
   return (
     <header className="flex items-start gap-2 border-b border-border px-4 py-3">
       <span className="lg:hidden">
@@ -55,15 +70,30 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
             </Tooltip>
           ) : null}
         </div>
+        {forkedFrom === undefined ? null : (
+          <p data-forked-from="" className="mt-0.5 truncate text-xs text-muted">
+            <GitFork aria-hidden="true" className="mr-1 inline h-am-icon-sm w-am-icon-sm align-text-bottom" />
+            forked from{' '}
+            {forkedFrom.name === undefined ? (
+              <span title={`${forkedFrom.id}: not in the list (ended or forgotten)`}>{`${forkedFrom.id.slice(0, 8)} (not in the list)`}</span>
+            ) : (
+              <button type="button" onClick={() => onOpenSource(forkedFrom.id)} className="text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                {forkedFrom.name}
+              </button>
+            )}
+          </p>
+        )}
         <StatusInfo session={session} status={status} />
         <GuardrailBlocks blocks={session.guardrailBlocks} />
         <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} />
         {session.state === 'needs-you' && session.reason !== '' ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
+        <IconButton icon={GitFork} label="Fork" disabled={busy || forkBlocked !== undefined} disabledReason={forkBlocked ?? FORK_MEANING} onClick={() => setForkFor(forkId)} />
         <IconButton icon={session.pinned ? PinOff : Pin} label={session.pinned ? 'Unpin' : 'Pin'} disabled={busy} onClick={() => onTogglePin(!session.pinned)} />
         <IconButton icon={CheckCheck} label="Mark as seen" disabled={busy || !canMarkSeen} disabledReason={canMarkSeen ? undefined : 'only a Done session has something to mark'} onClick={onMarkSeen} />
       </div>
+      {forkFor === forkId ? <ForkDialog key={forkId} session={session} onClose={() => setForkFor(undefined)} onForked={onForked} /> : null}
     </header>
   );
 }

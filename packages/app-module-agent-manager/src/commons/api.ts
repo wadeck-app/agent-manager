@@ -110,6 +110,8 @@ export interface SessionRowDto extends SessionStatusDto {
   ownedRawState?: string;
   /** Permission requests that wait for an answer (stream-json owned sessions); 0 otherwise. */
   pendingPermissions: number;
+  /** The id of the session this owned session was forked from; absent when it is not a fork. */
+  forkedFrom?: string;
   /**
    * True: an owned session that has no Claude Code registry file yet (a stream-json child writes it with its first message). The row is made from the owned
    * record alone: `pid` is the child's pid (0 when unknown), `status` follows `ownedState`, there is no transcript yet (see `activityNote`).
@@ -707,6 +709,8 @@ export interface OwnedSessionDto {
   exit?: OwnedExitDto;
   interruptedAt?: number;
   resumedAt?: number;
+  /** stream-json: the id of the session this one was forked from (it continues a copy of that history). */
+  forkedFrom?: string;
   /** bg: the `state` of `claude agents --json` at the last poll (working, blocked, done, failed, stopped). */
   bgState?: string;
   /** bg: what the session waits on (`permission prompt`, `input needed`, ...). Answered only in a terminal: see `attachCommand`. */
@@ -762,6 +766,25 @@ export interface OwnedLaunchRequest {
   model?: string;
   permissionMode?: string;
   name?: string;
+}
+
+/**
+ * Body of POST /owned/fork: starts a NEW Web session (stream-json, owned by the daemon) that continues a copy of the conversation of `sourceSessionId`, in the
+ * same folder. The source can be any session of the list (owned or discovered) that has a transcript; it stays untouched. Omitted: `name` is "fork of <name>",
+ * `model` and `permissionMode` are the ones of the source when it is an owned session that knows them, else Claude Code decides.
+ */
+export interface OwnedForkRequest {
+  sourceSessionId: string;
+  name?: string;
+  model?: string;
+  permissionMode?: string;
+}
+
+/** POST /owned/fork answer: the new session, and the model and mode that were taken from the source's record because the body did not give them (empty when none). */
+export interface OwnedForkOk {
+  ok: true;
+  session: OwnedSessionDto;
+  inherited: { model?: string; permissionMode?: string };
 }
 
 /** POST /owned/launch, /stop and /resume answer `{ ok: true, session }`; a launched session is in the list at once (its registry file comes with its first message). */

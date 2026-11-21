@@ -82,6 +82,8 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   const [sessionParam, setSessionParam] = useUrlParam('session');
   const selectedId = sessionParam === null || sessionParam === '' ? undefined : sessionParam.toLowerCase();
   const selected = useMemo(() => rows.find((session) => agentId(session) === selectedId), [rows, selectedId]);
+  // The name of the source of a fork, from the rows of the list (undefined when the source is not listed any more).
+  const rowsById = useMemo(() => new Map(rows.map((row) => [row.sessionId.toLowerCase(), row])), [rows]);
   // The listing mode: the URL (?mode=) wins, then the saved choice, then Tree; a mode the URL names that does not exist is said, not silently replaced.
   const [modeParam, setModeParam] = useUrlParam('mode');
   const [savedMode, setSavedMode] = useState(readSavedMode);
@@ -310,7 +312,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   if (selected !== undefined) {
     detail = (
       <>
-        <DetailHeader session={selected} now={now} busy={busy} onBack={() => setSessionParam('')} onTogglePin={(pinned) => pin(selected, pinned)} onMarkSeen={() => markSeen(selected)} onOwnedChange={applyOwned} onForgotten={() => setSessionParam('')} />
+        <DetailHeader session={selected} now={now} busy={busy} onBack={() => setSessionParam('')} onTogglePin={(pinned) => pin(selected, pinned)} onMarkSeen={() => markSeen(selected)} onOwnedChange={applyOwned} onForgotten={() => setSessionParam('')} onForked={launched} onOpenSource={select} {...(selected.forkedFrom === undefined ? {} : { forkedFrom: { id: selected.forkedFrom, name: rowsById.get(selected.forkedFrom.toLowerCase())?.displayName } })} />
         <AgentDetail session={selected} />
       </>
     );

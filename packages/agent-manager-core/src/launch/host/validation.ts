@@ -4,7 +4,7 @@ import { getErrorMessage } from '../../errors.js';
 import { MAX_TEXT_CHARS } from '../../reply/compose.js';
 import { MAX_UPLOAD_BYTES, detectImageExt } from '../../reply/uploads.js';
 import { LaunchError } from '../errors.js';
-import { assertModel, assertPermissionMode } from '../streamJsonArgs.js';
+import { assertForkSourceId, assertModel, assertPermissionMode } from '../streamJsonArgs.js';
 import type { ImageInput } from '../types.js';
 import { HOST_KINDS } from './types.js';
 import type { HostKind } from './types.js';
@@ -59,6 +59,8 @@ export interface LaunchRequest {
   model?: string;
   permissionMode?: string;
   name?: string;
+  /** stream-json only: the session id of the session to fork (a copy of its history continues under a new id, the source stays untouched). */
+  forkOf?: string;
 }
 
 /** The working directory: an absolute path of an existing folder (a relative one would be read against the daemon, not the caller). */
@@ -86,7 +88,7 @@ export async function assertWorkingDirectory(cwd: unknown): Promise<string> {
 }
 
 export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
-  const body = objectBody(value, ['hostKind', 'cwd', 'model', 'permissionMode', 'name'], '{"hostKind":"stream-json","cwd":"<absolute folder>"}');
+  const body = objectBody(value, ['hostKind', 'cwd', 'model', 'permissionMode', 'name', 'forkOf'], '{"hostKind":"stream-json","cwd":"<absolute folder>"}');
   const hostKind = body['hostKind'];
   if (!HOST_KINDS.some((kind) => kind === hostKind)) {
     return bad('invalid-host-kind', `hostKind ${JSON.stringify(hostKind)} is not valid`, `use one of ${HOST_KINDS.join(', ')} ('stream-json' is owned by the daemon, 'hc' starts a herdr-core terminal, 'bg' starts a Claude Code background session)`);
@@ -104,7 +106,21 @@ export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
   if (name !== undefined && (name.length > MAX_NAME_CHARS || /[\u0000-\u001f\u007f]/.test(name))) {
     return bad('invalid-name', `name must be a single line of at most ${MAX_NAME_CHARS} characters`, 'use a short label without control characters (for hc: 1-32 of a-z 0-9 - _; for bg: not starting with "-")');
   }
-  return { hostKind: hostKind as HostKind, cwd, ...(model === undefined ? {} : { model }), ...(permissionMode === undefined ? {} : { permissionMode }), ...(name === undefined ? {} : { name }) };
+  const forkOf = optionalText(body, 'forkOf');
+  if (forkOf !== undefined) {
+    if (hostKind !== 'stream-json') {
+      return bad('fork-host-unsupported', `forkOf is not supported with hostKind ${JSON.stringify(hostKind)}`, "only 'stream-json' sessions can be forked (a bg or hc session cannot be started as a fork: no measurement proves it); use hostKind 'stream-json'");
+    }
+    assertForkSourceId(forkOf);
+  }
+  return {
+    hostKind: hostKind as HostKind,
+    cwd,
+    ...(model === undefined ? {} : { model }),
+    ...(permissionMode === undefined ? {} : { permissionMode }),
+    ...(name === undefined ? {} : { name }),
+    ...(forkOf === undefined ? {} : { forkOf: forkOf.toLowerCase() }),
+  };
 }
 
 export interface SendRequest {

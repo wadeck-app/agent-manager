@@ -132,6 +132,25 @@ describe('buildStreamJsonArgs', () => {
     expect(args).not.toContain('--session-id');
   });
 
+  it('builds a fork: --resume <source> --fork-session --session-id <new>, and refuses an incomplete or ambiguous fork with a fix', () => {
+    const source = '11111111-2222-4333-8444-555555555555';
+    const fork = '7b0f6378-600e-4596-bc3c-cfef5f4c6508';
+    const args = buildStreamJsonArgs({ forkOf: source, sessionId: fork, model: 'haiku' });
+    expect(args.slice(-5)).toEqual(['--resume', source, '--fork-session', '--session-id', fork]);
+    for (const bad of [{ forkOf: source }, { forkOf: source, sessionId: fork, resume: source }, { forkOf: 'abc', sessionId: fork }, { forkOf: source, sessionId: source }, { forkOf: '--x', sessionId: fork }]) {
+      const failure = (() => {
+        try {
+          buildStreamJsonArgs(bad);
+        } catch (caught) {
+          return caught;
+        }
+        return undefined;
+      })();
+      expect(failure, JSON.stringify(bad)).toBeInstanceOf(LaunchError);
+      expect((failure as LaunchError).fix).not.toBe('');
+    }
+  });
+
   it('never passes a force or a dangerous flag', () => {
     const joined = buildStreamJsonArgs({ permissionMode: 'acceptEdits', model: 'haiku' }).join(' ').toLowerCase();
     expect(joined).not.toContain('force');
@@ -183,6 +202,24 @@ describe('StreamJsonSession start', () => {
     expect(harness.session.sessionId).toBe('resume-id-1');
     expect(harness.session.args).toContain('--resume');
     expect(harness.session.args).not.toContain('--session-id');
+  });
+
+  it('starts a fork under the given id', async () => {
+    const source = '11111111-2222-4333-8444-555555555555';
+    const fork = '7b0f6378-600e-4596-bc3c-cfef5f4c6508';
+    const harness = await startFake({ forkOf: source, sessionId: fork });
+    expect(harness.session.sessionId).toBe(fork);
+    expect(harness.session.args).toEqual(expect.arrayContaining(['--resume', source, '--fork-session', '--session-id', fork]));
+    await (await harness.session.send('hello')).completed;
+    expect(harness.session.sessionId).toBe(fork);
+  });
+
+  it('a fork without a given id gets a generated one (never the source id)', async () => {
+    const source = '11111111-2222-4333-8444-555555555555';
+    const harness = await startFake({ forkOf: source });
+    expect(harness.session.sessionId).not.toBe(source);
+    expect(harness.session.sessionId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
+    expect(harness.session.args).toContain('--fork-session');
   });
 
   it('fails with a fix when the program is missing', async () => {

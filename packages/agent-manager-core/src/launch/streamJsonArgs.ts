@@ -9,6 +9,12 @@ export interface StreamJsonArgsOptions {
   sessionId?: string;
   /** `--resume` of an existing session id. Exclusive with `sessionId`. */
   resume?: string;
+  /**
+   * Fork of an existing session: `--resume <forkOf> --fork-session --session-id <sessionId>` (research/session-fork.md). The source stays untouched, the
+   * child continues a copy of its history under `sessionId` (required: Claude Code refuses `--session-id` with `--resume` without `--fork-session`, and
+   * the host needs the id before the first message). Exclusive with `resume`.
+   */
+  forkOf?: string;
   /** `--include-partial-messages`: live text deltas. Default true. */
   includePartialMessages?: boolean;
 }
@@ -44,6 +50,13 @@ export function assertResumeId(value: string): void {
   }
 }
 
+/** The session to fork is the one of the registry or a transcript name: a UUID (a looser value would only produce a "No conversation found" from claude). */
+export function assertForkSourceId(value: string): void {
+  if (!UUID.test(value)) {
+    throw new LaunchError('invalid-fork-source', `the session to fork ${JSON.stringify(value)} is not a UUID`, 'pass the session id as the registry shows it (a UUID)');
+  }
+}
+
 /**
  * The arguments of the owned stream-json child, the shape proven in research/session-launch-options.md (rounds 1-3). The one place that builds
  * them: an argument array for a process started WITHOUT a shell, so no value is ever interpreted. Every value is checked (a value that starts
@@ -62,6 +75,21 @@ export function buildStreamJsonArgs(options: StreamJsonArgsOptions = {}): string
   if (options.model !== undefined) {
     assertModel(options.model);
     args.push('--model', options.model);
+  }
+  if (options.forkOf !== undefined) {
+    if (options.resume !== undefined) {
+      throw new LaunchError('fork-and-resume', 'forkOf and resume were both given', 'pass forkOf to start a copy of a session, or resume to continue one, not both');
+    }
+    if (options.sessionId === undefined) {
+      throw new LaunchError('fork-without-session-id', 'a fork needs the id of the new session', 'pass sessionId (crypto.randomUUID()) with forkOf');
+    }
+    assertForkSourceId(options.forkOf);
+    assertNewSessionId(options.sessionId);
+    if (options.sessionId.toLowerCase() === options.forkOf.toLowerCase()) {
+      throw new LaunchError('fork-same-id', 'the fork and its source have the same session id', 'give the fork a new UUID');
+    }
+    args.push('--resume', options.forkOf, '--fork-session', '--session-id', options.sessionId);
+    return args;
   }
   if (options.sessionId !== undefined && options.resume !== undefined) {
     throw new LaunchError('session-id-and-resume', 'sessionId and resume were both given', 'pass sessionId to start a new session, or resume to continue an existing one, not both');

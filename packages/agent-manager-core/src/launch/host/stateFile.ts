@@ -123,6 +123,7 @@ function parseRecord(value: unknown, index: number): OwnedSessionRecord {
   }
   const interruptedAt = reader.optionalNumber('interruptedAt');
   const resumedAt = reader.optionalNumber('resumedAt');
+  const forkedFrom = reader.optionalString('forkedFrom');
   return {
     id: reader.string('id'),
     hostKind,
@@ -140,6 +141,7 @@ function parseRecord(value: unknown, index: number): OwnedSessionRecord {
     ...(value['exit'] === undefined ? {} : { exit: parseExit(value['exit'], `${where}.exit`) }),
     ...(interruptedAt === undefined ? {} : { interruptedAt }),
     ...(resumedAt === undefined ? {} : { resumedAt }),
+    ...(forkedFrom === undefined ? {} : { forkedFrom }),
   };
 }
 

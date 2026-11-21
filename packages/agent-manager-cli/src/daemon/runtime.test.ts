@@ -2,13 +2,16 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { HcLauncher } from '@wadeck-app/agent-manager-core/launch';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createControlClient } from './daemonClient.js';
 import { cleanupDaemons, fakeClaude, openEvents, startTestDaemon, tempRoot } from './daemonTestKit.js';
 import type { TestDaemon } from './daemonTestKit.js';
 import { startDaemon } from './runtime.js';
 
-afterEach(cleanupDaemons);
+afterEach(async () => {
+  vi.unstubAllEnvs();
+  await cleanupDaemons();
+});
 
 const LAUNCH = { hostKind: 'stream-json' } as const;
 
@@ -141,6 +144,46 @@ describe('launch validation', () => {
     const model = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, model: '--dangerously-skip-permissions' });
     expect(model.status).toBe(400);
     expect(model.body.error.code).toBe('invalid-model');
+    expect((await daemon.call('GET', '/sessions')).body.sessions).toEqual([]);
+  });
+});
+
+describe('fork through POST /sessions/launch (forkOf)', () => {
+  const SOURCE = '11111111-2222-4333-8444-555555555555';
+
+  /** A projects folder with the transcript of SOURCE, found through AGENT_MANAGER_PROJECTS_DIR (never the real ~/.claude/projects). */
+  function projectsWithSource(): string {
+    const projects = join(tempRoot(), 'projects');
+    mkdirSync(join(projects, 'some-project'), { recursive: true });
+    writeFileSync(join(projects, 'some-project', `${SOURCE}.jsonl`), '{"type":"user"}\n');
+    vi.stubEnv('AGENT_MANAGER_PROJECTS_DIR', projects);
+    return projects;
+  }
+
+  it('starts a new owned session that continues a copy of the source: 201, new id, forkedFrom, listed with it', async () => {
+    projectsWithSource();
+    const daemon = await startTestDaemon();
+    const response = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, name: 'fork of source', forkOf: SOURCE.toUpperCase() });
+    expect(response.status).toBe(201);
+    expect(response.body.session).toMatchObject({ hostKind: 'stream-json', name: 'fork of source', forkedFrom: SOURCE, status: 'live' });
+    expect(response.body.session.id).not.toBe(SOURCE);
+    const listed = (await daemon.call('GET', '/sessions')).body.sessions as { id: string; forkedFrom?: string }[];
+    expect(listed.find((item) => item.id === response.body.session.id)?.forkedFrom).toBe(SOURCE);
+  });
+
+  it('answers 404 fork-source-not-found with the fix when the source has no transcript, and 400 for a bad id or a host that cannot fork', async () => {
+    vi.stubEnv('AGENT_MANAGER_PROJECTS_DIR', join(tempRoot(), 'empty-projects'));
+    const daemon = await startTestDaemon();
+    const missing = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, forkOf: SOURCE });
+    expect(missing.status).toBe(404);
+    expect(missing.body.error.code).toBe('fork-source-not-found');
+    expect(missing.body.error.fix.length).toBeGreaterThan(10);
+    const badId = await daemon.call('POST', '/sessions/launch', { ...LAUNCH, cwd: daemon.project, forkOf: '../x' });
+    expect(badId.status).toBe(400);
+    expect(badId.body.error.code).toBe('invalid-fork-source');
+    const bg = await daemon.call('POST', '/sessions/launch', { hostKind: 'bg', cwd: daemon.project, forkOf: SOURCE });
+    expect(bg.status).toBe(400);
+    expect(bg.body.error.code).toBe('fork-host-unsupported');
     expect((await daemon.call('GET', '/sessions')).body.sessions).toEqual([]);
   });
 });

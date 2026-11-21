@@ -69,7 +69,7 @@ const CONFLICT = new Set([
   'session-closing',
   'bg-action-in-progress',
 ]);
-const NOT_FOUND = new Set(['unknown-session', 'unknown-permission-request']);
+const NOT_FOUND = new Set(['unknown-session', 'unknown-permission-request', 'fork-source-not-found']);
 const VALIDATION = new Set([
   'invalid-body',
   'unknown-field',
@@ -97,6 +97,8 @@ const VALIDATION = new Set([
   'force-refused',
   'invalid-id',
   'invalid-job-id',
+  'invalid-fork-source',
+  'fork-host-unsupported',
 ]);
 const SERVER_SIDE = new Set(['state-file-write-failed', 'state-file-unreadable', 'kill-failed', 'host-not-ready', 'host-already-initialized']);
 

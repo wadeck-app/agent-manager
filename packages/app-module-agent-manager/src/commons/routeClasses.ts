@@ -5,6 +5,7 @@
  * | Route                                   | Class         | Why                                              |
  * |-----------------------------------------|---------------|--------------------------------------------------|
  * | POST /owned/launch                      | sensitive     | starts an agent process                          |
+ * | POST /owned/fork                        | sensitive     | starts an agent process on a copy of another session's history |
  * | POST /owned/:id/resume                  | sensitive     | starts an agent process                          |
  * | POST /owned/:id/stop                    | sensitive     | kills a running session                          |
  * | POST /owned/:id/interrupt               | sensitive     | cancels the running turn                         |
@@ -31,6 +32,7 @@
  */
 export const SENSITIVE_ROUTES: readonly string[] = [
   'POST /owned/launch',
+  'POST /owned/fork',
   'POST /owned/:id/resume',
   'POST /owned/:id/stop',
   'POST /owned/:id/interrupt',

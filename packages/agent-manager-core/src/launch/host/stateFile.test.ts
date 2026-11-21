@@ -49,6 +49,15 @@ describe('owned-sessions.json', () => {
     expect(await readOwnedState(ownedStatePath(configDir()))).toEqual([]);
   });
 
+  it('keeps forkedFrom of a forked session through a write and a read (an older file without it still reads)', async () => {
+    const path = ownedStatePath(configDir());
+    const forkedFrom = '33333333-3333-4333-8333-333333333333';
+    await writeOwnedState(path, [{ ...record, forkedFrom }, { ...record, id: '44444444-4444-4444-8444-444444444444' }]);
+    const records = await readOwnedState(path);
+    expect(records[0]?.forkedFrom).toBe(forkedFrom);
+    expect(records[1]?.forkedFrom).toBeUndefined();
+  });
+
   it('writes a versioned file atomically (no temp file left) and reads it back', async () => {
     const dir = configDir();
     const path = ownedStatePath(dir);

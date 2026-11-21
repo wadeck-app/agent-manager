@@ -13,6 +13,7 @@ export interface OwnedRowFields {
   /** The state the daemon sent when this module does not know it (ownedState is then 'unknown'). */
   ownedRawState?: string;
   pendingPermissions: number;
+  forkedFrom?: string;
   registryPending?: true;
 }
 
@@ -111,6 +112,7 @@ export function rowFieldsOf(view: OwnedView, registryPending: boolean): OwnedRow
     ownedState: view.state,
     ...(view.rawState === undefined ? {} : { ownedRawState: view.rawState }),
     pendingPermissions: view.pendingPermissions,
+    ...(view.forkedFrom === undefined ? {} : { forkedFrom: view.forkedFrom }),
     ...(registryPending ? { registryPending: true as const } : {}),
   };
 }

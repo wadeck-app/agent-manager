@@ -15,7 +15,7 @@ const B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const interrupted = (id: string) => ownedRow({ sessionId: id, ownedState: 'interrupted', alive: false, state: 'ended' });
 const listed = { body: { ok: true, generatedAt: 'now', daemon: {}, sessions: [ownedDto({ id: A, status: 'interrupted', state: 'interrupted', resumable: true, leftoverPid: 4242, note: 'Note of A' }), ownedDto({ id: B, status: 'interrupted', state: 'interrupted', resumable: true })] } };
 
-const header = (session: ReturnType<typeof ownedRow>) => <DetailHeader session={session} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} />;
+const header = (session: ReturnType<typeof ownedRow>) => <DetailHeader session={session} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} onForked={() => undefined} onOpenSource={() => undefined} />;
 
 describe('the owned header when another session is selected', () => {
   it('drops the note, the error and the record of the previous session, and never sends its leftover acknowledgement', async () => {

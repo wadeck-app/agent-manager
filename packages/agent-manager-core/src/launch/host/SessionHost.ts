@@ -6,6 +6,8 @@ import type { BgAgent, BgLaunchRequest, BgLaunchResult } from '../BgLauncher.js'
 import { LaunchError } from '../errors.js';
 import { HcLauncher } from '../HcLauncher.js';
 import type { HcLaunchRequest, HcLaunchResult } from '../HcLauncher.js';
+import { resolveProjectsDir, transcriptPath } from '../../transcript/transcriptPath.js';
+import type { TranscriptPathResult } from '../../transcript/transcriptPath.js';
 import { StreamJsonSession } from '../StreamJsonSession.js';
 import type { StreamJsonSessionOptions } from '../StreamJsonSession.js';
 import type { ExitInfo, InterruptReceipt, PendingPermission, SessionEvent } from '../types.js';
@@ -72,6 +74,8 @@ export interface SessionHostOptions {
   bgRespawnGraceMs?: number;
   /** The `claude --version` reader. Default: runs the program above. */
   readVersion?: () => Promise<string>;
+  /** Test seam: finds the transcript of a session to fork (a fork of a session without transcript is refused). Default: transcriptPath() under the projects folder of the child's environment (AGENT_MANAGER_PROJECTS_DIR, CLAUDE_CONFIG_DIR, else ~/.claude/projects). */
+  locateTranscript?: (cwd: string, sessionId: string, projectsDir: string) => Promise<TranscriptPathResult>;
   /** Test seam: starts an X1 child. Default: StreamJsonSession.start. */
   startSession?: (options: StreamJsonSessionOptions) => Promise<StreamJsonSession>;
   closeTimeoutMs?: number;
@@ -180,6 +184,7 @@ export class SessionHost {
   #bgError: string | undefined;
   readonly #readVersion: () => Promise<string>;
   readonly #startSession: (options: StreamJsonSessionOptions) => Promise<StreamJsonSession>;
+  readonly #locateTranscript: (cwd: string, sessionId: string, projectsDir: string) => Promise<TranscriptPathResult>;
   readonly #closeTimeoutMs: number | undefined;
   readonly #controlTimeoutMs: number | undefined;
   readonly #maxLive: number;
@@ -213,6 +218,7 @@ export class SessionHost {
     this.#bgGraceMs = options.bgRespawnGraceMs ?? DEFAULT_BG_RESPAWN_GRACE_MS;
     this.#readVersion = options.readVersion ?? (() => readClaudeVersion(this.#claude));
     this.#startSession = options.startSession ?? ((sessionOptions) => StreamJsonSession.start(sessionOptions));
+    this.#locateTranscript = options.locateTranscript ?? ((cwd, sessionId, projectsDir) => transcriptPath(cwd, sessionId, projectsDir));
     this.#closeTimeoutMs = options.closeTimeoutMs;
     this.#controlTimeoutMs = options.controlTimeoutMs;
     this.#maxLive = options.maxLiveSessions ?? DEFAULT_MAX_LIVE_SESSIONS;
@@ -322,8 +328,15 @@ export class SessionHost {
   }
 
   async launch(request: LaunchRequest): Promise<OwnedSessionView> {
-    return this.#audited('launch', undefined, { hostKind: request.hostKind, cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null }, async () => {
+    return this.#audited('launch', undefined, { hostKind: request.hostKind, cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, ...(request.forkOf === undefined ? {} : { forkOf: request.forkOf }) }, async () => {
       this.#assertRunning();
+      if (request.forkOf !== undefined) {
+        // Before a slot is taken and before `claude --version` runs: a fork that cannot start costs nothing.
+        if (request.hostKind !== 'stream-json') {
+          throw new LaunchError('fork-host-unsupported', `forkOf is not supported with hostKind ${JSON.stringify(request.hostKind)}`, "only 'stream-json' sessions can be started as a fork");
+        }
+        await this.#assertForkSource(request.forkOf, request.cwd);
+      }
       const stream = request.hostKind === 'stream-json';
       this.#assertRoom({ stream, created: true });
       // The slot is taken BEFORE the first await: two requests that come together cannot both pass the checks above.
@@ -539,8 +552,24 @@ export class SessionHost {
     return result;
   }
 
+  /**
+   * A fork needs the transcript of its source on this machine: checked here so that a wrong id is a 4xx with the fix, not a claude that exits at once
+   * with "No conversation found". The transcript is whatever is written so far (a fork of a busy session starts from that, the turn in flight is not in it).
+   */
+  async #assertForkSource(sourceId: string, cwd: string): Promise<void> {
+    // The same folder the child will read: its own environment (the one given to the child, else this process's).
+    const env = this.#claude.env ?? process.env;
+    const home = env['HOME'] ?? env['USERPROFILE'];
+    const projectsDir = resolveProjectsDir(env, home);
+    const found = await this.#locateTranscript(cwd, sourceId, projectsDir);
+    if (!found.ok) {
+      const { message, fix } = found.error;
+      throw new LaunchError('fork-source-not-found', `the session to fork ${sourceId} has no transcript under ${projectsDir} (${message})`, `${fix} A session that has not received a message yet has no transcript and cannot be forked.`);
+    }
+  }
+
   async #launchStream(request: LaunchRequest, claudeVersion: string): Promise<OwnedSessionView> {
-    const session = await this.#startSession(this.#sessionOptions(request.cwd, request.model, request.permissionMode));
+    const session = await this.#startSession({ ...this.#sessionOptions(request.cwd, request.model, request.permissionMode), ...(request.forkOf === undefined ? {} : { forkOf: request.forkOf }) });
     const id = session.sessionId;
     if (this.#records.has(id)) {
       await session.kill().catch(() => undefined);
@@ -554,6 +583,7 @@ export class SessionHost {
       ...(request.model === undefined ? {} : { model: request.model }),
       ...(request.permissionMode === undefined ? {} : { permissionMode: request.permissionMode }),
       ...(request.name === undefined ? {} : { name: request.name }),
+      ...(request.forkOf === undefined ? {} : { forkedFrom: request.forkOf }),
       claudeVersion,
       startedAt: this.#clock(),
       status: 'live',
@@ -568,7 +598,7 @@ export class SessionHost {
       await this.#undoStart(id, session, live);
       throw error;
     }
-    this.#emit('session.launched', id, { hostKind: 'stream-json', cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, claudeVersion, pid: session.pid });
+    this.#emit('session.launched', id, { hostKind: 'stream-json', cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, claudeVersion, pid: session.pid, ...(request.forkOf === undefined ? {} : { forkedFrom: request.forkOf }) });
     return this.#view(record);
   }
 

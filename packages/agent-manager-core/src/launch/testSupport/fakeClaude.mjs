@@ -35,6 +35,17 @@ const argOf = (name) => {
 };
 log({ argv, cwd: process.cwd() });
 
+// Measured on claude 2.1.330 (research/session-fork.md): --session-id with --resume needs --fork-session (exit 1, this message on stderr).
+if (argv.includes('--session-id') && argv.includes('--resume') && !argv.includes('--fork-session')) {
+  process.stderr.write('Error: --session-id with --continue or --resume also needs --fork-session.\n');
+  process.exit(1);
+}
+// FAKE_CLAUDE_MISSING_SOURCE=1: a --resume of an id without conversation, like the real one ("No conversation found with session ID: <id>", exit 1).
+if (argv.includes('--resume') && process.env.FAKE_CLAUDE_MISSING_SOURCE === '1') {
+  process.stderr.write(`No conversation found with session ID: ${argOf('--resume')}\n`);
+  process.exit(1);
+}
+// A fork keeps the id given by --session-id; a plain resume keeps the resumed id.
 const sessionId = argOf('--session-id') ?? argOf('--resume') ?? randomUUID();
 let mode = argOf('--permission-mode') ?? 'default';
 const out = (value) => process.stdout.write(`${typeof value === 'string' ? value : JSON.stringify(value)}\n`);

@@ -147,6 +147,7 @@ export function rowFromOwned(dto: OwnedSessionDto, now: number): SessionRowDto {
     ownedState: dto.state,
     ...(dto.rawState === undefined ? {} : { ownedRawState: dto.rawState }),
     pendingPermissions: dto.pendingPermissions,
+    ...(dto.forkedFrom === undefined ? {} : { forkedFrom: dto.forkedFrom }),
     registryPending: true,
   };
 }

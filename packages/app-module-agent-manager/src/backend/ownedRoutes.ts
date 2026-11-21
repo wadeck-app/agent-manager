@@ -1,13 +1,16 @@
 import { LaunchError, parseDecisionBody, parseLaunchBody, parsePermissionModeBody } from '@wadeck-app/agent-manager-core/launch';
 import { SAFE_ID } from '@wadeck-app/agent-manager-core/reply';
-import type { OwnedDecisionOk, OwnedForgetOk, OwnedInterruptOk, OwnedListResponse, OwnedPermissionModeOk, OwnedPermissionsOk, OwnedSessionDto, OwnedSessionOk } from '../commons/api.js';
+import { forkNameOf } from '../commons/forkName.js';
+import type { OwnedDecisionOk, OwnedForgetOk, OwnedForkOk, OwnedInterruptOk, OwnedListResponse, OwnedPermissionModeOk, OwnedPermissionsOk, OwnedSessionDto, OwnedSessionOk } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import { DaemonError } from './daemon/daemonApi.js';
 import type { OwnedView } from './daemon/daemonApi.js';
+import { overlayOwned } from './daemon/ownedJoin.js';
 import { apiErrorOf, errorTextOf } from './daemon/ownedSource.js';
 import type { OwnedSource } from './daemon/ownedSource.js';
 import type { RouteAnswer, RouteKit, RouteRequest } from './routeKit.js';
 import { ok } from './routeKit.js';
+import { findSession } from './sessionLookup.js';
 import { SESSION_ID_PATTERN, requireNoBody } from './userState.js';
 
 /*
@@ -101,6 +104,45 @@ function parseResumeBody(body: unknown): boolean {
   return value === true;
 }
 
+interface ForkBody {
+  sourceSessionId: string;
+  name?: string;
+  model?: string;
+  permissionMode?: string;
+}
+
+const FORK_FIELDS = ['sourceSessionId', 'name', 'model', 'permissionMode'];
+
+/** The body of POST /owned/fork: the source id (required) and three optional texts; a typo in a field name is refused, never ignored. */
+function parseForkBody(body: unknown): ForkBody {
+  const example = '{"sourceSessionId":"<id of a session of the list>","name":"fork of x"}';
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw new CodedRequestError(400, 'bad-request', 'The body must be a JSON object', `Send ${example}.`);
+  }
+  const extra = Object.keys(body).filter((key) => !FORK_FIELDS.includes(key));
+  if (extra.length > 0) {
+    throw new CodedRequestError(400, 'bad-request', `Unknown field(s) in the body: ${extra.map((key) => `'${key.slice(0, 40)}'`).join(', ')}`, `The fields are: ${FORK_FIELDS.join(', ')}.`);
+  }
+  const text = (key: string): string | undefined => {
+    const value: unknown = Reflect.get(body, key);
+    if (value === undefined) {
+      return undefined;
+    }
+    if (typeof value !== 'string' || value === '') {
+      throw new CodedRequestError(400, 'bad-request', `'${key}' must be a non-empty string`, `Give '${key}' a value, or leave it out.`);
+    }
+    return value;
+  };
+  const sourceSessionId = text('sourceSessionId');
+  if (sourceSessionId === undefined) {
+    throw new CodedRequestError(400, 'bad-request', "'sourceSessionId' is required", `Send ${example}.`);
+  }
+  const name = text('name');
+  const model = text('model');
+  const permissionMode = text('permissionMode');
+  return { sourceSessionId, ...(name === undefined ? {} : { name }), ...(model === undefined ? {} : { model }), ...(permissionMode === undefined ? {} : { permissionMode }) };
+}
+
 export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
   // GET /owned: the owned sessions and the status of the daemon, or the reason the daemon cannot be asked.
   kit.route(
@@ -131,6 +173,51 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       const request = await parseLaunchBody(req.body);
       const session = await source.daemon.launch({ ...request });
       return ok({ ok: true, session: toOwnedDto(session) } satisfies OwnedSessionOk);
+    }),
+    { sensitive: true },
+  );
+
+  /*
+   * POST /owned/fork: a NEW Web session on a copy of the conversation of a session of the list (research/session-fork.md). The source can be owned (any host:
+   * only its transcript is read) or discovered; it is never touched. The folder is the one of the source (Claude Code looks the transcript up across project
+   * folders, but a fork in another folder would change what the agent sees: not offered). Model and mode default to the ones of an owned source.
+   */
+  kit.route(
+    'POST',
+    '/owned/fork',
+    writing(async (req) => {
+      const body = parseForkBody(req.body);
+      const found = await findSession(body.sourceSessionId, source);
+      if ('registryError' in found) {
+        return fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
+      }
+      const { session } = found;
+      // The record gives the defaults of model and mode: when the daemon cannot be asked the fork is refused (it would otherwise start with defaults the user never saw).
+      const ownedFound = await source.find(session.sessionId);
+      if (!ownedFound.ok) {
+        const { code, message, hint } = ownedFound.error;
+        return fail(code === 'daemon-not-running' ? 409 : 502, code, `The daemon could not be asked about the session to fork: ${message}`, hint);
+      }
+      const { view } = ownedFound;
+      const model = body.model ?? view?.model;
+      const permissionMode = body.permissionMode ?? view?.permissionMode;
+      // What came from the record and not from the body: the answer says so, nothing is defaulted silently.
+      const inherited = {
+        ...(body.model === undefined && view?.model !== undefined ? { model: view.model } : {}),
+        ...(body.permissionMode === undefined && view?.permissionMode !== undefined ? { permissionMode: view.permissionMode } : {}),
+      };
+      // The name the list shows (the one given at launch wins over a name Claude Code derived itself).
+      const shown = view === undefined ? session : overlayOwned(session, view);
+      const request = await parseLaunchBody({
+        hostKind: 'stream-json',
+        cwd: session.cwd,
+        forkOf: session.sessionId,
+        name: body.name ?? forkNameOf(shown.name ?? shown.folder),
+        ...(model === undefined ? {} : { model }),
+        ...(permissionMode === undefined ? {} : { permissionMode }),
+      });
+      const forked = await source.daemon.launch({ ...request });
+      return ok({ ok: true, session: toOwnedDto(forked), inherited } satisfies OwnedForkOk);
     }),
     { sensitive: true },
   );
