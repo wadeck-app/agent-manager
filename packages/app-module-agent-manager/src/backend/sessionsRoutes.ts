@@ -4,7 +4,9 @@ import { CSRF_HEADER, CSRF_PATH } from '../commons/csrf.js';
 import { stateOf } from './agentState.js';
 import { digestOf, pruneDigestCache } from './transcriptDigest.js';
 import { statusOf } from './sessionStatus.js';
-import { parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserState } from './userState.js';
+import { emptyUserState, guarded, parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserGroup, type UserState } from './userState.js';
+import { groupDto, registerGroupsRoutes } from './groupsRoutes.js';
+import { GROUP_ABSENT_PRUNE_MS } from '../commons/groups.js';
 import { sessionColumns } from './columns.js';
 import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
 import { guardrailBlocksFor, registerGuardrailsRoutes } from './guardrailsRoutes.js';
@@ -33,6 +35,28 @@ function showOf(query: Parameters<typeof queryValue>[0]): Show {
   return value as Show;
 }
 
+/** The groups after the hourly pass: members present are stamped, members absent keep their clock (started now when they have none) and go after GROUP_ABSENT_PRUNE_MS. The same array when nothing changed. */
+export function groupsAfterPass(groups: readonly UserGroup[], present: ReadonlySet<string>, now: number): UserGroup[] {
+  let changed = false;
+  const next = groups.map((group) => {
+    const seenAt: Record<string, number> = {};
+    const members: string[] = [];
+    for (const id of group.members) {
+      const before = group.seenAt[id];
+      const stamp = present.has(id) ? now : (before ?? now);
+      if (!present.has(id) && now - stamp > GROUP_ABSENT_PRUNE_MS) {
+        continue;
+      }
+      members.push(id);
+      seenAt[id] = stamp;
+      changed ||= before !== stamp;
+    }
+    changed ||= members.length !== group.members.length;
+    return members.length === group.members.length && group.members.every((id) => seenAt[id] === group.seenAt[id]) ? group : { ...group, members, seenAt };
+  });
+  return changed ? next : (groups as UserGroup[]);
+}
+
 /** Entries of the seen map whose session left the registry are dropped at most this often. */
 const PRUNE_EVERY_MS = 60 * 60 * 1000;
 
@@ -52,7 +76,7 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
     if (!registry.ok) {
       const { message, hint } = registry.error;
       const errorText = `${message}. ${hint}`;
-      return ok({ ok: false, show, dir, generatedAt, sessions: [], userStateError: '', unreadable: [], error: registry.error, errorText, summary: null });
+      return ok({ ok: false, show, dir, generatedAt, sessions: [], customGroups: [], userStateError: '', unreadable: [], error: registry.error, errorText, summary: null });
     }
     // The registry rows joined with the owned records by session id (one daemon call, cached): a daemon that cannot be asked is data (`ownedError`), the rows stay.
     const joined = await joinOwned(registry.sessions, source, now);
@@ -63,7 +87,7 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
     const shown = (show === 'all' ? all : all.filter((session) => session.alive || joined.keep.has(session.sessionId.toLowerCase()))).map((session) => presentSession(session, latest));
     const hiddenDead = all.length - shown.length;
     // The pins and seen markers: unreadable ones are reported as data (userStateError), the sessions stay listed.
-    let user: UserState = { pinned: [], seen: {} };
+    let user: UserState = emptyUserState();
     let userStateError = '';
     try {
       user = await readUserState(kit.dataDir);
@@ -72,18 +96,24 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
       const missing = [...ids].filter((id) => user.seen[id] === undefined);
       const pruneDue = now - lastPruneAt >= PRUNE_EVERY_MS;
       const stale = pruneDue ? Object.keys(user.seen).filter((id) => !ids.has(id)) : [];
-      if (missing.length > 0 || stale.length > 0) {
+      // The members of the groups: user-curated, so never dropped for one missing read (Claude Code restarting, a file being rewritten). Each member carries the
+      // last time its session was in the registry; the hourly pass refreshes it, and drops only the members absent for more than 14 days.
+      const groupsNext = pruneDue ? groupsAfterPass(user.groups, ids, now) : user.groups;
+      if (missing.length > 0 || stale.length > 0 || groupsNext !== user.groups) {
         try {
           user = await updateUserState(kit.dataDir, (current) => {
             const seen = Object.fromEntries(Object.entries(current.seen).filter(([id]) => !stale.includes(id)));
             let changed = Object.keys(seen).length !== Object.keys(current.seen).length;
+            // Computed again on the state read inside the update (a route may have written since the first read).
+            const groups = pruneDue ? groupsAfterPass(current.groups, ids, now) : current.groups;
+            changed ||= groups !== current.groups;
             for (const id of missing) {
               if (seen[id] === undefined) {
                 seen[id] = now;
                 changed = true;
               }
             }
-            return changed ? { ...current, seen } : current;
+            return changed ? { ...current, seen, groups } : current;
           });
           if (pruneDue) {
             lastPruneAt = now;
@@ -95,10 +125,11 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
       }
     } catch (error) {
       // The sessions stay listed with no pins and no seen markers (nothing is written, so an unreadable file is never overwritten); the error is shown.
-      user = { pinned: [], seen: {} };
+      user = emptyUserState();
       userStateError = error instanceof UserStateError ? `${getErrorMessage(error)}. ${error.hint}` : `The pins and seen markers failed: ${getErrorMessage(error)}`;
     }
     const pinned = new Set(user.pinned);
+    const groupOf = new Map(user.groups.flatMap((group) => group.members.map((id, position) => [id, { id: group.id, position }] as const)));
     const digests = await Promise.all(shown.map((row) => digestOf(row, now)));
     // The status line data (model, context, tokens, duration, branch, role, bypasses): read from the transcript digest and the registry folder of each session.
     const statuses = await Promise.all(shown.map((row, index) => statusOf(row, digests[index]!.usage, digests[index]!.note, now)));
@@ -113,6 +144,8 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
         state: stateOf(row, user.seen, now),
         pinned: pinned.has(row.sessionId.toLowerCase()),
         pinOrder: user.pinned.indexOf(row.sessionId.toLowerCase()),
+        customGroupId: groupOf.get(row.sessionId.toLowerCase())?.id ?? null,
+        customGroupOrder: groupOf.get(row.sessionId.toLowerCase())?.position ?? -1,
         seen: seenAt === undefined || row.statusUpdatedAt === undefined || row.statusUpdatedAt <= seenAt,
         reason: row.waitingFor ?? '',
         lastActivity: digest.lastActivity,
@@ -128,6 +161,7 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
       dir,
       generatedAt,
       sessions: rows,
+      customGroups: user.groups.map(groupDto),
       latestVersion: latest,
       tableColumns: sessionColumns(shown),
       userStateError,
@@ -189,15 +223,6 @@ function registerHealth(kit: RouteKit): void {
   });
 }
 
-/** A user state that cannot be read or written is a server-side problem the user can fix: 500 with the file and what to do (never silently emptied). */
-async function guarded<T>(run: () => Promise<T>): Promise<T> {
-  try {
-    return await run();
-  } catch (error) {
-    throw error instanceof UserStateError ? new RequestError(500, getErrorMessage(error), error.hint) : error;
-  }
-}
-
 /** GET /csrf: the token every write route requires in the header X-Agent-Manager-Csrf (contract: commons/csrf.ts). */
 function registerCsrf(kit: RouteKit): void {
   kit.route('GET', CSRF_PATH, () => Promise.resolve(ok({ ok: true, header: CSRF_HEADER, token: kit.csrfToken() } satisfies CsrfOk)));
@@ -243,6 +268,7 @@ export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {
   const source = createOwnedSource(options.daemon ?? createDaemonApi());
   registerCsrf(kit);
   registerUserState(kit, source);
+  registerGroupsRoutes(kit);
   registerSessions(kit, source);
   registerSummary(kit, source);
   registerHealth(kit);

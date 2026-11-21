@@ -83,7 +83,7 @@ export interface DaemonApi {
   setPermissionMode(id: string, mode: string): Promise<{ mode: string }>;
   stop(id: string): Promise<OwnedView>;
   resume(id: string, acknowledgeLeftover: boolean): Promise<OwnedView>;
-  forget(id: string): Promise<{ id: string }>;
+  forget(id: string): Promise<{ id: string; supervisorNote?: string }>;
   permissions(id: string): Promise<PendingPermission[]>;
   decide(id: string, requestId: string, body: { decision: 'allow' | 'deny'; message?: string }): Promise<{ requestId: string; decision: 'allow' | 'deny' }>;
 }
@@ -367,7 +367,8 @@ export function createDaemonApi(options: DaemonApiOptions = {}): DaemonApi {
         if (!isRecord(answer) || typeof answer['id'] !== 'string') {
           throw badWriteAnswer('the forget', '{"id"}');
         }
-        return { id: answer['id'] };
+        const note = answer['supervisorNote'];
+        return { id: answer['id'], ...(typeof note === 'string' ? { supervisorNote: note } : {}) };
       }),
     async permissions(id) {
       return arrayOf<PendingPermission>(await call<unknown>('GET', `/sessions/${enc(id)}/permissions`), 'permissions', 'the permission list');

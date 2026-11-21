@@ -1,9 +1,9 @@
-import { Globe, SquareTerminal, type LucideIcon } from 'lucide-react';
+import { Globe, ServerCog, SquareTerminal, type LucideIcon } from 'lucide-react';
 import { HOST_LABEL, HOST_MEANING } from '../logic/owned.js';
-import type { SessionRowDto } from '../shared.js';
+import type { OwnedHostKind, SessionRowDto } from '../shared.js';
 import { Tooltip } from '../ui/Tooltip.js';
 
-const HOST_ICON: Record<'stream-json' | 'hc', LucideIcon> = { 'stream-json': Globe, hc: SquareTerminal };
+const HOST_ICON: Record<OwnedHostKind, LucideIcon> = { 'stream-json': Globe, hc: SquareTerminal, bg: ServerCog };
 
 /** The shape shared by the chips of an owned session. */
 export const CHIP = 'inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-xs';

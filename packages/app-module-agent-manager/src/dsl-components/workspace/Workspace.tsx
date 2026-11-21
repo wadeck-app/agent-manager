@@ -15,7 +15,7 @@ import { navTarget } from '../logic/nav.js';
 import { orderedSessionIds } from '../logic/order.js';
 import { agentId } from '../logic/states.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
-import { MODE_LABEL, type ApiError, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
+import { MODE_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
 import { focusComposer, useNow } from '../ui/hooks.js';
@@ -24,6 +24,7 @@ import { ListSkeleton } from '../ui/ListSkeleton.js';
 import { SplitPane } from '../ui/SplitPane.js';
 import { Toolbar } from './Toolbar.js';
 import { useInFlight } from './useInFlight.js';
+import { useCustomGroups, type SendGroupRequest } from './useCustomGroups.js';
 import { useOptimisticRows } from './useOptimisticRows.js';
 import { useOwnedRows } from './useOwnedRows.js';
 import { usePageShortcuts } from './usePageShortcuts.js';
@@ -41,20 +42,40 @@ export interface WorkspaceProps {
   /** The rows of the page poll, undefined until the first answer. The page owns the one request: the workspace never fetches the list itself. */
   sessions: readonly SessionRowDto[] | undefined;
   userStateError: string;
+  /** The custom groups of the page answer (`customGroups`), in display order; the rows say who is in which. Absent: none. */
+  customGroups?: readonly CustomGroupDto[];
   hiddenDead: number;
   /** `ownedError` of the page source: why the daemon could not be asked, null when it answered. */
   ownedError: ApiError | null;
   ownedErrorText: string;
 }
 
-export function Workspace({ sessions, userStateError, hiddenDead, ownedError, ownedErrorText }: WorkspaceProps) {
+const NO_GROUPS: readonly CustomGroupDto[] = [];
+
+export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, hiddenDead, ownedError, ownedErrorText }: WorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
   useFillContentArea(root, 360);
   const now = useNow();
   const optimistic = useOptimisticRows(sessions ?? []);
   // The user's own launch, stop, resume and forget show at once, before the next poll.
   const ownedRows = useOwnedRows(optimistic.rows);
-  const rows = ownedRows.rows;
+  const { busy, track } = useInFlight();
+  const [actionError, setActionError] = useState('');
+  // The custom groups: the user's own move, rename or reorder shows at once; a refusal is said in the banner and the list goes back to what the server has.
+  const sendGroupRequest = useCallback<SendGroupRequest>(
+    async (path, body, failure) => {
+      const result = await track(requestJson<unknown>(path, { method: 'POST', body }));
+      if (result.ok) {
+        // The banner is NOT cleared here: two drops in a row would hide the refusal of the first behind the success of the second. The user dismisses it.
+        return { ok: true, value: result.value };
+      }
+      setActionError(`${failure}: ${result.text}`);
+      return { ok: false };
+    },
+    [track],
+  );
+  const grouped = useCustomGroups(ownedRows.rows, customGroups, sendGroupRequest);
+  const rows = grouped.rows;
   const loading = sessions === undefined;
   const [showParam, setShowParam] = useUrlParam('show');
   const show = showParam === 'all' ? 'all' : 'alive';
@@ -87,12 +108,10 @@ export function Workspace({ sessions, userStateError, hiddenDead, ownedError, ow
   const shownRows = useMemo(() => (searching ? filterSessions(rows, query) : rows), [searching, rows, query]);
   // The Inbox tab (?tab=) decides which rows the Inbox lists, so it decides which rows the search box walks through there.
   const [tabParam] = useUrlParam('tab');
-  const [actionError, setActionError] = useState('');
   // Said when the search box could not do what was asked (nothing to open, the reply box cannot take the focus): never a silent no-op.
   const [searchNote, setSearchNote] = useState('');
   // The session whose reply box must take the focus once it exists (the detail pane mounts after the selection changes).
   const [focusWanted, setFocusWanted] = useState<string | undefined>(undefined);
-  const { busy, track } = useInFlight();
   const [helpOpen, setHelpOpen] = useState(false);
   const [launchOpen, setLaunchOpen] = useState(false);
 
@@ -191,7 +210,7 @@ export function Workspace({ sessions, userStateError, hiddenDead, ownedError, ow
 
   const List = LISTS[mode];
   // The order comes from the data the list is drawn from, not from the DOM: a closed folder or tab would hide its matches from the keyboard.
-  const orderedIds = (): string[] => orderedSessionIds(mode, shownRows, options, tabParam);
+  const orderedIds = (): string[] => orderedSessionIds(mode, shownRows, options, tabParam, grouped.api.groups.map((group) => group.id));
   const moveBy = (step: 1 | -1): void => {
     setSearchNote('');
     const target = navTarget(step === 1 ? 'ArrowDown' : 'ArrowUp', orderedIds(), selectedId);
@@ -230,7 +249,7 @@ export function Workspace({ sessions, userStateError, hiddenDead, ownedError, ow
       />
     );
   } else {
-    listColumn = <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} />;
+    listColumn = <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} groups={mode === 'tree' ? grouped.api : undefined} />;
   }
 
   const notices: ReactNode[] = [];
@@ -328,6 +347,7 @@ export function Workspace({ sessions, userStateError, hiddenDead, ownedError, ow
         helpOpen={helpOpen}
         onHelpOpenChange={setHelpOpen}
         onNewSession={() => setLaunchOpen(true)}
+        onNewGroup={async (name) => (await grouped.api.create(name)) !== undefined}
       />
       {launchOpen ? <NewSessionDialog ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
       {notices.length > 0 ? <div className="flex flex-col gap-1.5 border-b border-border p-2">{notices}</div> : null}

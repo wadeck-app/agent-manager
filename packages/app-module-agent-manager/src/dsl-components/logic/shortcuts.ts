@@ -11,6 +11,9 @@ export const SHORTCUTS: readonly Shortcut[] = [
   { keys: ['r'], text: 'Reply: focus the reply box' },
   { keys: ['/'], text: 'Search the agents (name, folder, path, last activity; state:done, project:shop)' },
   { keys: ['p'], text: 'Pin or unpin the selected agent' },
+  { keys: ['m'], text: 'Tree: move the focused agent to a group (a dialog lists the groups; drag and drop does the same)' },
+  { keys: ['e'], text: 'Tree: edit the focused group (name, color, order, delete)' },
+  { keys: ['Alt+Up', 'Alt+Down'], text: 'Tree: move the focused agent inside its group, or the focused group among the groups' },
   { keys: ['Esc'], text: 'Leave a text field; with no field focused, close the selected agent' },
   { keys: ['?'], text: 'Show or hide this help' },
 ];

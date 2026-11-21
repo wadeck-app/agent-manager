@@ -117,6 +117,10 @@ function parseRecord(value: unknown, index: number): OwnedSessionRecord {
   const pid = reader.optionalNumber('pid');
   const daemonPid = reader.optionalNumber('daemonPid');
   const hcAddress = reader.optionalString('hcAddress');
+  const jobId = reader.optionalString('jobId');
+  if (hostKind === 'bg' && jobId === undefined) {
+    throw new Error(`${where}.jobId is required for a bg session`);
+  }
   const interruptedAt = reader.optionalNumber('interruptedAt');
   const resumedAt = reader.optionalNumber('resumedAt');
   return {
@@ -132,6 +136,7 @@ function parseRecord(value: unknown, index: number): OwnedSessionRecord {
     ...(pid === undefined ? {} : { pid }),
     ...(daemonPid === undefined ? {} : { daemonPid }),
     ...(hcAddress === undefined ? {} : { hcAddress }),
+    ...(jobId === undefined ? {} : { jobId }),
     ...(value['exit'] === undefined ? {} : { exit: parseExit(value['exit'], `${where}.exit`) }),
     ...(interruptedAt === undefined ? {} : { interruptedAt }),
     ...(resumedAt === undefined ? {} : { resumedAt }),

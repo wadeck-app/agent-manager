@@ -1,5 +1,5 @@
 import { Scope } from '../ui/Scope.js';
-import type { ApiError, SessionRowDto } from '../shared.js';
+import type { ApiError, CustomGroupDto, SessionRowDto } from '../shared.js';
 import { Workspace } from '../workspace/Workspace.js';
 
 export interface AgentWorkspaceProps {
@@ -7,6 +7,8 @@ export interface AgentWorkspaceProps {
   sessions?: SessionRowDto[];
   /** `$sources.sessions.userStateError`: shown when the pins and seen markers could not be read. */
   userStateError?: string;
+  /** `$sources.sessions.customGroups`: the user's groups of agents (the Tree lists them above the workspaces). Absent: none. */
+  customGroups?: CustomGroupDto[];
   /** `$sources.sessions.hiddenDead`: ended sessions the filter hides. */
   hiddenDead?: number;
   /** `$sources.sessions.ownedError`: why the agent-manager daemon could not be asked (null when it answered). The New session dialog says it, with the fix. */
@@ -23,10 +25,10 @@ export interface AgentWorkspaceProps {
  * @registryCategory composite
  * @registryTags agents sessions master-detail
  */
-export function AgentWorkspace({ sessions, userStateError, hiddenDead, ownedError, ownedErrorText }: AgentWorkspaceProps) {
+export function AgentWorkspace({ sessions, userStateError, customGroups, hiddenDead, ownedError, ownedErrorText }: AgentWorkspaceProps) {
   return (
     <Scope>
-      <Workspace sessions={sessions} userStateError={userStateError ?? ''} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} />
+      <Workspace sessions={sessions} userStateError={userStateError ?? ''} customGroups={customGroups} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} />
     </Scope>
   );
 }

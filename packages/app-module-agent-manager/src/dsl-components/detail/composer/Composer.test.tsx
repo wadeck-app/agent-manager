@@ -373,3 +373,22 @@ describe('Composer disabled', () => {
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 });
+
+describe('Composer for a Background session', () => {
+  it('says once that the message goes as a peer message, next to the transport', async () => {
+    await ready(row({ displayName: 'bg-one', launchedBy: 'agent-manager', host: 'bg', ownedState: 'idle' }));
+    expect(await screen.findByText('Sent as a peer message (a background session has no direct pipe)')).toBeInTheDocument();
+  });
+
+  it('says nothing when the selected transport is not the socket (the note would be false)', async () => {
+    status = { ...statusFixture(), selectedTransportId: 'hc', transports: statusFixture().transports.map((transport) => ({ ...transport, transportId: 'hc' })) };
+    await ready(row({ displayName: 'bg-two', launchedBy: 'agent-manager', host: 'bg', ownedState: 'idle' }));
+    await screen.findByRole('button', { name: 'Transport: hc' });
+    expect(screen.queryByText(/peer message \(a background session/)).toBeNull();
+  });
+
+  it('says nothing of the kind for another session', async () => {
+    await ready();
+    expect(screen.queryByText(/peer message \(a background session/)).toBeNull();
+  });
+});

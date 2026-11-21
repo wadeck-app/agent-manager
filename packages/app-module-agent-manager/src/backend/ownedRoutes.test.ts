@@ -138,7 +138,7 @@ describe('the daemon answers', () => {
     fake.fail.set(`POST /sessions/${SESSION}/forget`, { status: 409, code: 'session-live', reason: 'the session is live', fix: 'stop it first' });
     const conflict = await m.call('POST', `/owned/${SESSION}/forget`);
     expect(conflict.status).toBe(409);
-    expect(conflict.body).toEqual({ ok: false, error: { code: 'session-live', message: 'the session is live', hint: 'stop it first' } });
+    expect(conflict.body).toMatchObject({ ok: false, error: { code: 'session-live', message: 'the session is live', hint: 'stop it first' } });
     fake.fail.set(`POST /sessions/${SESSION}/stop`, { status: 500, code: 'kill-failed', reason: 'could not end pid 4242', fix: 'end it in the task manager' });
     const broken = await m.call('POST', `/owned/${SESSION}/stop`);
     expect(broken.status).toBe(502);

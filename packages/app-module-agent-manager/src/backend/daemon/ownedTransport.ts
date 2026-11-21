@@ -55,6 +55,15 @@ export function createOwnedTransport(source: OwnedSource): ReplyTransport {
         return { available: false, reason: 'this session was not launched by agent-manager: the daemon does not know it', fix: 'use the socket or hc transport, or launch the session from agent-manager', details: { checks } };
       }
       checks.push({ name: 'owned', ok: true, detail: `owned, ${view.hostKind}` });
+      if (view.hostKind === 'bg') {
+        checks.push({ name: 'host', ok: false, detail: 'host bg' });
+        return {
+          available: false,
+          reason: 'this owned session is a background session (claude --bg): the supervisor owns its process, the daemon only observes it and has no pipe to write to',
+          fix: `use the socket transport (the message arrives as a peer message); permission prompts are answered in a terminal: ${view.attachCommand ?? 'claude attach <id>'}`,
+          details: { checks, ownedState: view.state },
+        };
+      }
       if (view.hostKind !== 'stream-json') {
         checks.push({ name: 'host', ok: false, detail: `host ${view.hostKind}` });
         return { available: false, reason: `this owned session runs in a herdr-core terminal (${view.hostKind}): the daemon does not observe or write to it`, fix: 'use the hc transport', details: { checks, ownedState: view.state } };

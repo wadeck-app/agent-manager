@@ -12,6 +12,19 @@
 // Type-only: erased at build time, so the UI bundle gets nothing from the core package.
 import type { ReplyMarkerMode } from '@wadeck-app/agent-manager-core/reply';
 import type { GuardrailBlocksDto } from './guardrails.js';
+import type { GroupColor } from './groups.js';
+
+/** A user-defined group of agents (POST /groups...). The members are the rows whose `customGroupId` is its id, ordered by `customGroupOrder`. */
+export interface CustomGroupDto {
+  /** UUID. */
+  id: string;
+  name: string;
+  color: GroupColor | null;
+  /** Server-side collapsed state (shared by every tab and browser). */
+  collapsed: boolean;
+  /** Position among the groups, 0 first. */
+  order: number;
+}
 
 /** The error object of the log and reply routes. */
 export interface ApiError {
@@ -66,6 +79,10 @@ export interface SessionRowDto extends SessionStatusDto {
   pinned: boolean;
   /** Position of the pin in the order the user pinned the sessions (0 = pinned first); -1 when not pinned. The Pinned group lists by this. */
   pinOrder: number;
+  /** The custom group the user put this session in (id of an entry of `customGroups`); null when it is ungrouped. */
+  customGroupId: string | null;
+  /** Position of the session inside its custom group, 0 first; -1 when ungrouped. */
+  customGroupOrder: number;
   /** The user has seen the latest status of the session: false while `state` is 'done' (finished work not looked at yet). */
   seen: boolean;
   /** What a waiting session waits for ("permission prompt"); empty when it does not wait or the registry does not say. */
@@ -108,6 +125,8 @@ export interface SessionsOk {
   generatedAt: string;
   /** Most recent status change first. */
   sessions: SessionRowDto[];
+  /** The user's custom groups in display order (empty when none, or when the state file cannot be read: see `userStateError`). */
+  customGroups: CustomGroupDto[];
   /**
    * Set when the pins and seen markers could not be read or saved (file unreadable): the sessions are still listed (no pins, never overwritten); show
    * this text. Empty when everything is fine.
@@ -138,6 +157,7 @@ export interface SessionsFailed {
   /** message and hint in one line. */
   errorText: string;
   sessions: [];
+  customGroups: [];
   userStateError: '';
 }
 
@@ -621,7 +641,8 @@ export type CsrfResponse = CsrfOk | ApiFailure;
 // 'bad-request' (400). Codes of the daemon (status as the daemon gave it): 'unknown-session' (404), 'session-not-live' / 'session-exited' / 'already-live' /
 // 'session-live' / 'too-many-sessions' / 'leftover-alive' / 'not-owned' / 'permission-being-answered' (409), 'invalid-*' / 'cwd-*' (400), others 422 or 502.
 
-export type OwnedHostKind = 'stream-json' | 'hc';
+/** 'bg': a Claude Code background session (`claude --bg`): hosted by its supervisor, only observed by the daemon, permission prompts answered in a terminal. */
+export type OwnedHostKind = 'stream-json' | 'hc' | 'bg';
 
 /**
  * idle / running / requires_action: a live stream-json child (requires_action: it waits for a permission decision); exited: the process ended; interrupted: the
@@ -676,6 +697,8 @@ export interface OwnedSessionDto {
   pid?: number;
   /** hc: the terminal address ('t1z'). */
   hcAddress?: string;
+  /** bg: the short id of the supervisor job (what `claude attach`, `stop`, `respawn` and the removal command take). */
+  jobId?: string;
   /** A claude process of an interrupted session that is still alive after a daemon crash (never killed automatically; a resume then needs acknowledgeLeftover). */
   leftoverPid?: number;
   lastResult?: { subtype: string; isError: boolean; stopReason?: string; text?: string; at: number };
@@ -684,6 +707,14 @@ export interface OwnedSessionDto {
   exit?: OwnedExitDto;
   interruptedAt?: number;
   resumedAt?: number;
+  /** bg: the `state` of `claude agents --json` at the last poll (working, blocked, done, failed, stopped). */
+  bgState?: string;
+  /** bg: what the session waits on (`permission prompt`, `input needed`, ...). Answered only in a terminal: see `attachCommand`. */
+  waitingFor?: string;
+  /** bg: the command that opens the session in a terminal, where its permission prompts are answered. */
+  attachCommand?: string;
+  /** bg: why the daemon could not read `claude agents --json` at its last poll (the state shown is the last one it saw). */
+  observeError?: string;
 }
 
 export interface DaemonStatusDto {
@@ -767,10 +798,12 @@ export interface OwnedResumeRequest {
   acknowledgeLeftover?: boolean;
 }
 
-/** POST /owned/:id/forget (no body): removes an ended session from the list; a live one is refused (409 'session-live'). */
+/** POST /owned/:id/forget (no body): removes an ended session from the list; a live one is refused (409 'session-live'); two actions at once on one bg session: 409 'bg-action-in-progress'. */
 export interface OwnedForgetOk {
   ok: true;
   id: string;
+  /** bg: what could not be done on the Claude Code supervisor side (the record is removed anyway): `claude rm` refused, `claude agents` failed, or it no longer lists the job. */
+  supervisorNote?: string;
 }
 export type OwnedForgetResponse = OwnedForgetOk | ApiFailure;
 

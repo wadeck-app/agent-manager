@@ -32,6 +32,8 @@ export interface DaemonRuntimeOptions {
   closeTimeoutMs?: number;
   controlTimeoutMs?: number;
   maxLiveSessions?: number;
+  /** Test seam: the period of the poll of `claude agents --json` while a bg session is live (default 5 s). */
+  bgObserveIntervalMs?: number;
   sseHeartbeatMs?: number;
   maxSseClients?: number;
   maxSseBufferedBytes?: number;
@@ -71,6 +73,7 @@ export async function startDaemon(options: DaemonRuntimeOptions): Promise<Daemon
     ...(options.closeTimeoutMs === undefined ? {} : { closeTimeoutMs: options.closeTimeoutMs }),
     ...(options.controlTimeoutMs === undefined ? {} : { controlTimeoutMs: options.controlTimeoutMs }),
     ...(options.maxLiveSessions === undefined ? {} : { maxLiveSessions: options.maxLiveSessions }),
+    ...(options.bgObserveIntervalMs === undefined ? {} : { bgObserveIntervalMs: options.bgObserveIntervalMs }),
     onWarning: (text) => log(`warning: ${text}`),
   });
   // Read-only: a state file that cannot be read stops the start here (LaunchError with the path and the fix), before anything listens or takes the

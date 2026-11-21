@@ -84,3 +84,17 @@ describe('the interrupted row in the Tree', () => {
     expect(within(rowOf('name-cut')).getByText('Interrupted')).toBeInTheDocument();
   });
 });
+
+describe('background session chips', () => {
+  it('a waiting background session says the terminal answers it, never Allow or Deny', () => {
+    const chip = ownedStateChip(ownedRow({ host: 'bg', ownedState: 'requires_action', pendingPermissions: 0 }));
+    expect(chip).toMatchObject({ label: 'Waiting in the terminal', tone: 'attention', quiet: false });
+    expect(chip?.meaning).toContain('claude attach');
+    expect(chip?.meaning).not.toMatch(/Allow|Deny/);
+  });
+
+  it('an idle or running background session behaves like the others', () => {
+    expect(ownedStateChip(ownedRow({ host: 'bg', ownedState: 'running' }))).toMatchObject({ label: 'Running', quiet: true });
+    expect(ownedStateChip(ownedRow({ host: 'bg', ownedState: 'exited' }))).toMatchObject({ label: 'Exited' });
+  });
+});

@@ -8,13 +8,14 @@
  * | POST /owned/:id/resume                  | sensitive     | starts an agent process                          |
  * | POST /owned/:id/stop                    | sensitive     | kills a running session                          |
  * | POST /owned/:id/interrupt               | sensitive     | cancels the running turn                         |
+ * | POST /owned/:id/forget                  | sensitive     | removes a record; for a bg session also runs `claude rm` on the supervisor (it can delete the worktree Claude Code made for it) |
  * | POST /owned/:id/permission-mode         | sensitive     | widens or narrows what the agent may do alone    |
  * | POST /owned/:id/permissions/:requestId  | sensitive     | allows or denies a tool call                     |
  * | POST /sessions/:sessionId/reply         | sensitive     | sends a message to an agent                      |
  * | POST /sessions/:sessionId/hc-permission | sensitive     | types the answer of a permission dialog          |
  * | POST /sessions/:sessionId/pin           | not sensitive | module-local preference                          |
  * | POST /sessions/:sessionId/seen          | not sensitive | module-local marker                              |
- * | POST /owned/:id/forget                  | not sensitive | removes a record, touches no process             |
+ * | POST /groups, /groups/order, /groups/:id, /groups/:id/delete, POST /sessions/:sessionId/group | not sensitive | custom groups: module-local organization of the view |
  * | PUT /sessions/:sessionId/reply/transport | not sensitive | preference; the message itself is gated          |
  * | PUT /reply/transport/default            | not sensitive | preference; the message itself is gated          |
  * | GET /folders/roots, /list, /search, /recent | not sensitive (read) | names of folders inside the browsable roots only, see below |
@@ -33,6 +34,7 @@ export const SENSITIVE_ROUTES: readonly string[] = [
   'POST /owned/:id/resume',
   'POST /owned/:id/stop',
   'POST /owned/:id/interrupt',
+  'POST /owned/:id/forget',
   'POST /owned/:id/permission-mode',
   'POST /owned/:id/permissions/:requestId',
   'POST /sessions/:sessionId/reply',
@@ -42,9 +44,14 @@ export const SENSITIVE_ROUTES: readonly string[] = [
 ];
 
 export const NOT_SENSITIVE_ROUTES: readonly string[] = [
+  // The custom groups only organize the user's view: names and session ids in the module state file (threat-model T-16). The CSRF guard still applies.
+  'POST /groups',
+  'POST /groups/order',
+  'POST /groups/:id',
+  'POST /groups/:id/delete',
+  'POST /sessions/:sessionId/group',
   'POST /sessions/:sessionId/pin',
   'POST /sessions/:sessionId/seen',
-  'POST /owned/:id/forget',
   'PUT /sessions/:sessionId/reply/transport',
   'PUT /reply/transport/default',
 ];

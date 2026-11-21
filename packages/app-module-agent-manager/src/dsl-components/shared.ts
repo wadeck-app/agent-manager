@@ -6,3 +6,5 @@ export { DEFAULT_MODE, isMode, MODE_LABEL, MODES } from '../commons/variants.js'
 export type { ModeId } from '../commons/variants.js';
 export { CSRF_HEADER, CSRF_PATH } from '../commons/csrf.js';
 export { isSensitiveRequest } from '../commons/routeClasses.js';
+export { checkGroupName, GROUP_COLORS, GROUP_NAME_MAX, placeMember } from '../commons/groups.js';
+export type { GroupColor } from '../commons/groups.js';

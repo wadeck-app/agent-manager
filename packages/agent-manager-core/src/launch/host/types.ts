@@ -1,9 +1,12 @@
 import type { ExitCause } from '../types.js';
 
-/** How an owned session is hosted: `stream-json` (X1: a child process of the daemon) or `hc` (X3: a herdr-core terminal, not owned). */
-export type HostKind = 'stream-json' | 'hc';
+/**
+ * How an owned session is hosted: `stream-json` (X1: a child process of the daemon), `hc` (X3: a herdr-core terminal, not owned) or `bg` (X2: a Claude Code
+ * background session hosted by its supervisor, observed through `claude agents --json`, not owned).
+ */
+export type HostKind = 'stream-json' | 'hc' | 'bg';
 
-export const HOST_KINDS: readonly HostKind[] = ['stream-json', 'hc'];
+export const HOST_KINDS: readonly HostKind[] = ['stream-json', 'hc', 'bg'];
 
 /**
  * What the persisted file remembers: `live` (it was running when the file was last written), `exited` (the process ended and the end was seen),
@@ -47,6 +50,8 @@ export interface OwnedSessionRecord {
   daemonPid?: number;
   /** hc: the terminal address (`t1z`). */
   hcAddress?: string;
+  /** bg: the short job id of the supervisor (what `claude attach`, `stop`, `respawn` and `rm` take). */
+  jobId?: string;
   exit?: OwnedExit;
   /** Epoch ms: the daemon found this session live in the file at its start. */
   interruptedAt?: number;
@@ -100,6 +105,14 @@ export interface OwnedSessionView extends Omit<OwnedSessionRecord, 'status'> {
   lastResult?: LastResult;
   /** The last messages sent through the daemon and what became of them (bounded). */
   messages: MessageStatus[];
+  /** bg: the `state` of `claude agents --json` at the last poll (working, blocked, done, failed, stopped); absent before the first poll. */
+  bgState?: string;
+  /** bg: what the session waits on (`permission prompt`, `input needed`, ...), from the last poll. It is answered only in a terminal (`attachCommand`). */
+  waitingFor?: string;
+  /** bg: the command that opens the session in a terminal (`claude attach <id>`), where permission prompts are answered. */
+  attachCommand?: string;
+  /** bg: why the last poll of `claude agents --json` failed, while it keeps failing. The state shown is then the last one seen. */
+  observeError?: string;
 }
 
 /**
@@ -131,6 +144,8 @@ export type HostEventType =
   /** The daemon found the session live in its file at start: its child died with the old daemon. */
   | 'session.interrupted'
   | 'session.exit'
+  /** bg: the supervisor says the session waits on something only a terminal answers (`waitingFor`, `attachCommand`). */
+  | 'session.bg_waiting'
   | 'session.forgotten'
   | 'session.warning'
   | 'host.warning'

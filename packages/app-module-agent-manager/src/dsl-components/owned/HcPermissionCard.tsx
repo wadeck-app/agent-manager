@@ -2,7 +2,7 @@ import { Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
-import { isWebOwned } from '../logic/owned.js';
+import { isBgOwned, isWebOwned } from '../logic/owned.js';
 import type { HcPermissionDecisionResponse, HcPermissionPromptDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { HcPermissionPrompt } from './HcPermissionPrompt.js';
@@ -11,9 +11,9 @@ import { useHcPermission } from './useHcPermission.js';
 /** How long the answer of the last decision stays on screen. */
 export const HC_FEEDBACK_MS = 8000;
 
-/** The sessions the card is for: alive, waiting (the registry says `waiting`: state needs-you), and not a Web session (those have PermissionCard). */
+/** The sessions the card is for: alive, waiting (the registry says `waiting`: state needs-you), and not a Web session (those have PermissionCard) nor a Background one (the header says: answer in claude attach). */
 export function wantsHcCard(session: Pick<AgentRow, 'alive' | 'state' | 'launchedBy' | 'host'>): boolean {
-  return session.alive && session.state === 'needs-you' && !isWebOwned(session);
+  return session.alive && session.state === 'needs-you' && !isWebOwned(session) && !isBgOwned(session);
 }
 
 /**

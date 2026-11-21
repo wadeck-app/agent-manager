@@ -419,7 +419,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
       const { service, transports } = services();
       // An owned stream-json session whose process ended: "start a new session" (the answer of a dead registry entry) would be wrong, it can be resumed.
       const ownedFound = await owned.find(session.sessionId);
-      if (ownedFound.ok && ownedFound.view?.hostKind === 'stream-json' && (ownedFound.view.state === 'exited' || ownedFound.view.state === 'interrupted')) {
+      if (ownedFound.ok && (ownedFound.view?.hostKind === 'stream-json' || ownedFound.view?.hostKind === 'bg') && (ownedFound.view.state === 'exited' || ownedFound.view.state === 'interrupted')) {
         const { view } = ownedFound;
         return fail(409, 'owned-session-ended', `The owned session ${session.sessionId} is ${view.state}: ${view.state === 'interrupted' ? 'the daemon that owned it ended while it was live and its claude process ended with it' : 'its claude process ended'}`, 'Resume it (POST /owned/:id/resume): the conversation continues, the turn that was lost is not replayed. Then send the reply again.');
       }

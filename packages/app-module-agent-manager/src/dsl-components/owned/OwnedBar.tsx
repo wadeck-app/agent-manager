@@ -3,11 +3,12 @@ import { useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
 import { PERMISSION_MODE_OPTIONS } from '../logic/launchForm.js';
-import { isLiveWeb, isOwned } from '../logic/owned.js';
+import { isBgOwned, isLiveBg, isLiveWeb, isOwned } from '../logic/owned.js';
 import type { OwnedForgetResponse, OwnedInterruptResponse, OwnedPermissionModeResponse, OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { FOCUS_RING, IconButton } from '../ui/IconButton.js';
+import { BgAttach } from './BgAttach.js';
 import { HostBadge } from './OwnedChips.js';
 import { OwnedStateChip } from './OwnedStateChip.js';
 import { useOwnedSession } from './useOwnedSession.js';
@@ -26,6 +27,10 @@ type Pending = 'stop' | 'resume' | 'forget';
 /** The honest text of a resume: what comes back and what does not. */
 export const RESUME_TEXT = 'Resume restores the conversation: Claude Code reloads the transcript. The turn that was running when the daemon ended is NOT replayed: send your message again if you still want it.';
 
+/** Why a background session has no Interrupt: claude has no stop-turn command (checked in `claude --help` and the documented commands), only the terminal. */
+export const BG_NO_INTERRUPT = 'A background session has no remote interrupt: claude has no stop-turn command, attach and press Esc in the terminal.';
+export const BG_NO_MODE = 'The permission mode of a background session cannot be changed remotely.';
+
 const MODE_SELECT = `h-am-hit rounded border border-border bg-surface px-2 text-sm text-content disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 const ACTION = `inline-flex h-am-hit items-center gap-1.5 rounded border border-border px-3 text-sm text-content hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 
@@ -36,7 +41,7 @@ const ACTION = `inline-flex h-am-hit items-center gap-1.5 rounded border border-
  */
 export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
   const owned = isOwned(session);
-  const { dto, error: readError, refresh } = useOwnedSession(session.sessionId, session.ownedState, owned && session.host === 'stream-json');
+  const { dto, error: readError, refresh } = useOwnedSession(session.sessionId, session.ownedState, owned && (session.host === 'stream-json' || session.host === 'bg'));
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending | undefined>(undefined);
   const [dialogError, setDialogError] = useState('');
@@ -47,7 +52,10 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
   }
 
   const id = encodeURIComponent(session.sessionId);
-  const live = isLiveWeb(session);
+  const bg = isBgOwned(session);
+  const liveBg = isLiveBg(session);
+  const liveWeb = isLiveWeb(session);
+  const live = liveWeb || liveBg;
   const ended = session.ownedState === 'interrupted' || session.ownedState === 'exited';
   const resumable = dto?.resumable === true;
   const leftover = dto?.leftoverPid;
@@ -120,7 +128,7 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
       closeDialog();
       onChange({ kind: 'updated', session: resumed });
       refresh();
-      setNote('The session was resumed. Send your message again if the lost turn still matters.');
+      setNote(bg ? 'The session was restarted with claude respawn: its conversation comes back.' : 'The session was resumed. Send your message again if the lost turn still matters.');
     }
   };
 
@@ -173,11 +181,20 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
         </Banner>
       ) : null}
       {session.ownedState === 'exited' && dto !== undefined && !resumable && dto.note !== undefined && dto.note !== '' ? <Banner tone="info">{dto.note}</Banner> : null}
-      {readError !== '' && session.host === 'stream-json' ? <Banner tone="warning">{`The daemon record of this session could not be read, so some actions may be missing. ${readError}`}</Banner> : null}
+      {readError !== '' && (session.host === 'stream-json' || bg) ? <Banner tone="warning">{`The daemon record of this session could not be read, so some actions may be missing. ${readError}`}</Banner> : null}
+
+      {bg && dto?.observeError !== undefined ? <Banner tone="warning">{`The daemon could not read the state of background sessions (claude agents --json), so the state shown may be stale: ${dto.observeError}`}</Banner> : null}
+      {liveBg ? <BgAttach command={dto?.attachCommand} waitingFor={session.ownedState === 'requires_action' ? (dto?.waitingFor ?? 'prompt') : undefined} /> : null}
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-        {live && session.ownedState === 'running' ? (
+        {liveWeb && session.ownedState === 'running' ? (
           <button type="button" disabled={busy} onClick={() => void interrupt()} className={ACTION}>
+            <Square aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            Interrupt
+          </button>
+        ) : null}
+        {liveBg ? (
+          <button type="button" disabled title={BG_NO_INTERRUPT} aria-describedby="bg-no-interrupt" className={ACTION}>
             <Square aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             Interrupt
           </button>
@@ -191,11 +208,11 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
         {ended && resumable ? (
           <button type="button" disabled={busy} onClick={() => (leftover === undefined ? void resume() : setPending('resume'))} className={`${ACTION} border-primary bg-primary-light text-primary`}>
             <RotateCcw aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            {leftover === undefined ? 'Resume' : 'Resume anyway'}
+            {leftover === undefined ? (bg ? 'Resume (claude respawn)' : 'Resume') : 'Resume anyway'}
           </button>
         ) : null}
         {ended ? <IconButton icon={Trash2} label="Forget" disabled={busy} onClick={() => setPending('forget')} /> : null}
-        {live ? (
+        {liveWeb ? (
           <label className="flex items-center gap-1.5 text-sm text-muted">
             Permission mode
             <select
@@ -221,6 +238,21 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
         ) : null}
       </div>
 
+      {liveBg ? (
+        <ul className="list-none text-xs text-muted">
+          <li id="bg-no-interrupt">{BG_NO_INTERRUPT}</li>
+          <li id="bg-no-mode" data-bg-no-mode="">
+            <label className="inline-flex items-center gap-1.5">
+              Permission mode
+              <select aria-label="Permission mode" disabled title={BG_NO_MODE} aria-describedby="bg-no-mode" value={dto?.permissionMode ?? ''} onChange={() => undefined} className={MODE_SELECT}>
+                <option value={dto?.permissionMode ?? ''}>{dto?.permissionMode ?? '(set at launch)'}</option>
+              </select>
+            </label>{' '}
+            {BG_NO_MODE}
+          </li>
+        </ul>
+      ) : null}
+
       {note !== '' ? (
         <p role="status" className="text-sm text-muted">
           {note}
@@ -241,8 +273,17 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
 
       {pending === 'stop' ? (
         <ConfirmDialog title="Stop this session?" confirmLabel="Stop the session" danger busy={busy} error={dialogError} onConfirm={() => void stop()} onCancel={closeDialog}>
-          <p>The session ends: its claude process is stopped, and a turn that is running stops with it.</p>
-          <p>The conversation stays on disk. The session stays in the list as exited, and you can resume it from here.</p>
+          {bg ? (
+            <>
+              <p>The session ends: agent-manager runs claude stop for it, so the supervisor stops its process and a turn that is running stops with it.</p>
+              <p>The conversation is kept. The session stays in the list as exited, and Resume restarts it with claude respawn.</p>
+            </>
+          ) : (
+            <>
+              <p>The session ends: its claude process is stopped, and a turn that is running stops with it.</p>
+              <p>The conversation stays on disk. The session stays in the list as exited, and you can resume it from here.</p>
+            </>
+          )}
         </ConfirmDialog>
       ) : null}
       {pending === 'resume' ? (
@@ -254,7 +295,7 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
       ) : null}
       {pending === 'forget' ? (
         <ConfirmDialog title="Forget this session?" confirmLabel="Forget it" danger busy={busy} error={dialogError} onConfirm={() => void forget()} onCancel={closeDialog}>
-          <p>The session leaves the list and the daemon forgets it, so it can no longer be resumed from here.</p>
+          {bg ? <p>The session leaves the list, and agent-manager runs claude rm for it: it is also removed from the Claude Code supervisor (and from claude agents), with the worktree Claude Code made for it when that is safe to delete. It can no longer be resumed from here.</p> : <p>The session leaves the list and the daemon forgets it, so it can no longer be resumed from here.</p>}
           <p>The transcript file of Claude Code stays on disk.</p>
         </ConfirmDialog>
       ) : null}

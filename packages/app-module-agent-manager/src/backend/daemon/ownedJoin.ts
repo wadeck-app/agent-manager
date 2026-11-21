@@ -8,7 +8,7 @@ import type { OwnedSource } from './ownedSource.js';
 export interface OwnedRowFields {
   launchedBy: 'agent-manager' | 'discovered';
   ownedId?: string;
-  host: 'stream-json' | 'hc' | null;
+  host: 'stream-json' | 'hc' | 'bg' | null;
   ownedState?: OwnedView['state'];
   /** The state the daemon sent when this module does not know it (ownedState is then 'unknown'). */
   ownedRawState?: string;
@@ -40,7 +40,7 @@ function statusOf(view: OwnedView): { status: string; statusGroup: StatusGroup; 
     return { status: 'busy', statusGroup: 'busy' };
   }
   if (state === 'requires_action') {
-    return { status: 'waiting', statusGroup: 'other', waitingFor: 'permission prompt' };
+    return { status: 'waiting', statusGroup: 'other', waitingFor: view.waitingFor ?? 'permission prompt' };
   }
   // An hc terminal that has no registry file yet is booting: the daemon does not see it, so no state is invented.
   if (state === 'unobserved') {
@@ -68,7 +68,7 @@ export function sessionFromOwned(view: OwnedView, now: number): Session {
     folder: folderOf(view.cwd),
     startedAt: view.startedAt,
     version: view.claudeVersion,
-    ...(view.hostKind === 'stream-json' ? { kind: 'interactive', entrypoint: 'sdk-cli' } : {}),
+    ...(view.hostKind === 'stream-json' ? { kind: 'interactive', entrypoint: 'sdk-cli' } : view.hostKind === 'bg' ? { kind: 'bg', entrypoint: 'cli' } : {}),
     ...(view.name === undefined ? {} : { name: view.name }),
     status,
     statusGroup,
@@ -89,7 +89,7 @@ export function overlayOwned(session: Session, view: OwnedView): Session {
   const waiting = view.state === 'requires_action' && session.status !== 'waiting';
   return {
     ...session,
-    ...(waiting ? { status: 'waiting', statusGroup: 'other' as const, waitingFor: 'permission prompt' } : {}),
+    ...(waiting ? { status: 'waiting', statusGroup: 'other' as const, waitingFor: view.waitingFor ?? 'permission prompt' } : {}),
     ...(view.name !== undefined && registryNameYields(session) ? { name: view.name } : {}),
   };
 }

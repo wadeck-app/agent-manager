@@ -1,12 +1,13 @@
 import type { AgentState, OwnedHostKind, OwnedSessionDto, OwnedStateDto, SessionRowDto } from '../shared.js';
 
 /** The label of a host, the same word everywhere (rows, header, dialog). */
-export const HOST_LABEL: Record<OwnedHostKind, string> = { 'stream-json': 'Web', hc: 'Terminal' };
+export const HOST_LABEL: Record<OwnedHostKind, string> = { 'stream-json': 'Web', hc: 'Terminal', bg: 'Background' };
 
 /** What the host means, for the tooltip of its badge. */
 export const HOST_MEANING: Record<OwnedHostKind, string> = {
   'stream-json': 'Web session: started from agent-manager as a child of its daemon. Structured log, permission requests are answered in this page.',
   hc: 'Terminal session: started from agent-manager in a herdr-core terminal. The real Claude Code screen, permission requests are answered in that terminal.',
+  bg: 'Background session: started from agent-manager with claude --bg. The Claude Code supervisor hosts it, so it survives agent-manager and you can attach in a terminal. Permission prompts are answered in the terminal (claude attach <id>); replies are sent as peer messages.',
 };
 
 export function isOwned(session: Pick<SessionRowDto, 'launchedBy'>): boolean {
@@ -16,6 +17,16 @@ export function isOwned(session: Pick<SessionRowDto, 'launchedBy'>): boolean {
 /** An owned session the daemon hosts itself (stream-json): the one that has permission cards, Stop, Resume and a permission mode. */
 export function isWebOwned(session: Pick<SessionRowDto, 'launchedBy' | 'host'>): boolean {
   return session.launchedBy === 'agent-manager' && session.host === 'stream-json';
+}
+
+/** A background session (claude --bg): hosted by the Claude Code supervisor, observed by the daemon, no pipe to it. */
+export function isBgOwned(session: Pick<SessionRowDto, 'launchedBy' | 'host'>): boolean {
+  return session.launchedBy === 'agent-manager' && session.host === 'bg';
+}
+
+/** A bg session whose process the supervisor still hosts (the daemon reads idle, running or waiting from claude agents --json). */
+export function isLiveBg(session: Pick<SessionRowDto, 'launchedBy' | 'host' | 'ownedState'>): boolean {
+  return isBgOwned(session) && (session.ownedState === 'idle' || session.ownedState === 'running' || session.ownedState === 'requires_action' || session.ownedState === 'unobserved');
 }
 
 /** A live stream-json child: it can be interrupted and stopped, its mode changed. */
@@ -37,12 +48,15 @@ export interface OwnedStateChip {
  * The owned-state chip of a session, undefined when there is nothing to add (a discovered session, an hc terminal the daemon does not observe, a ready
  * session). A session with no registry file yet reads "Starting" until its first message creates it.
  */
-export function ownedStateChip(session: Pick<SessionRowDto, 'launchedBy' | 'ownedState' | 'ownedRawState' | 'registryPending' | 'pendingPermissions'>): OwnedStateChip | undefined {
+export function ownedStateChip(session: Pick<SessionRowDto, 'launchedBy' | 'ownedState' | 'ownedRawState' | 'registryPending' | 'pendingPermissions'> & { host?: SessionRowDto['host'] }): OwnedStateChip | undefined {
   if (session.launchedBy !== 'agent-manager' || session.ownedState === undefined) {
     return undefined;
   }
   switch (session.ownedState) {
     case 'requires_action': {
+      if (session.host === 'bg') {
+        return { label: 'Waiting in the terminal', tone: 'attention', meaning: 'The background session waits on something only a terminal can answer (a permission prompt, a question). Open it with claude attach <id>: this page cannot answer it.', quiet: false };
+      }
       const count = session.pendingPermissions;
       return { label: count > 1 ? `Waiting for permission (${count})` : 'Waiting for permission', tone: 'attention', meaning: 'The agent asks to use a tool and waits for your Allow or Deny.', quiet: false };
     }
@@ -120,6 +134,8 @@ export function rowFromOwned(dto: OwnedSessionDto, now: number): SessionRowDto {
     state: stateFromOwned(dto.state, live),
     pinned: false,
     pinOrder: -1,
+    customGroupId: null,
+    customGroupOrder: -1,
     seen: true,
     reason: dto.state === 'requires_action' ? 'permission prompt' : '',
     lastActivity: '',

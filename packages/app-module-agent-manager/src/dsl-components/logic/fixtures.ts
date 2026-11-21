@@ -19,6 +19,8 @@ export function row(overrides: Partial<SessionRowDto> = {}): SessionRowDto {
     state: 'idle',
     pinned: false,
     pinOrder: -1,
+    customGroupId: null,
+    customGroupOrder: -1,
     seen: true,
     reason: '',
     lastActivity: '',

@@ -7,8 +7,8 @@ export { appendHostAudit, hostAuditFile } from './hostAudit.js';
 export type { HostAuditAction, HostAuditRecord } from './hostAudit.js';
 export { describeLeftover, findLeftovers } from './leftovers.js';
 export type { Leftover } from './leftovers.js';
-export { DEFAULT_MAX_LIVE_SESSIONS, DEFAULT_MAX_RECORDS, SessionHost } from './SessionHost.js';
-export type { HcLauncherLike, HostStatus, InitResult, SessionHostOptions, ShutdownResult } from './SessionHost.js';
+export { DEFAULT_BG_OBSERVE_INTERVAL_MS, DEFAULT_MAX_LIVE_SESSIONS, DEFAULT_MAX_RECORDS, SessionHost, bgOwnedState } from './SessionHost.js';
+export type { BgLauncherLike, HcLauncherLike, HostStatus, InitResult, SessionHostOptions, ShutdownResult } from './SessionHost.js';
 export { STATE_FILE_NAME, STATE_FILE_VERSION, ownedStatePath, readOwnedState, writeOwnedState } from './stateFile.js';
 export { HOST_KINDS, MAX_MESSAGES_PER_SESSION, MAX_RESULT_TEXT_CHARS, MAX_STDERR_TAIL_CHARS } from './types.js';
 export type {

@@ -9,7 +9,7 @@ describe('generated entries', () => {
 
   it('registers AgentWorkspace with its props (the rows come from the page source) and imports the component from the folder next to it', () => {
     expect(generated).toContain('AgentWorkspaceEntry');
-    expect(generated).toContain('"hiddenDead","ownedError","ownedErrorText","sessions","userStateError"');
+    expect(generated).toContain('"customGroups","hiddenDead","ownedError","ownedErrorText","sessions","userStateError"');
     expect(generated).not.toContain('../dsl-components/');
     expect(generated).toContain("from '../components/AgentWorkspace.js'");
   });

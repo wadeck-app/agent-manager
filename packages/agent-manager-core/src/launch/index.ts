@@ -8,6 +8,8 @@ export { DEFAULT_CLAUDE_COMMAND, DEFAULT_CLOSE_TIMEOUT_MS, DEFAULT_CONTROL_TIMEO
 export type { StreamJsonSessionOptions } from './StreamJsonSession.js';
 export { DEFAULT_POLL_INTERVAL_MS, DEFAULT_REGISTRY_TIMEOUT_MS, DEFAULT_RUN_TIMEOUT_MS, HcLauncher, buildRunArgs } from './HcLauncher.js';
 export type { HcLaunchRequest, HcLaunchResult, HcLauncherOptions } from './HcLauncher.js';
+export { BgLauncher, DEFAULT_BG_POLL_INTERVAL_MS, assertBgId, buildBgArgs, parseAgentsJson, parseAgentsReport, parseBackgroundedId } from './BgLauncher.js';
+export type { AgentsReport, BgAgent, BgCommandOptions, BgLaunchRequest, BgLaunchResult, BgLauncherOptions } from './BgLauncher.js';
 export type {
   DeliveryOutcome,
   ExitCause,
@@ -29,8 +31,8 @@ export { appendHostAudit, hostAuditFile } from './host/hostAudit.js';
 export type { HostAuditAction, HostAuditRecord } from './host/hostAudit.js';
 export { describeLeftover, findLeftovers } from './host/leftovers.js';
 export type { Leftover } from './host/leftovers.js';
-export { DEFAULT_MAX_LIVE_SESSIONS, DEFAULT_MAX_RECORDS, SessionHost } from './host/SessionHost.js';
-export type { HcLauncherLike, HostStatus, InitResult, SessionHostOptions, ShutdownResult } from './host/SessionHost.js';
+export { DEFAULT_BG_OBSERVE_INTERVAL_MS, DEFAULT_MAX_LIVE_SESSIONS, DEFAULT_MAX_RECORDS, SessionHost, bgOwnedState } from './host/SessionHost.js';
+export type { BgLauncherLike, HcLauncherLike, HostStatus, InitResult, SessionHostOptions, ShutdownResult } from './host/SessionHost.js';
 export { STATE_FILE_NAME, STATE_FILE_VERSION, ownedStatePath, readOwnedState, writeOwnedState } from './host/stateFile.js';
 export { HOST_KINDS, MAX_MESSAGES_PER_SESSION, MAX_RESULT_TEXT_CHARS, MAX_STDERR_TAIL_CHARS } from './host/types.js';
 export type {

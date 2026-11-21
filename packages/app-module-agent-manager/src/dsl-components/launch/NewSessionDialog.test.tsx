@@ -151,3 +151,32 @@ describe('New session dialog: launching', () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe('New session dialog: the Background session choice', () => {
+  it('offers it as the third way to run, says the folder must be trusted, and launches with hostKind bg', async () => {
+    const { calls } = stubFetch({ 'POST /owned/launch': { body: { ok: true, session: ownedDto({ hostKind: 'bg', jobId: 'abcd1234' }) } } });
+    const { onLaunched } = open();
+    expect(screen.queryByText(/must already be trusted by Claude Code/)).toBeNull();
+    await userEvent.click(screen.getByRole('radio', { name: /Background session/ }));
+    expect(screen.getByText(/Survives the daemon, you can attach in a terminal/)).toBeInTheDocument();
+    expect(screen.getByText(/must already be trusted by Claude Code/)).toBeInTheDocument();
+    await userEvent.type(folder(), '/work/shop');
+    await userEvent.type(screen.getByLabelText('Name (optional)'), '-bad');
+    expect(screen.getByRole('alert')).toHaveTextContent(/must not start with/);
+    expect(launchButton()).toBeDisabled();
+    await userEvent.clear(screen.getByLabelText('Name (optional)'));
+    await userEvent.click(launchButton());
+    await waitFor(() => expect(onLaunched).toHaveBeenCalled());
+    expect(calls.find((call) => call.path === '/owned/launch')?.body).toMatchObject({ hostKind: 'bg', cwd: '/work/shop' });
+    expect(JSON.parse(window.localStorage.getItem(LAUNCH_STORAGE_KEY) ?? '{}')).toMatchObject({ hostKind: 'bg' });
+  });
+
+  it('shows the refusal of an untrusted folder with its fix', async () => {
+    stubFetch({ 'POST /owned/launch': { status: 422, body: { ok: false, error: { code: 'workspace-not-trusted', message: 'Claude Code does not trust the folder /work/shop', hint: 'run claude once in /work/shop, accept the trust dialog, quit, then retry' } } } });
+    open();
+    await userEvent.click(screen.getByRole('radio', { name: /Background session/ }));
+    await userEvent.type(folder(), '/work/shop');
+    await userEvent.click(launchButton());
+    expect(await screen.findByText(/does not trust the folder .*accept the trust dialog/)).toBeInTheDocument();
+  });
+});

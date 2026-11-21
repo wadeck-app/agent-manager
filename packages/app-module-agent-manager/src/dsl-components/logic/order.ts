@@ -1,3 +1,4 @@
+import { partitionByGroup } from './customGroups.js';
 import { flatten, groupSessions } from './grouping.js';
 import { firstNonEmptyTab, parseTab, tabCounts, tabSessions } from './inbox.js';
 import { agentId } from './states.js';
@@ -13,10 +14,15 @@ import type { ViewOptions } from './viewOptions.js';
  *
  * `tabParam` is the `?tab=` of the Inbox (an unknown one gives the first tab that holds something, as the Inbox does).
  */
-export function orderedSessionIds(mode: ModeId, sessions: readonly SessionRowDto[], options: ViewOptions, tabParam: string | null): string[] {
+export function orderedSessionIds(mode: ModeId, sessions: readonly SessionRowDto[], options: ViewOptions, tabParam: string | null, customGroupIds: readonly string[] = []): string[] {
   switch (mode) {
-    case 'tree':
-      return options.tree.grouping === 'none' ? flatByUrgency(sessions).map(agentId) : buildTree(sessions).flatMap((node) => node.sessions.map(agentId));
+    case 'tree': {
+      // The custom groups first, in their order (the Tree draws them above the automatic tree), then what no group claims.
+      const known = customGroupIds.map((id) => ({ id, name: '', color: null, collapsed: false, order: 0 }));
+      const { sections, ungrouped } = partitionByGroup(sessions, known.map((group, order) => ({ ...group, order })), true);
+      const grouped = sections.flatMap((section) => section.sessions.map(agentId));
+      return [...grouped, ...(options.tree.grouping === 'none' ? flatByUrgency(ungrouped).map(agentId) : buildTree(ungrouped).flatMap((node) => node.sessions.map(agentId)))];
+    }
     case 'groups':
       return flatten(groupSessions(sessions)).map(agentId);
     case 'inbox':

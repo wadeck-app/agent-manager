@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow } from '../logic/fixtures.js';
 import type { OwnedSessionDto } from '../shared.js';
-import { OwnedBar, RESUME_TEXT } from './OwnedBar.js';
+import { BG_NO_INTERRUPT, BG_NO_MODE, OwnedBar, RESUME_TEXT } from './OwnedBar.js';
 import { stubFetch } from './testFetch.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -161,5 +161,80 @@ describe('OwnedBar: a Terminal session', () => {
     expect(document.querySelector('[data-host-badge="hc"]')).toHaveTextContent('Terminal');
     expect(screen.queryByRole('button')).toBeNull();
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('OwnedBar: a Background session', () => {
+  const JOB = 'abcd1234';
+  const bgDto = (over: Partial<OwnedSessionDto> = {}) => ownedDto({ id: ID, hostKind: 'bg', jobId: JOB, attachCommand: `claude attach ${JOB}`, state: 'idle', bgState: 'done', permissionMode: 'default', ...over });
+  const bgRow = (over: Parameters<typeof ownedRow>[0] = {}) => ownedRow({ sessionId: ID, host: 'bg', ownedState: 'idle', ...over });
+
+  it('shows the Background badge, the attach command with a Copy button that copies exactly it, and no X1 controls', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    stubFetch({ 'GET /owned': listed(bgDto()) });
+    bar(bgRow());
+    expect(document.querySelector('[data-host-badge="bg"]')).toHaveTextContent('Background');
+    expect(await screen.findByText(`claude attach ${JOB}`)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Copy command/ }));
+    expect(writeText).toHaveBeenCalledWith(`claude attach ${JOB}`);
+    expect(await screen.findByText('Copied')).toBeInTheDocument();
+    // Interrupt and the permission mode are rendered, disabled, with the reason in words.
+    expect(screen.getByRole('button', { name: 'Interrupt' })).toBeDisabled();
+    expect(screen.getByLabelText('Permission mode')).toBeDisabled();
+    expect(screen.getAllByText(BG_NO_INTERRUPT).length).toBeGreaterThan(0);
+    expect(screen.getByText(BG_NO_MODE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Stop/ })).toBeEnabled();
+  });
+
+  it('says so when the clipboard is not available, with the command to select', async () => {
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
+    stubFetch({ 'GET /owned': listed(bgDto()) });
+    bar(bgRow());
+    await userEvent.click(await screen.findByRole('button', { name: /Copy command/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not be copied.*clipboard is not available.*claude attach abcd1234/);
+  });
+
+  it('a waiting session shows the panel that names what it waits on and where to answer, with no Allow or Deny', async () => {
+    stubFetch({ 'GET /owned': listed(bgDto({ state: 'requires_action', waitingFor: 'permission prompt', bgState: 'blocked' })) });
+    bar(bgRow({ ownedState: 'requires_action' }));
+    expect(await screen.findByText('Answer in a terminal: this session waits on a permission prompt')).toBeInTheDocument();
+    expect(document.querySelector('[data-owned-state="requires_action"]')).toHaveTextContent('Waiting in the terminal');
+    expect(screen.queryByRole('button', { name: /Allow|Deny/ })).toBeNull();
+  });
+
+  it('shows why the state may be stale when the daemon cannot read claude agents', async () => {
+    stubFetch({ 'GET /owned': listed(bgDto({ observeError: 'claude agents --json failed (exit 1)' })) });
+    bar(bgRow());
+    expect(await screen.findByText(/state shown may be stale: claude agents --json failed \(exit 1\)/)).toBeInTheDocument();
+  });
+
+  it('Stop names claude stop and respawn, then posts to the owned stop route', async () => {
+    const exited = bgDto({ status: 'exited', state: 'exited', resumable: true });
+    const { calls } = stubFetch({ 'GET /owned': listed(bgDto()), [`POST /owned/${ID}/stop`]: { body: { ok: true, session: exited } } });
+    const { onChange } = bar(bgRow());
+    await userEvent.click(await screen.findByRole('button', { name: /Stop/ }));
+    expect(screen.getByRole('dialog', { name: 'Stop this session?' })).toHaveTextContent(/claude stop.*claude respawn/);
+    await userEvent.click(screen.getByRole('button', { name: 'Stop the session' }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: exited }));
+    expect(calls.some((call) => call.path === `/owned/${ID}/stop`)).toBe(true);
+  });
+
+  it('an ended one offers Resume (claude respawn) and Forget, which says it also removes the session from the supervisor', async () => {
+    const live = bgDto();
+    const { calls } = stubFetch({
+      'GET /owned': listed(bgDto({ status: 'exited', state: 'exited', resumable: true })),
+      [`POST /owned/${ID}/resume`]: { body: { ok: true, session: live } },
+      [`POST /owned/${ID}/forget`]: { body: { ok: true, id: ID } },
+    });
+    const { onChange, onForgotten } = bar(bgRow({ ownedState: 'exited', alive: false, state: 'ended' }));
+    await userEvent.click(await screen.findByRole('button', { name: /Resume \(claude respawn\)/ }));
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: live }));
+    expect(await screen.findByText(/restarted with claude respawn/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Forget' }));
+    expect(screen.getByRole('dialog', { name: 'Forget this session?' })).toHaveTextContent(/claude rm.*removed from the Claude Code supervisor/);
+    await userEvent.click(screen.getByRole('button', { name: 'Forget it' }));
+    await waitFor(() => expect(onForgotten).toHaveBeenCalled());
+    expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual([`/owned/${ID}/resume`, `/owned/${ID}/forget`]);
   });
 });

@@ -89,7 +89,7 @@ export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
   const body = objectBody(value, ['hostKind', 'cwd', 'model', 'permissionMode', 'name'], '{"hostKind":"stream-json","cwd":"<absolute folder>"}');
   const hostKind = body['hostKind'];
   if (!HOST_KINDS.some((kind) => kind === hostKind)) {
-    return bad('invalid-host-kind', `hostKind ${JSON.stringify(hostKind)} is not valid`, `use one of ${HOST_KINDS.join(', ')} ('stream-json' is owned by the daemon, 'hc' starts a herdr-core terminal)`);
+    return bad('invalid-host-kind', `hostKind ${JSON.stringify(hostKind)} is not valid`, `use one of ${HOST_KINDS.join(', ')} ('stream-json' is owned by the daemon, 'hc' starts a herdr-core terminal, 'bg' starts a Claude Code background session)`);
   }
   const cwd = await assertWorkingDirectory(body['cwd']);
   const model = optionalText(body, 'model');
@@ -102,7 +102,7 @@ export async function parseLaunchBody(value: unknown): Promise<LaunchRequest> {
   }
   const name = optionalText(body, 'name');
   if (name !== undefined && (name.length > MAX_NAME_CHARS || /[\u0000-\u001f\u007f]/.test(name))) {
-    return bad('invalid-name', `name must be a single line of at most ${MAX_NAME_CHARS} characters`, 'use a short label without control characters (for hc: 1-32 of a-z 0-9 - _)');
+    return bad('invalid-name', `name must be a single line of at most ${MAX_NAME_CHARS} characters`, 'use a short label without control characters (for hc: 1-32 of a-z 0-9 - _; for bg: not starting with "-")');
   }
   return { hostKind: hostKind as HostKind, cwd, ...(model === undefined ? {} : { model }), ...(permissionMode === undefined ? {} : { permissionMode }), ...(name === undefined ? {} : { name }) };
 }

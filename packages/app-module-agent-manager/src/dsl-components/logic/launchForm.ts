@@ -7,7 +7,7 @@ export interface HostChoice {
   id: OwnedHostKind;
   /** The label of the choice: the same word as the badge of the rows. */
   label: string;
-  /** The code of the experiment (the plan calls them X1 and X3). */
+  /** The code of the experiment (the plan calls them X1, X3 and X2). */
   tag: string;
   /** One honest line about what the user gets and gives up. */
   description: string;
@@ -25,6 +25,12 @@ export const HOST_CHOICES: readonly HostChoice[] = [
     label: 'Terminal session',
     tag: 'X3',
     description: 'Runs in a herdr-core terminal (hc): the real Claude Code screen, permission requests are answered in that terminal, not here.',
+  },
+  {
+    id: 'bg',
+    label: 'Background session',
+    tag: 'X2',
+    description: 'Survives the daemon, you can attach in a terminal, permissions are answered in the terminal, replies arrive as peer messages.',
   },
 ];
 
@@ -134,6 +140,9 @@ export function nameProblem(text: string, hostKind: OwnedHostKind): string {
   // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f]/.test(name)) {
     return 'The name must be a single line without control characters.';
+  }
+  if (hostKind === 'bg' && name.startsWith('-')) {
+    return 'A background session name must not start with "-" (it would be read as an option of claude).';
   }
   if (hostKind === 'hc' && !HC_NAME.test(name)) {
     return 'A terminal session name is also the name of its terminal: 1 to 32 characters of a-z, 0-9, "-" and "_", starting with a letter or a digit.';

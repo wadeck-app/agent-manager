@@ -54,6 +54,7 @@ describe('parseLaunchBody', () => {
     const cwd = folder();
     expect(await parseLaunchBody({ hostKind: 'stream-json', cwd, model: 'haiku', permissionMode: 'default', name: 'a label' })).toEqual({ hostKind: 'stream-json', cwd, model: 'haiku', permissionMode: 'default', name: 'a label' });
     expect(await parseLaunchBody({ hostKind: 'hc', cwd })).toEqual({ hostKind: 'hc', cwd });
+    expect(await parseLaunchBody({ hostKind: 'bg', cwd })).toEqual({ hostKind: 'bg', cwd });
   });
 
   it.each([

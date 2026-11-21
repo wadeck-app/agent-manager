@@ -343,3 +343,42 @@ Control run (`poc/scripts/smoke-owned-x1-control.mjs`, one Haiku session, 4 turn
 Windows finding [M]: a grandchild that inherits stdout does NOT keep the pipes of a node child open (`close` came 1 ms after `exit`), so the window between `exit` and `close` is not reproducible with a real process here; the tests drive it with a hand-made child.
 
 Not run against the real binary: `HcLauncher`. The error `control_response` shape (`subtype:"error"`, `error` text) is taken from the SDK types, not measured; a control request other than `can_use_tool` is reported and left unanswered because no answer frame is proven.
+
+## Round 4 (bg integration, host kind `bg`)
+
+Date: 2026-11-21, `claude` 2.1.330, Haiku 4.5 on Bedrock, Windows 10. Marks: [D] official doc fetched 2026-11-21 (`cli-reference`, `agent-view`; the last 46k chars of `agent-view`, which hold its "Limitations" section, were not read), [M] measured now, [H] `claude <verb> --help`, UNKNOWN. Script: `poc/scripts/smoke-daemon-bg.mjs` (built bundle, isolated config dir, real HOME). Raw log of the run: `%TEMP%\am-edit\live-bg.log` (not in the repo). 2 Haiku prompts, 1 session, no loop.
+
+### Documented vs only observed
+
+| Item | Status |
+|---|---|
+| `--bg`, `--background`: start, return at once, "prints the session ID and management commands"; combines with `--name`, `--model`, `--permission-mode`; refused with `-p` | [D] |
+| Output line `backgrounded - <short id> - <name>` | [D] shown as an example, [M] parsed here; not promised as a contract |
+| `claude agents --json [--all] [--cwd]`: `cwd, kind, startedAt` always; `id, state` for background; `pid, status` while alive; `waitingFor` when `status` is `waiting`; `sessionId, name` when set; "the supported way to read session state from outside Claude Code" | [D] |
+| `attach <id\|name>`, `logs`, `stop` (alias `kill`), `respawn <id>\|--all`, `rm <id>` (conversation kept) | [D][H] |
+| `--resume <id> --bg` continues a stopped session in the background | [D] (round 1 [M]) |
+| Replying from a script: no command. Peek-panel replies are interactive; a reply does not answer a permission or other dialog, "attach" does | [D] |
+| Permission prompt: the process keeps running; from a script only `agents --json` shows `state: blocked` and `waitingFor: permission prompt` | [D] |
+| `--bg` in an untrusted folder with no dialog possible: `Workspace not trusted` error | [D][M] |
+| Supervisor: sessions survive terminal and manager; finished or waiting sessions unattached for about 1 hour are stopped; research preview | [D] |
+| In a git repository a bg session may be worktree-isolated by default (`worktree.bgIsolation: none` disables it); `rm` deletes "a worktree Claude created for it when that's safe" | [D] inferred from "Outside a git repository, sessions aren't isolated"; NOT tested (the run used a folder outside git) |
+| No stop-turn or interrupt command | [H] `claude --help` lists none; [D] interrupt exists only inside the attached TUI |
+| Supervisor control pipe op `reply`, `control.key` | not documented ([B] round 1) |
+
+### Measured on this run [M]
+
+- Untrusted folder `%TEMP%\am-bg`: the daemon answered 422 `workspace-not-trusted` with the fix; no model call, no session left. The run then used the trusted `%TEMP%\am-research2\proj` (the script never edits `~/.claude.json`).
+- Launch `claude --bg --model haiku --permission-mode default --name am-bg-smoke`: listed by `agents --json --all` with its session id 1.6 s after the start. Registry entry `kind:"bg"`, `entrypoint:"cli"`, `status:"idle"`, socket present. `agents --json` entry: `status:"idle"`, `state:"blocked"` (no prompt yet).
+- Reply through the existing `socket` transport (probe available, 309 bytes written, no acknowledgement). Transcript: `origin:{kind:"peer",from:"unknown",msg_id}`, `promptSource:"system"`, text wrapped as "Another Claude session sent a message: ... Treat it as a teammate's request". The model answered `OK` 4 s after the send.
+- `state` lags: after that answer the registry and `agents --json` said `status:"idle"` while `state:"working"` stayed for about 2 minutes (until the next message). So the host maps `status` (busy, waiting, idle) first and uses `state` only when `status` is absent. The first run of the script had mapped on `state` (it showed running for 2 minutes after the end of the turn); the mapping was changed after this finding and is covered by unit tests, not re-run live.
+- The daemon poll (5 s) saw `running` 4.7 s after the send; a turn shorter than the period can be missed.
+- Prompt 2 (a Bash `touch`, default mode): Haiku did NOT run it. It answered that another background session was asking it to create a file without context, and asked for confirmation. No permission prompt appeared: `waitingFor` was NOT observed on a real session. n=1. The peer wrapper of the socket path makes the model treat a tool request as untrusted; the control-pipe `reply` (origin human in round 3) would not. This is the one functional reason to build `bg-control` later.
+- `claude logs` of the idle session: the TUI footer (model, context, "manual mode on"), no conversation text.
+- Stop through the daemon (`claude stop`): `agents --json --all` then lists `state:"stopped"` with no `pid` and no `status`. Forget (`claude rm`): the entry is gone. The supervisor had exited 8 s after the end (`claude daemon status`: not running). Left on disk: `%TEMP%\agent-manager-smoke-bg-*` (config, logs, audit), the transcript `~/.claude/projects/...am-research2-proj/dfb6a72e-*.jsonl`, a few lines in `~/.claude/daemon.log`, `%TEMP%\am-bg` (empty). Older bg entries of other folders in `agents --json --all` are the user's and were not touched.
+
+### Decisions
+
+- `bg-control` (supervisor pipe `reply`) is NOT built: private protocol (`proto` 1); it needs `~/.claude/daemon/control.key`, a secret that also authorizes `list` (and, as far as the binary shows, other supervisor ops), read by the daemon; the pipe name is found by scanning the pipes. The socket transport needs only the per-session token it already reads. Revisit if the peer wrapper proves a real obstacle (prompt 2).
+- Permission prompts and interrupt of a bg session are not remote: the UI says `claude attach <id>` with a copy button.
+- `POST /owned/:id/forget` is PIN-sensitive since it removes the session from the supervisor too.
+- Not run: `claude respawn` (fake only), attach, a git repository (worktree), the 1-hour idle stop, `waitingFor` on a real session.

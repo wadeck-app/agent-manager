@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { DEFAULT_LAUNCH_PREFS, LAUNCH_STORAGE_KEY, cwdProblem, launchBody, nameProblem, readLaunchPrefs, saveLaunchPrefs } from './launchForm.js';
+import { DEFAULT_LAUNCH_PREFS, HOST_CHOICES, LAUNCH_STORAGE_KEY, cwdProblem, launchBody, nameProblem, readLaunchPrefs, saveLaunchPrefs } from './launchForm.js';
 
 afterEach(() => window.localStorage.clear());
 
@@ -61,5 +61,28 @@ describe('remembered choices', () => {
     expect(readLaunchPrefs()).toEqual({ hostKind: 'stream-json', model: 'haiku', permissionMode: '' });
     window.localStorage.setItem(LAUNCH_STORAGE_KEY, '{not json');
     expect(readLaunchPrefs()).toEqual(DEFAULT_LAUNCH_PREFS);
+  });
+});
+
+describe('the Background session choice (X2)', () => {
+  it('is the third choice, with an honest one-line description', () => {
+    expect(HOST_CHOICES.map((choice) => choice.id)).toEqual(['stream-json', 'hc', 'bg']);
+    const bg = HOST_CHOICES[2]!;
+    expect(bg).toMatchObject({ label: 'Background session', tag: 'X2' });
+    expect(bg.description).toBe('Survives the daemon, you can attach in a terminal, permissions are answered in the terminal, replies arrive as peer messages.');
+  });
+
+  it('refuses a name that would read as an option of claude, and keeps the 64 characters limit', () => {
+    expect(nameProblem('-rf', 'bg')).toMatch(/must not start with "-"/);
+    expect(nameProblem('Billing fix', 'bg')).toBe('');
+    expect(nameProblem('x'.repeat(65), 'bg')).toMatch(/limit is 64/);
+    // The same text is fine for a Web session.
+    expect(nameProblem('-rf', 'stream-json')).toBe('');
+  });
+
+  it('is remembered, and sent as hostKind bg', () => {
+    saveLaunchPrefs({ hostKind: 'bg', model: '', permissionMode: '' });
+    expect(readLaunchPrefs().hostKind).toBe('bg');
+    expect(launchBody({ hostKind: 'bg', cwd: '/shop', model: 'haiku', permissionMode: '', name: '' })).toEqual({ hostKind: 'bg', cwd: '/shop', model: 'haiku' });
   });
 });

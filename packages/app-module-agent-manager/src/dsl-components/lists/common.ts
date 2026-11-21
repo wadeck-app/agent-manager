@@ -1,4 +1,5 @@
 import type { AgentRow } from '../data/types.js';
+import type { CustomGroupDto, GroupColor } from '../shared.js';
 import type { ParsedQuery } from '../logic/fuzzy.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
 
@@ -13,6 +14,22 @@ export interface ListProps {
   /** The search is active: the empty states say "no match" instead of "no session". */
   searching: boolean;
   options: ViewOptions;
+  /** The custom groups (Tree list only); absent where the list has none (the other modes, tests). */
+  groups?: GroupsApi;
+}
+
+/** What the Tree list needs to show and change the custom groups (the page owns the data and the requests). */
+export interface GroupsApi {
+  /** The groups in display order, with the page's local changes applied. */
+  groups: CustomGroupDto[];
+  /** Moves a session into a group (before the member `beforeId`, or at the end) or out of its group (`groupId` null). */
+  move: (sessionId: string, groupId: string | null, beforeId?: string | null) => void;
+  /** Creates a group at the end; resolves with it, or undefined when the server refused (the page shows why). */
+  create: (name: string, color?: GroupColor | null) => Promise<CustomGroupDto | undefined>;
+  update: (id: string, patch: { name?: string; color?: GroupColor | null; collapsed?: boolean }) => void;
+  remove: (id: string) => void;
+  /** Sets the order of the groups: every group id, once. */
+  reorder: (ids: string[]) => void;
 }
 
 /** The session name when it adds something to the folder (the registry name, not the folder echoed back). */

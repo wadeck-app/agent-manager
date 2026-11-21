@@ -1,4 +1,4 @@
-import { Globe, LoaderCircle, Rocket, SquareTerminal } from 'lucide-react';
+import { Globe, LoaderCircle, Rocket, ServerCog, SquareTerminal } from 'lucide-react';
 import { useId, useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
 import {
@@ -22,7 +22,7 @@ import { Field } from './Field.js';
 import { FolderPicker } from '../folders/FolderPicker.js';
 
 const FIELD = `w-full rounded border border-border bg-surface px-2.5 py-1.5 text-base text-content placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS_RING}`;
-const HOST_ICON: Record<OwnedHostKind, typeof Globe> = { 'stream-json': Globe, hc: SquareTerminal };
+const HOST_ICON: Record<OwnedHostKind, typeof Globe> = { 'stream-json': Globe, hc: SquareTerminal, bg: ServerCog };
 
 export interface NewSessionDialogProps {
   /** `ownedError` of GET /sessions: why the daemon cannot be asked, null when it answered. */
@@ -123,7 +123,7 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
 
         <fieldset className="flex flex-col gap-2" disabled={launching}>
           <legend className="mb-1 text-sm font-medium text-content">How it runs</legend>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             {HOST_CHOICES.map((choice) => {
               const Icon = HOST_ICON[choice.id];
               const selected = prefs.hostKind === choice.id;
@@ -157,7 +157,7 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
               ))}
             </select>
           </Field>
-          <Field label="Permission mode" htmlFor={ids.mode} hint={prefs.hostKind === 'hc' ? 'Applied when Claude Code starts in the terminal.' : 'You can change it later from the session header.'}>
+          <Field label="Permission mode" htmlFor={ids.mode} hint={prefs.hostKind === 'hc' ? 'Applied when Claude Code starts in the terminal.' : prefs.hostKind === 'bg' ? 'Applied at start; a background session cannot change it remotely.' : 'You can change it later from the session header.'}>
             <select id={ids.mode} value={prefs.permissionMode} disabled={launching} onChange={(event) => change({ permissionMode: event.target.value })} className={FIELD}>
               {PERMISSION_MODE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -184,12 +184,21 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
           <input id={ids.name} type="text" value={name} onChange={(event) => setName(event.target.value)} disabled={launching} autoComplete="off" aria-invalid={nameText !== ''} className={`${FIELD} ${nameText !== '' ? 'border-danger' : ''}`} />
         </Field>
 
+        {prefs.hostKind === 'bg' ? (
+          <p data-bg-trust-note="" className="text-xs text-muted">
+            The folder must already be trusted by Claude Code: claude --bg refuses an untrusted folder. If it does, the error here says how to trust it (run claude once in that folder).
+          </p>
+        ) : null}
         {prefsNote !== '' ? <Banner tone="warning">{prefsNote}</Banner> : null}
         {error !== '' ? <Banner tone="error">{error}</Banner> : null}
         {launching ? (
           <p role="status" className="flex items-center gap-2 text-sm text-muted">
             <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" />
-            {prefs.hostKind === 'hc' ? 'Starting the terminal and waiting for Claude Code to register: this can take several seconds.' : 'Starting Claude Code...'}
+            {prefs.hostKind === 'hc'
+              ? 'Starting the terminal and waiting for Claude Code to register: this can take several seconds.'
+              : prefs.hostKind === 'bg'
+                ? 'Starting the background session (claude --bg) and waiting for the supervisor to list it: this can take several seconds.'
+                : 'Starting Claude Code...'}
           </p>
         ) : null}
 

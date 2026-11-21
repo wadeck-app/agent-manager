@@ -54,6 +54,7 @@ describe('sensitive routes go through the app-core shell fetcher (PIN)', () => {
     ['POST', '/owned/a/resume'],
     ['POST', '/owned/a/stop'],
     ['POST', '/owned/a/interrupt'],
+    ['POST', '/owned/a/forget'],
     ['POST', '/owned/a/permissions/r1'],
     ['POST', '/sessions/a/reply'],
   ])('%s %s is sensitive', async (method, path) => {
@@ -62,17 +63,16 @@ describe('sensitive routes go through the app-core shell fetcher (PIN)', () => {
     expect(shellCalls).toHaveLength(1);
   });
 
-  it('pin, seen, forget, the transport preferences and every GET stay on the plain client', async () => {
+  it('pin, seen, the transport preferences and every GET stay on the plain client', async () => {
     shell(() => {
       throw new Error('the shell must not be used');
     });
     await requestJson('/sessions/a/pin', { method: 'POST', body: { pinned: true } });
     await requestJson('/sessions/a/seen', { method: 'POST' });
-    await requestJson('/owned/a/forget', { method: 'POST' });
     await requestJson('/sessions/a/reply/transport', { method: 'PUT', body: { transportId: 'socket' } });
     await requestJson('/reply/transport/default', { method: 'PUT', body: { transportId: null } });
     await requestJson('/owned');
-    expect(plainCalls).toHaveLength(6);
+    expect(plainCalls).toHaveLength(5);
     expect(shellCalls).toEqual([]);
   });
 

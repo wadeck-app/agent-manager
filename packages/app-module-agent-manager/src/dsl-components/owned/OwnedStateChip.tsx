@@ -18,7 +18,7 @@ const TONE_ICON: Record<ChipTone, LucideIcon> = { attention: CircleAlert, workin
  * The owned state of a session as a chip: waiting for permission, interrupted, exited, starting (and running in the header). `compact` (the list rows) leaves
  * out the states the state icon of the row already says.
  */
-export function OwnedStateChip({ session, compact = false }: { session: Pick<SessionRowDto, 'launchedBy' | 'ownedState' | 'ownedRawState' | 'registryPending' | 'pendingPermissions'>; compact?: boolean }) {
+export function OwnedStateChip({ session, compact = false }: { session: Pick<SessionRowDto, 'launchedBy' | 'ownedState' | 'ownedRawState' | 'registryPending' | 'pendingPermissions'> & { host?: SessionRowDto['host'] }; compact?: boolean }) {
   const chip = ownedStateChip(session);
   if (chip === undefined || (compact && chip.quiet)) {
     return null;

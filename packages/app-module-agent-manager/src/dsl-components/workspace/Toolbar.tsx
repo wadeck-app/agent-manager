@@ -5,6 +5,7 @@ import { DensityControl } from '../ui/DensityControl.js';
 import { FOCUS_RING } from '../ui/IconButton.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
 import { ModeToggle } from './ModeToggle.js';
+import { NewGroupControl } from './NewGroupControl.js';
 import { SearchBox, type SearchBoxProps } from './SearchBox.js';
 import { ViewOptionsControl } from './ViewOptionsControl.js';
 
@@ -24,13 +25,15 @@ export interface ToolbarProps {
   onHelpOpenChange: (open: boolean) => void;
   /** Opens the New session dialog. */
   onNewSession: () => void;
+  /** Creates a custom group with this name; resolves true when it was created. Only the Tree lists the groups, so the button shows there only. */
+  onNewGroup?: (name: string) => Promise<boolean>;
 }
 
 /**
  * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the toggle between the listing modes, the search, which
  * sessions to show, then the icon buttons (view options of the mode, text size, shortcut help).
  */
-export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession }: ToolbarProps) {
+export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession, onNewGroup }: ToolbarProps) {
   return (
     <div className="flex min-h-am-hit flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1">
       <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
@@ -41,6 +44,7 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
       <ModeToggle mode={mode} onMode={onMode} />
       <SearchBox {...search} />
       <div className="ml-auto flex items-center gap-1">
+        {mode === 'tree' && onNewGroup !== undefined ? <NewGroupControl onCreate={onNewGroup} /> : null}
         <button
           type="button"
           onClick={onNewSession}

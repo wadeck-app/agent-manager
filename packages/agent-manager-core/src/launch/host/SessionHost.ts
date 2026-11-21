@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { getErrorMessage } from '../../errors.js';
 import { isPidAlive } from '../../pidAlive.js';
+import { BgLauncher } from '../BgLauncher.js';
+import type { BgAgent, BgLaunchRequest, BgLaunchResult } from '../BgLauncher.js';
 import { LaunchError } from '../errors.js';
 import { HcLauncher } from '../HcLauncher.js';
 import type { HcLaunchRequest, HcLaunchResult } from '../HcLauncher.js';
@@ -37,12 +39,37 @@ export interface HcLauncherLike {
   launch(request: HcLaunchRequest): Promise<HcLaunchResult>;
 }
 
+/** What the host needs of the X2 launcher (BgLauncher): tests give a fake. */
+export interface BgLauncherLike {
+  launch(request: BgLaunchRequest): Promise<BgLaunchResult>;
+  list(): Promise<BgAgent[]>;
+  stop(jobId: string): Promise<void>;
+  respawn(jobId: string): Promise<void>;
+  remove(jobId: string): Promise<void>;
+}
+
+/** How often `claude agents --json` is asked while a bg session is live (no faster: every call starts a claude process). */
+export const DEFAULT_BG_OBSERVE_INTERVAL_MS = 5000;
+/** The longest wait between two polls while `claude agents --json` keeps failing. */
+export const MAX_BG_BACKOFF_MS = 60_000;
+/** After a respawn, a stopped or missing snapshot is ignored for this long (the supervisor may still report the old state). */
+export const DEFAULT_BG_RESPAWN_GRACE_MS = 10_000;
+
+/** Job ids are compared without regard to case (Claude Code prints them in lower case, a state file or a caller may not). */
+const sameJob = (a: string, b: string): boolean => a.toLowerCase() === b.toLowerCase();
+
 export interface SessionHostOptions {
   configDir: string;
   /** The program of the X1 children (and of `--version`). Default: `claude` on the PATH. Tests run `node fakeClaude.mjs`. */
   claude?: { command?: string; commandArgs?: readonly string[]; env?: NodeJS.ProcessEnv };
   /** The X3 launcher. Default: a HcLauncher that runs `hc` on the PATH. */
   hcLauncher?: HcLauncherLike;
+  /** The X2 launcher and observer. Default: a BgLauncher that runs `claude` like the X1 children (same program and environment). */
+  bgLauncher?: BgLauncherLike;
+  /** The period of the poll of `claude agents --json` while a bg session is live. Default DEFAULT_BG_OBSERVE_INTERVAL_MS. */
+  bgObserveIntervalMs?: number;
+  /** How long after a respawn a stopped snapshot is ignored. Default DEFAULT_BG_RESPAWN_GRACE_MS. */
+  bgRespawnGraceMs?: number;
   /** The `claude --version` reader. Default: runs the program above. */
   readVersion?: () => Promise<string>;
   /** Test seam: starts an X1 child. Default: StreamJsonSession.start. */
@@ -91,10 +118,40 @@ export interface ShutdownResult {
 const NOTE_INTERRUPTED =
   'the daemon that owned this session ended while it was live: its claude process ended with it, and the turn that was running (and any permission it waited on) is lost. A resume starts claude again with --resume (the conversation continues); the lost turn is NOT replayed: send the message again if it is still wanted';
 const NOTE_EXITED_BY_SHUTDOWN = 'the session was closed when the daemon stopped; resume it to continue the conversation (nothing was running at that point that is replayed)';
+const NOTE_BG =
+  'a background session: the Claude Code supervisor hosts it and survives this daemon, the daemon only observes it (claude agents --json). Replies go through the socket reply transport and arrive as peer messages; interrupting and answering permission prompts need a terminal (claude attach)';
 const NOTE_HC = 'an hc session is not owned by the daemon: its state is the one of the Claude Code registry, replies go through the hc reply transport';
 
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+
+/**
+ * The API state of an entry of `claude agents --json`. A process that ended (stopped, failed) is exited. While the process is alive `status` is the live
+ * signal (busy, waiting, idle): measured in Round 4, `state` stayed `working` for about 2 minutes after the turn had ended and the registry said idle, so it
+ * is only used when `status` is absent. Something the session waits on (`waitingFor`) always needs the user in a terminal. A value this code does not know
+ * is `unobserved`, never a guess.
+ */
+export function bgOwnedState(agent: BgAgent): OwnedState {
+  if (agent.state === 'stopped' || agent.state === 'failed') {
+    return 'exited';
+  }
+  if (agent.waitingFor !== undefined || agent.status === 'waiting') {
+    return 'requires_action';
+  }
+  if (agent.status === 'busy') {
+    return 'running';
+  }
+  if (agent.status === 'idle') {
+    return 'idle';
+  }
+  if (agent.state === 'working') {
+    return 'running';
+  }
+  if (agent.state === 'blocked' || agent.state === 'done') {
+    return 'idle';
+  }
+  return 'unobserved';
 }
 
 export class SessionHost {
@@ -103,6 +160,24 @@ export class SessionHost {
   readonly #statePath: string;
   readonly #claude: NonNullable<SessionHostOptions['claude']>;
   readonly #hcLauncher: HcLauncherLike;
+  readonly #bg: BgLauncherLike;
+  readonly #bgIntervalMs: number;
+  /** What the last successful poll said about each bg session (by session id). Never persisted: it is read again at the first poll after a start. */
+  readonly #bgSeen = new Map<string, BgAgent>();
+  #bgTimer: NodeJS.Timeout | undefined;
+  #bgWatching = false;
+  readonly #warned = new Set<string>();
+  readonly #bgGraceMs: number;
+  /** Consecutive failed polls (the backoff). */
+  #bgFailures = 0;
+  /** Per record: changes at every stop, end and respawn, so that a poll that began before drops its stale answer. */
+  readonly #bgGen = new Map<string, number>();
+  readonly #bgGraceUntil = new Map<string, number>();
+  /** Per record: the action that runs on it (stop, resume, forget run one at a time). */
+  readonly #bgBusy = new Map<string, string>();
+  #bgPolling: Promise<void> | undefined;
+  /** The failure of the last poll while it keeps failing (one warning per distinct text, not one per poll). */
+  #bgError: string | undefined;
   readonly #readVersion: () => Promise<string>;
   readonly #startSession: (options: StreamJsonSessionOptions) => Promise<StreamJsonSession>;
   readonly #closeTimeoutMs: number | undefined;
@@ -133,6 +208,9 @@ export class SessionHost {
     this.#statePath = ownedStatePath(options.configDir);
     this.#claude = options.claude ?? {};
     this.#hcLauncher = options.hcLauncher ?? new HcLauncher();
+    this.#bg = options.bgLauncher ?? new BgLauncher({ onWarning: (text) => this.#warnOnce(text), ...(this.#claude.command === undefined ? {} : { command: this.#claude.command }), ...(this.#claude.commandArgs === undefined ? {} : { commandArgs: this.#claude.commandArgs }), ...(this.#claude.env === undefined ? {} : { env: this.#claude.env }) });
+    this.#bgIntervalMs = options.bgObserveIntervalMs ?? DEFAULT_BG_OBSERVE_INTERVAL_MS;
+    this.#bgGraceMs = options.bgRespawnGraceMs ?? DEFAULT_BG_RESPAWN_GRACE_MS;
     this.#readVersion = options.readVersion ?? (() => readClaudeVersion(this.#claude));
     this.#startSession = options.startSession ?? ((sessionOptions) => StreamJsonSession.start(sessionOptions));
     this.#closeTimeoutMs = options.closeTimeoutMs;
@@ -184,6 +262,7 @@ export class SessionHost {
       await this.#persist();
     }
     this.#initialized = true;
+    this.#watchBg();
     for (const id of interrupted) {
       this.#emit('session.interrupted', id, { leftoverPid: this.#leftovers.get(id)?.pid ?? null });
     }
@@ -253,6 +332,9 @@ export class SessionHost {
         const claudeVersion = await this.#readVersion();
         // A stop that began while `claude --version` ran: nothing may be started after the shutdown.
         this.#assertRunning();
+        if (request.hostKind === 'bg') {
+          return await this.#launchBg(request, claudeVersion);
+        }
         return await (stream ? this.#launchStream(request, claudeVersion) : this.#launchHc(request, claudeVersion));
       } finally {
         release();
@@ -264,6 +346,9 @@ export class SessionHost {
     return this.#audited('resume', id, {}, async () => {
       this.#assertRunning();
       const record = this.#record(id);
+      if (record.hostKind === 'bg') {
+        return await this.#resumeBg(record);
+      }
       this.#assertStream(record, 'be resumed');
       if (this.#live.has(id) || this.#starting.has(id)) {
         throw new LaunchError('already-live', `the session ${id} is live already`, 'there is nothing to resume: send it a message');
@@ -364,6 +449,10 @@ export class SessionHost {
   /** Ends an owned X1 session: stdin closed (claude finishes and exits), killed when it does not end in time. The record stays, resumable. */
   async stop(id: string): Promise<OwnedSessionView> {
     return this.#audited('stop', id, {}, async () => {
+      const record = this.#record(id);
+      if (record.hostKind === 'bg') {
+        return await this.#stopBg(record);
+      }
       const live = this.#liveSession(id, 'be stopped');
       live.stopRequested = 'user';
       try {
@@ -378,9 +467,12 @@ export class SessionHost {
   }
 
   /** Removes an ended (or hc) entry from the list. A live session is never forgotten: stop it first. */
-  async forget(id: string): Promise<{ id: string }> {
+  async forget(id: string): Promise<{ id: string; supervisorNote?: string }> {
     return this.#audited('forget', id, {}, async () => {
       const record = this.#record(id);
+      if (record.hostKind === 'bg') {
+        return await this.#forgetBg(record);
+      }
       if (this.#live.has(id) || this.#starting.has(id)) {
         throw new LaunchError('session-live', `the session ${id} is live`, 'stop it first (POST /sessions/:id/stop), then forget it');
       }
@@ -408,6 +500,8 @@ export class SessionHost {
 
   async #runShutdown(): Promise<ShutdownResult> {
     this.#stopping = true;
+    // The bg sessions belong to the supervisor: they keep running, the daemon only stops looking.
+    this.#unwatchBg();
     this.#emit('host.stopping', undefined, { live: this.#live.size });
     const entries = [...this.#live.entries()];
     const result: ShutdownResult = { closed: [], failed: [] };
@@ -508,6 +602,320 @@ export class SessionHost {
     }
     this.#emit('session.launched', id, { hostKind: 'hc', cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, claudeVersion, hcAddress: launched.address, linkedAfterMs: launched.linkedAfterMs });
     return this.#view(record);
+  }
+
+  async #launchBg(request: LaunchRequest, claudeVersion: string): Promise<OwnedSessionView> {
+    const name = request.name ?? `am-${randomBytes(4).toString('hex')}`;
+    const launched = await this.#bg.launch({ cwd: request.cwd, name, ...(request.model === undefined ? {} : { model: request.model }), ...(request.permissionMode === undefined ? {} : { permissionMode: request.permissionMode }) });
+    const id = launched.agent.sessionId;
+    const note = `the background session ${launched.jobId} (${name}) was started and left running: see it with \`claude agents\`, stop it with \`claude stop ${launched.jobId}\` when it is not wanted`;
+    if (this.#records.has(id)) {
+      throw new LaunchError('duplicate-session', `a session ${id} is already in the list`, `${note}; then retry`);
+    }
+    const record: OwnedSessionRecord = {
+      id,
+      hostKind: 'bg',
+      jobId: launched.jobId,
+      cwd: request.cwd,
+      ...(request.model === undefined ? {} : { model: request.model }),
+      ...(request.permissionMode === undefined ? {} : { permissionMode: request.permissionMode }),
+      name,
+      claudeVersion,
+      startedAt: this.#clock(),
+      status: 'live',
+      ...(launched.agent.pid === undefined ? {} : { pid: launched.agent.pid }),
+    };
+    this.#records.set(id, record);
+    try {
+      await this.#persist();
+    } catch (error) {
+      this.#records.delete(id);
+      throw new LaunchError('state-file-write-failed', getErrorMessage(error), `${note}; fix the problem above, then retry`);
+    }
+    this.#bgSeen.set(id, launched.agent);
+    this.#emit('session.launched', id, { hostKind: 'bg', jobId: launched.jobId, cwd: request.cwd, model: request.model ?? null, permissionMode: request.permissionMode ?? null, claudeVersion, linkedAfterMs: launched.linkedAfterMs });
+    this.#watchBg();
+    return this.#view(record);
+  }
+
+  /**
+   * Runs one action (stop, resume, forget) on a bg record, alone: a second action on the same record while one runs is refused with a clear error, so a
+   * forget can never delete a record that a resume is bringing back, and a stop never races a respawn.
+   */
+  async #exclusive<T>(record: OwnedSessionRecord, action: string, work: () => Promise<T>): Promise<T> {
+    const running = this.#bgBusy.get(record.id);
+    if (running !== undefined) {
+      throw new LaunchError('bg-action-in-progress', `the background session ${record.id} is being ${running}: ${action} is refused until it ends`, 'wait for the running action to finish (it is bounded by its own timeout), then retry');
+    }
+    this.#bgBusy.set(record.id, action);
+    try {
+      return await work();
+    } finally {
+      this.#bgBusy.delete(record.id);
+    }
+  }
+
+  /** `claude stop <id>`: the supervisor ends the process, the conversation stays (resume = `claude respawn`). */
+  async #stopBg(record: OwnedSessionRecord): Promise<OwnedSessionView> {
+    this.#assertRunning();
+    return this.#exclusive(record, 'stopped', async () => {
+      const jobId = this.#jobIdOf(record);
+      if (record.status !== 'live') {
+        throw new LaunchError('session-not-live', `the background session ${record.id} is ${record.status}`, `resume it with POST /sessions/${record.id}/resume (claude respawn), or forget it`);
+      }
+      await this.#bg.stop(jobId);
+      // The supervisor accepted the stop (exit 0): the record says so now. Whatever state it reports later, a respawn is what brings the session back.
+      this.#endBg(record, 'closed', 'user', '');
+      await this.#persistOrWarn();
+      this.#unwatchBgIfIdle();
+      return this.#view(record);
+    });
+  }
+
+  /** `claude respawn <id>`: a stopped session restarts with its conversation (documented); nothing is replayed here. */
+  async #resumeBg(record: OwnedSessionRecord): Promise<OwnedSessionView> {
+    return this.#exclusive(record, 'resumed', async () => {
+      const jobId = this.#jobIdOf(record);
+      if (record.status === 'live') {
+        throw new LaunchError('already-live', `the background session ${record.id} is live already`, 'there is nothing to resume: send it a message');
+      }
+      this.#assertRoom({ stream: false, created: false });
+      this.#starting.add(record.id);
+      const release = this.#reserve({ stream: false, created: false });
+      try {
+        // A poll that started before the respawn holds a snapshot of the stopped session: the generation makes the poll drop it, and the grace period ignores
+        // the first snapshots taken while the supervisor still reports the old state.
+        this.#bumpGeneration(record.id);
+        await this.#bg.respawn(jobId);
+        this.#bumpGeneration(record.id);
+        this.#bgGraceUntil.set(record.id, this.#clock() + this.#bgGraceMs);
+        record.status = 'live';
+        record.resumedAt = this.#clock();
+        delete record.exit;
+        this.#bgSeen.delete(record.id);
+        try {
+          await this.#persist();
+        } catch (error) {
+          // The respawn happened and cannot be undone here: the caller is told, the next change rewrites the file.
+          throw new LaunchError('state-file-write-failed', getErrorMessage(error), `the session ${jobId} was restarted by claude respawn; fix the problem above, the next change rewrites the file`);
+        }
+        this.#emit('session.resumed', record.id, { jobId, claudeVersion: record.claudeVersion });
+        this.#watchBg();
+        return this.#view(record);
+      } finally {
+        this.#starting.delete(record.id);
+        release();
+      }
+    });
+  }
+
+  /**
+   * Removes an ended bg session from the list. The RECORD always goes (a supervisor that does not answer must not make the state file impossible to clean);
+   * `claude rm` is tried only when the supervisor lists the job, and what could not be done is returned as `supervisorNote` (and warned), never hidden.
+   * A live one is never forgotten: stop it first.
+   */
+  async #forgetBg(record: OwnedSessionRecord): Promise<{ id: string; supervisorNote?: string }> {
+    this.#assertRunning();
+    return this.#exclusive(record, 'forgotten', async () => {
+      const jobId = this.#jobIdOf(record);
+      if (record.status === 'live') {
+        throw new LaunchError('session-live', `the background session ${record.id} is live`, `stop it first (POST /sessions/${record.id}/stop), then forget it`);
+      }
+      let supervisorNote: string | undefined;
+      try {
+        const listed = await this.#bg.list();
+        if (listed.some((agent) => sameJob(agent.id, jobId))) {
+          await this.#bg.remove(jobId);
+        } else {
+          supervisorNote = `the supervisor does not list ${jobId} any more: nothing to remove there`;
+        }
+      } catch (error) {
+        supervisorNote = `the record was removed, but the supervisor could not be asked or refused (${getErrorMessage(error)}): the session may still be listed by \`claude agents\`; remove it there with \`claude rm ${jobId}\``;
+        this.#warn(supervisorNote);
+      }
+      if (this.#records.get(record.id)?.status === 'live') {
+        // Defence in depth: no other action runs on this record meanwhile (see #exclusive), but a record that is live now is never deleted.
+        throw new LaunchError('session-live', `the background session ${record.id} became live while it was being forgotten`, 'stop it first, then forget it');
+      }
+      this.#records.delete(record.id);
+      this.#bgSeen.delete(record.id);
+      this.#bgGen.delete(record.id);
+      this.#bgGraceUntil.delete(record.id);
+      try {
+        await this.#persist();
+      } catch (error) {
+        this.#records.set(record.id, record);
+        throw error;
+      }
+      this.#emit('session.forgotten', record.id, supervisorNote === undefined ? {} : { supervisorNote });
+      return { id: record.id, ...(supervisorNote === undefined ? {} : { supervisorNote }) };
+    });
+  }
+
+  #jobIdOf(record: OwnedSessionRecord): string {
+    if (record.jobId === undefined) {
+      throw new LaunchError('state-file-unreadable', `the bg session ${record.id} has no job id in its record`, 'forget it and launch it again');
+    }
+    return record.jobId;
+  }
+
+  #bumpGeneration(id: string): void {
+    this.#bgGen.set(id, (this.#bgGen.get(id) ?? 0) + 1);
+  }
+
+  #endBg(record: OwnedSessionRecord, cause: OwnedExit['cause'], by: ExitBy, detail: string): void {
+    const previous = this.#stateOf(record);
+    this.#bumpGeneration(record.id);
+    record.status = 'exited';
+    record.exit = { cause, code: null, signal: null, by, stderrTail: detail, at: this.#clock() };
+    delete record.pid;
+    this.#bgSeen.delete(record.id);
+    this.#emit('session.state', record.id, { state: 'exited', previous, bgState: 'stopped' });
+    this.#emit('session.exit', record.id, { cause, code: null, signal: null, by });
+  }
+
+  /** The state of a bg session: what the last poll of `claude agents --json` said, mapped to the states of the API. Nothing is invented before the first poll. */
+  #bgStateOf(record: OwnedSessionRecord): OwnedState {
+    if (record.status !== 'live') {
+      return 'exited';
+    }
+    const agent = this.#bgSeen.get(record.id);
+    return agent === undefined ? 'unobserved' : bgOwnedState(agent);
+  }
+
+  #bgView(record: OwnedSessionRecord): Pick<OwnedSessionView, 'bgState' | 'waitingFor' | 'attachCommand' | 'observeError'> {
+    const agent = record.status === 'live' ? this.#bgSeen.get(record.id) : undefined;
+    return {
+      ...(agent?.state === undefined ? {} : { bgState: agent.state }),
+      ...(agent?.waitingFor === undefined ? {} : { waitingFor: agent.waitingFor }),
+      ...(record.jobId === undefined ? {} : { attachCommand: `claude attach ${record.jobId}` }),
+      ...(this.#bgError === undefined || record.status !== 'live' ? {} : { observeError: `${this.#bgError} (retrying in ${Math.round(this.#bgDelayMs() / 1000)} s)` }),
+    };
+  }
+
+  #hasLiveBg(): boolean {
+    for (const record of this.#records.values()) {
+      if (record.hostKind === 'bg' && record.status === 'live') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The wait before the next poll: the period, doubled after each failure in a row, at most MAX_BG_BACKOFF_MS (never below the period itself). */
+  #bgDelayMs(): number {
+    if (this.#bgFailures === 0) {
+      return this.#bgIntervalMs;
+    }
+    return Math.min(this.#bgIntervalMs * 2 ** this.#bgFailures, Math.max(MAX_BG_BACKOFF_MS, this.#bgIntervalMs));
+  }
+
+  /** Starts the poll when a bg session is live (and only then): one `claude agents --json` now, then one after each wait (see #bgDelayMs). */
+  #watchBg(): void {
+    if (this.#stopping || this.#bgWatching || !this.#hasLiveBg()) {
+      return;
+    }
+    this.#bgWatching = true;
+    void this.#pollThenWait();
+  }
+
+  async #pollThenWait(): Promise<void> {
+    await this.pollBg();
+    if (!this.#bgWatching || this.#stopping) {
+      return;
+    }
+    clearTimeout(this.#bgTimer);
+    this.#bgTimer = setTimeout(() => void this.#pollThenWait(), this.#bgDelayMs());
+    this.#bgTimer.unref();
+  }
+
+  #unwatchBg(): void {
+    this.#bgWatching = false;
+    clearTimeout(this.#bgTimer);
+    this.#bgTimer = undefined;
+  }
+
+  #unwatchBgIfIdle(): void {
+    if (!this.#hasLiveBg()) {
+      this.#unwatchBg();
+    }
+  }
+
+  /**
+   * One poll of `claude agents --json --all` for the live bg sessions (the timer, the first look after a start and the tests call it). It never overlaps
+   * itself. A failure keeps the last state, is reported once per distinct text (a warning event), shows as `observeError` with the wait before the retry,
+   * and lengthens that wait (backoff) until a poll succeeds.
+   */
+  pollBg(): Promise<void> {
+    this.#bgPolling ??= this.#runBgPoll().finally(() => {
+      this.#bgPolling = undefined;
+    });
+    return this.#bgPolling;
+  }
+
+  async #runBgPoll(): Promise<void> {
+    if (!this.#hasLiveBg()) {
+      return;
+    }
+    // The generation of each record when the question is asked: an answer is applied only to a record that did not change meanwhile (stop, resume, end).
+    const asked = new Map([...this.#records.values()].filter((record) => record.hostKind === 'bg').map((record) => [record.id, this.#bgGen.get(record.id) ?? 0]));
+    let agents: BgAgent[];
+    try {
+      agents = await this.#bg.list();
+    } catch (error) {
+      const text = getErrorMessage(error);
+      this.#bgFailures++;
+      if (this.#bgError !== text) {
+        this.#bgError = text;
+        this.#warn(`could not observe the background sessions: ${text}`);
+      }
+      return;
+    }
+    this.#bgError = undefined;
+    this.#bgFailures = 0;
+    let changed = false;
+    for (const record of [...this.#records.values()]) {
+      if (record.hostKind !== 'bg' || record.status !== 'live' || (this.#bgGen.get(record.id) ?? 0) !== asked.get(record.id)) {
+        continue;
+      }
+      const agent = agents.find((entry) => sameJob(entry.id, record.jobId ?? ''));
+      const inGrace = (this.#bgGraceUntil.get(record.id) ?? 0) > this.#clock();
+      if (agent === undefined) {
+        if (inGrace) {
+          continue;
+        }
+        this.#endBg(record, 'exited', 'self', 'the supervisor no longer lists this session (claude agents --json --all): it was removed outside agent-manager (claude rm, agent view), or the supervisor was reset');
+        changed = true;
+        continue;
+      }
+      if (agent.state === 'stopped' || agent.state === 'failed') {
+        // Right after a respawn the supervisor may still report the old state for a moment: that snapshot is ignored, a later one counts.
+        if (inGrace) {
+          continue;
+        }
+        // Stopped from a terminal or ended by itself: the supervisor says so. A restart by the supervisor shows as working again at a later poll, but the
+        // record stays exited until a resume (the poll only follows live records).
+        this.#endBg(record, agent.state === 'failed' ? 'crashed' : 'closed', 'self', `the supervisor reports the state ${agent.state}`);
+        changed = true;
+        continue;
+      }
+      const before = this.#bgSeen.get(record.id);
+      this.#bgSeen.set(record.id, agent);
+      if (agent.pid !== undefined && agent.pid !== record.pid) {
+        record.pid = agent.pid;
+        changed = true;
+      }
+      if (before === undefined || bgOwnedState(before) !== bgOwnedState(agent) || before.state !== agent.state || before.waitingFor !== agent.waitingFor) {
+        this.#emit('session.state', record.id, { state: bgOwnedState(agent), previous: before === undefined ? null : bgOwnedState(before), bgState: agent.state ?? null, waitingFor: agent.waitingFor ?? null });
+        if (agent.waitingFor !== undefined && before?.waitingFor !== agent.waitingFor) {
+          this.#emit('session.bg_waiting', record.id, { waitingFor: agent.waitingFor, attachCommand: `claude attach ${record.jobId ?? ''}` });
+        }
+      }
+    }
+    if (changed) {
+      await this.#persistOrWarn();
+    }
+    this.#unwatchBgIfIdle();
   }
 
   #sessionOptions(cwd: string, model: string | undefined, permissionMode: string | undefined): StreamJsonSessionOptions {
@@ -650,6 +1058,13 @@ export class SessionHost {
   }
 
   #assertStream(record: OwnedSessionRecord, what: string): void {
+    if (record.hostKind === 'bg') {
+      throw new LaunchError(
+        'not-owned',
+        `the session ${record.id} is a background session (supervisor job ${record.jobId ?? '?'}): the daemon only observes it and cannot be asked to ${what}`,
+        `send replies through the socket reply transport (they arrive as peer messages); interrupt and answer permission prompts in a terminal: claude attach ${record.jobId ?? '<id>'}`,
+      );
+    }
     if (record.hostKind !== 'stream-json') {
       throw new LaunchError('not-owned', `the session ${record.id} is an hc session (terminal ${record.hcAddress ?? '?'}): the daemon does not own it, it cannot be ${what} here`, `use the hc reply transport for replies, and the terminal itself (hc read/keys, hc kill ${record.hcAddress ?? '<address>'}) for the rest`);
     }
@@ -717,6 +1132,9 @@ export class SessionHost {
     if (record.hostKind === 'hc') {
       return 'unobserved';
     }
+    if (record.hostKind === 'bg') {
+      return this.#bgStateOf(record);
+    }
     const live = this.#live.get(record.id);
     if (live !== undefined) {
       return live.session.state === 'exited' ? 'exited' : live.session.state;
@@ -728,8 +1146,9 @@ export class SessionHost {
     const live = this.#live.get(record.id);
     const state = this.#stateOf(record);
     const leftover = this.#leftovers.get(record.id);
-    const resumable = record.hostKind === 'stream-json' && live === undefined && !this.#starting.has(record.id) && !this.#stopping && (record.status === 'exited' || record.status === 'interrupted');
-    const note = record.hostKind === 'hc' ? NOTE_HC : state === 'interrupted' ? NOTE_INTERRUPTED : state === 'exited' && record.exit?.by === 'daemon-shutdown' ? NOTE_EXITED_BY_SHUTDOWN : undefined;
+    const resumable = (record.hostKind === 'bg' ? true : record.hostKind === 'stream-json' && live === undefined) && !this.#starting.has(record.id) && !this.#stopping && (record.status === 'exited' || record.status === 'interrupted');
+    const bg = record.hostKind === 'bg' ? this.#bgView(record) : undefined;
+    const note = record.hostKind === 'hc' ? NOTE_HC : record.hostKind === 'bg' ? NOTE_BG : state === 'interrupted' ? NOTE_INTERRUPTED : state === 'exited' && record.exit?.by === 'daemon-shutdown' ? NOTE_EXITED_BY_SHUTDOWN : undefined;
     return {
       ...record,
       state,
@@ -739,11 +1158,20 @@ export class SessionHost {
       ...(leftover === undefined ? {} : { leftoverPid: leftover.pid }),
       ...(live?.lastResult === undefined ? {} : { lastResult: live.lastResult }),
       messages: live === undefined ? [] : live.messages.map((message) => ({ ...message })),
+      ...bg,
     };
   }
 
   #emit(type: HostEventType, sessionId: string | undefined, data: Record<string, unknown>): void {
     this.events.append(type, sessionId, data);
+  }
+
+  /** A warning that can repeat at every poll: said once per distinct text. */
+  #warnOnce(text: string): void {
+    if (!this.#warned.has(text)) {
+      this.#warned.add(text);
+      this.#warn(text);
+    }
   }
 
   #warn(text: string): void {

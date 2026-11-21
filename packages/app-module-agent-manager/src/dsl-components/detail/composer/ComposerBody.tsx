@@ -275,6 +275,8 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
         <PriorityControl priority={priority} onChange={setPriority} disabled={inactive || sending} />
         <div className="flex items-center gap-3 text-xs text-muted">
           {attaching > 0 ? <span role="status">Preparing the image, Send is available when it is attached.</span> : null}
+          {/* A background session has no direct pipe: what the transport picker shows (socket) is a peer message, said once in words (only when the socket transport is the selected one). */}
+          {session.host === 'bg' && selectedTransport?.transportId === 'socket' ? <span data-bg-peer-note="">Sent as a peer message (a background session has no direct pipe)</span> : null}
           {/* The transport: a small control that opens the list of transports (TransportPicker). */}
           <div data-composer-transport="" className="flex items-center">
             <TransportPicker sessionId={sessionId} status={status} onChanged={live.refresh} onOpenChange={setMenuOpen} />

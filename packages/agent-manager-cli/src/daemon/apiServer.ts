@@ -67,6 +67,7 @@ const CONFLICT = new Set([
   'permission-being-answered',
   'session-exited',
   'session-closing',
+  'bg-action-in-progress',
 ]);
 const NOT_FOUND = new Set(['unknown-session', 'unknown-permission-request']);
 const VALIDATION = new Set([
@@ -95,6 +96,7 @@ const VALIDATION = new Set([
   'invalid-argument',
   'force-refused',
   'invalid-id',
+  'invalid-job-id',
 ]);
 const SERVER_SIDE = new Set(['state-file-write-failed', 'state-file-unreadable', 'kill-failed', 'host-not-ready', 'host-already-initialized']);
 

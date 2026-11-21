@@ -13,10 +13,11 @@ export const AgentWorkspaceEntry: ComponentRegistryEntry = {
 	render: ({ node, ctx }: RegistryRenderProps) => {
 		const sessions = coerceProp(resolveExpressionValue(node['sessions'], ctx), 'AgentWorkspace.sessions', 'array', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['sessions']
 		const userStateError = coerceProp(resolveExpressionValue(node['userStateError'], ctx), 'AgentWorkspace.userStateError', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['userStateError']
+		const customGroups = coerceProp(resolveExpressionValue(node['customGroups'], ctx), 'AgentWorkspace.customGroups', 'array', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['customGroups']
 		const hiddenDead = coerceProp(resolveExpressionValue(node['hiddenDead'], ctx), 'AgentWorkspace.hiddenDead', 'primitive', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['hiddenDead']
 		const ownedError = coerceProp(resolveExpressionValue(node['ownedError'], ctx), 'AgentWorkspace.ownedError', 'object', false, true) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['ownedError']
 		const ownedErrorText = coerceProp(resolveExpressionValue(node['ownedErrorText'], ctx), 'AgentWorkspace.ownedErrorText', 'string', false) as import('../components/AgentWorkspace.js').AgentWorkspaceProps['ownedErrorText']
-		return <AgentWorkspace sessions={sessions} userStateError={userStateError} hiddenDead={hiddenDead} ownedError={ownedError} ownedErrorText={ownedErrorText} />
+		return <AgentWorkspace sessions={sessions} userStateError={userStateError} customGroups={customGroups} hiddenDead={hiddenDead} ownedError={ownedError} ownedErrorText={ownedErrorText} />
 	},
 }
 
@@ -37,5 +38,5 @@ export const allEntries: ComponentRegistryEntry[] = [
 
 // ─── Auto-detected metadata (allowedChildren, providesContext, requiresContext) ─
 // Generated from @slot JSDoc tags and createContext/useContext calls in component sources.
-AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["hiddenDead","ownedError","ownedErrorText","sessions","userStateError"] : [];
+AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["customGroups","hiddenDead","ownedError","ownedErrorText","sessions","userStateError"] : [];
 GuardrailsPageEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["overview"] : [];

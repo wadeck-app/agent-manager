@@ -188,8 +188,10 @@ export function registerOwnedRoutes(kit: RouteKit, source: OwnedSource): void {
       const id = sessionIdOf(req);
       requireNoBody(req.body);
       const forgotten = await source.daemon.forget(id);
-      return ok({ ok: true, id: forgotten.id } satisfies OwnedForgetOk);
+      return ok({ ok: true, id: forgotten.id, ...(forgotten.supervisorNote === undefined ? {} : { supervisorNote: forgotten.supervisorNote }) } satisfies OwnedForgetOk);
     }),
+    // Sensitive since the bg host: forgetting a background session also removes it from the Claude Code supervisor (`claude rm`).
+    { sensitive: true },
   );
 
   // The full tool input of each pending request: what the user decides on.
