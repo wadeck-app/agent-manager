@@ -5,7 +5,7 @@
 # Run locally: needs bash (git-bash on Windows), node >= 22, npm configured for GitHub Packages
 #              (@wadeck-app:registry=https://npm.pkg.github.com and a token with read:packages).
 #              Nothing outside a temp folder is touched: the global npm prefix, the config folder and the home are redirected.
-# M1b partial slice: step (d) asserts that the daemon commands FAIL explicitly (replace it with a real smoke test when the daemon exists); step (e)
+# Step (d) asserts the behavior of status and stop with no daemon running (a real start/stop smoke test is still to add); step (e)
 #              checks the app-module (the Agents pages of app-core) and its registration, against a port where nothing listens and a temp
 #              app-core config folder: the app-core of the user is never reached.
 set -euo pipefail
@@ -31,18 +31,15 @@ step "(c) agent-manager cli self-check exits 0"
 run_cli cli self-check || fail "agent-manager cli self-check exited with status $?"
 echo "ok: self-check passed"
 
-step "(d) the daemon commands are not implemented in the M1 skeleton: they must fail explicitly, never succeed"
-for command in stop status; do
-  if run_cli "$command"; then
-    fail "agent-manager $command exited 0: it must fail with 'daemon not implemented yet'"
-  fi
-  assert_contains "agent-manager $command" "daemon not implemented yet (planned M1b)" "$(last_stderr)"
-done
-# `start` goes through the Go launcher of the platform package, which supervises the node process: only the exit code is asserted (the wording of the launcher is not under our control).
-if run_cli start; then
-  fail "agent-manager start exited 0: it must fail, the daemon is not implemented"
-fi
-echo "ok: agent-manager start failed as expected"
+step "(d) with no daemon running: status fails explicitly (exit 3, with the fix), stop is a no-op that says so"
+# `start` is not run here: it would leave a daemon process on the runner (the daemon itself is covered by the tests of the package).
+status_code=0
+run_cli status || status_code=$?
+[ "$status_code" -eq 3 ] || fail "agent-manager status exited $status_code with no daemon running: expected 3"
+assert_contains "agent-manager status" "daemon is not running" "$(last_stderr)"
+assert_contains "agent-manager status" "agent-manager start --detach" "$(last_stderr)"
+run_cli stop || fail "agent-manager stop exited with status $? with no daemon running: it must be a no-op"
+assert_contains "agent-manager stop" "nothing to stop" "$(last_stdout)"
 
 step "(e) the package ships the app-module (the Agents pages of app-core) and 'agent-manager cli register' defers it when app-core is not running"
 PACKAGE_DIR="$(installed_package_dir)"
