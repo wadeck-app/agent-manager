@@ -316,8 +316,8 @@ export function usageStatus(rollup: ModelUsageRollup | undefined): SessionStatus
   if (rollup.previousModels.length > 0) {
     out.previousModels = rollup.previousModels.map(modelDto);
   }
-  if (rollup.lastUsage !== undefined && rollup.window !== undefined && rollup.usedPct !== undefined) {
-    const contextUsedPct: ContextUsedDto = { value: rollup.usedPct, basis: 'estimate', note: rollup.window.note, windowTokens: rollup.window.tokens };
+  if (rollup.lastUsage !== undefined && rollup.window !== undefined && rollup.compactPct !== undefined) {
+    const contextUsedPct: ContextUsedDto = { value: rollup.compactPct, basis: 'estimate', note: rollup.window.note, windowTokens: rollup.window.tokens, compactAtTokens: rollup.window.compactAtTokens, usedTokens: rollup.lastUsage.contextTokens };
     out.contextUsedPct = contextUsedPct;
     out.tokensIn = rollup.lastUsage.contextTokens;
     out.tokensOut = rollup.lastUsage.outputTokens;

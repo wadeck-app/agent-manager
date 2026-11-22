@@ -22,7 +22,7 @@ describe('GET /sessions: the status line data', () => {
     expect(row!['model']).toEqual({ id: 'us.anthropic.claude-opus-5-5[1m]', displayName: 'Opus 5.5 (1M context)', known: true });
     expect(row!['tokensIn']).toBe(367_800);
     expect(row!['tokensOut']).toBe(816);
-    expect(row!['contextUsedPct']).toMatchObject({ value: 37, basis: 'estimate', windowTokens: 1_000_000 });
+    expect(row!['contextUsedPct']).toMatchObject({ value: 38, basis: 'estimate', windowTokens: 1_000_000, compactAtTokens: 967_000, usedTokens: 367_800 });
     expect(row!['contextUsedPct'].note).toContain('1M');
     expect(row!['durationMs']).toBeGreaterThanOrEqual(2 * 3_600_000 + 22 * 60_000);
     expect(row!['statusNote']).toBeUndefined();
@@ -33,7 +33,7 @@ describe('GET /sessions: the status line data', () => {
     writeLines(transcriptFile(box, id), [userLine(1, 'go'), modelLine(2, 'claude-mystery-9', { cacheRead: 50_000 })]);
     const [row] = await rows();
     expect(row!['model']).toEqual({ id: 'claude-mystery-9', displayName: 'claude-mystery-9', known: false });
-    expect(row!['contextUsedPct']).toMatchObject({ value: 25, basis: 'estimate', windowTokens: 200_000 });
+    expect(row!['contextUsedPct']).toMatchObject({ value: 30, basis: 'estimate', windowTokens: 200_000, compactAtTokens: 167_000 });
   });
 
   it('the previous models of the part that was read, the latest one is the model', async () => {

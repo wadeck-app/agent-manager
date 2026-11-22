@@ -13,7 +13,7 @@ const session = row({ displayName: 'agent-manager-owner', cwd: '/work/agent-mana
 const FULL: SessionStatusDto = {
   model: { id: 'claude-sonnet-5-5', displayName: 'Sonnet 5.5', known: true },
   previousModels: [{ id: 'claude-opus-5-5', displayName: 'Opus 5.5', known: true }],
-  contextUsedPct: { value: 37, basis: 'estimate', note: 'Sonnet 5.5 was observed above 200k tokens without the [1m] tag: 1000k window assumed', windowTokens: 1_000_000 },
+  contextUsedPct: { value: 38, basis: 'estimate', note: 'Sonnet 5.5 was observed above 200k tokens without the [1m] tag: 1000k window assumed', windowTokens: 1_000_000, compactAtTokens: 967_000, usedTokens: 367_800 },
   tokensIn: 367_800,
   tokensOut: 816,
   durationMs: (2 * 60 + 22) * 60_000,
@@ -53,17 +53,25 @@ describe('the status info row', () => {
     expect(within(info).getByText('/work/agent-manager')).toBeInTheDocument();
     expect(within(info).getByText('main')).toBeInTheDocument();
     expect(within(info).getByLabelText('Model Sonnet 5.5')).toBeInTheDocument();
-    // The context is an estimate: "~", the window and the note are in the tooltip.
-    const context = within(info).getByRole('img', { name: 'Context used ~37%, plenty of room' });
+    // The context is only the share of the auto-compact point: no icon, no bar, no "~"; tokens, point, window and the assumption are in the tooltip.
+    const context = within(info).getByRole('img', { name: 'Context 38% of the way to auto-compact, plenty of room' });
+    expect(context).toHaveTextContent(/^38%$/);
+    expect(context.querySelector('svg')).toBeNull();
     fireEvent.focus(context);
-    expect(liveTooltip()).toHaveTextContent(/Estimated context used: 37% of a 1.0M window.*1000k window assumed/);
+    expect(liveTooltip()).toHaveTextContent(/367\.8k tokens in the context, auto-compact at about 967\.0k \(38%.*Window 1\.0M.*1000k window assumed.*not read from Claude Code/);
     expect(within(info).getByLabelText('Tokens: 367,800 tokens in the prompt of the last call, 816 tokens in its answer (grows while it streams)')).toHaveTextContent('367.8k816');
     expect(within(info).getByLabelText('Running for 2h22m')).toBeInTheDocument();
     expect(within(info).getByLabelText('Role autonomous-worker')).toBeInTheDocument();
     expect(within(info).getByLabelText('Bypass c&p, 1h52m left')).toHaveTextContent('c&p 1h52m');
     expect(within(info).getByLabelText('Session id 12345678-aaaa-4bbb-8ccc-1234567890ab')).toHaveTextContent('12345678');
     expect(within(info).getByText('pid 4242')).toBeInTheDocument();
-    expect(within(info).getByText('Claude Code 2.1.325')).toBeInTheDocument();
+    // The program is short (CCv2.1.325), its full name is the accessible name and the tooltip.
+    expect(within(info).getByLabelText('Claude Code 2.1.325')).toHaveTextContent('CCv2.1.325');
+    // No icon on the model, the duration and the session id; the role keeps its icon.
+    for (const label of ['Model Sonnet 5.5', 'Running for 2h22m', 'Session id 12345678-aaaa-4bbb-8ccc-1234567890ab']) {
+      expect(within(info).getByLabelText(label).querySelector('svg'), label).toBeNull();
+    }
+    expect(within(info).getByLabelText('Role autonomous-worker').querySelector('svg')).not.toBeNull();
   });
 
   it('copies path::branch and the session id', () => {
@@ -97,9 +105,27 @@ describe('the status info row', () => {
     expect(liveTooltip()).toHaveTextContent('Unrecognised model id: claude-mystery-9');
   });
 
-  it('shows a context at 90 % as nearly full, and an exact basis without the "~"', () => {
-    show({ contextUsedPct: { value: 93, basis: 'exact', note: 'read from Claude Code', windowTokens: 200_000 } });
-    expect(screen.getByRole('img', { name: 'Context used 93%, almost full' })).toBeInTheDocument();
+  it('shows a context at 90 % of the auto-compact point as almost full, in red', () => {
+    show({ contextUsedPct: { value: 93, basis: 'estimate', note: 'no 1M signal for this model: the 200k default is assumed', windowTokens: 200_000, compactAtTokens: 167_000, usedTokens: 155_000 } });
+    const chip = screen.getByRole('img', { name: 'Context 93% of the way to auto-compact, almost full' });
+    expect(chip.querySelector('.text-hue-red')).toHaveTextContent('93%');
+  });
+
+  it('puts what does not fit into a +N chip, least important first, and says what is in it', () => {
+    // jsdom has no layout: fake an overflow while the pid chip is drawn, then the program chip, then fit.
+    const overflow = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute('data-status-chips') && (this.textContent ?? '').includes('pid') ? 500 : 100;
+    });
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
+    show(FULL);
+    const more = screen.getByLabelText(/^1 more: pid 4242/);
+    expect(more).toHaveTextContent('+1');
+    fireEvent.focus(more);
+    expect(liveTooltip()).toHaveTextContent('Not enough room for: pid 4242.');
+    expect(screen.queryByText('pid 4242')).toBeNull();
+    // The more important chips are still there.
+    expect(screen.getByLabelText('Claude Code 2.1.325')).toBeInTheDocument();
+    overflow.mockRestore();
   });
 
   it('shows the earlier models in the tooltip of the model chip', () => {

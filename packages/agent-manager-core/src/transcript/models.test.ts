@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { contextWindowOf, describeModel, describeModelName, MODEL_TABLE, parseModelId, sameModel } from './models.js';
+import { AUTO_COMPACT_BUFFER, compactAtOf, contextWindowOf, describeModel, describeModelName, MODEL_TABLE, parseModelId, sameModel } from './models.js';
 
 // Every id spelling below was observed on real transcripts (research/statusline-data-in-transcripts.md).
 describe('parseModelId', () => {
@@ -63,8 +63,25 @@ describe('contextWindowOf', () => {
     expect(contextWindowOf(undefined, undefined)).toMatchObject({ tokens: 200_000, source: 'default' });
   });
 
+  it('the models the docs say run 1M by default (Opus 4.7+, Haiku 5.5, Fable) are 1M without the tag; Sonnet 4.6 and Opus 4.6 are not', () => {
+    for (const id of ['claude-opus-4-8', 'claude-opus-4-7', 'claude-opus-5', 'claude-haiku-5-5', 'claude-fable-5-1']) {
+      expect(contextWindowOf({ id }, 10), id).toMatchObject({ tokens: 1_000_000, source: 'table-documented' });
+    }
+    for (const id of ['claude-sonnet-4-6', 'claude-opus-4-6']) {
+      expect(contextWindowOf({ id }, 10), id).toMatchObject({ tokens: 200_000, source: 'default' });
+    }
+  });
+
+  it('auto-compact fires AUTO_COMPACT_BUFFER (33k) below the window: 967k for 1M (docs), 167k for 200k (measured on auto compactions)', () => {
+    expect(AUTO_COMPACT_BUFFER).toBe(33_000);
+    expect(compactAtOf(1_000_000)).toBe(967_000);
+    expect(compactAtOf(200_000)).toBe(167_000);
+    expect(contextWindowOf({ id: 'claude-sonnet-5-5' }, 10).compactAtTokens).toBe(967_000);
+    expect(contextWindowOf(undefined, undefined).compactAtTokens).toBe(167_000);
+  });
+
   it('a context above 200k cannot be a 200k window: 1M, with the reason', () => {
-    const window = contextWindowOf({ id: 'claude-opus-4-8' }, 300_000);
+    const window = contextWindowOf({ id: 'claude-sonnet-4-6' }, 300_000);
     expect(window).toMatchObject({ tokens: 1_000_000, source: 'observed-over-default' });
     expect(window.note).toContain('300000');
   });

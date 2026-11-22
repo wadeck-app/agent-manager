@@ -17,7 +17,7 @@ export interface TransportPickerProps {
 
 /**
  * The transport of the composer: a small control (icon and the name in use) that opens a popover with every transport the module knows, how each delivers,
- * whether it works now (and why not), and the choices: for this session, as the default, or follow the default again. The server config is the source of
+ * whether it works now (a short cause and fix when not; the whole text is behind Details), and the choices: use it here, make it the default, or follow the default again. The server config is the source of
  * truth: nothing is kept here, the status is asked again after a change. A refused change is written in the popover with its hint.
  */
 export function TransportPicker({ sessionId, status, onChanged, onOpenChange }: TransportPickerProps) {
@@ -88,8 +88,10 @@ export function TransportPicker({ sessionId, status, onChanged, onOpenChange }: 
         <Tooltip content={`Sent through the ${selected.transportId} transport: ${selected.deliveredAsText}. Click to change it.`}>{trigger}</Tooltip>
       )}
       {open ? (
-        <div id={panelId} role="dialog" aria-label="Transport" className="absolute bottom-full right-0 z-30 mb-1 flex w-96 max-w-[90vw] flex-col gap-2 rounded-lg border border-border bg-surface p-2 text-content shadow-lg">
-          <p className="px-1 text-xs text-muted">How the next replies reach this session. The setting is kept by the module (the same as the transport command of the CLI).</p>
+        <div id={panelId} role="dialog" aria-label="Transport" className="absolute bottom-full right-0 z-30 mb-1 flex w-[26rem] max-w-[92vw] flex-col gap-2 rounded-lg border border-border bg-surface p-2 text-content shadow-lg">
+          <p className="px-1 text-xs text-muted" title="The setting is kept by the module, the same as the transport command of the CLI.">
+            How replies reach this session
+          </p>
           {error !== '' ? (
             <p role="alert" className="rounded border border-danger bg-danger-bg px-2 py-1 text-xs text-danger-text">
               {error}

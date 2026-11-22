@@ -67,32 +67,64 @@ async function openPicker(): Promise<HTMLElement> {
 }
 
 describe('the transport selector', () => {
-  it('lists every transport with how it delivers, availability, and the reason and fix when it is not available', async () => {
+  it('one compact row per transport: short status and badges, the long text only behind Details, no action on an unavailable one', async () => {
     const panel = await openPicker();
     const socket = panel.querySelector('[data-transport="socket"]') as HTMLElement;
     const hc = panel.querySelector('[data-transport="hc"]') as HTMLElement;
-    expect(socket).toHaveTextContent('Peer message wrapped by Claude Code');
-    expect(socket).toHaveTextContent('Available');
-    expect(hc).toHaveTextContent('Typed prompt, as you');
-    expect(hc).toHaveTextContent('Not available: a dialog is open in its terminal. answer it there first');
-    // An unavailable transport cannot be chosen; the reason is visible instead.
-    expect(within(hc).getByRole('button', { name: 'Use for this session' })).toBeDisabled();
-    expect(within(hc).getByRole('button', { name: 'Use as default' })).toBeDisabled();
+    expect(socket).toHaveTextContent('In use');
+    expect(socket).toHaveTextContent('Default');
+    expect(socket).toHaveTextContent('Ready, peer message');
+    expect(hc).toHaveAttribute('data-available', 'false');
+    expect(hc).toHaveTextContent('a dialog is open in its terminal');
+    expect(hc).toHaveTextContent('answer it there first');
+    // Nothing visible by default is longer than ~70 characters per line, and the long texts are not there yet.
+    expect(screen.queryByText('Peer message wrapped by Claude Code')).toBeNull();
+    for (const line of Array.from(panel.querySelectorAll('li p'))) {
+      expect((line.textContent ?? '').length, line.textContent ?? '').toBeLessThanOrEqual(70);
+    }
+    // An unavailable transport cannot be chosen: no action, the fix is shown instead.
+    expect(within(hc).queryByRole('button', { name: 'Use here' })).toBeNull();
+    expect(within(hc).queryByRole('button', { name: 'Make default' })).toBeNull();
     // What is in use now cannot be chosen again.
-    expect(within(socket).getByRole('button', { name: 'Use as default' })).toBeDisabled();
+    expect(within(socket).getByRole('button', { name: 'Make default' })).toBeDisabled();
   });
 
-  it('"Use for this session" and "Use as default" send the PUT with the write token, then ask the status again', async () => {
+  it('Details opens the whole reason, the fix and how it delivers, and closes again', async () => {
+    const panel = await openPicker();
+    const hc = panel.querySelector('[data-transport="hc"]') as HTMLElement;
+    const toggle = within(hc).getByRole('button', { name: 'Details' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(hc).toHaveTextContent('Typed prompt, as you');
+    expect(hc).toHaveTextContent('The text is typed into the terminal as if you had written it');
+    expect(hc).toHaveTextContent('Not available');
+    fireEvent.click(toggle);
+    expect(within(hc).queryByText('Typed prompt, as you')).toBeNull();
+  });
+
+  it('a long server reason is cut to a short cause and a fix with a command gets a copy button', async () => {
+    status = twoTransports();
+    status.transports[1] = { ...status.transports[1]!, reason: 'the agent-manager daemon cannot be asked: connect ECONNREFUSED 127.0.0.1:47930', fix: 'start it with `agent-manager start --detach`, then try again' };
+    const panel = await openPicker();
+    const hc = panel.querySelector('[data-transport="hc"]') as HTMLElement;
+    expect(hc).toHaveTextContent('the agent-manager daemon cannot be asked');
+    expect(hc).not.toHaveTextContent('ECONNREFUSED');
+    expect(hc).toHaveTextContent('agent-manager start --detach');
+    expect(within(hc).getByRole('button', { name: 'Copy the command to fix hc' })).toBeInTheDocument();
+  });
+
+  it('"Use here" and "Make default" send the PUT with the write token, then ask the status again', async () => {
     status = twoTransports();
     status.transports[1] = { ...status.transports[1]!, available: true, reason: 'hc is reachable', fix: '' };
     const panel = await openPicker();
     const calls = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length;
     const hc = panel.querySelector('[data-transport="hc"]') as HTMLElement;
-    fireEvent.click(within(hc).getByRole('button', { name: 'Use for this session' }));
+    fireEvent.click(within(hc).getByRole('button', { name: 'Use here' }));
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]).toMatchObject({ url: expect.stringMatching(/\/sessions\/.+\/reply\/transport$/), body: { transportId: 'hc' }, token: 'test-token' });
     await waitFor(() => expect((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(calls + 1));
-    fireEvent.click(within(hc).getByRole('button', { name: 'Use as default' }));
+    fireEvent.click(within(hc).getByRole('button', { name: 'Make default' }));
     await waitFor(() => expect(puts).toHaveLength(2));
     expect(puts[1]).toMatchObject({ url: expect.stringMatching(/\/reply\/transport\/default$/), body: { transportId: 'hc' }, token: 'test-token' });
   });
@@ -111,7 +143,7 @@ describe('the transport selector', () => {
     status.transports[1] = { ...status.transports[1]!, available: true, reason: 'reachable', fix: '' };
     putAnswer = () => ({ status: 400, body: { ok: false, error: { code: 'unknown-transport', message: "'hc' is not a transport", hint: 'valid ids: socket' } } });
     const panel = await openPicker();
-    fireEvent.click(within(panel.querySelector('[data-transport="hc"]') as HTMLElement).getByRole('button', { name: 'Use for this session' }));
+    fireEvent.click(within(panel.querySelector('[data-transport="hc"]') as HTMLElement).getByRole('button', { name: 'Use here' }));
     expect(await within(panel).findByRole('alert')).toHaveTextContent("'hc' is not a transport. valid ids: socket");
   });
 
@@ -173,7 +205,7 @@ describe('probing is lazy: every transport is probed only while the menu is open
     const base = twoTransports();
     status = { ...base, transports: base.transports.map((transport, index) => (index === 1 ? { ...transport, probed: false } : transport)) };
     const dialog = await openPicker();
-    expect(within(dialog).getByText(/Checking whether it can deliver/)).toBeInTheDocument();
+    expect(within(dialog).getByText('Checking...')).toBeInTheDocument();
   });
 });
 

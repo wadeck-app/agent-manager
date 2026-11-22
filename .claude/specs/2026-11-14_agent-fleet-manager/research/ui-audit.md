@@ -90,3 +90,29 @@ Behavior changes from the base buttons:
 - Interrupt armed: Send turns base `danger` (was amber); the "Interrupt now" toggle turns `danger-outline`.
 - Disabled buttons with a reason keep a hidden inline base tooltip in the DOM: tests use `detail/status/liveTooltip.ts` to find the module tooltip.
 - Toolbar (#79): `HorizontalStack gap-2 wrap`; checked at 1440, 1024 and 390 px (`poc/results/ui-audit/toolbar-*.png`, throwaway).
+
+## Context gauge, status line row, transport popup (2026-11-22, todos #80, #81, #78)
+
+Marks: [D] documented (code.claude.com/docs, fetched 2026-11-22), [M] measured on local transcripts, [U] unknown.
+
+### Context gauge (#80)
+
+The chip shows only a percentage, coloured (green, yellow from 70 %, red from 90 %), relative to the AUTO-COMPACT point, not to the window. Tooltip: tokens used, auto-compact point, window, the assumption.
+
+- [D] model-config, "Default auto-compact thresholds": models with a native 1M window (Fable, Sonnet 5+, Haiku 5.5, Opus 4.7+) "compact before the window fills, at about 967K tokens by default"; Sonnet 4.6 and Opus 4.6 without extended context "compact at the 200K boundary"; `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` makes native-1M models compact at 200K.
+- [D] Same page: the window can be set with `/autocompact` (saved per model in `modelSettings`), `autoCompactWindow`, `--autocompact`, `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; "Claude Code caps it at the model's context window". The status line `used_percentage` "measures against the model's full context window" (so it is not the auto-compact share).
+- [D] The docs give 967K for 1M but no number for a 200K window.
+- [M] 179 `compact_boundary` lines with `trigger: auto` in `~/.claude/projects` (preTokens): 69 between 167,000 and 169,999 (the sampled files are Sonnet 4.6 sessions, 200k window), 48 between 466,000 and 470,999 (consistent with a 500k window, not proven), a few at 935k-1,000k. Windows minus about 33k: 200k -> 167k, 500k -> 467k, 1M -> 967k (matches [D]). Rule used: `compactAt = window - 33,000` (`AUTO_COMPACT_BUFFER`).
+- [M] Manual compactions (`trigger: manual`) happen at any size: not evidence for the point.
+- [U] The window and the point actually in force for a session: not in the transcript or the registry. A window lowered with `/autocompact`, `autoCompactWindow` or the env variable is invisible here, so the percentage then UNDER-states how close the session is. The tooltip says so; the chip never claims exactness.
+- [U] Whether Opus 4.7+ sessions run the 1M window in this account: the docs say native 1M, two sessions that auto-compacted at 167k hold Opus 4.7 messages next to Sonnet 4.6 ones, which is not conclusive. The model table now uses the docs for Opus 4.7+, Haiku 5.5 and Fable (`documentedWindow`, source `table-documented`), weaker than `provenWindow`.
+- Changed: `contextUsedPct.value` is `round(contextTokens / compactAtTokens * 100)` (clamped 0..100); the DTO also carries `compactAtTokens` and `usedTokens`; core `rollup.compactPct` next to `usedPct` (share of the window, kept).
+
+### Status line row (#81)
+
+One row of chips under the folder line: model, context, role and bypasses always; tokens, duration, session id, program and pid while they fit. Measured, not guessed (`useChipFit`): while the row overflows the least important chip leaves (pid, program, session id, duration, tokens) into a `+N` chip whose tooltip lists them; only when nothing is left to drop does the row wrap. No icon on the model, duration and session id; the role keeps its icon. The program chip reads `CCv2.1.325` (OpenCode `OC`, Codex `Cx`, full name in the tooltip; an unknown program is shown as it is). The registry only holds Claude Code today (`backend/present.ts`, `logic/owned.ts` write "Claude Code <version>").
+Limit: the folder path stays on its own line above (a path of 40+ characters cannot share the row); in a pane under about 300 px (1024 px wide window with the list open) only model and context fit and the rest is behind `+5`.
+
+### Transport popup (#78)
+
+One compact row per transport: status icon, name, badges (In use, Default, This session), actions "Use here" and "Make default" (only on an available row), one line under it (available: "Ready, peer message"; unavailable: the first clause of the reason, at most 70 characters, plus the fix: a command in code with a copy button, else the first clause). The whole reason, the fix sentence, how it delivers and the typed-delivery warning are behind a per-row "Details" toggle. No A/B question: the two layouts were not in doubt (the user's request was explicit); the dock was not touched.

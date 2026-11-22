@@ -22,7 +22,7 @@ export { stripAnsi } from './text.js';
 export { classifyHarnessText } from './harness.js';
 export { parseWebReply, stripPeerWrapper } from './webReply.js';
 export { LIMITS } from './types.js';
-export { contextWindowOf, describeModel, describeModelName, MODEL_TABLE, parseModelId, sameModel } from './models.js';
+export { AUTO_COMPACT_BUFFER, compactAtOf, contextWindowOf, describeModel, describeModelName, MODEL_TABLE, parseModelId, sameModel } from './models.js';
 export type { ContextWindow, ModelRow, ParsedModelId, WindowSource } from './models.js';
 export { createModelTrackerState, insertModelChanges } from './modelChanges.js';
 export type { ModelTrackerState } from './modelChanges.js';

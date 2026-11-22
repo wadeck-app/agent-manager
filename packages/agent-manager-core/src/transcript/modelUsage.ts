@@ -29,6 +29,8 @@ export type ModelUsageRollup = {
   window?: ContextWindow;
   /** used = round(contextTokens / window * 100), clamped to 0..100, like Claude Code (`Math.round(r/n*100)`): exact formula, ESTIMATED window. */
   usedPct?: number;
+  /** round(contextTokens / compactAtTokens * 100), clamped to 0..100: how close the session is to its auto-compact (100 = compacts at the next turn). */
+  compactPct?: number;
   /** Sum of input + cache read + cache creation tokens of every assistant message counted (what was sent), and of the output tokens. */
   cumulativeInput: number;
   cumulativeOutput: number;
@@ -38,6 +40,7 @@ export type ModelUsageRollup = {
   messages: number;
 };
 
+const percent = (part: number, whole: number): number => Math.min(100, Math.max(0, Math.round((part / whole) * 100)));
 const sumInput = (u: UsageEntry): number => u.inputTokens + u.cacheRead + u.cacheCreate;
 
 /**
@@ -124,7 +127,7 @@ export class ModelUsageAccumulator {
       ...(this.current !== undefined ? { currentModel: this.current } : {}),
       previousModels: [...this.previous],
       ...(lastUsage !== undefined ? { lastUsage } : {}),
-      ...(window !== undefined && lastUsage !== undefined ? { window, usedPct: Math.min(100, Math.max(0, Math.round((lastUsage.contextTokens / window.tokens) * 100))) } : {}),
+      ...(window !== undefined && lastUsage !== undefined ? { window, usedPct: percent(lastUsage.contextTokens, window.tokens), compactPct: percent(lastUsage.contextTokens, window.compactAtTokens) } : {}),
       cumulativeInput: input,
       cumulativeOutput: output,
       cumulativeComplete: this.fromStart,

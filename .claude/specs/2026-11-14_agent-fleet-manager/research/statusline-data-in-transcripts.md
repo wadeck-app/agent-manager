@@ -33,7 +33,7 @@ Read in the binary: `total_input_tokens = current_usage.input + cache_creation +
 The binary takes the window from a model catalog (`window`, `maximum_window`) plus the `context-1m` beta; nothing is written to the transcript. Evidence used, in order:
 
 1. `[1m]` in the attachment `modelId`, or "(1M context)" in `marketingName`: 1M.
-2. `claude-sonnet-5-5` and `claude-sonnet-5`: no tag, yet contexts up to 967,657 / 966,778 tokens and auto-compactions at ~966-969k (`compact_boundary`): 1M. The user's example (367.8k = 37%) agrees (~994k). Marked `provenWindow` in the table.
+2. `claude-sonnet-5-5` and `claude-sonnet-5`: no tag, yet contexts up to 967,657 / 966,778 tokens and auto-compactions at ~966-969k (`compact_boundary`): 1M. The user's example (367.8k = 37%) agrees (~994k). Marked `provenWindow` in the table. The chip now shows the share of the auto-compact point (window - 33k), see ui-audit.md "Context gauge".
 3. Any context above 200k: the window cannot be 200k, 1M assumed (`observed-over-default`).
 4. Else 200k default. Unproven for Opus/Haiku/Sonnet 4.x without tag (Sonnet 4.6 seen only up to 123k).
 

@@ -1,4 +1,4 @@
-import { Cpu, TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { Tooltip } from '../deps.js';
 import type { ModelDto } from '../deps.js';
 import { CHIP, CHIP_ICON, CHIP_WARNING } from './chipStyle.js';
@@ -20,7 +20,6 @@ export function ModelChip({ model, previous }: { model: ModelDto; previous: read
   return (
     <Tooltip content={`Model in use${model.id === undefined ? '' : ` (${model.id})`}.${history}`}>
       <span tabIndex={0} aria-label={`Model ${model.displayName}`} className={CHIP}>
-        <Cpu aria-hidden="true" className={CHIP_ICON} />
         {model.displayName}
       </span>
     </Tooltip>

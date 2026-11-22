@@ -156,6 +156,8 @@ describe('rollupModelUsage', () => {
     expect(rollup.lastUsage).toMatchObject({ messageId: 'm2', contextTokens: 367_800, outputTokens: 816 });
     expect(rollup.window).toMatchObject({ tokens: 1_000_000, source: 'table-proven' });
     expect(rollup.usedPct).toBe(37);
+    // Share of the AUTO-COMPACT point (967k), not of the window: 367,800 / 967,000.
+    expect(rollup.compactPct).toBe(38);
     expect(rollup.cumulativeInput).toBe(1105 + 367_800);
     expect(rollup.cumulativeOutput).toBe(836);
     expect(rollup.cumulativeComplete).toBe(false);
@@ -167,6 +169,7 @@ describe('rollupModelUsage', () => {
     // 250k > 200k: the window cannot be 200k, so 1M is assumed and the note says why.
     expect(big.window).toMatchObject({ tokens: 1_000_000, source: 'observed-over-default' });
     expect(big.usedPct).toBe(25);
+    expect(big.compactPct).toBe(26);
     expect(rollupModelUsage([]).usedPct).toBeUndefined();
     expect(rollupModelUsage([]).currentModel).toBeUndefined();
   });
@@ -198,7 +201,7 @@ describe('rollupModelUsage', () => {
     const path = join(dir, 's.jsonl');
     writeText(path, jsonl([assistant(1, 'm1', 'claude-opus-4-8', 'a', { cacheRead: 40_000 })]));
     const tail = await readTail(path, { bytes: 64 * 1024 });
-    expect(rollupModelUsage(tail.entries)).toMatchObject({ currentModel: { displayName: 'Opus 4.8' }, usedPct: 20 });
+    expect(rollupModelUsage(tail.entries)).toMatchObject({ currentModel: { displayName: 'Opus 4.8' }, usedPct: 4, compactPct: 4 });
   });
 });
 

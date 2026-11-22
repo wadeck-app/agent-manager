@@ -210,7 +210,8 @@ export type SessionsResponse = SessionsOk | SessionsFailed;
 // silent empty). Sources, from Claude Code 2.1.3xx transcripts (details: .claude/specs/2026-11-14_agent-fleet-manager/research/statusline-data-in-transcripts.md):
 //   model            EXACT name and id when the transcript holds the `model` attachment (written at start and at each change); else derived from the id of
 //                    the last assistant message with a data table (`known: false` = id not in the table, shown raw).
-//   contextUsedPct   the formula is Claude Code's (round(contextTokens / window * 100)); the WINDOW is an estimate (see ContextUsedDto): basis 'estimate'.
+//   contextUsedPct   share of the AUTO-COMPACT point (window - 33k), not of the window: round(contextTokens / compactAtTokens * 100). The window and the point
+//                    are estimates (see ContextUsedDto): basis 'estimate'.
 //   tokensIn/Out     the status line's "total_input_tokens" / "total_output_tokens" are NOT running totals: they are the prompt size (input + cache creation +
 //                    cache read) and the output of the LAST API call. Same numbers here, read from the last assistant message of the transcript tail.
 //   durationMs       now - registry startedAt (the Claude process start). The status line's `cost.total_duration_ms` is a wall clock since the session started
@@ -230,19 +231,23 @@ export interface ModelDto {
   known: boolean;
 }
 
-/** Percentage of the context window used. */
+/** How close the session is to its auto-compact. */
 export interface ContextUsedDto {
-  /** 0..100, an integer, rounded like the status line. */
+  /** 0..100, an integer: the context size over the auto-compact point (`compactAtTokens`), NOT over the window (100 = Claude Code compacts at the next turn). */
   value: number;
   /**
    * 'estimate' whenever the window had to be assumed (always today: the window is not written in the transcript). 'exact' is reserved for a window read
-   * from Claude Code itself; the UI shows an estimate with a "~" and the `note` as tooltip.
+   * from Claude Code itself; the UI says in the tooltip that the window and the auto-compact point are assumed.
    */
   basis: 'estimate' | 'exact';
   /** Where the window comes from and what it is ("Sonnet 5.5 was observed above 200k tokens without the [1m] tag: 1000k window assumed"). */
   note: string;
-  /** The window the percentage is computed with. */
+  /** The context window assumed for the model. */
   windowTokens: number;
+  /** The context size at which auto-compact is assumed to fire (window - 33k: 967k for 1M, 167k for 200k). Not read from Claude Code: /autocompact can lower it. */
+  compactAtTokens: number;
+  /** The context size of the last call (prompt: input + cache creation + cache read). */
+  usedTokens: number;
 }
 
 /** One active w-guardrails bypass of the session. */
