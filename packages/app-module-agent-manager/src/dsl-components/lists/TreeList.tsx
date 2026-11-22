@@ -1,18 +1,22 @@
 import { ChevronDown, ChevronRight, Folder, FolderInput, FolderOpen } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { partitionByGroup, stepGroupIds } from '../logic/customGroups.js';
+import { herdrTint, isHerdrDensity } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { buildTree, flatByUrgency, quietFolders, type FolderNode } from '../logic/tree.js';
 import type { AgentRow } from '../data/types.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
+import { GroupHeaderName, groupHeaderBar, groupHeaderCount } from '../ui/groupHeaderLook.js';
+import { GROUP_LOOK } from '../ui/groupLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { detailLine, type ListProps } from './common.js';
 import { EmptyNote } from './EmptyNote.js';
+import { HerdrRowBody } from './HerdrRowBody.js';
 import { Highlight } from './Highlight.js';
 import { CustomGroupSection } from './CustomGroupSection.js';
 import { DropBar } from './DropBar.js';
@@ -47,6 +51,8 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
   const hasGroups = (groups?.groups.length ?? 0) > 0;
   const dnd = useGroupDnd(groups);
   const density = useUiVariant('treeDensity');
+  // The look of the headers of the folders (the A/B question ui-group-header applies to them as well as to the custom groups).
+  const headerStyle = useUiVariant('groupHeader');
   const [moving, setMoving] = useState<string | undefined>(undefined);
   const [editing, setEditing] = useState<string | undefined>(undefined);
   // The element to focus once the list was redrawn after a keyboard move (the row or header moved in the DOM and the browser drops its focus).
@@ -175,8 +181,9 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     const dragged = dnd.dragging?.kind === 'agent' && dnd.dragging.id === id;
     const line = detailLine(session);
     const open = agentsOpen(session);
-    const compact = density === 'compact';
-    const card = density === 'card';
+    const herdr = isHerdrDensity(density);
+    const selected = id === selectedId;
+    const tint = herdrTint(density, session.state, selected);
     const nameLine = showFolder ? (
       <ProjectLabel session={session} terms={query.terms} />
     ) : (
@@ -190,71 +197,68 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
           role="treeitem"
           level={level}
           session={session}
-          selected={id === selectedId}
+          selected={selected}
           tabbable={id === tabbable}
           onSelect={onSelect}
-          className={`group relative min-h-am-hit ${compact ? 'py-1' : 'py-2'} pr-3 ${level === 2 ? 'pl-5' : 'pl-3'} ${card ? 'mx-2 my-1 rounded-md ring-1 ring-border' : ''} ${dragged ? 'opacity-50' : ''}`}
+          {...(herdr && density === 'herdr-tinted' ? { look: { selected: `border-l-2 border-transparent ${tint ?? ''}`, idle: `border-l-2 border-transparent ${tint ?? 'hover:bg-muted-bg'}` } } : {})}
+          className={`group relative ${herdr ? 'h-[31px] py-0 pr-2' : 'min-h-am-hit py-1 pr-3'} ${level === 2 ? 'pl-5' : 'pl-3'} ${dragged ? 'opacity-50' : ''}`}
           expanded={session.subagentCount > 0 ? open : undefined}
           rowProps={dnd.row(id, session.customGroupId, members)}
         >
           <DropBar edge={edge} />
-          <div className={`flex gap-2 ${compact ? 'items-center' : 'items-start'}`}>
-            {session.subagentCount > 0 ? (
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-label={open ? `Hide the ${session.subagentCount} sub-agents` : `Show the ${session.subagentCount} sub-agents`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  toggleAgents(id, !open);
-                }}
-                className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
-              >
-                {open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
-              </button>
-            ) : (
-              <span aria-hidden="true" className="h-6 w-6 shrink-0" />
-            )}
-            <StateIconTip session={session} />
-            <span className="min-w-0 flex-1">
-              {compact ? (
+          {herdr ? (
+            <HerdrRowBody
+              session={session}
+              density={density}
+              now={now}
+              terms={query.terms}
+              subagents={session.subagentCount > 0 ? { open, toggle: () => toggleAgents(id, !open) } : undefined}
+              onMove={groups === undefined ? undefined : () => setMoving(id)}
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              {session.subagentCount > 0 ? (
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-label={open ? `Hide the ${session.subagentCount} sub-agents` : `Show the ${session.subagentCount} sub-agents`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleAgents(id, !open);
+                  }}
+                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+                >
+                  {open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+                </button>
+              ) : (
+                <span aria-hidden="true" className="h-6 w-6 shrink-0" />
+              )}
+              <StateIconTip session={session} />
+              <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-1.5" title={line === '' ? undefined : line}>
                   <span className="min-w-0 flex-1">{nameLine}</span>
                   <RowMarks session={session} iconOnly />
                 </span>
-              ) : (
-                <>
-                  {nameLine}
-                  {/* The detail line and the chips share the second line; the chips wrap under the text instead of squeezing the name (audit D1). */}
-                  <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    {line !== '' ? (
-                      <span className="min-w-0 max-w-full truncate text-xs text-muted" title={line}>
-                        <Highlight text={line} terms={query.terms} />
-                      </span>
-                    ) : null}
-                    <RowMarks session={session} />
-                  </span>
-                </>
-              )}
-            </span>
-            {groups !== undefined ? (
-              <Tooltip content="Move to a group (M)" side="left">
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-label={`Move ${session.displayName} to a group`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setMoving(id);
-                  }}
-                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
-                >
-                  <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-                </button>
-              </Tooltip>
-            ) : null}
-            <TimeInState session={session} now={now} />
-          </div>
+              </span>
+              {groups !== undefined ? (
+                <Tooltip content="Move to a group (M)" side="left">
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={`Move ${session.displayName} to a group`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setMoving(id);
+                    }}
+                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+                  >
+                    <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+                  </button>
+                </Tooltip>
+              ) : null}
+              <TimeInState session={session} now={now} />
+            </div>
+          )}
         </OptionShell>
         {open ? <SubagentRows sessionId={session.sessionId} /> : null}
       </Fragment>
@@ -294,20 +298,18 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                 tabIndex={visibleIds.length === 0 && sections.length === 0 && node === nodes[0] ? 0 : -1}
                 onClick={() => toggle(node, !open)}
                 onKeyDown={(event) => onFolderKey(event, node)}
-                className={`flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${FOCUS_RING} focus-visible:ring-inset`}
+                className={`flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${groupHeaderBar(headerStyle, GROUP_LOOK.none.edge)} ${FOCUS_RING} focus-visible:ring-inset`}
               >
                 <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
                 <FolderIcon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
-                <span className="truncate font-semibold text-content" title={node.cwd}>
-                  {node.folder}
-                </span>
+                <GroupHeaderName variant={headerStyle} text={node.folder} textClass={GROUP_LOOK.none.text} title={node.cwd} />
                 {node.disambiguation !== '' ? (
                   <span className="truncate text-xs text-muted" title={node.disambiguation}>
                     {node.disambiguation}
                   </span>
                 ) : null}
                 <span className="ml-auto flex shrink-0 items-center gap-2">
-                  <span className="text-xs tabular-nums text-muted">{node.sessions.length}</span>
+                  <span className={`text-xs tabular-nums text-muted ${groupHeaderCount(headerStyle)}`}>{node.sessions.length}</span>
                   <Tooltip content={`${STATE_LOOK[node.rollup].label}: the most urgent state in this folder`} side="left">
                     <span className="inline-flex">
                       <StatusIcon state={node.rollup} />

@@ -14,20 +14,14 @@ export interface UiQuestion<T extends string> {
   options: Record<T, UiVariantOption>;
 }
 
-export const HEADER_ACTIONS = ['inline', 'menu', 'split'] as const;
+export const HEADER_ACTIONS = ['line', 'line-menu', 'detailed'] as const;
 export type HeaderActionsVariant = (typeof HEADER_ACTIONS)[number];
 
-export const TREE_DENSITY = ['comfortable', 'compact', 'card'] as const;
+export const TREE_DENSITY = ['compact', 'herdr-line', 'herdr-tinted', 'herdr-name'] as const;
 export type TreeDensityVariant = (typeof TREE_DENSITY)[number];
-
-export const CHIP_STYLE = ['soft', 'outline', 'dot'] as const;
-export type ChipStyleVariant = (typeof CHIP_STYLE)[number];
 
 export const SWITCH_READINESS = ['badge', 'button', 'banner'] as const;
 export type SwitchReadinessVariant = (typeof SWITCH_READINESS)[number];
-
-export const THREAD_PLACEMENT = ['hover', 'always', 'labelled'] as const;
-export type ThreadPlacementVariant = (typeof THREAD_PLACEMENT)[number];
 
 export const GROUP_HEADER = ['bar', 'plain', 'pill'] as const;
 export type GroupHeaderVariant = (typeof GROUP_HEADER)[number];
@@ -36,31 +30,22 @@ export const UI_QUESTIONS = {
   headerActions: {
     id: 'ui-header-actions',
     label: 'Header actions',
-    initial: 'inline',
+    initial: 'line',
     options: {
-      inline: { label: 'A Inline', hint: 'Recommended. Fork, Pin and Mark as seen stay three icon buttons with tooltips on the title row (they are small: width was never the problem, the height of the header was, and that is fixed for every option). Nothing is hidden.' },
-      menu: { label: 'B Menu', hint: 'One More actions button (three dots) opens a menu with Fork, Pin and Mark as seen: the quietest header and the best on a phone, at the price of one extra click for Fork.' },
-      split: { label: 'C Split', hint: 'A labelled Fork button with a chevron that opens Pin and Mark as seen: Fork is the action people look for, so it is named, the others are one click behind.' },
+      line: { label: 'A One line', hint: 'Recommended. The whole header on ONE line: name, state, age, folder and branch, model, context, tokens, program, pid, and the actions (Fork, Pin, Mark as seen, Move, Stop) as icons at the far right. What does not fit goes into a +N chip. Shows on the header of the open agent (right of the list).' },
+      'line-menu': { label: 'B One line, one menu', hint: 'Same single line, but only Fork stays an icon: Pin and Mark as seen are in one three-dot menu, the quietest line, one more click. Shows on the header of the open agent.' },
+      detailed: { label: 'C Detailed', hint: 'The previous header on three rows (name and state, folder and branch, then the chips), kept to compare with the one-line header. Shows on the header of the open agent.' },
     },
   },
   treeDensity: {
     id: 'ui-tree-density',
     label: 'Tree rows',
-    initial: 'comfortable',
+    initial: 'compact',
     options: {
-      comfortable: { label: 'A Comfortable', hint: 'Recommended. Name and time on the first line, the last action and the host and state chips on the second: the name is never cut by a chip.' },
-      compact: { label: 'B Compact', hint: 'One line per agent: the name, then an icon for the host (its name is in the tooltip) and the state chip only when it needs you. Densest, the host text is not readable at a glance.' },
-      card: { label: 'C Card', hint: 'Comfortable inside a bordered card with a gap between agents: each agent reads as its own object, at the price of about 25 % fewer agents per screen.' },
-    },
-  },
-  chipStyle: {
-    id: 'ui-chip-style',
-    label: 'Status chips',
-    initial: 'soft',
-    options: {
-      soft: { label: 'A Soft', hint: 'Recommended. A tinted pill with its icon and label, the look the page already has.' },
-      outline: { label: 'B Outline', hint: 'A bordered pill on the page background: quieter in a long list, the colour is carried by the text and border only.' },
-      dot: { label: 'C Dot', hint: 'A coloured dot and plain text, no pill: the quietest, the least visible when something needs you.' },
+      compact: { label: 'A Compact', hint: 'Recommended. One line per agent: state icon, name, host icon, time. Shows on every agent row of the list (left).' },
+      'herdr-line': { label: 'B Herdr line', hint: 'Like the Herdr panel: program icon, bold name, muted folder, age, and a state light on the right (blue dot = finished and unseen, spinner = working, red pill = needs you, grey ring = idle). Shows on every agent row of the list (left).' },
+      'herdr-tinted': { label: 'C Herdr tinted', hint: 'Herdr line with a background tint by state: red when it needs you, blue when finished and unseen, and the open row in a gold outline. Shows on every agent row of the list (left).' },
+      'herdr-name': { label: 'D Herdr name only', hint: 'Herdr line without the grey folder text: only the session name and the state light. The densest. Shows on every agent row of the list (left).' },
     },
   },
   switchReadiness: {
@@ -68,19 +53,9 @@ export const UI_QUESTIONS = {
     label: 'Move readiness',
     initial: 'badge',
     options: {
-      badge: { label: 'A Badge', hint: 'Recommended. A short button ("Move to Terminal") and next to it a badge that says what runs ("8 running"); the colour of the badge, not of the button, warns.' },
-      button: { label: 'B Button', hint: 'The button itself turns amber and carries the count in its label (the previous behaviour): one control, but a long label that wraps on a narrow screen.' },
-      banner: { label: 'C Banner', hint: 'A neutral button and, under the actions, a warning line that lists the first reason: the clearest, the tallest.' },
-    },
-  },
-  threadPlacement: {
-    id: 'ui-thread-placement',
-    label: 'Thread action',
-    initial: 'hover',
-    options: {
-      hover: { label: 'A On hover', hint: 'Recommended. The Thread icon shows when the pointer or the keyboard focus is on the message, and always on a touch screen: the log stays calm, the action is one click away.' },
-      always: { label: 'B Always', hint: 'The icon is always visible on every message (the previous behaviour): discoverable, but it repeats on every row of a long log.' },
-      labelled: { label: 'C Labelled', hint: 'A text button "Thread" on hover or focus: explicit, wider, and it covers the time label on a narrow screen.' },
+      badge: { label: 'A Badge', hint: 'Recommended. A badge in the header of every agent says Free to move, Busy: N running or Unknown; the Move button stays neutral. Shows under the folder line of the open agent, whatever its host.' },
+      button: { label: 'B Button', hint: 'The Move button itself turns amber and carries the count in its label; the badge only shows on agents that cannot move. Shows on the header of the open agent (the button needs a Web or Terminal agent started here).' },
+      banner: { label: 'C Banner', hint: 'A neutral Move button and, under the actions, a warning line listing the first reason; the badge only shows on agents that cannot move. Shows on the header of the open agent.' },
     },
   },
   groupHeader: {
@@ -88,9 +63,9 @@ export const UI_QUESTIONS = {
     label: 'Group header',
     initial: 'bar',
     options: {
-      bar: { label: 'A Bar', hint: 'Recommended. A tinted header bar with the group colour as a left edge and the count in a pill: groups are easy to tell from the folders under them.' },
-      plain: { label: 'B Plain', hint: 'The header of a folder (the previous look): same weight as the folders, the group is told by its coloured dot only.' },
-      pill: { label: 'C Pill', hint: 'The group name in a coloured pill: loud, good for a few groups, tiring with ten.' },
+      bar: { label: 'A Bar', hint: 'Recommended. A tinted header bar with a coloured left edge and the count in a pill. Shows on the folder headers of the list (left) and on your custom groups.' },
+      plain: { label: 'B Plain', hint: 'A plain header: the bold name and the count, no tint (the previous look). Shows on the folder headers of the list (left) and on your custom groups.' },
+      pill: { label: 'C Pill', hint: 'The folder or group name in an outlined pill: loud, good for a few groups, tiring with ten. Shows on the folder headers of the list (left) and on your custom groups.' },
     },
   },
 } as const satisfies Record<string, UiQuestion<string>>;
@@ -99,9 +74,7 @@ export type UiQuestionKey = keyof typeof UI_QUESTIONS;
 export type UiVariantValues = {
   headerActions: HeaderActionsVariant;
   treeDensity: TreeDensityVariant;
-  chipStyle: ChipStyleVariant;
   switchReadiness: SwitchReadinessVariant;
-  threadPlacement: ThreadPlacementVariant;
   groupHeader: GroupHeaderVariant;
 };
 
@@ -109,8 +82,6 @@ export type UiVariantValues = {
 export const DEFAULT_UI_VARIANTS: UiVariantValues = {
   headerActions: UI_QUESTIONS.headerActions.initial,
   treeDensity: UI_QUESTIONS.treeDensity.initial,
-  chipStyle: UI_QUESTIONS.chipStyle.initial,
   switchReadiness: UI_QUESTIONS.switchReadiness.initial,
-  threadPlacement: UI_QUESTIONS.threadPlacement.initial,
   groupHeader: UI_QUESTIONS.groupHeader.initial,
 };

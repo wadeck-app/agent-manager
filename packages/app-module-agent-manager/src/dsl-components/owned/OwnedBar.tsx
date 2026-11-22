@@ -1,8 +1,11 @@
 import { ButtonAction, CompactSelect, IconButton } from '@wadeck-app/dsl-ui';
 import { CircleStop, RotateCcw, Square, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Scope } from '../ui/Scope.js';
 import { failureText, requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
+import { MOVE_DAEMON_DOWN } from '../logic/adoptSwitch.js';
 import { PERMISSION_MODE_OPTIONS } from '../logic/launchForm.js';
 import { isBgOwned, isLiveBg, isLiveWeb, isOwned } from '../logic/owned.js';
 import type { OwnedForgetResponse, OwnedInterruptResponse, OwnedPermissionModeResponse, OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
@@ -12,6 +15,7 @@ import { FOCUS_RING } from '../ui/focusRing.js';
 import { BgAttach } from './BgAttach.js';
 import { HostBadge } from './OwnedChips.js';
 import { OwnedStateChip } from './OwnedStateChip.js';
+import { DAEMON_DOWN_REASON, useDaemonDown } from './DaemonState.js';
 import { SwitchAction } from './SwitchAction.js';
 import { useOwnedSession } from './useOwnedSession.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
@@ -22,6 +26,8 @@ export interface OwnedBarProps {
   onChange: (change: OwnedChange) => void;
   /** The session was forgotten: the page leaves its detail. */
   onForgotten: () => void;
+  /** The one-line header: the controls go into `slot` as icon buttons (nothing is drawn until the header gave its slot), and the notices stay here. Absent: the controls row of the detailed header. */
+  inline?: { slot: HTMLElement | null };
 }
 
 type Pending = 'stop' | 'resume' | 'forget';
@@ -39,7 +45,7 @@ export const BG_NO_MODE = 'The permission mode of a background session cannot be
  * live Web session, Resume an interrupted or exited one, Forget an ended one, the permission mode of a live Web session). Every action is one request through
  * the module (CSRF checked); a refusal is written under the buttons with its hint. Renders nothing for a discovered session.
  */
-export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
+export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarProps) {
   const owned = isOwned(session);
   const { dto, error: readError, refresh } = useOwnedSession(session.sessionId, session.ownedState, owned && (session.host === 'stream-json' || session.host === 'bg'));
   const [busy, setBusy] = useState(false);
@@ -47,6 +53,8 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
   const [dialogError, setDialogError] = useState('');
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  // The daemon is known to be down: Stop, Resume, Interrupt and Forget are off with the reason and the fix, instead of a click that fails.
+  const daemonDown = useDaemonDown();
   if (!owned) {
     return null;
   }
@@ -159,6 +167,36 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
   const modeOptions = PERMISSION_MODE_OPTIONS.filter((option) => option.value !== '');
   const unknownMode = mode !== '' && !modeOptions.some((option) => option.value === mode);
 
+  const modeSelect = (
+    <label className="flex items-center gap-1.5 text-sm text-muted">
+      Mode
+      <CompactSelect
+        ariaLabel="Permission mode"
+        value={mode}
+        disabled={busy || dto === undefined || daemonDown}
+        onChange={(next) => void setMode(next)}
+        options={[
+          ...(mode === '' ? [{ value: '', label: '(not reported)' }] : []),
+          ...(unknownMode ? [{ value: mode, label: mode }] : []),
+          ...modeOptions.map((option) => ({ value: option.value, label: option.label })),
+        ]}
+      />
+    </label>
+  );
+  // The one-line header (inline): the same actions as icon buttons in the header line (rendered into its slot), the permission mode in a thin row under it.
+  const iconControls = (
+    <>
+      <HostBadge session={session} iconOnly />
+      <OwnedStateChip session={session} iconOnly />
+      {liveWeb && session.ownedState === 'running' ? <IconButton aria-label="Interrupt" icon={<Square aria-hidden="true" className="h-4 w-4" />} disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => void interrupt()} /> : null}
+      {liveBg ? <IconButton aria-label="Interrupt" icon={<Square aria-hidden="true" className="h-4 w-4" />} disabled disabledReason={BG_NO_INTERRUPT} /> : null}
+      {live ? <IconButton variant="danger-outline" aria-label="Stop" icon={<CircleStop aria-hidden="true" className="h-4 w-4" />} disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => setPending('stop')} /> : null}
+      <SwitchAction session={session} disabled={busy} onChange={onChange} onNote={setNote} onError={setError} compact />
+      {ended && resumable ? <IconButton variant="primary" aria-label={leftover === undefined ? (bg ? 'Resume (claude respawn)' : 'Resume') : 'Resume anyway'} icon={<RotateCcw aria-hidden="true" className="h-4 w-4" />} disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => (leftover === undefined ? void resume() : setPending('resume'))} /> : null}
+      {ended ? <IconButton aria-label="Forget" icon={<Trash2 aria-hidden="true" className="h-4 w-4" />} disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => setPending('forget')} /> : null}
+    </>
+  );
+
   return (
     <div data-owned-bar="" className="mt-1.5 flex flex-col gap-1.5">
       {session.ownedState === 'interrupted' ? (
@@ -187,48 +225,47 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
       {bg && dto?.observeError !== undefined ? <Banner tone="warning">{`The daemon could not read the state of background sessions (claude agents --json), so the state shown may be stale: ${dto.observeError}`}</Banner> : null}
       {liveBg ? <BgAttach command={dto?.attachCommand} waitingFor={session.ownedState === 'requires_action' ? (dto?.waitingFor ?? 'prompt') : undefined} /> : null}
 
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-        <HostBadge session={session} />
-        <OwnedStateChip session={session} />
-        {dto?.model !== undefined ? <span className="text-xs text-muted">{`launched with model ${dto.model}`}</span> : null}
-        {liveWeb && session.ownedState === 'running' ? (
-          <ButtonAction variant="secondary" size="sm" disabled={busy} onClick={() => void interrupt()} icon={<Square aria-hidden="true" className="h-3.5 w-3.5" />} label="Interrupt" />
-        ) : null}
-        {liveBg ? (
-          <ButtonAction variant="secondary" size="sm" disabled disabledReason={BG_NO_INTERRUPT} icon={<Square aria-hidden="true" className="h-3.5 w-3.5" />} label="Interrupt" />
-        ) : null}
-        {live ? (
-          <ButtonAction variant="danger-outline" size="sm" disabled={busy} onClick={() => setPending('stop')} icon={<CircleStop aria-hidden="true" className="h-3.5 w-3.5" />} label="Stop" />
-        ) : null}
-        <SwitchAction session={session} disabled={busy} onChange={onChange} onNote={setNote} onError={setError} />
-        {ended && resumable ? (
-          <ButtonAction
-            variant="primary"
-            size="sm"
-            disabled={busy}
-            onClick={() => (leftover === undefined ? void resume() : setPending('resume'))}
-            icon={<RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />}
-            label={leftover === undefined ? (bg ? 'Resume (claude respawn)' : 'Resume') : 'Resume anyway'}
-          />
-        ) : null}
-        {ended ? <IconButton icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />} aria-label="Forget" disabled={busy} onClick={() => setPending('forget')} /> : null}
-        {liveWeb ? (
-          <label className="flex items-center gap-1.5 text-sm text-muted">
-            Mode
-            <CompactSelect
-              ariaLabel="Permission mode"
-              value={mode}
-              disabled={busy || dto === undefined}
-              onChange={(next) => void setMode(next)}
-              options={[
-                ...(mode === '' ? [{ value: '', label: '(not reported)' }] : []),
-                ...(unknownMode ? [{ value: mode, label: mode }] : []),
-                ...modeOptions.map((option) => ({ value: option.value, label: option.label })),
-              ]}
+      {inline === undefined ? (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <HostBadge session={session} />
+          <OwnedStateChip session={session} />
+          {dto?.model !== undefined ? <span className="text-xs text-muted">{`launched with model ${dto.model}`}</span> : null}
+          {liveWeb && session.ownedState === 'running' ? (
+            <ButtonAction variant="secondary" size="sm" disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => void interrupt()} icon={<Square aria-hidden="true" className="h-3.5 w-3.5" />} label="Interrupt" />
+          ) : null}
+          {liveBg ? (
+            <ButtonAction variant="secondary" size="sm" disabled disabledReason={BG_NO_INTERRUPT} icon={<Square aria-hidden="true" className="h-3.5 w-3.5" />} label="Interrupt" />
+          ) : null}
+          {live ? (
+            <ButtonAction variant="danger-outline" size="sm" disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => setPending('stop')} icon={<CircleStop aria-hidden="true" className="h-3.5 w-3.5" />} label="Stop" />
+          ) : null}
+          <SwitchAction session={session} disabled={busy} onChange={onChange} onNote={setNote} onError={setError} />
+          {ended && resumable ? (
+            <ButtonAction
+              variant="primary"
+              size="sm"
+              disabled={busy || daemonDown}
+              {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})}
+              onClick={() => (leftover === undefined ? void resume() : setPending('resume'))}
+              icon={<RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />}
+              label={leftover === undefined ? (bg ? 'Resume (claude respawn)' : 'Resume') : 'Resume anyway'}
             />
-          </label>
-        ) : null}
-      </div>
+          ) : null}
+          {ended ? <IconButton icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />} aria-label="Forget" disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => setPending('forget')} /> : null}
+          {liveWeb ? modeSelect : null}
+        </div>
+      ) : (
+        <>
+          {inline.slot === null ? null : createPortal(<Scope>{iconControls}</Scope>, inline.slot)}
+          {liveWeb ? <div data-owned-mode="" className="max-w-full [&_select]:max-w-[11rem]">{modeSelect}</div> : null}
+        </>
+      )}
+
+      {daemonDown && (ended || liveBg) ? (
+        <p data-daemon-down="" className="text-xs text-muted">
+          {MOVE_DAEMON_DOWN}
+        </p>
+      ) : null}
 
       {liveBg ? (
         <details data-bg-limits="" className="text-xs text-muted">

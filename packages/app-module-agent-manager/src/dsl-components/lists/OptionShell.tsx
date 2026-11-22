@@ -14,13 +14,15 @@ export interface OptionShellProps {
   /** A row that can open (sub-agents): its state; undefined for a row that cannot. */
   expanded?: boolean;
   className?: string;
+  /** Replaces the default selected and idle looks (the Herdr rows tint themselves by state). */
+  look?: { selected: string; idle: string };
   /** Extra attributes of the row (the drag and drop handlers of the Tree list). */
   rowProps?: Pick<HTMLAttributes<HTMLDivElement>, 'draggable' | 'onDragStart' | 'onDragEnd' | 'onDragOver' | 'onDrop'>;
   children: ReactNode;
 }
 
 /** The selectable row of every list: the option role, roving tabindex, the data the keyboard hook reads, the selection and focus looks. */
-export function OptionShell({ session, selected, tabbable, onSelect, role = 'option', level, expanded, className = '', rowProps, children }: OptionShellProps) {
+export function OptionShell({ session, selected, tabbable, onSelect, role = 'option', level, expanded, className = '', look, rowProps, children }: OptionShellProps) {
   const id = agentId(session);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     // Space selects like a click (Enter is the list's: select and go to the composer).
@@ -41,7 +43,7 @@ export function OptionShell({ session, selected, tabbable, onSelect, role = 'opt
       onClick={() => onSelect(id)}
       onKeyDown={onKeyDown}
       {...rowProps}
-      className={`cursor-pointer text-sm border-l-2 ${selected ? 'border-primary bg-primary-light' : 'border-transparent hover:bg-muted-bg'} ${FOCUS_RING} focus-visible:ring-inset ${className}`}
+      className={`cursor-pointer text-sm ${look === undefined ? `border-l-2 ${selected ? 'border-primary bg-primary-light' : 'border-transparent hover:bg-muted-bg'}` : selected ? look.selected : look.idle} ${FOCUS_RING} focus-visible:ring-inset ${className}`}
     >
       {children}
     </div>

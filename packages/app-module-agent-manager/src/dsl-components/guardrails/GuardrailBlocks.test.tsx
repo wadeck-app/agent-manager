@@ -42,3 +42,11 @@ describe('GuardrailBlocks in a narrow header', () => {
     expect(screen.queryByRole('button', { name: 'more' })).toBeNull();
   });
 });
+
+describe('GuardrailBlocks link', () => {
+  it('links to the Guardrails page of the module in the shell, not to a path the shell does not serve', () => {
+    viewport(false);
+    render(<GuardrailBlocks blocks={LONG} />);
+    expect(screen.getByRole('link', { name: 'Guardrails page' })).toHaveAttribute('href', '/modules/agent-manager/guardrails');
+  });
+});

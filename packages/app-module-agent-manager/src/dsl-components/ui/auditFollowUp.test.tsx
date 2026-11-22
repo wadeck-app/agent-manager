@@ -6,7 +6,9 @@ import { groupReasons } from '../logic/adoptSwitch.js';
 import { row } from '../logic/fixtures.js';
 import { ReasonList, VISIBLE_REASONS } from '../owned/ReasonList.js';
 import { stubFetch } from '../owned/testFetch.js';
+import { DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
 import { ConfirmDialog } from './ConfirmDialog.js';
+import { UiVariantsContext } from './UiVariants.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -73,13 +75,17 @@ describe('the dialog button row', () => {
   });
 });
 
-describe('the detail header on a phone', () => {
+describe('the detailed header on a phone (the one-line header has no details toggle: the line drops what does not fit)', () => {
   function withMedia(matching: (query: string) => boolean): void {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: matching(query), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   }
   const header = () => {
     stubFetch({});
-    return render(<DetailHeader session={row({ sessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', displayName: 'one', pid: 12 })} now={2_000_000} busy={false} onBack={vi.fn()} onTogglePin={vi.fn()} onMarkSeen={vi.fn()} onOwnedChange={vi.fn()} onForgotten={vi.fn()} onForked={vi.fn()} onOpenSource={vi.fn()} />);
+    return render(
+      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerActions: 'detailed' }}>
+        <DetailHeader session={row({ sessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', displayName: 'one', pid: 12 })} now={2_000_000} busy={false} onBack={vi.fn()} onTogglePin={vi.fn()} onMarkSeen={vi.fn()} onOwnedChange={vi.fn()} onForgotten={vi.fn()} onForked={vi.fn()} onOpenSource={vi.fn()} />
+      </UiVariantsContext.Provider>,
+    );
   };
 
   it('keeps the chips closed under 600 px of width, whatever the height', () => {

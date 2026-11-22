@@ -23,6 +23,7 @@ import { SplitPane } from '../ui/SplitPane.js';
 import { Toolbar } from './Toolbar.js';
 import { useInFlight } from './useInFlight.js';
 import { DaemonStateProvider } from '../owned/DaemonState.js';
+import { LiveThreadsProvider } from '../owned/LiveThreads.js';
 import { useCustomGroups, type SendGroupRequest } from './useCustomGroups.js';
 import { useOptimisticRows } from './useOptimisticRows.js';
 import { useOwnedRows } from './useOwnedRows.js';
@@ -89,6 +90,17 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   const selected = useMemo(() => rows.find((session) => agentId(session) === selectedId), [rows, selectedId]);
   // The name of the source of a fork, from the rows of the list (undefined when the source is not listed any more).
   const rowsById = useMemo(() => new Map(rows.map((row) => [row.sessionId.toLowerCase(), row])), [rows]);
+  // The live threads of each source session (the dialog of a thread shows the cap before the daemon refuses).
+  const liveThreads = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      if (row.threadOf !== undefined && row.alive) {
+        const source = row.threadOf.sessionId.toLowerCase();
+        counts.set(source, (counts.get(source) ?? 0) + 1);
+      }
+    }
+    return (sessionId: string): number => counts.get(sessionId.toLowerCase()) ?? 0;
+  }, [rows]);
   // The listing mode: the URL (?mode=) wins, then the saved choice, then Tree; a mode the URL names that does not exist is said, not silently replaced.
   const [modeParam, setModeParam] = useUrlParam('mode');
   const [savedMode, setSavedMode] = useState(readSavedMode);
@@ -383,6 +395,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
 
   return (
     <DaemonStateProvider down={ownedError?.code === 'daemon-not-running'}>
+    <LiveThreadsProvider count={liveThreads}>
     <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
       <Toolbar
         count={rows.length}
@@ -406,6 +419,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />
       </div>
     </div>
+    </LiveThreadsProvider>
     </DaemonStateProvider>
   );
 }

@@ -8,6 +8,14 @@
   display: contents;
 }
 
+/* The colours of the Herdr rows of the Tree (A/B question ui-tree-density, logic/herdrRow.ts): the tint of a row that needs you, of one that finished unseen, and the open row (gold outline and gradient). Change them here. */
+.agents-scope {
+  --am-herdr-needs-bg: color-mix(in srgb, var(--color-hue-red-text, #b91c1c) 16%, transparent);
+  --am-herdr-unseen-bg: color-mix(in srgb, var(--color-primary, #2563eb) 14%, transparent);
+  --am-herdr-active-edge: #d4a017;
+  --am-herdr-active-bg: linear-gradient(90deg, rgb(212 160 23 / 0.24), rgb(212 160 23 / 0.06));
+}
+
 /* The density scale (ui/density.ts; the numbers are ui/densityScale.ts, checked against this file by build/scopedCss.test.ts): one set of variables per setting, read by the type steps and the `am-*` tokens of tailwind.config.ts. Custom properties
    inherit through `display: contents`, so every element under the wrapper (and a portal, which has its own wrapper) sees them. M is the default. */
 .agents-scope,

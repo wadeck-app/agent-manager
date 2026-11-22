@@ -4,6 +4,7 @@ import type { AgentRow } from '../data/types.js';
 import type { GroupSection } from '../logic/customGroups.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
+import { GroupHeaderName, groupHeaderBar, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
@@ -32,7 +33,7 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
   const headerStyle = useUiVariant('groupHeader');
   const look = GROUP_LOOK[group.color ?? 'none'];
   // The three looks of the A/B question ui-group-header; classes written in full.
-  const headerLook = headerStyle === 'bar' ? `border-l-4 ${look.edge} bg-muted-bg pl-1` : '';
+  const headerLook = groupHeaderBar(headerStyle, look.edge);
   const Chevron = open ? ChevronDown : ChevronRight;
   const edge = dnd.over?.kind === 'header' && dnd.over.id === group.id ? (dnd.over.after ? 'after' : 'before') : undefined;
   const into = dnd.over?.kind === 'section' && dnd.over.id === group.id;
@@ -75,15 +76,7 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
         <DropBar edge={edge} />
         <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
         <GroupDot color={group.color} />
-        {headerStyle === 'pill' ? (
-          <span className={`truncate rounded-full border border-current px-2 py-0.5 text-xs font-semibold ${look.text}`} title={group.name}>
-            {group.name}
-          </span>
-        ) : (
-          <span className="truncate font-semibold text-content" title={group.name}>
-            {group.name}
-          </span>
-        )}
+        <GroupHeaderName variant={headerStyle} text={group.name} textClass={look.text} />
         <span className="ml-auto flex shrink-0 items-center gap-2">
           <Tooltip content="Edit the group: name, color, order, delete (E)" side="left">
             <button
@@ -99,7 +92,7 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
               <Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </button>
           </Tooltip>
-          <span className={`text-xs tabular-nums text-muted ${headerStyle === 'bar' ? 'rounded-full bg-surface px-1.5 py-0.5' : ''}`}>{sessions.length}</span>
+          <span className={`text-xs tabular-nums text-muted ${groupHeaderCount(headerStyle)}`}>{sessions.length}</span>
           {rollup !== undefined ? (
             <Tooltip content={`${STATE_LOOK[rollup].label}: the most urgent state in this group`} side="left">
               <span className="inline-flex">

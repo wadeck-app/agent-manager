@@ -58,7 +58,12 @@ describe.each([
     expect(within(rowOf('name-perm')).getByText('Waiting for permission (2)')).toBeInTheDocument();
     const starting = rowOf('name-new');
     expect(within(starting).getByText('Starting...')).toBeInTheDocument();
-    expect(starting).toHaveTextContent('Starting... no transcript yet');
+    // The compact Tree (the default) keeps the detail line in the tooltip of the row; the other lists write it under the name.
+    if (_name === 'Tree') {
+      expect(starting.querySelector('[title="Starting... no transcript yet"]')).not.toBeNull();
+    } else {
+      expect(starting).toHaveTextContent('Starting... no transcript yet');
+    }
   });
 });
 

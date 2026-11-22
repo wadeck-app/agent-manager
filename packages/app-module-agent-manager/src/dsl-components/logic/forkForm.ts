@@ -3,8 +3,7 @@ import type { ModelDto, OwnedForkRequest, SessionRowDto } from '../shared.js';
 import { MODEL_OPTIONS } from './launchForm.js';
 
 /** What a fork of a session is, in one place for the dialog and the button (research/session-fork.md). */
-export const FORK_MEANING =
-  'The fork is a new Web session in the same folder that continues a copy of this conversation as it is written now. The original is not changed and keeps running. Both agents work on the same files.';
+export const FORK_MEANING = 'Opens a new Web session in the same folder that continues a copy of this conversation. The original is not changed and keeps running.';
 
 /** "fork of <name>": the same helper as the route (cleaned, within the length the daemon accepts). */
 export function forkNameDefault(session: Pick<SessionRowDto, 'displayName'>): string {

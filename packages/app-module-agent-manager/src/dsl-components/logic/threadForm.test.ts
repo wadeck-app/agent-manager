@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LogEntry } from '../shared.js';
 import { assistantText, userPrompt } from '../detail/log/entryFixtures.js';
-import { THREAD_CAP_NOTE, shortMessage, threadAnchorOf, threadBody, threadChipText } from './threadForm.js';
+import { THREAD_MAX, THREAD_MEANING, quoteIsLong, shortMessage, threadLimitLine, threadAnchorOf, threadBody, threadChipText } from './threadForm.js';
 
 const UUID = '27bf9648-39df-453b-bd04-99816f5c1819';
 const withUuid = (entry: LogEntry, uuid: string = UUID): LogEntry => ({ ...entry, uuid });
@@ -52,7 +52,27 @@ describe('the chip of a thread', () => {
     expect(threadBody({ sourceSessionId: 's', atMessageId: UUID, atMessageQuote: 'why red?', name: '', model: '', permissionMode: '' })).toEqual({ sourceSessionId: 's', atMessageId: UUID, atMessageQuote: 'why red?' });
   });
 
-  it('the cap note names the number', () => {
-    expect(THREAD_CAP_NOTE).toContain('3');
+  it('the meaning is one sentence pair that says what the thread knows and that the original stays', () => {
+    expect(THREAD_MEANING).toBe('Opens a new Web session that knows this conversation up to this message. The original is not changed.');
+  });
+});
+
+describe('the limit line of the Thread dialog', () => {
+  it('says nothing below two threads, a small caption at two, an error at the cap', () => {
+    expect(THREAD_MAX).toBe(3);
+    expect(threadLimitLine(0)).toBeUndefined();
+    expect(threadLimitLine(1)).toBeUndefined();
+    expect(threadLimitLine(2)).toEqual({ tone: 'caption', text: '2 of 3 threads in use' });
+    expect(threadLimitLine(3)).toEqual({ tone: 'error', text: 'Thread limit reached: 3 of 3 threads in use. Stop one of them to start another.' });
+    expect(threadLimitLine(5)?.tone).toBe('error');
+  });
+});
+
+describe('the quote preview', () => {
+  it('a short one-line message is shown whole, a long or many-lined one gets the show-full toggle', () => {
+    expect(quoteIsLong('why is it red?')).toBe(false);
+    expect(quoteIsLong('a\nb\nc')).toBe(false);
+    expect(quoteIsLong('a\nb\nc\nd')).toBe(true);
+    expect(quoteIsLong('word '.repeat(60))).toBe(true);
   });
 });

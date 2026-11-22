@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow } from '../logic/fixtures.js';
 import type { OwnedSessionDto } from '../shared.js';
 import { BG_NO_INTERRUPT, BG_NO_MODE, OwnedBar, RESUME_TEXT } from './OwnedBar.js';
+import { DaemonStateProvider } from './DaemonState.js';
 import { stubFetch } from './testFetch.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -237,5 +238,36 @@ describe('OwnedBar: a Background session', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Forget it' }));
     await waitFor(() => expect(onForgotten).toHaveBeenCalled());
     expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual([`/owned/${ID}/resume`, `/owned/${ID}/forget`]);
+  });
+});
+
+describe('OwnedBar: the daemon is not running', () => {
+  function barDown(row: ReturnType<typeof ownedRow>) {
+    const { calls } = stubFetch({ 'GET /owned': listed(ownedDto({ id: ID, status: 'exited', state: 'exited', resumable: true })) });
+    render(
+      <DaemonStateProvider down>
+        <OwnedBar session={row} onChange={vi.fn()} onForgotten={vi.fn()} />
+      </DaemonStateProvider>,
+    );
+    return calls;
+  }
+
+  it('Interrupt, Stop and the permission mode of a live Web session are off, with the fix, and nothing is sent', async () => {
+    const calls = barDown(ownedRow({ sessionId: ID, ownedState: 'running' }));
+    const interrupt = await screen.findByRole('button', { name: 'Interrupt' });
+    const stop = screen.getByRole('button', { name: /Stop/ });
+    expect(interrupt).toBeDisabled();
+    expect(stop).toBeDisabled();
+    await userEvent.click(stop);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+    expect(screen.getByLabelText('Permission mode')).toBeDisabled();
+  });
+
+  it('Resume and Forget of an ended session are off and a muted line gives the command', async () => {
+    barDown(ownedRow({ sessionId: ID, ownedState: 'exited', alive: false }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /Resume/ })).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Forget' })).toBeDisabled();
+    expect(document.querySelector('[data-daemon-down]')).toHaveTextContent('Daemon not running: agent-manager start --detach');
   });
 });

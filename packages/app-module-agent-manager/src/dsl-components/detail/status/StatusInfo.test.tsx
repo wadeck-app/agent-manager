@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionStatusDto } from '../deps.js';
 import { row } from '../deps.js';
 import { DetailHeader } from '../DetailHeader.js';
+// violations-suppress: ts/no-deep-relative test helper of the module, not exported through deps.ts (it imports the variants context)
+import { DEFAULT_UI_VARIANTS } from '../../logic/uiVariants.js';
+// violations-suppress: ts/no-deep-relative test helper of the module, not exported through deps.ts (it imports the variants context)
+import { UiVariantsContext } from '../../ui/UiVariants.js';
 import { formatSpan, formatTokens } from './format.js';
 import { publishLogStatus, resetPublishedStatus } from './useSessionStatus.js';
 
@@ -26,7 +30,12 @@ function show(status?: SessionStatusDto, target = session) {
   if (status !== undefined) {
     publishLogStatus(target.sessionId, status);
   }
-  return render(<DetailHeader session={target} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} onForked={() => undefined} onOpenSource={() => undefined} />);
+  // The status info row is the one of the detailed header (the one-line header has its own tests in DetailHeader.line.test.tsx).
+  return render(
+    <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerActions: 'detailed' }}>
+      <DetailHeader session={target} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} onForked={() => undefined} onOpenSource={() => undefined} />
+    </UiVariantsContext.Provider>,
+  );
 }
 
 beforeEach(() => resetPublishedStatus());

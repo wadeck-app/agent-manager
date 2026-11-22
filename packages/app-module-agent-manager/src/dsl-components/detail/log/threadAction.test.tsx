@@ -56,7 +56,7 @@ describe('the Thread action of the log rows', () => {
     await screen.findByText('all green');
     // The second Thread button belongs to the assistant message.
     await userEvent.click(screen.getAllByRole('button', { name: 'Thread' })[1]!);
-    const dialog = screen.getByRole('dialog', { name: 'Thread on shop-owner' });
+    const dialog = screen.getByRole('dialog', { name: 'Start a side thread' });
     expect(within(dialog).getByLabelText('Name')).toHaveValue('thread: all green');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Start thread' }));
     await waitFor(() => expect(onThreadStarted).toHaveBeenCalledTimes(1));

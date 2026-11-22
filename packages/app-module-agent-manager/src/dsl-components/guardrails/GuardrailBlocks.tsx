@@ -1,6 +1,7 @@
 import { ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 import { CopyButton } from '../detail/log/CopyButton.js';
+import { PAGE_BASE } from '../data/http.js';
 import { useMediaQuery } from '../ui/hooks.js';
 import { blockedText, bypassCommand } from '../logic/guardrails.js';
 import type { GuardrailBlocksDto } from '../shared.js';
@@ -30,7 +31,7 @@ export function GuardrailBlocks({ blocks }: { blocks: GuardrailBlocksDto | undef
         </button>
       ) : null}
       {blocks.timeout ? <span className="text-warning-text">Bypass requests are timed out</span> : null}
-      <a href="/guardrails" className="text-primary underline">
+      <a href={`${PAGE_BASE}/guardrails`} className="text-primary underline">
         Guardrails page
       </a>
       <ul aria-label="Copy a bypass command" className="flex flex-wrap items-center gap-x-1">

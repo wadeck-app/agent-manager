@@ -43,7 +43,9 @@ describe('the New session entry of the toolbar', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New session' })).toBeNull());
     expect(screen.getByTestId('session-param')).toHaveTextContent(ID);
     const rowElement = document.querySelector(`[data-session-id="${ID}"]`) as HTMLElement;
-    expect(rowElement).toHaveTextContent('Starting... no transcript yet');
+    // The compact Tree row keeps the detail line in its tooltip; the chip says Starting.
+    expect(rowElement.querySelector('[title="Starting... no transcript yet"]')).not.toBeNull();
+    expect(rowElement).toHaveTextContent('Starting...');
     expect(rowElement).toHaveTextContent('Web');
     expect(rowElement).toHaveAttribute('aria-selected', 'true');
   });

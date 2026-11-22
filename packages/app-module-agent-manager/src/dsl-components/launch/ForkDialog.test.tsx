@@ -20,6 +20,11 @@ function open(session: Parameters<typeof ForkDialog>[0]['session']) {
 
 const forkButton = (): HTMLElement => screen.getByRole('button', { name: 'Fork' });
 
+/** Opens the folded "Model and mode" options (their closed summary is the button). */
+async function openOptions(summary = 'Model and mode: Claude Code default'): Promise<void> {
+  await userEvent.click(await screen.findByRole('button', { name: summary }));
+}
+
 describe('Fork dialog: the daemon is not running', () => {
   it('disables Fork, says why with the fix command, and never posts', () => {
     const { calls } = stubFetch({});
@@ -40,11 +45,14 @@ describe('Fork dialog: a discovered session', () => {
     const { calls } = stubFetch({ 'POST /owned/fork': { body: { ok: true, session: ownedDto({ id: FORK, forkedFrom: SOURCE, name: 'fork of shop' }) } } });
     const { onForked, onClose } = open(row({ sessionId: SOURCE, displayName: 'shop', model: { id: 'anthropic.claude-haiku-4-5-20251001-v1:0', displayName: 'Haiku 4.5', known: true } }));
     expect(screen.getByLabelText('Name')).toHaveValue('fork of shop');
-    // The row shows Haiku 4.5, which is not a value the dialog may send on its own: the family is a hint, the model stays on the default.
+    // The row shows Haiku 4.5, which is not a value the dialog may send on its own: the family is a tooltip hint, the model stays on the default.
+    expect(screen.getByRole('button', { name: 'Model and mode: Claude Code default' })).toBeInTheDocument();
+    expect(document.querySelector('[data-model-mode-options]')).toHaveAttribute('title', expect.stringMatching(/shows Haiku 4.5: pick haiku/));
+    await openOptions();
     expect(screen.getByLabelText('Model')).toHaveValue('');
-    expect(screen.getByText(/shows Haiku 4.5: pick haiku/)).toBeInTheDocument();
     expect(screen.getByLabelText('Permission mode')).toHaveValue('');
     expect(screen.getByText(/continues a copy of this conversation/)).toBeInTheDocument();
+    expect(screen.queryByText(/Both agents work on the same files/)).toBeNull();
     await userEvent.click(forkButton());
     await waitFor(() => expect(onForked).toHaveBeenCalledTimes(1));
     expect(onForked.mock.calls[0]?.[0]).toMatchObject({ id: FORK, forkedFrom: SOURCE });
@@ -58,7 +66,9 @@ describe('Fork dialog: a discovered session', () => {
   it('sends the model the user picked', async () => {
     const { calls } = stubFetch({ 'POST /owned/fork': { body: { ok: true, session: ownedDto({ id: FORK }) } } });
     open(row({ sessionId: SOURCE, displayName: 'shop' }));
+    await openOptions();
     await userEvent.selectOptions(screen.getByLabelText('Model'), 'haiku');
+    expect(screen.getByRole('button', { name: 'Model and mode: changed' })).toBeInTheDocument();
     await userEvent.click(forkButton());
     await waitFor(() => expect(calls.some((call) => call.path === '/owned/fork')).toBe(true));
     expect(calls.find((call) => call.path === '/owned/fork')?.body).toEqual({ sourceSessionId: SOURCE, name: 'fork of shop', model: 'haiku' });
@@ -120,9 +130,9 @@ describe('Fork dialog: an owned session', () => {
     open(ownedRow({ sessionId: SOURCE, displayName: 'x1 session', host: 'stream-json', ownedState: 'idle', model: { id: 'anthropic.claude-opus-5', displayName: 'Opus 5', known: true } }));
     expect(forkButton()).toBeDisabled();
     expect(screen.getByText(/Reading the model and permission mode/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Model')).toHaveValue('');
     release();
     await waitFor(() => expect(forkButton()).toBeEnabled());
+    await openOptions('Model and mode: same as the session');
     expect(screen.getByLabelText('Model')).toHaveValue('haiku');
     await userEvent.click(forkButton());
     await waitFor(() => expect(calls.some((call) => call.path === '/owned/fork')).toBe(true));
@@ -143,9 +153,9 @@ describe('Fork dialog: an owned session', () => {
       'POST /owned/fork': { body: { ok: true, session: ownedDto({ id: FORK, forkedFrom: SOURCE }) } },
     });
     open(ownedRow({ sessionId: SOURCE, displayName: 'x1 session', host: 'stream-json', ownedState: 'idle' }));
-    await waitFor(() => expect(screen.getByLabelText('Model')).toHaveValue('sonnet'));
+    await openOptions('Model and mode: same as the session');
+    expect(screen.getByLabelText('Model')).toHaveValue('sonnet');
     expect(screen.getByLabelText('Permission mode')).toHaveValue('plan');
-    expect(screen.getByText('The model this session was launched with.')).toBeInTheDocument();
     await userEvent.selectOptions(screen.getByLabelText('Model'), 'opus');
     await userEvent.click(forkButton());
     await waitFor(() => expect(calls.some((call) => call.path === '/owned/fork')).toBe(true));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AdoptReadinessDto } from '../shared.js';
 import { applyOwnedDto } from './owned.js';
-import { switchViewOf } from './adoptSwitch.js';
+import { moveStatusOf, switchViewOf } from './adoptSwitch.js';
 import { ownedDto, ownedRow, row } from './fixtures.js';
 
 /** What the button of a session says and how it looks (#71): the readiness is the colour AND the words, never the colour alone. */
@@ -86,5 +86,48 @@ describe('switchViewOf: starting a stopped session whose last move failed (#71 r
     expect(stopped.switchFailure).toEqual(FAILURE);
     const running = applyOwnedDto(stopped, ownedDto({ status: 'live', state: 'idle' }));
     expect(running.switchFailure).toBeUndefined();
+  });
+});
+
+describe('moveStatusOf: the readiness badge of every session and why moving is unavailable', () => {
+  const BUSY: AdoptReadinessDto = { state: 'busy', reasons: ['A turn is running: its partial answer is lost', 'Tool Bash `node wait.mjs` is running'] };
+
+  it('a discovered live session shows its readiness and says moving needs adoption, which is not built yet', () => {
+    const status = moveStatusOf(row({ adoptReadiness: FREE }), false);
+    expect(status.badge).toMatchObject({ tone: 'free', label: 'Free to move' });
+    expect(status.unavailable).toBe('Not launched by agent-manager: moving needs adoption (not built yet)');
+    const busy = moveStatusOf(row({ adoptReadiness: BUSY }), false);
+    expect(busy.badge).toMatchObject({ tone: 'busy', label: 'Busy: 2 running' });
+    expect(busy.badge?.title).toBe(BUSY.reasons.join('\n'));
+  });
+
+  it('unknown names what is unknown and keeps the reasons in the tooltip', () => {
+    const status = moveStatusOf(row({ adoptReadiness: { state: 'unknown', reasons: ['Cannot tell whether something is running (no transcript yet).'] } }), false);
+    expect(status.badge).toMatchObject({ tone: 'unknown', label: 'Unknown: cannot tell what runs' });
+    expect(status.badge?.title).toContain('no transcript yet');
+  });
+
+  it('a row of an older module without readiness is unknown, never free', () => {
+    const old = { ...row(), adoptReadiness: undefined } as unknown as ReturnType<typeof row>;
+    expect(moveStatusOf(old, false).badge?.tone).toBe('unknown');
+  });
+
+  it('a live Web session shows its badge and, while the daemon is up, no reason (the Move button is there)', () => {
+    const status = moveStatusOf(ownedRow({ adoptReadiness: BUSY }), false);
+    expect(status.badge?.label).toBe('Busy: 2 running');
+    expect(status.unavailable).toBeUndefined();
+  });
+
+  it('a live Web session with the daemon down says so with the fix', () => {
+    expect(moveStatusOf(ownedRow({ adoptReadiness: FREE }), true).unavailable).toBe('Daemon not running: agent-manager start --detach');
+  });
+
+  it('a background session says the supervisor hosts it', () => {
+    expect(moveStatusOf(ownedRow({ host: 'bg', ownedState: 'idle', adoptReadiness: FREE }), false).unavailable).toMatch(/Background session.*cannot move/);
+  });
+
+  it('an ended session has neither badge nor line (nothing runs, nothing moves)', () => {
+    expect(moveStatusOf(row({ alive: false }), false)).toEqual({});
+    expect(moveStatusOf(ownedRow({ ownedState: 'exited', alive: false }), false)).toEqual({});
   });
 });

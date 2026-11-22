@@ -54,6 +54,9 @@ describe('the Move button: the daemon is not running', () => {
     );
     expect(button()).toBeDisabled();
     expect(wrapper().getAttribute('title')).toMatch(/daemon is not running.*agent-manager start --detach/s);
+    // A muted line says the same under the button, and the readiness (which does not need the daemon) stays in words.
+    expect(document.querySelector('[data-move-unavailable]')).toHaveTextContent('Daemon not running: agent-manager start --detach');
+    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('Free to move');
   });
 });
 
@@ -65,6 +68,8 @@ describe('the Move button: free', () => {
     expect(wrapper()).toHaveTextContent('Move to Terminal');
     expect(wrapper()).toHaveAttribute('data-readiness', 'free');
     expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
+    // The readiness is in words even when it is good news.
+    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('Free to move');
     await userEvent.click(button());
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: expect.objectContaining({ id: ID, hostKind: 'hc' }) }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -93,7 +98,7 @@ describe('the Move button: busy', () => {
     // The default look (badge): a neutral button, and the warning is a badge that says how many things run (the button keeps the full words for a screen reader).
     expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
     const badge = document.querySelector('[data-adopt-badge]');
-    expect(badge).toHaveTextContent('2 running');
+    expect(badge).toHaveTextContent('Busy: 2 running');
     expect(badge?.className).toMatch(/warning/);
     expect(button().querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     await userEvent.click(button());
@@ -140,7 +145,7 @@ describe('the Move button: unknown', () => {
     await screen.findByLabelText('Permission mode');
     expect(wrapper()).toHaveTextContent('Move to Terminal (cannot tell what runs)');
     expect(wrapper()).toHaveAttribute('data-readiness', 'unknown');
-    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('state unknown');
+    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('Unknown: cannot tell what runs');
     await userEvent.click(button());
     const dialog = screen.getByRole('dialog', { name: 'Move to Terminal without knowing what runs?' });
     expect(within(dialog).getByText(UNKNOWN.reasons[0] as string)).toBeInTheDocument();

@@ -1,11 +1,30 @@
 import type { LogEntry, OwnedForkRequest } from '../shared.js';
 
 /** What a thread is, in one place for the dialog and the button (research/session-fork.md, "Mini-fork / side thread"). */
-export const THREAD_MEANING =
-  'A thread is a new Web session that knows the conversation only up to and including this message. Later messages of the original are not part of it, and the original is not changed. Both agents work on the same files.';
+export const THREAD_MEANING = 'Opens a new Web session that knows this conversation up to this message. The original is not changed.';
 
 /** The cap of live threads per source session (DEFAULT_MAX_THREADS_PER_SESSION of the daemon host). */
-export const THREAD_CAP_NOTE = 'At most 3 threads of one session can be live at a time: stop one to open another.';
+export const THREAD_MAX = 3;
+
+export interface ThreadLimitLine {
+  /** caption: a small muted line. error: the cap is reached, the start is off. */
+  tone: 'caption' | 'error';
+  text: string;
+}
+
+/** What the dialog says about the cap: nothing while there is room, a caption from two live threads on, an error at the cap. */
+export function threadLimitLine(inUse: number): ThreadLimitLine | undefined {
+  if (inUse >= THREAD_MAX) {
+    return { tone: 'error', text: `Thread limit reached: ${inUse} of ${THREAD_MAX} threads in use. Stop one of them to start another.` };
+  }
+  return inUse >= 2 ? { tone: 'caption', text: `${inUse} of ${THREAD_MAX} threads in use` } : undefined;
+}
+
+/** More than three lines or about 160 characters: the preview cuts it at three lines and offers "show full". */
+export function quoteIsLong(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length > 160 || trimmed.split('\n').length > 3;
+}
 
 export type ThreadAnchor = { kind: 'ok'; uuid: string; text: string } | { kind: 'blocked'; reason: string };
 

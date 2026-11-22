@@ -50,16 +50,34 @@ Not verified: the answerable hc approval card (needs a real herdr-core terminal)
 
 All wired into the real Agents page behind one dock (bottom centre, dev or `--ab-tests` only). Choice kept in `localStorage ab.<id>`; a link `?ab.<id>=<option>` forces one. Declared in `logic/uiVariants.ts`, mounted in `components/AgentWorkspace.tsx`. Verified with agent-browser on the real page: each option screenshotted (`variants/`), a dock click persisted (`ab.ui-tree-density=compact`) and survived a reload. Default = recommendation.
 
-| Question (dock id) | Options | Recommendation and reason |
-|---|---|---|
-| Header actions (`ui-header-actions`) | inline icons / More menu / split Fork | **Inline.** Three small icons with tooltips; width was never the problem (the height was, fixed for all). Menu is better on a phone, costs a click for Fork. |
-| Tree rows (`ui-tree-density`) | comfortable / compact / card | **Comfortable.** The name is never cut by a chip. Compact fits more agents but hides host words and truncates names again. Card costs vertical space. |
-| Status chips (`ui-chip-style`) | soft / outline / dot | **Soft.** Strongest signal for "needs you". Dot is the calmest and the weakest for urgent states. |
-| Move readiness (`ui-switch-readiness`) | badge / amber button / banner | **Badge.** Short label, the count is visible, colour is never the only signal (full words stay in the accessible name). Banner is clearest but tall. |
-| Thread action (`ui-thread-placement`) | on hover / always / labelled on hover | **On hover** (always visible on touch and on focus). Quiet log; the action stays in the DOM and focusable. Always is more discoverable. |
-| Group header (`ui-group-header`) | bar / plain / pill | **Bar.** Groups read differently from workspace folders. Pill is tiring with many groups. |
+Feedback of 2026-11-22 applied: Thread action baked in (always visible, top right of the row), status chips baked in (Soft), Tree rows keep Compact and gain three Herdr rows, Header actions redone, Move readiness and Group header made visible without a daemon or a custom group. Screenshots (throwaway): `poc/results/ui-audit/r2-*.png`.
 
-Limits: the thread hover state was verified by computed opacity (0 then 1), not by a visual diff. The group header was shot with two uncolored groups (the color edge is untested visually).
+| Question (dock id) | Options (default first) | Notes |
+|---|---|---|
+| Header actions (`ui-header-actions`) | **line** / line-menu / detailed | Whole header on ONE line (name, state, age, folder shortened in the middle, branch, model, context, Move readiness, role, tokens, duration, program, session id, pid) with the actions as icons at the right; what does not fit goes, last first, into a +N chip; below the bare line the name shrinks and the state is an icon. line-menu: only Fork stays an icon, Pin and Mark as seen in one menu. detailed: the previous three rows, kept to compare. Owned-session controls (host, state, Interrupt, Stop, Move, Resume, Forget) are icons in the line; the permission mode of a live Web session keeps a thin row under it; below 600 px the actions wrap under the line. Removed: inline/menu/split (they only moved three icons, the three rows stayed). |
+| Tree rows (`ui-tree-density`) | **compact** / herdr-line / herdr-tinted / herdr-name | Herdr rows: 31 px, program icon, bold name, muted folder, age, state light (blue dot finished unseen, spinner working, red "Needs you" pill, grey ring idle). Tinted: red or blue row background and a gold outline and gradient on the open row, colours in `--am-herdr-*` of `styles/agents.css`. Name only: no folder text. The host is in the tooltip of the program icon. Removed: comfortable, card (user prefers compact). |
+| Move readiness (`ui-switch-readiness`) | **badge** / amber button / banner | The readiness badge ("Free to move", "Busy: N running", "Unknown: ...") shows in the header of EVERY live session (`adoptReadiness` is computed for discovered sessions too: transcript tail and registry, not the daemon). The Move button exists only for owned Web or Terminal sessions; others say why in the badge tooltip (not launched by agent-manager: adoption not built; background: hosted by the supervisor). Daemon down: "Daemon not running: agent-manager start --detach". |
+| Group header (`ui-group-header`) | **bar** / plain / pill | Applies to the folder headers of the Tree, the state groups of Groups mode and the custom groups, so it shows without creating a group. |
+
+Baked in (no question any more): Thread action = base icon button "Start a thread from this message", always visible at the top right of the message row; status chips = Soft (tinted pill with icon).
+
+Limits: the dark theme was not re-checked; the Mode row of owned Web sessions at 390 px was only fixed (max width) after the last screenshot.
+
+## Header requests (checklist)
+
+Source: user messages of the session record 287760ca (2026-11-22) and `.claude/session/principles.md`.
+
+| # | Request (user) | Status |
+|---|---|---|
+| 1 | Use base dsl-ui components, no look-alikes (send, New session) | done: header uses IconButton, ButtonAction, Collapsible; `ui/` look-alikes replaced (#70, #75) |
+| 2 | No spacing between the buttons and the select at the top right of the toolbar (image 15) | done (#79) |
+| 3 | Context gauge: percent only, no icon, no bar, no tilde, colour kept, against the auto-compact point | done (#80) |
+| 4 | Status line on ONE row, no icon for session id, model, time; role keeps its icon; CCv2.1.325, OC, Cx | done (#81), and now merged into the one-line header |
+| 5 | "I asked for ONE line: name, state, etc., for all three rows, not just one" (2026-11-22, after the A/B test) | done in the `line` and `line-menu` looks; `detailed` keeps the rows on purpose |
+| 6 | Fork an agent; Thread from a message; Move between hosts | Fork: icon in the header; Thread: icon at the top right of each message; Move: icon coloured by readiness, in the line (owned sessions) |
+| 7 | The Adopt/Move button changes colour when something runs (tool, turn, sub-agent, background) | done: amber outline icon when busy or unknown, words in its name; readiness badge for every session |
+| 8 | Explain where the A/B tests are | each dock hint says where the variant shows |
+| 9 | Actions need the daemon: no click that cannot work | done: Stop, Interrupt, Resume, Forget, mode, Fork, Thread, Move off with the fix command |
 
 ## Side effects worth a look
 

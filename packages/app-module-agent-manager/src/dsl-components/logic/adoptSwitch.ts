@@ -110,3 +110,47 @@ export function groupReasons(reasons: readonly string[]): ReasonGroup[] {
   }
   return [...groups.values()];
 }
+
+export interface MoveBadge {
+  tone: 'free' | 'busy' | 'unknown';
+  /** Short words: "Free to move", "Busy: 2 running", "Unknown: cannot tell what runs". */
+  label: string;
+  /** The tooltip: nothing runs, or every reason on its own line. */
+  title: string;
+}
+
+export interface MoveStatus {
+  /** What runs in the session, for every live session (it is derived from the transcript and the registry, not from the daemon). */
+  badge?: MoveBadge;
+  /** Why there is no Move button (or why it does not work now), in one muted line with its fix. */
+  unavailable?: string;
+}
+
+export const MOVE_DAEMON_DOWN = 'Daemon not running: agent-manager start --detach';
+
+/**
+ * What the header says about moving a session, for EVERY session: the readiness badge of a live one, and when the Move button is not there (or cannot work) a
+ * line that says why. An ended session says nothing (nothing runs, and Resume is its action).
+ */
+export function moveStatusOf(session: SessionRowDto, daemonDown: boolean): MoveStatus {
+  if (!session.alive) {
+    return {};
+  }
+  const readiness = (session as Partial<SessionRowDto>).adoptReadiness ?? { state: 'unknown' as const, reasons: [NO_READINESS] };
+  const badge: MoveBadge =
+    readiness.state === 'free'
+      ? { tone: 'free', label: 'Free to move', title: 'Nothing is running. The conversation moves as is.' }
+      : readiness.state === 'busy'
+        ? { tone: 'busy', label: `Busy: ${readiness.reasons.length} running`, title: readiness.reasons.join('\n') }
+        : { tone: 'unknown', label: 'Unknown: cannot tell what runs', title: readiness.reasons.join('\n') };
+  if (switchViewOf(session) !== undefined) {
+    return daemonDown ? { badge, unavailable: MOVE_DAEMON_DOWN } : { badge };
+  }
+  if (!isOwned(session)) {
+    return { badge, unavailable: 'Not launched by agent-manager: moving needs adoption (not built yet)' };
+  }
+  if (session.host === 'bg') {
+    return { badge, unavailable: 'Background session: the Claude Code supervisor hosts it, so it cannot move between hosts.' };
+  }
+  return { badge, unavailable: `Moving is not available for this ${session.host === null ? '' : `${session.host} `}session now.` };
+}

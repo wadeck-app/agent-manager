@@ -19,17 +19,13 @@ function useQuestion<T extends string>(question: UiQuestion<T>) {
 export function UiVariants({ children }: { children: ReactNode }) {
   const headerActions = useQuestion(UI_QUESTIONS.headerActions);
   const treeDensity = useQuestion(UI_QUESTIONS.treeDensity);
-  const chipStyle = useQuestion(UI_QUESTIONS.chipStyle);
   const switchReadiness = useQuestion(UI_QUESTIONS.switchReadiness);
-  const threadPlacement = useQuestion(UI_QUESTIONS.threadPlacement);
   const groupHeader = useQuestion(UI_QUESTIONS.groupHeader);
-  useRegisterAbTests([headerActions, treeDensity, chipStyle, switchReadiness, threadPlacement, groupHeader]);
+  useRegisterAbTests([headerActions, treeDensity, switchReadiness, groupHeader]);
   const values: UiVariantValues = {
     headerActions: headerActions.value,
     treeDensity: treeDensity.value,
-    chipStyle: chipStyle.value,
     switchReadiness: switchReadiness.value,
-    threadPlacement: threadPlacement.value,
     groupHeader: groupHeader.value,
   };
   return <Values.Provider value={values}>{children}</Values.Provider>;

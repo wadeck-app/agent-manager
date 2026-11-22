@@ -103,7 +103,7 @@ describe('GuardrailsPage', () => {
     expect(within(grants).getByText('Once')).toBeInTheDocument();
     expect(within(grants).getByText('29 min')).toBeInTheDocument();
     expect(within(grants).getByText('clean the build folder')).toBeInTheDocument();
-    expect(within(grants).getByRole('link', { name: 'shop agent' })).toHaveAttribute('href', '/agents?session=287760ca-77b9-418b-bd68-c242d65b4d67');
+    expect(within(grants).getByRole('link', { name: 'shop agent' })).toHaveAttribute('href', '/modules/agent-manager/agents?session=287760ca-77b9-418b-bd68-c242d65b4d67');
     expect(within(grants).getByText('0 of 1')).toBeInTheDocument();
     const blocked = screen.getByRole('table', { name: 'Blocked sessions' });
     expect(within(blocked).getByText('37')).toBeInTheDocument();

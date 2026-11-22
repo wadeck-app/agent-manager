@@ -7,6 +7,9 @@ import { unmarkMessage } from '../../commons/errorMarks.js';
 /** Where the routes of this module live (relative: the shell and the module share an origin). */
 export const API_BASE = '/api/modules/agent-manager';
 
+/** Where the pages of this module live in the shell (a link to `/agents` alone is "Page not found": the shell serves a module under /modules/<id>/). */
+export const PAGE_BASE = '/modules/agent-manager';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
