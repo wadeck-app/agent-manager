@@ -26,6 +26,9 @@ export type SwitchReadinessVariant = (typeof SWITCH_READINESS)[number];
 export const GROUP_HEADER = ['bar', 'plain', 'pill'] as const;
 export type GroupHeaderVariant = (typeof GROUP_HEADER)[number];
 
+export const FONT = ['app', 'geist', 'geist-mono'] as const;
+export type FontVariant = (typeof FONT)[number];
+
 export const UI_QUESTIONS = {
   headerActions: {
     id: 'ui-header-actions',
@@ -68,6 +71,16 @@ export const UI_QUESTIONS = {
       pill: { label: 'C Pill', hint: 'The folder or group name in an outlined pill: loud, good for a few groups, tiring with ten. Shows on the folder headers of the list (left) and on your custom groups.' },
     },
   },
+  font: {
+    id: 'ui-font',
+    label: 'Font',
+    initial: 'app',
+    options: {
+      app: { label: 'A App font', hint: 'Recommended. The font of the app, as now. Applies to the whole Agents page, its dialogs and its tooltips.' },
+      geist: { label: 'B Geist (as in Herdr)', hint: 'The text in Geist, the font of the Herdr agents panel, to feel at home. Code, ids and paths keep the app monospace font. Applies to the whole Agents page, its dialogs and its tooltips.' },
+      'geist-mono': { label: 'C Geist + Geist Mono', hint: 'Geist for the text and Geist Mono (Herdr ships it too, JetBrains Mono is not embedded) for tool commands, session ids, pids and paths. Applies to the whole Agents page, its dialogs and its tooltips.' },
+    },
+  },
 } as const satisfies Record<string, UiQuestion<string>>;
 
 export type UiQuestionKey = keyof typeof UI_QUESTIONS;
@@ -76,6 +89,7 @@ export type UiVariantValues = {
   treeDensity: TreeDensityVariant;
   switchReadiness: SwitchReadinessVariant;
   groupHeader: GroupHeaderVariant;
+  font: FontVariant;
 };
 
 /** What every question shows when no dock chose (and in a build without the dock). */
@@ -84,4 +98,5 @@ export const DEFAULT_UI_VARIANTS: UiVariantValues = {
   treeDensity: UI_QUESTIONS.treeDensity.initial,
   switchReadiness: UI_QUESTIONS.switchReadiness.initial,
   groupHeader: UI_QUESTIONS.groupHeader.initial,
+  font: UI_QUESTIONS.font.initial,
 };

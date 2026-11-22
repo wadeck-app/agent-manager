@@ -240,3 +240,15 @@ The rail beside the log (was: sub-agents, only when there are some) now always e
 - cwd check (measured 2026-11-22): transcript lines carry `cwd` and it changes after a `cd` (1 of the 80 newest transcripts: `...\GerberWyss` then a temp folder). Of the 23 sessions in the registry, 0 had a registry cwd different from the last transcript cwd, so whether Claude Code updates the registry file after `cd` is NOT proven here (that session was not in the registry). The route uses the last transcript cwd (last 512 KiB), falls back to the registry cwd and says why (`cwd used: ...`).
 - Real script, read-only: with `AGENT_MANAGER_INTEGRATION=1 AGENT_MANAGER_INTEGRATION_HOME=<real home>`, `bypass list` on an empty temp folder gives `grants: []` and a revoke of an unknown id gives the error JSON (passes).
 - Not seen in a browser with real grants (no bypass exists on the dev app); covered by `cliGrants.test.tsx` and the route tests with a fake script.
+
+## Font question (2026-11-22, task #87)
+
+| Question (dock id) | Options (default first) | Notes |
+|---|---|---|
+| Font (`ui-font`) | **app** / geist / geist-mono | Geist = the UI font of the Herdr agents panel (the user's Herdr sets no font). B: text in Geist. C: also Geist Mono for `font-mono` parts (tool commands, ids, pids, paths); JetBrains Mono (the Herdr terminal font) is not embedded: the `geist` package has no JetBrains Mono. |
+
+- Herdr has no font files on disk: the fonts are inside `herdr-app.exe`; its `THIRD-PARTY-NOTICES` lists Geist/Geist Mono and JetBrains Mono as SIL OFL 1.1 (`C:\Users\Wadeck\AppData\Local\Programs\herdr-app\`). The fonts come from npm `geist` 1.9.2 instead (OFL 1.1, `LICENSE.txt` copied to `src/backend/fonts/THIRD_PARTY_NOTICES.md`).
+- `geist` is NOT a dependency: it has a required peer `next` (`npm install --dry-run` adds next, sharp, @swc/helpers, styled-jsx and their install scripts). The two variable woff2 (Geist 69488 B, Geist Mono 71212 B, all weights) are embedded as base64 by `src/backend/fonts/embed-fonts.ts` after `npm pack geist@1.9.2`.
+- Why served by the backend: `app-core-cli package` ships only `backend.cjs`, `entries.mjs` and one `style.css` (no asset folder) and the CSP allows `font-src 'self'` with no `data:` fonts. Route `GET /api/modules/agent-manager/fonts/<name>-<version>.woff2` (immutable cache). `@font-face` is global by nature: families are named `AM Geist` / `AM Geist Mono` and used only under `.agents-scope[data-font]`.
+- Size: backend.cjs +188 KB raw (base64), fonts alone 142 KB gzip; CSS +~1 KB. A fresh load with the default option downloads no font (measured: no `/fonts/` request, `AM Geist` unloaded).
+- Verified (agent-browser, isolated app-core 48732): computed `font-family` of a list row = `"AM Geist", ui-sans-serif, ...` for B and C, `Inter` for A; `.font-mono` = `"AM Geist Mono", ...` only for C; font requests 200 (`font/woff2`). Screenshots `poc/results/ui-audit/font/`. The shell chrome (nav, header) stays Inter (outside the module scope).

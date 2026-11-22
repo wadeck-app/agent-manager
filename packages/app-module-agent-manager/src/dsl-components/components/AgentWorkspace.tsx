@@ -36,11 +36,11 @@ export interface AgentWorkspaceProps {
  */
 export function AgentWorkspace({ sessions, userStateError, customGroups, hiddenDead, ownedError, ownedErrorText, unreadableText, guardrailsErrorText, ownedDownText, ownedStateErrorText }: AgentWorkspaceProps) {
   return (
-    <Scope>
-      {/* The design questions of the UI audit: one A/B dock for the whole page (see logic/uiVariants.ts). */}
-      <UiVariants>
+    // The design questions of the UI audit: one A/B dock for the whole page (see logic/uiVariants.ts). Outside the Scope: the scope wrapper carries the Font question.
+    <UiVariants>
+      <Scope>
         <Workspace sessions={sessions} userStateError={userStateError ?? ''} customGroups={customGroups} hiddenDead={hiddenDead ?? 0} ownedError={ownedError ?? null} ownedErrorText={ownedErrorText ?? ''} unreadableText={unreadableText ?? ''} guardrailsErrorText={guardrailsErrorText ?? ''} ownedDownText={ownedDownText ?? ''} ownedStateErrorText={ownedStateErrorText ?? ''} />
-      </UiVariants>
-    </Scope>
+      </Scope>
+    </UiVariants>
   );
 }

@@ -46,7 +46,8 @@ describe('the module stylesheet', () => {
   it('has every rule under the scope selector (only the wrapper rule is the bare scope)', async () => {
     const all = rules(await parsed);
     expect(all.length).toBeGreaterThan(100);
-    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !/^\.agents-scope\[data-density='(?:s|m|ml|l)'\]$/.test(selector) && !selector.startsWith(`${SCOPE} `));
+    // The wrapper's own attribute rules: the density scale and the Font A/B question.
+    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !/^\.agents-scope\[data-(?:density='(?:s|m|ml|l)'|font='geist(?:-mono)?')\]$/.test(selector) && !selector.startsWith(`${SCOPE} `) && !selector.startsWith(`${SCOPE}[data-font='geist-mono'] `));
     expect(unscoped, 'rules outside the scope leak into the other modules (and lose to theirs); see build-css.ts').toEqual([]);
   });
 

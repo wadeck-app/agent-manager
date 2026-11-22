@@ -94,3 +94,32 @@
   --am-aside: 400px;
   --am-log-max: 1260px;
 }
+
+/* The Font A/B question (logic/uiVariants.ts, ui/Scope.tsx sets `data-font`). The files are served by the backend (backend/fonts/fontRoutes.ts: the CSP allows only same-origin fonts and `package` ships no asset folder),
+   from the geist package 1.9.2 (SIL OFL 1.1, src/backend/fonts/THIRD_PARTY_NOTICES.md). @font-face cannot be scoped by a selector: the family names are prefixed `AM` so no other module meets them, and
+   only the `data-font` rules below use them. `font-display: swap` shows the fallback at once; a font that fails to load leaves the fallback stack, never invisible text. Bump the version in the file names with the package. */
+@font-face {
+  font-family: 'AM Geist';
+  src: url('/api/modules/agent-manager/fonts/geist-1.9.2.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AM Geist Mono';
+  src: url('/api/modules/agent-manager/fonts/geist-mono-1.9.2.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+.agents-scope[data-font='geist'],
+.agents-scope[data-font='geist-mono'] {
+  font-family: 'AM Geist', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* One more class than the utility `.agents-scope .font-mono`, so it wins. */
+.agents-scope[data-font='geist-mono'] .font-mono {
+  font-family: 'AM Geist Mono', ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}

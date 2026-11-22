@@ -2,6 +2,7 @@
 import type { ModuleContext } from '@wadeck-app/app-core-sdk';
 import { createRouteKit } from './routeKit.js';
 import type { ModuleOptions } from './replyRoutes.js';
+import { registerFontRoutes } from './fonts/fontRoutes.js';
 import { registerSessionsRoutes } from './sessionsRoutes.js';
 
 /**
@@ -11,4 +12,6 @@ import { registerSessionsRoutes } from './sessionsRoutes.js';
  */
 export default function (ctx: ModuleContext, options: ModuleOptions = {}): void {
   registerSessionsRoutes(createRouteKit(ctx), options);
+  // The fonts of the Font A/B question (styles/agents.css): the CSP allows only same-origin fonts and the package ships no asset folder.
+  registerFontRoutes(ctx);
 }

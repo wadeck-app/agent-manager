@@ -13,6 +13,7 @@ import { TreeList } from '../lists/TreeList.js';
 import { OwnedStateChip } from '../owned/OwnedStateChip.js';
 import { stubFetch } from '../owned/testFetch.js';
 import { Toolbar } from '../workspace/Toolbar.js';
+import { Scope } from './Scope.js';
 import { UiVariants, UiVariantsContext } from './UiVariants.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -252,5 +253,35 @@ describe('the details of the detailed header (the Detailed look keeps the toggle
     window.localStorage.setItem('agent-manager.header-details.v1', 'closed');
     const { container } = header();
     expect(container.querySelector('[data-status-chips]')?.className).toContain('hidden');
+  });
+});
+
+describe('the Font question', () => {
+  const scopeOf = (container: HTMLElement) => container.querySelector('.agents-scope') as HTMLElement;
+
+  it('app font (default): the scope carries no data-font, so no font rule applies', () => {
+    const { container } = render(<Scope>content</Scope>);
+    expect(scopeOf(container)).not.toHaveAttribute('data-font');
+  });
+
+  it('geist and geist-mono are applied by the scope wrapper only when selected', () => {
+    const { container, rerender } = render(withVariants({ font: 'geist' }, <Scope>content</Scope>));
+    expect(scopeOf(container)).toHaveAttribute('data-font', 'geist');
+    rerender(withVariants({ font: 'geist-mono' }, <Scope>content</Scope>));
+    expect(scopeOf(container)).toHaveAttribute('data-font', 'geist-mono');
+    rerender(withVariants({ font: 'app' }, <Scope>content</Scope>));
+    expect(scopeOf(container)).not.toHaveAttribute('data-font');
+  });
+
+  it('the choice made in the dock reaches the scope (and the dialogs and tooltips, which render a scope of their own)', () => {
+    window.localStorage.setItem('ab.ui-font', 'geist-mono');
+    const { container } = render(
+      <AbExperiments enabled>
+        <UiVariants>
+          <Scope>content</Scope>
+        </UiVariants>
+      </AbExperiments>,
+    );
+    expect(scopeOf(container)).toHaveAttribute('data-font', 'geist-mono');
   });
 });
