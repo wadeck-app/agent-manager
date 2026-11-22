@@ -32,7 +32,7 @@ describe('the Custom mode in the workspace', () => {
   it('is a fourth mode of the toggle, opened by ?mode=custom, with the New group button', () => {
     stubFetch({});
     render(<Page sessions={[row({ displayName: 'shop-agent' })]} customGroups={[group('11111111-1111-4111-8111-111111111111', 'Focus', 0)]} />);
-    expect(screen.getByRole('radio', { name: 'Custom' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'List mode: Custom' })).toBeInTheDocument();
     expect(screen.getByRole('tree', { name: 'Agents by custom group' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'New group' })).toBeInTheDocument();
   });

@@ -96,7 +96,7 @@ Kept custom, with the reason:
 | `ui/Tooltip` | base `Tooltip` is an absolutely positioned CSS hover span: clipped by scrolling lists, no flip/clamp at the viewport edge, no delay (the failure `placeTooltip` fixes) |
 | `ui/Banner` | no base alert/banner component |
 | Panels of `ShortcutsHelp`, `ViewOptionsControl`, `DensityControl`, `ActionsMenu` | not moved to base `Popover`: not verified that its Radix portal keeps `.agents-scope` utilities and the focus-on-open and Escape behavior the tests pin. Triggers are base `IconButton`. Follow-up |
-| `ModeToggle` | segmented radiogroup with arrow keys; no base segmented control (`Tabs` navigates, `RadioGroup` is a form list) |
+| `ModeMenu` (was `ModeToggle`) | one icon button + `role=menu` of `menuitemradio` (no base menu with radio items: `ContextMenu` has none) |
 | Tree/group/inbox rows, sub-agent rows, log row headers, folder rows, `MoveToGroupDialog` options, group color swatches, disclosure toggles, inline text links | selectable rows, `aria-expanded` disclosures and links, not actions: no base equivalent with this semantics |
 | `TransportPicker` trigger, `TransportRow` info icon | text + icon popover trigger with `aria-expanded`; the base icon button is a fixed square. The info icon is a tooltip anchor |
 | Status chips (`chipSkin`, `stateLook`) | three A/B looks (soft, outline, dot) with state icons; base `Badge` has solid/subtle only |
@@ -108,6 +108,7 @@ Behavior changes from the base buttons:
 - Interrupt armed: Send turns base `danger` (was amber); the "Interrupt now" toggle turns `danger-outline`.
 - Disabled buttons with a reason keep a hidden inline base tooltip in the DOM: tests use `detail/status/liveTooltip.ts` to find the module tooltip.
 - Toolbar (#79): `HorizontalStack gap-2 wrap`; checked at 1440, 1024 and 390 px (`poc/results/ui-audit/toolbar-*.png`, throwaway).
+- Toolbar icons (#109, #110, 2026-11-22): the notices button is a normal 36 px ghost icon button (16 px triangle) with a 16 px corner badge inside its box (`right-0.5 top-0.5`, 11 px tabular digits, "9+" above 9, severity token pair plus a surface-colour ring; contrast 6.84 light, 12.03 dark). The four mode buttons are ONE 36 px icon button (icon of the current mode, `List mode: <name>`) opening a `role=menu` of `menuitemradio` items with hint (`workspace/ModeMenu.tsx`; arrows, Home, End, Enter, Space, Esc; no per-mode shortcut and no Inbox count existed, none added). Screenshots `poc/results/ui-audit/toolbar-icons/` (throwaway).
 
 ## Context gauge, status line row, transport popup (2026-11-22, todos #80, #81, #78)
 

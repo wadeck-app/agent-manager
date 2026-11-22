@@ -15,6 +15,7 @@
       "slot": "nav",
       "label": "Agents",
       "path": "/agents",
+      "navigation": "collapsible",
       "view": {
         "type": "path",
         "value": "./src/dsl-views/sessions-page.yaml"
@@ -25,6 +26,7 @@
       "slot": "nav",
       "label": "Table",
       "path": "/table",
+      "navigation": "collapsible",
       "view": {
         "type": "path",
         "value": "./src/dsl-views/sessions-table.yaml"
@@ -35,6 +37,7 @@
       "slot": "nav",
       "label": "Guardrails",
       "path": "/guardrails",
+      "navigation": "collapsible",
       "view": {
         "type": "path",
         "value": "./src/dsl-views/guardrails-page.yaml"

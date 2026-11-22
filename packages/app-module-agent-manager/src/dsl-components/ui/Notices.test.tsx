@@ -19,14 +19,56 @@ describe('NoticesButton', () => {
     expect(container.textContent).toBe('');
   });
 
-  it('is one icon button named after the count, with the count in a badge, and no text of the notices until it is opened', () => {
+  it('is one icon button named after the count, with no text of the notices until it is opened', () => {
     render(<NoticesButton items={[A, B]} />);
     const button = screen.getByRole('button', { name: '2 notices' });
     expect(button).toHaveAttribute('aria-expanded', 'false');
-    expect(button.parentElement?.textContent).toContain('2');
     expect(screen.queryByText(A.summary)).toBeNull();
     render(<NoticesButton items={[A]} />);
     expect(screen.getByRole('button', { name: '1 notice' })).toBeInTheDocument();
+  });
+
+  it('is the same icon button as its neighbours (h-9 w-9, ghost) with a 16 px triangle', () => {
+    render(<NoticesButton items={[A]} />);
+    const button = screen.getByRole('button', { name: '1 notice' });
+    expect(button.className).toMatch(/\bh-9\b/);
+    expect(button.className).toMatch(/\bw-9\b/);
+    expect(button.className).toMatch(/\brelative\b/);
+    const icon = button.querySelector('svg')!;
+    expect(icon.getAttribute('class')).toMatch(/\bh-4\b/);
+    expect(icon.getAttribute('class')).toMatch(/\bw-4\b/);
+  });
+
+  it('shows the count as a corner badge INSIDE the button box: 16 px minimum, 11 px tabular digits, a ring in the surface colour, never offset outside', () => {
+    render(<NoticesButton items={[A, B]} />);
+    const button = screen.getByRole('button', { name: '2 notices' });
+    const badge = button.querySelector('[data-notice-count]')!;
+    expect(badge).not.toBeNull();
+    expect(badge.textContent).toBe('2');
+    expect(badge).toHaveAttribute('aria-hidden', 'true');
+    for (const wanted of [/\babsolute\b/, /\bright-0\.5\b/, /\btop-0\.5\b/, /\bh-4\b/, /\bmin-w-4\b/, /text-\[11px\]/, /\btabular-nums\b/, /\bleading-none\b/, /\bring-2\b/, /\bring-surface\b/, /\brounded-full\b/]) {
+      expect(badge.className).toMatch(wanted);
+    }
+    // Nothing negative: the badge never leaves the button box.
+    expect(badge.className).not.toMatch(/(^|\s)-(right|top|left|bottom|m[trbl]?)-/);
+  });
+
+  it('counts 1 to 9 as is and anything above as 9+ (the name still says the real number)', () => {
+    const many: NoticeItem[] = Array.from({ length: 12 }, (_, index) => ({ key: `n${index}`, tone: 'warning', summary: `S${index}`, details: `D${index}` }));
+    const { rerender } = render(<NoticesButton items={many.slice(0, 9)} />);
+    expect(screen.getByRole('button', { name: '9 notices' }).querySelector('[data-notice-count]')?.textContent).toBe('9');
+    rerender(<NoticesButton items={many} />);
+    expect(screen.getByRole('button', { name: '12 notices' }).querySelector('[data-notice-count]')?.textContent).toBe('9+');
+  });
+
+  it('the badge takes the token colours of the worst severity', () => {
+    const { rerender } = render(<NoticesButton items={[A]} />);
+    const badge = (): string => screen.getByRole('button', { name: /notices?$/ }).querySelector('[data-notice-count]')!.className;
+    expect(badge()).toMatch(/bg-warning-bg/);
+    expect(badge()).toMatch(/text-warning-text/);
+    rerender(<NoticesButton items={[A, B]} />);
+    expect(badge()).toMatch(/bg-danger-bg/);
+    expect(badge()).toMatch(/text-danger-text/);
   });
 
   it('takes the colour of the worst severity: error over warning', () => {

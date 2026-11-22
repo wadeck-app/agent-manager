@@ -357,6 +357,12 @@ describe('SplitPane saved width and dragging', () => {
   });
 });
 
+// The mode menu is ONE icon button named after the current mode; this opens it and picks an item.
+const pickMode = (name: string): void => {
+  fireEvent.click(screen.getByRole('button', { name: /^List mode: / }));
+  fireEvent.click(screen.getByRole('menuitemradio', { name: new RegExp(`^${name}`) }));
+};
+
 describe('the listing mode', () => {
   afterEach(() => {
     window.localStorage.clear();
@@ -370,28 +376,31 @@ describe('the listing mode', () => {
         <AgentWorkspace sessions={[SHOP, DOCS]} />
       </Page>,
     );
-    expect(screen.getByRole('radio', { name: 'Tree' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'List mode: Tree' })).toBeInTheDocument();
     expect(screen.getByRole('tree', { name: 'Agents by folder' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('radio', { name: 'Inbox' }));
+    pickMode('Inbox');
     expect(screen.getByTestId('mode').textContent).toBe('inbox');
     expect(window.localStorage.getItem(MODE_STORAGE_KEY)).toBe('inbox');
     expect(screen.getByRole('tablist', { name: 'Inbox' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('radio', { name: 'Groups' }));
+    pickMode('Groups');
     expect(screen.getByRole('listbox', { name: 'Agents' })).toBeInTheDocument();
   });
 
-  it('is a radio group of icon buttons with labels, moved with the arrow keys', () => {
+  it('is ONE icon button with a menu of the four modes, moved with the arrow keys and picked with Enter', () => {
     stubFetch();
     render(
       <Page initial={{ mode: 'tree' }}>
         <AgentWorkspace sessions={[SHOP]} />
       </Page>,
     );
-    const group = screen.getByRole('radiogroup', { name: 'Listing mode' });
-    expect(within(group).getAllByRole('radio')).toHaveLength(4);
-    expect(group.querySelectorAll('svg').length).toBe(4);
-    fireEvent.keyDown(screen.getByRole('radio', { name: 'Tree' }), { key: 'ArrowRight' });
+    expect(screen.queryByRole('radiogroup', { name: 'Listing mode' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Tree' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'List mode: Tree' }));
+    expect(within(screen.getByRole('menu', { name: 'List mode' })).getAllByRole('menuitemradio')).toHaveLength(4);
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
     expect(screen.getByTestId('mode').textContent).toBe('groups');
+    expect(screen.getByRole('button', { name: 'List mode: Groups' })).toBeInTheDocument();
   });
 
   it('uses the saved mode when the address has none', () => {
@@ -402,7 +411,7 @@ describe('the listing mode', () => {
         <AgentWorkspace sessions={[SHOP]} />
       </Page>,
     );
-    expect(screen.getByRole('radio', { name: 'Inbox' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'List mode: Inbox' })).toBeInTheDocument();
   });
 
   it('says so when the address names a mode that does not exist, shows Tree, and can remove it from the address', async () => {
@@ -414,7 +423,7 @@ describe('the listing mode', () => {
       </Page>,
     );
     await expectNoticeDetails(/asks for the mode 'cards', which does not exist. Showing Tree/);
-    expect(screen.getByRole('radio', { name: 'Tree' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('button', { name: 'List mode: Tree' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove it from the address' }));
     expect(screen.getByTestId('mode').textContent).toBe('');
   });

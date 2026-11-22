@@ -7,7 +7,7 @@ import type { ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
 import { DensityControl } from '../ui/DensityControl.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
-import { ModeToggle } from './ModeToggle.js';
+import { ModeMenu } from './ModeMenu.js';
 import { NewGroupControl } from './NewGroupControl.js';
 import { SearchBox, type SearchBoxProps } from './SearchBox.js';
 import { ViewOptionsControl } from './ViewOptionsControl.js';
@@ -39,7 +39,7 @@ export interface ToolbarProps {
 }
 
 /**
- * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the toggle between the listing modes, the search, which
+ * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the menu of the listing modes (one icon), the search, which
  * sessions to show, then the icon buttons (view options of the mode, text size, shortcut help).
  */
 export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession, onNewGroup, detailOpen = false, selectableIds, notices = null }: ToolbarProps) {
@@ -60,7 +60,7 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
           countText
         )}
       </span>
-      <ModeToggle mode={mode} onMode={onMode} iconOnly={tight} />
+      <ModeMenu mode={mode} onMode={onMode} />
       <SearchBox {...search} />
       {/* The actions sit in the library row (one gap for all of them, wrapping whole on a narrow screen); ml-auto pushes the row to the right edge. */}
       <div className="ml-auto flex min-w-0 max-w-full justify-end">

@@ -2,7 +2,7 @@ import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { TriangleAlert } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { dismissNotice, isDismissed, readDismissed, restoreNotices, worstTone, type NoticeItem, type StoreResult } from '../logic/notices.js';
-import { NoticeRow, TONE_CLASS } from './NoticeRow.js';
+import { NoticeRow } from './NoticeRow.js';
 import { usePopover } from './usePopover.js';
 
 const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`;
@@ -13,6 +13,16 @@ const BUTTON_TONE: Record<'error' | 'warning' | 'info', string> = {
   warning: 'text-warning-text',
   info: 'text-info-text',
 };
+
+/** The corner badge by severity: tinted token pair, a border of the severity, and a ring in the surface colour that separates it from the icon under it. */
+const BADGE_TONE: Record<'error' | 'warning' | 'info', string> = {
+  error: 'border-danger bg-danger-bg text-danger-text',
+  warning: 'border-warning bg-warning-bg text-warning-text',
+  info: 'border-border bg-info-bg text-info-text',
+};
+
+/** One or two digits fit the 16 px badge; above 9 it reads "9+" (the button name keeps the real number). */
+const badgeText = (count: number): string => (count > 9 ? '9+' : String(count));
 
 const notRemembered = (result: StoreResult): string => (result.stored ? '' : result.reason);
 
@@ -58,12 +68,17 @@ export function NoticesButton({ items }: { items: readonly NoticeItem[] }) {
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen(!open)}
-        className={BUTTON_TONE[tone]}
-        icon={<TriangleAlert aria-hidden="true" className="h-4 w-4" />}
+        className={`relative ${BUTTON_TONE[tone]}`}
+        icon={
+          <>
+            <TriangleAlert aria-hidden="true" className="h-4 w-4" />
+            {/* Inside the button box (top right, where the triangle has no ink): never clipped, never over the neighbour. */}
+            <span data-notice-count="" aria-hidden="true" className={`pointer-events-none absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full border px-0.5 text-[11px] font-semibold leading-none tabular-nums ring-2 ring-surface ${BADGE_TONE[tone]}`}>
+              {badgeText(visible.length)}
+            </span>
+          </>
+        }
       />
-      <span aria-hidden="true" className={`pointer-events-none absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border px-1 text-xs font-semibold leading-none ${TONE_CLASS[tone]}`}>
-        {visible.length}
-      </span>
       {/* Announced without opening the panel: an error assertively, the rest politely. */}
       <span role={tone === 'error' ? 'alert' : 'status'} className="sr-only">
         {count}
