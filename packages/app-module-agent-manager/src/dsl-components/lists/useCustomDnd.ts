@@ -25,6 +25,8 @@ export interface CustomDnd {
   header: (groupId: string | null) => Handlers;
   /** The strip under the last agent of a group: a target for an agent (bottom of the group). */
   end: (groupId: string | null) => Handlers;
+  /** The whole block of a group (header, agents, empty-group line, gaps): the fallback target for an agent, so a drop never lands on a dead spot. The parts above stop the event first. */
+  block: (groupId: string | null) => Handlers;
 }
 
 const NO_HANDLERS: Handlers = {};
@@ -48,7 +50,7 @@ export function useCustomDnd(api: GroupsApi | undefined, ctx: DropContext): Cust
     setHint('');
   }, []);
   if (api === undefined) {
-    return { dragging, over, hint, notify, row: () => NO_HANDLERS, header: () => NO_HANDLERS, end: () => NO_HANDLERS };
+    return { dragging, over, hint, notify, row: () => NO_HANDLERS, header: () => NO_HANDLERS, end: () => NO_HANDLERS, block: () => NO_HANDLERS };
   }
 
   const apply = (outcome: DropOutcome): void => {
@@ -125,5 +127,7 @@ export function useCustomDnd(api: GroupsApi | undefined, ctx: DropContext): Cust
       ...target({ kind: 'header', groupId }),
     }),
     end: (groupId) => target({ kind: 'end', groupId }),
+    // Same decision as the strip under the last agent: the end of the group (a group being dragged is not accepted here: resolveDrop only takes it on a header).
+    block: (groupId) => target({ kind: 'end', groupId }),
   };
 }

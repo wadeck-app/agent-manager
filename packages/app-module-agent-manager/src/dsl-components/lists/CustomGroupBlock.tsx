@@ -61,7 +61,7 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
     }
   };
   return (
-    <div role="none" data-custom-section={section.id} className="pb-1">
+    <div role="none" data-custom-section={section.id} {...dnd.block(groupId)} className="pb-1">
       <div
         role="treeitem"
         aria-level={1}

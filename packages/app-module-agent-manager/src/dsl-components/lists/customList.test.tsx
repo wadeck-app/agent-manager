@@ -138,6 +138,47 @@ describe('CustomList', () => {
       expect(api.move).toHaveBeenLastCalledWith(u1.sessionId.toLowerCase(), 'b', null);
     });
 
+    // Bug of build 2026.11.22-051: only the header, the rows and the strip were targets, so a drop on the "Empty. Drag an agent here" line (or on the gap of
+    // a block) was ignored without a drop cursor and without a word.
+    it('on the "Empty. Drag an agent here" line of an empty group the agent joins that group', () => {
+      const api = fakeApi(groups());
+      const { container } = render(<Custom sessions={all} api={api} />);
+      const hint = within(container.querySelector('[data-custom-section="c"]') as HTMLElement).getByText(/Drag an agent here/);
+      drag('dragStart', rowOf(container, a1));
+      expect(drag('dragOver', hint)).toBe(false);
+      drag('drop', hint);
+      expect(api.move).toHaveBeenCalledWith(a1.sessionId.toLowerCase(), 'c', null);
+    });
+
+    it('anywhere in the block of a group (its body, its edges) an agent joins the end of the group; the Ungrouped block takes it out', () => {
+      const api = fakeApi(groups());
+      const { container } = render(<Custom sessions={all} api={api} />);
+      drag('dragStart', rowOf(container, u1));
+      const block = container.querySelector('[data-custom-section="b"]') as HTMLElement;
+      expect(drag('dragOver', block)).toBe(false);
+      drag('drop', block);
+      expect(api.move).toHaveBeenLastCalledWith(u1.sessionId.toLowerCase(), 'b', null);
+      drag('dragStart', rowOf(container, a1));
+      drag('drop', within(container.querySelector('[data-custom-section="b"]') as HTMLElement).getByRole('group'));
+      expect(api.move).toHaveBeenLastCalledWith(a1.sessionId.toLowerCase(), 'b', null);
+      drag('dragStart', rowOf(container, a1));
+      drag('drop', container.querySelector('[data-custom-section="ungrouped"]') as HTMLElement);
+      expect(api.move).toHaveBeenLastCalledWith(a1.sessionId.toLowerCase(), null, null);
+    });
+
+    it('a drop on the block of its own group does nothing when it is already the last one, and a row drop still wins over the block', () => {
+      const api = fakeApi(groups());
+      const { container } = render(<Custom sessions={all} api={api} />);
+      drag('dragStart', rowOf(container, a2));
+      drag('drop', container.querySelector('[data-custom-section="a"]') as HTMLElement);
+      expect(api.move).not.toHaveBeenCalled();
+      drag('dragStart', rowOf(container, a1));
+      drag('drop', rowOf(container, b1));
+      // one move only: the row handled it and stopped the event before the block
+      expect(api.move).toHaveBeenCalledTimes(1);
+      expect(api.move).toHaveBeenCalledWith(a1.sessionId.toLowerCase(), 'b', b1.sessionId.toLowerCase());
+    });
+
     it('on the Ungrouped bucket the agent leaves its group', () => {
       const api = fakeApi(groups());
       const { container } = render(<Custom sessions={all} api={api} />);
