@@ -16,7 +16,7 @@ afterEach(() => {
 
 const SID = '00000000-0000-4000-8000-000000000001';
 const session = row({ sessionId: SID, cwd: '/w/shop' });
-const cliGrant = (id: string, over: Partial<CliGrantDto> = {}): CliGrantDto => ({ id, category: 'rm', mode: 'once', sessionId: SID, expiresAt: Date.now() + 600_000, remainingMs: 600_000, remainingText: '10 min', usesLeft: 1, reason: 'clean the build folder', ...over });
+const cliGrant = (id: string, over: Partial<CliGrantDto> = {}): CliGrantDto => ({ id, category: 'rm', mode: 'once', sessionId: SID, expiresAt: Date.now() + 600_000, remainingMs: 600_000, remainingText: '10 min', usesLeft: 1, reason: 'clean the build folder', origin: null, ...over });
 const data = (grants: CliGrantDto[], over: Partial<SessionGrantsDto> = {}): SessionGrantsDto => ({ ok: true, code: '', sessionId: SID, cwd: '/w/shop', cwdNote: '', grants, errorText: '', ...over });
 
 function feed(cli: CliGrantsState, extra: Partial<SessionGrantsFeed> = {}): SessionGrantsFeed {

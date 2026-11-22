@@ -177,6 +177,8 @@ export interface CliGrantDto {
   /** Uses left of a "once" grant, null for a time-boxed one. */
   usesLeft: number | null;
   reason: string;
+  /** 'ui' for a bypass made through the PIN-gated Add of this module, another text for another origin, null when the plugin gives none (an older grant). */
+  origin: string | null;
 }
 
 /**
@@ -204,5 +206,58 @@ export interface GrantRevokedDto {
   sessionId: string;
   cwd: string;
   /** '' when the audit line was written; else why it was not (the grant IS revoked). */
+  auditError: string;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// Add a bypass and the rules of the plugin (threat-model T-23)
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** The durations the plugin accepts for a grant. */
+export const GRANT_MODES = ['once', '10m', '30m', '4h'] as const;
+export type GrantModeDto = (typeof GRANT_MODES)[number];
+
+/** Longest rationale accepted (plain text, one line). */
+export const MAX_RATIONALE_CHARS = 300;
+
+/** One category of the guardrails for a folder, as `rules --json` of the plugin reports it. */
+export interface RuleCategoryDto {
+  name: string;
+  decision: 'allow' | 'ask' | 'deny';
+  source: 'default' | 'config' | 'hardcoded';
+  /** False for the categories no bypass can lift (hardcoded or config/secrets ones). */
+  bypassable: boolean;
+  hardcoded: boolean;
+}
+
+/**
+ * GET /guardrails/sessions/:sessionId/rules (read-only, no PIN). Always HTTP 200: a failure is `ok: false` with `code` and `errorText`, like the grants route.
+ * `configError` is the text the plugin gives when the guardrails.json of the folder cannot be read ('' when none).
+ */
+export interface SessionRulesDto {
+  ok: boolean;
+  code: string;
+  sessionId: string;
+  cwd: string;
+  cwdNote: string;
+  configPath: string;
+  configPresent: boolean;
+  configError: string;
+  categories: RuleCategoryDto[];
+  errorText: string;
+}
+
+/** POST /guardrails/sessions/:sessionId/grants, success. A failure is the usual `{ ok: false, error: { code, message, hint } }`. */
+export interface GrantAddedDto {
+  ok: true;
+  id: string;
+  category: string;
+  mode: GrantModeDto;
+  sessionId: string;
+  cwd: string;
+  /** Epoch ms. */
+  expiresAt: number;
+  origin: string | null;
+  /** '' when the audit line was written; else why it was not (the grant IS made). */
   auditError: string;
 }

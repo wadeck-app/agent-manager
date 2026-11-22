@@ -254,6 +254,21 @@ describe('POST /guardrails/grants/:id/revoke (T-22)', () => {
     expect(cli.calls()).toEqual([]);
   });
 
+  it('an audit that cannot be written is said on the refusal and failure paths too (hint), never dropped', async () => {
+    putSession(box, 4242, { cwd: project });
+    writeFileSync(join(box.config, 'audit'), 'not a folder');
+    // Refused: the grant belongs to another session.
+    fake('ok', [grant('b2c3d4e5', { session_id: OTHER })]);
+    const refused = await post(mod(), 'b2c3d4e5');
+    expect(refused.status).toBe(409);
+    expect(refused.body.error.hint).toMatch(/audit line could not be written/);
+    // Failed: the plugin fails at revoke time.
+    fake('revoke-fails', [grant('a1b2c3d4')]);
+    const failed = await post(mod(), 'a1b2c3d4');
+    expect(failed.status).toBe(502);
+    expect(failed.body.error.hint).toMatch(/audit line could not be written/);
+  });
+
   it('an audit that cannot be written does not hide the revoke: the grant IS revoked and auditError says why', async () => {
     putSession(box, 4242, { cwd: project });
     fake('ok', [grant('a1b2c3d4')]);

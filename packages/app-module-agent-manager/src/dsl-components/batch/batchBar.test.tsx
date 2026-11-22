@@ -80,12 +80,12 @@ describe('the batch bar', () => {
     }
   });
 
-  it('Add / remove bypass is drawn off, with the reason as its tooltip', () => {
+  it('Add / remove bypass for a selection is not built: it is off and says where to add one session at a time', () => {
     render(<Harness rows={[billing]} />);
     tick('billing-owner');
     const button = screen.getByRole('button', { name: 'Add / remove bypass' });
     expect(button).toBeDisabled();
-    expect(button.closest('span[title]')).toHaveAttribute('title', 'Needs POST /api/auth/verify of app-core (pending)');
+    expect(button.closest('span[title]')).toHaveAttribute('title', 'Not available for a selection yet. Open one session and use Add bypass in its Permissions tab.');
   });
 
   it('Mark as seen acts on the finished sessions only, and is off with the reason when none is', () => {

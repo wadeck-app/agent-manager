@@ -152,7 +152,8 @@ export async function requestJson<T>(path: string, init?: { method?: Method; bod
     const sensitive = isSensitiveRequest(method, path);
     for (let attempt = 0; ; attempt += 1) {
       const headers: Record<string, string> = {};
-      if (init?.body !== undefined) {
+      // The shell fetcher sets its own Content-Type when there is a body: a second one (any case) is merged by fetch into "application/json, application/json", which the server answers 415 (seen live with app-core-cli on 2026-11-22).
+      if (init?.body !== undefined && !sensitive) {
         headers['content-type'] = 'application/json';
       }
       if (method !== 'GET') {

@@ -1,12 +1,14 @@
-import { IconButton } from '@wadeck-app/dsl-ui';
-import { RefreshCw, ShieldAlert } from 'lucide-react';
+import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
+import { Plus, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
-import { bypassCommand, failureText, PAGE_BASE, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantRevokedDto } from '../deps.js';
+import { bypassCommand, failureText, MODE_CHOICES, PAGE_BASE, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantAddedDto, type GrantRevokedDto } from '../deps.js';
 import { CopyButton } from '../log/CopyButton.js';
 import { CliGrantList } from './CliGrantList.js';
-import { DisabledWrite } from './DisabledWrite.js';
+import { AddBypassDialog } from './AddBypassDialog.js';
 import { GrantList } from './GrantList.js';
+import { RulesSection } from './RulesSection.js';
 import type { SessionGrantsFeed } from './useSessionGrants.js';
+import { useSessionRules } from './useSessionRules.js';
 
 const NOTE = 'text-xs text-muted';
 const WARN = 'border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text';
@@ -14,16 +16,30 @@ const WARN = 'border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-war
 /**
  * The Permissions tab of the right rail: the bypasses of this session as the plugin's own admin CLI lists them (GET /guardrails/sessions/:id/grants), each with a
  * Revoke button (confirmation, then the PIN-gated POST); the bypasses of the other sessions of its project (read from the plugin files, GET /guardrails/overview,
- * read-only); the categories that blocked the session with a button that copies the command to run in the session; Add bypass, disabled until app-core can
- * verify the user (GUARDRAILS_WRITE_ENABLED). Without the admin CLI the bypasses of this session are read from the files and the panel says so. Every absence is said in words.
+ * read-only); the categories that blocked the session with a button that copies the command to run in the session; Add bypass (a dialog, PIN-gated route, T-23);
+ * the rules of the plugin for its folder, collapsed. Without the admin CLI the bypasses of this session are read from the files, Add and Revoke are off, and the
+ * panel says so. Every absence is said in words.
  */
 export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: SessionGrantsFeed }) {
   const now = useNow(15_000);
   const { overview, view, error, loading, reload, cli } = feed;
   const blocks = session.guardrailBlocks;
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [rulesTick, setRulesTick] = useState(0);
+  const rules = useSessionRules(session.sessionId, rulesTick);
   const [outcome, setOutcome] = useState({ done: '', warning: '', failed: '' });
   // The PIN dialog comes from the shell fetcher (the route is a sensitive route); the answer says what was removed, or why nothing was.
+  const refresh = (): void => {
+    reload();
+    setRulesTick((value) => value + 1);
+  };
+  const added = (result: GrantAddedDto): void => {
+    setAdding(false);
+    const length = result.mode === 'once' ? 'for one use' : `for ${MODE_CHOICES.find((choice) => choice.value === result.mode)?.label ?? result.mode}`;
+    setOutcome({ done: `Added a ${result.category} bypass ${length} (${result.id}). It is listed below.`, warning: result.auditError, failed: '' });
+    refresh();
+  };
   const revoke = async (grant: CliGrantDto): Promise<void> => {
     setBusy(true);
     setOutcome({ done: '', warning: '', failed: '' });
@@ -42,7 +58,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
         <a href={`${PAGE_BASE}/guardrails`} className="text-xs text-primary underline">
           Guardrails page
         </a>
-        <IconButton size="icon-xs" aria-label="Refresh the permissions" disabled={loading} onClick={reload} icon={<RefreshCw aria-hidden="true" className={`h-3 w-3 ${loading ? 'animate-spin motion-reduce:animate-none' : ''}`} />} />
+        <IconButton size="icon-xs" aria-label="Refresh the permissions" disabled={loading} onClick={refresh} icon={<RefreshCw aria-hidden="true" className={`h-3 w-3 ${loading ? 'animate-spin motion-reduce:animate-none' : ''}`} />} />
       </div>
       {error !== '' ? (
         <p role="alert" className={WARN}>
@@ -120,11 +136,15 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
         {blocks?.timeout === true ? <p className="mt-1 text-xs text-warning-text">Bypass requests are timed out for this session.</p> : null}
       </section>
       <section aria-label="Request a bypass" className="flex flex-col gap-2 px-3 py-2">
-        <p className={NOTE}>To get a bypass today, copy a command above and run it in the session: the module grants nothing, you answer the plugin dialog there.</p>
+        <p className={NOTE}>Add a bypass for this session here (your PIN is asked), or copy a command above and run it in the session: you then answer the plugin dialog there.</p>
         <div>
-          <DisabledWrite label="Add bypass" />
+          <ButtonAction variant="secondary" size="sm" disabled={cli.kind !== 'ok'} icon={<Plus aria-hidden="true" className="h-3.5 w-3.5" />} label="Add bypass" onClick={() => setAdding(true)} />
         </div>
+        {cli.kind === 'missing' ? <p className={NOTE}>Add bypass needs the w-guardrails admin CLI (plugin 1.29.0 or later): install or update the plugin, then refresh.</p> : null}
+        {cli.kind === 'error' ? <p className={NOTE}>Add bypass is off while the plugin answers with an error (see the alert above): fix it, then refresh.</p> : null}
       </section>
+      <RulesSection rules={rules} />
+      {adding && cli.kind === 'ok' ? <AddBypassDialog session={session} folder={cli.data.cwd === '' ? session.cwd : cli.data.cwd} rules={rules} onClose={() => setAdding(false)} onAdded={added} /> : null}
     </div>
   );
 }

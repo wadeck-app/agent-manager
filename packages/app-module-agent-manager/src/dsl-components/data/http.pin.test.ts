@@ -49,6 +49,13 @@ describe('sensitive routes go through the app-core shell fetcher (PIN)', () => {
     expect(plainCalls).toEqual([]);
   });
 
+  it('does not pass a Content-Type of its own: the shell sets it, and two would be merged into one the server answers 415 to (seen live)', async () => {
+    shell(() => ({ ok: true }));
+    await requestJson('/guardrails/sessions/s/grants', { method: 'POST', body: { category: 'rm' } });
+    const names = Object.keys(shellCalls[0]?.headers ?? {}).map((name) => name.toLowerCase());
+    expect(names).not.toContain('content-type');
+  });
+
   it.each([
     ['POST', '/owned/launch'],
     ['POST', '/owned/a/resume'],

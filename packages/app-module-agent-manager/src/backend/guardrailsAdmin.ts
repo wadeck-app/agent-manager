@@ -3,6 +3,7 @@ import { readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
+import type { GrantModeDto } from '../commons/guardrails.js';
 
 /*
  * The management CLI of the w-guardrails plugin (scripts/admin.js): list and revoke the bypasses of a session. The module never reads or writes the
@@ -10,7 +11,12 @@ import { getErrorMessage } from '@wadeck-app/agent-manager-core';
  * its JSON strictly. Contract (from the plugin owner, plugin >= 1.29.0):
  *   node admin.js bypass list   --cwd <dir> [--session <fullid>] --json   -> {"schema":"w-guardrails.bypass-list/1", cwd, now, grants:[...]}
  *   node admin.js bypass revoke --id <id> --cwd <dir> --json              -> {"schema":"w-guardrails.bypass-revoke/1", revoked:true, id, category, session_id}
+ *   bypass grant  --cwd <dir> --category <c> --mode once|10m|30m|4h --session <fullid> --rationale <text> --json, the PIN access token (the Bearer VALUE) on STDIN
+ *                                                                         -> {"schema":"w-guardrails.bypass-grant/1", granted:true, id, category, mode, session_id, expires, origin:"ui"}
+ *   rules --cwd <dir> --json -> {"schema":"w-guardrails.rules/1", cwd, config:{path,present,error}, categories:[{name,decision,source,bypassable,hardcoded}]}
  *   exit 1 -> {"schema":"w-guardrails.error/1","error":"..."}; exit 2 -> usage error (flags are strict per command).
+ * The token (threat-model T-23) is written to the child's stdin and nowhere else: not in argv, not in the environment (the child inherits process.env as it is), not in a
+ * message: whatever the plugin prints is cleaned of it before it becomes an error text.
  */
 
 /** The environment variable that replaces the search of the plugin folder. FOR TESTS ONLY (a fake script): never set it for real use. */
@@ -18,6 +24,8 @@ export const adminOverrideEnv = 'AGENT_MANAGER_GUARDRAILS_ADMIN';
 
 const LIST_SCHEMA = 'w-guardrails.bypass-list/1';
 const REVOKE_SCHEMA = 'w-guardrails.bypass-revoke/1';
+const GRANT_SCHEMA = 'w-guardrails.bypass-grant/1';
+const RULES_SCHEMA = 'w-guardrails.rules/1';
 const ERROR_SCHEMA = 'w-guardrails.error/1';
 
 /** One call may take this long before it is killed. */
@@ -65,6 +73,8 @@ export interface AdminGrant {
   /** Uses left of a "once" grant, null for a time-boxed one. */
   usesLeft: number | null;
   reason: string;
+  /** Who made the grant: 'ui' for one made through the admin CLI with a PIN token, anything else the plugin says, null when the entry has no origin (an older grant). */
+  origin: string | null;
 }
 
 export interface AdminListResult {
@@ -78,6 +88,35 @@ export interface AdminRevokeResult {
   id: string;
   category: string;
   sessionId: string;
+}
+
+export type GrantMode = GrantModeDto;
+
+export interface AdminGrantResult {
+  /** The base id (git-commit-push writes two entries and answers the first). */
+  id: string;
+  category: string;
+  mode: string;
+  sessionId: string;
+  expires: string;
+  origin: string | null;
+}
+
+export type RuleDecision = 'allow' | 'ask' | 'deny';
+export type RuleSource = 'default' | 'config' | 'hardcoded';
+
+export interface AdminRule {
+  name: string;
+  decision: RuleDecision;
+  source: RuleSource;
+  bypassable: boolean;
+  hardcoded: boolean;
+}
+
+export interface AdminRulesResult {
+  cwd: string;
+  config: { path: string | null; present: boolean; error: string | null };
+  categories: AdminRule[];
 }
 
 interface CallOptions {
@@ -159,10 +198,13 @@ interface RawRun {
   stderr: string;
 }
 
-function run(script: string, args: readonly string[], timeoutMs: number, maxStdoutBytes: number): Promise<RawRun> {
+function run(script: string, args: readonly string[], timeoutMs: number, maxStdoutBytes: number, stdin?: string): Promise<RawRun> {
   return new Promise((resolve, reject) => {
-    // No shell: the arguments reach the script as they are. windowsHide: no console flashes on Windows.
-    const child = spawn(process.execPath, [script, ...args], { shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    // No shell: the arguments reach the script as they are. windowsHide: no console flashes on Windows. stdin is always a pipe: closed at once (nothing to read, like /dev/null) or written once (the token).
+    const child = spawn(process.execPath, [script, ...args], { shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    // A child that ends before reading it (a refusal) closes the pipe: its exit code and JSON say why, so an EPIPE here is not news.
+    child.stdin.on('error', () => undefined);
+    child.stdin.end(stdin);
     const out: Buffer[] = [];
     let outBytes = 0;
     let errTail = Buffer.alloc(0);
@@ -224,10 +266,18 @@ function parseJson(text: string, stderr: string): Record<string, unknown> {
   return value;
 }
 
+/** The text without the secret, whether it is written raw or as inside a JSON string. */
+function withoutSecret(value: string, secret: string): string {
+  const escaped = JSON.stringify(secret).slice(1, -1);
+  return value.split(secret).join('[token removed]').split(escaped).join('[token removed]');
+}
+
 /** Runs one command and returns the parsed JSON of a success; every other outcome is a GuardrailsAdminError. `schema` is the expected one. */
-async function call(options: CallOptions, args: readonly string[], schema: string): Promise<Record<string, unknown>> {
+async function call(options: CallOptions, args: readonly string[], schema: string, secretInput?: string): Promise<Record<string, unknown>> {
   const script = options.script ?? resolveAdminScript(options.homeDir === undefined ? {} : { homeDir: options.homeDir });
-  const result = await run(script, args, options.timeoutMs ?? ADMIN_TIMEOUT_MS, options.maxStdoutBytes ?? ADMIN_MAX_STDOUT_BYTES);
+  const raw = await run(script, args, options.timeoutMs ?? ADMIN_TIMEOUT_MS, options.maxStdoutBytes ?? ADMIN_MAX_STDOUT_BYTES, secretInput);
+  // Nothing the plugin printed may carry the secret into an error text, a log or a response (it could echo what it was given).
+  const result = secretInput === undefined ? raw : { code: raw.code, stdout: withoutSecret(raw.stdout, secretInput), stderr: withoutSecret(raw.stderr, secretInput) };
   if (result.code === 1) {
     const body = (() => {
       try {
@@ -294,7 +344,12 @@ function parseGrant(raw: unknown, index: number): AdminGrant {
   if (Number.isNaN(Date.parse(expires))) {
     throw badOutput(`${where}'expires' is not a date: ${JSON.stringify(expires).slice(0, 60)}`, '');
   }
-  return { id, category, mode, sessionId, expires, remainingMs: remaining, usesLeft, reason };
+  // Optional field (added without a schema bump): absent or null is "unknown origin"; any other type is not the contract.
+  const origin = raw['origin'];
+  if (origin !== undefined && origin !== null && typeof origin !== 'string') {
+    throw badOutput(`${where}'origin' must be text or null, got ${JSON.stringify(origin)?.slice(0, 40)}`, '');
+  }
+  return { id, category, mode, sessionId, expires, remainingMs: remaining, usesLeft, reason, origin: origin ?? null };
 }
 
 /** The bypasses the hook honours in `cwd`, for one session (its FULL id). */
@@ -318,4 +373,76 @@ export async function revokeBypass(options: CallOptions & { cwd: string; id: str
     throw badOutput(`it revoked ${JSON.stringify(id).slice(0, 40)} when ${JSON.stringify(options.id)} was asked`, '');
   }
   return { id, category: text(body, 'category', ''), sessionId: text(body, 'session_id', '') };
+}
+
+/**
+ * Creates ONE bypass for a session. `token` is the PIN access token of the user (the Bearer VALUE, no prefix): it goes to the child's stdin and nowhere else, and the
+ * CLI verifies it against app-core itself. The caller has checked that the category is bypassable (rules) and that the folder is the session's.
+ * A refusal of the plugin (not bypassable, spam lock, token not accepted ...) is a 'plugin-error' with the plugin's own text.
+ */
+export async function grantBypass(options: CallOptions & { cwd: string; sessionId: string; category: string; mode: GrantMode; rationale: string; token: string }): Promise<AdminGrantResult> {
+  if (options.token === '') {
+    throw new Error('grantBypass needs the PIN access token (the Bearer value): none was given');
+  }
+  const args = ['bypass', 'grant', '--cwd', options.cwd, '--category', options.category, '--mode', options.mode, '--session', options.sessionId, '--rationale', options.rationale, '--json'];
+  const body = await call(options, args, GRANT_SCHEMA, options.token);
+  if (body['granted'] !== true) {
+    throw badOutput(`'granted' must be true, got ${JSON.stringify(body['granted'])?.slice(0, 40)}`, '');
+  }
+  const category = text(body, 'category', '');
+  const sessionId = text(body, 'session_id', '');
+  const expires = text(body, 'expires', '');
+  const id = text(body, 'id', '');
+  if (category !== options.category || sessionId !== options.sessionId) {
+    throw badOutput(`it granted ${JSON.stringify(category).slice(0, 40)} for session ${JSON.stringify(sessionId).slice(0, 40)} when ${JSON.stringify(options.category)} for ${JSON.stringify(options.sessionId)} was asked. A grant may have been created: refresh the list and revoke it if it is not wanted`, '');
+  }
+  if (id === '' || Number.isNaN(Date.parse(expires))) {
+    throw badOutput(`the grant has no id or no valid 'expires' (${JSON.stringify(expires).slice(0, 40)}). A grant may have been created: refresh the list`, '');
+  }
+  const origin = body['origin'];
+  if (origin !== undefined && origin !== null && typeof origin !== 'string') {
+    throw badOutput(`'origin' must be text or null, got ${JSON.stringify(origin)?.slice(0, 40)}`, '');
+  }
+  return { id, category, mode: text(body, 'mode', ''), sessionId, expires, origin: origin ?? null };
+}
+
+const DECISIONS: readonly string[] = ['allow', 'ask', 'deny'];
+const SOURCES: readonly string[] = ['default', 'config', 'hardcoded'];
+
+function parseRule(raw: unknown, index: number): AdminRule {
+  const where = `categories[${index}].`;
+  if (!isRecord(raw)) {
+    throw badOutput(`categories[${index}] is not an object`, '');
+  }
+  const name = text(raw, 'name', where);
+  const decision = text(raw, 'decision', where);
+  const source = text(raw, 'source', where);
+  if (name === '' || !DECISIONS.includes(decision) || !SOURCES.includes(source)) {
+    throw badOutput(`${where} has an empty name, a decision outside allow|ask|deny (${JSON.stringify(decision).slice(0, 30)}) or a source outside default|config|hardcoded (${JSON.stringify(source).slice(0, 30)})`, '');
+  }
+  const bypassable = raw['bypassable'];
+  const hardcoded = raw['hardcoded'];
+  if (typeof bypassable !== 'boolean' || typeof hardcoded !== 'boolean') {
+    throw badOutput(`${where}'bypassable' and 'hardcoded' must be true or false`, '');
+  }
+  return { name, decision: decision as RuleDecision, source: source as RuleSource, bypassable, hardcoded };
+}
+
+/** The categories of the guardrails for a folder: what each one decides, where that comes from, and whether a bypass can lift it. */
+export async function listRules(options: CallOptions & { cwd: string }): Promise<AdminRulesResult> {
+  const body = await call(options, ['rules', '--cwd', options.cwd, '--json'], RULES_SCHEMA);
+  const config = body['config'];
+  const categories = body['categories'];
+  if (!isRecord(config) || typeof config['present'] !== 'boolean') {
+    throw badOutput("'config' must be an object with 'present' true or false", '');
+  }
+  const path = config['path'];
+  const error = config['error'];
+  if ((path !== null && path !== undefined && typeof path !== 'string') || (error !== null && error !== undefined && typeof error !== 'string')) {
+    throw badOutput("'config.path' and 'config.error' must be text or null", '');
+  }
+  if (!Array.isArray(categories)) {
+    throw badOutput(`'categories' must be a list, got ${JSON.stringify(categories)?.slice(0, 40)}`, '');
+  }
+  return { cwd: text(body, 'cwd', ''), config: { path: path ?? null, present: config['present'], error: error ?? null }, categories: categories.map((raw, index) => parseRule(raw, index)) };
 }

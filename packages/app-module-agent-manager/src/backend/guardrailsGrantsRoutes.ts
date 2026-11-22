@@ -34,14 +34,14 @@ export interface GrantsOptions {
 
 const normalize = (path: string): string => path.replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase();
 
-interface Folder {
+export interface Folder {
   /** '' when none could be found. */
   cwd: string;
   note: string;
 }
 
 /** The folder to ask the plugin about: the one Claude Code reports now (newest transcript line), else the registry's, saying why. */
-async function folderOf(session: Session): Promise<Folder> {
+export async function folderOf(session: Session): Promise<Folder> {
   const registry = session.cwd;
   const latest = await latestTranscriptCwd(session);
   if (latest.ok) {
@@ -68,13 +68,14 @@ function toDto(grant: AdminGrant): CliGrantDto {
     remainingText: remainingText(grant.remainingMs),
     usesLeft: grant.usesLeft,
     reason: grant.reason,
+    origin: grant.origin,
   };
 }
 
-const errorText = (failure: GuardrailsAdminError): string => `${getErrorMessage(failure)}.${failure.hint === '' ? '' : ` ${failure.hint}`}`;
+export const errorText = (failure: GuardrailsAdminError): string => `${getErrorMessage(failure)}.${failure.hint === '' ? '' : ` ${failure.hint}`}`;
 
 /** HTTP status of a failed revoke by the code of the admin error. */
-function statusOf(code: AdminErrorCode): number {
+export function statusOf(code: AdminErrorCode): number {
   return code === 'not-installed' ? 503 : code === 'timeout' ? 504 : 502;
 }
 
@@ -94,37 +95,47 @@ function parseRevokeBody(body: unknown): string {
   return sessionId;
 }
 
-interface Audit {
+export interface Audit {
   time: number;
-  kind: 'bypass-revoke';
+  kind: 'bypass-revoke' | 'bypass-grant';
   sessionId: string;
   id: string;
   category: string;
   cwd: string;
-  /** 'revoked', or 'failed: <code>: <message>' / 'refused: <code>: <message>' (nothing was removed). */
+  /** 'revoked' / 'granted', or 'failed: <code>: <message>' / 'refused: <code>: <message>' (nothing was changed). */
   outcome: string;
+  /** Other plain fields of the line (the grant: mode and rationale). NEVER a token. */
+  [extra: string]: unknown;
 }
 
 const day = (time: number): string => new Date(time).toISOString().slice(0, 10);
 
+/** The hint of a refusal with the problem of its audit line added (a refusal that could not be audited must still say so). */
+export const withAuditProblem = (hint: string, problem: string): string => (problem === '' ? hint : `${hint} ${problem}`);
+
 /** One line per attempt in <config>/audit/guardrails-<UTC day>.ndjson (its own file name: the reply audit reads only <day>.ndjson). Returns why it failed, '' when written. */
-async function writeAudit(configDir: string, record: Audit): Promise<string> {
+export async function writeAudit(configDir: string, record: Audit, done = 'The bypass IS revoked'): Promise<string> {
   try {
     const dir = join(configDir, 'audit');
     await mkdir(dir, { recursive: true });
     await appendFile(join(dir, `guardrails-${day(record.time)}.ndjson`), `${JSON.stringify(record)}\n`, 'utf8');
     return '';
   } catch (error) {
-    return `The audit line could not be written to ${join(configDir, 'audit')}: ${getErrorMessage(error)}. The bypass IS revoked; check the permissions of that folder.`;
+    return `The audit line could not be written to ${join(configDir, 'audit')}: ${getErrorMessage(error)}. ${done}; check the permissions of that folder.`;
   }
+}
+
+/** The script and the timeout of one call of the admin CLI (the script is resolved at each call: a plugin installed meanwhile is found). */
+export function adminCallOf(options: GrantsOptions): { script: string; timeoutMs?: number } {
+  return {
+    script: options.adminScript ?? resolveAdminScript(options.homeDir === undefined ? {} : { homeDir: options.homeDir }),
+    ...(options.adminTimeoutMs === undefined ? {} : { timeoutMs: options.adminTimeoutMs }),
+  };
 }
 
 export function registerGrantsRoutes(kit: RouteKit, options: GrantsOptions, owned: OwnedSource): void {
   const configDirOf = (): string => options.configDir ?? defaultConfigDir(process.env);
-  const call = (): { script: string; timeoutMs?: number } => ({
-    script: options.adminScript ?? resolveAdminScript(options.homeDir === undefined ? {} : { homeDir: options.homeDir }),
-    ...(options.adminTimeoutMs === undefined ? {} : { timeoutMs: options.adminTimeoutMs }),
-  });
+  const call = (): { script: string; timeoutMs?: number } => adminCallOf(options);
 
   kit.route('GET', '/guardrails/sessions/:sessionId/grants', async (req) => {
     queryValue(req.query, 'inlineErrors');
@@ -175,24 +186,22 @@ export function registerGrantsRoutes(kit: RouteKit, options: GrantsOptions, owne
         target = listed.grants.find((grant) => grant.id === id && grant.sessionId === session.sessionId);
         if (target === undefined) {
           const message = `No active bypass ${id} for session ${session.sessionId} in ${folder.cwd}`;
-          await audit('', `refused: grant-not-found: ${message}`);
-          return fail(409, 'grant-not-found', message, 'It may have been used up, expired or revoked already, or it belongs to another session: refresh the list.');
+          const problem = await audit('', `refused: grant-not-found: ${message}`);
+          return fail(409, 'grant-not-found', message, withAuditProblem('It may have been used up, expired or revoked already, or it belongs to another session: refresh the list.', problem));
         }
         const revoked = await revokeBypass({ ...call(), cwd: folder.cwd, id });
         if (revoked.sessionId !== session.sessionId || revoked.category !== target.category) {
           const message = `The plugin revoked ${revoked.category} of session ${revoked.sessionId} when ${target.category} of ${session.sessionId} was listed`;
-          await audit(revoked.category, `failed: bad-output: ${message}`);
-          return fail(502, 'bad-output', message, 'Refresh the list and check the plugin; the state may have changed between the list and the revoke.');
+          const problem = await audit(revoked.category, `failed: bad-output: ${message}`);
+          return fail(502, 'bad-output', message, withAuditProblem('Refresh the list and check the plugin; the state may have changed between the list and the revoke.', problem));
         }
         const auditError = await audit(revoked.category, 'revoked');
         return ok({ ok: true, id, category: revoked.category, sessionId: session.sessionId, cwd: folder.cwd, auditError } satisfies GrantRevokedDto);
       } catch (error) {
         if (error instanceof GuardrailsAdminError) {
           // Not installed: nothing ran, so there is nothing to audit.
-          if (error.code !== 'not-installed') {
-            await audit(target?.category ?? '', `failed: ${error.code}: ${getErrorMessage(error)}`.slice(0, 500));
-          }
-          return fail(statusOf(error.code), error.code, getErrorMessage(error), error.hint === '' ? 'Refresh the list and retry.' : error.hint);
+          const problem = error.code === 'not-installed' ? '' : await audit(target?.category ?? '', `failed: ${error.code}: ${getErrorMessage(error)}`.slice(0, 500));
+          return fail(statusOf(error.code), error.code, getErrorMessage(error), withAuditProblem(error.hint === '' ? 'Refresh the list and retry.' : error.hint, problem));
         }
         throw error;
       }

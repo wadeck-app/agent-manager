@@ -23,6 +23,8 @@
  * | PUT /reply/transport/default            | not sensitive | preference; the message itself is gated          |
  * | GET /folders/roots, /list, /search, /recent | not sensitive (read) | names of folders inside the browsable roots only, see below |
  * | POST /guardrails/grants/:id/revoke      | sensitive     | removes a bypass of a session by running the plugin's own CLI (threat-model T-22) |
+ * | POST /guardrails/sessions/:sessionId/grants | sensitive   | creates a bypass of a guardrail for a session by running the plugin's own CLI with the user's PIN token on its stdin (threat-model T-23) |
+ * | GET /guardrails/sessions/:sessionId/rules | not sensitive | read-only categories of the guardrails of the session's folder (decision, source, bypassable), through the plugin's CLI |
  * | GET /guardrails/sessions/:sessionId/grants | not sensitive | read-only list of the bypasses of one session, through the plugin's CLI (the same data GET /guardrails/overview gives from the files) |
  * | GET /guardrails/denials/commands        | sensitive     | the unmasked command text of blocked calls       |
  * | GET /guardrails/overview, /denials      | not sensitive | read-only, no command text (see threat-model T-13) |
@@ -49,6 +51,8 @@ export const SENSITIVE_ROUTES: readonly string[] = [
   'POST /sessions/:sessionId/hc-permission',
   // Removes a bypass: a guardrail is back for that session. Runs the plugin's admin CLI; the folder comes from the session, never from the caller (T-22).
   'POST /guardrails/grants/:id/revoke',
+  // Creates a bypass: a guardrail is lifted for that session. The route reads the user's PIN access token from the Authorization header and hands it to the plugin's CLI (stdin only); session and folder come from the URL and the registry, never the body (T-23).
+  'POST /guardrails/sessions/:sessionId/grants',
   // A GET, and the one read route behind the PIN: a blocked command is a risky one by nature and the journal keeps 500 unmasked characters of it. GET /guardrails/denials is the same list without them (threat-model T-13).
   'GET /guardrails/denials/commands',
 ];

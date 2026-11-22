@@ -138,7 +138,7 @@ describe('listBypasses', () => {
     const result = await listBypasses({ ...opts(), cwd, sessionId: SESSION });
     expect(calls.log()).toEqual([['bypass', 'list', '--cwd', cwd, '--session', SESSION, '--json']]);
     expect(result.cwd).toBe(cwd);
-    expect(result.grants).toEqual([{ id: 'a1b2c3d4', category: 'rm', mode: 'once', sessionId: SESSION, expires: expect.any(String), remainingMs: 600_000, usesLeft: 1, reason: 'clean' }]);
+    expect(result.grants).toEqual([{ id: 'a1b2c3d4', category: 'rm', mode: 'once', sessionId: SESSION, expires: expect.any(String), remainingMs: 600_000, usesLeft: 1, reason: 'clean', origin: null }]);
   });
 
   it('an empty list is a valid answer (no grant)', async () => {

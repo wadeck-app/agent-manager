@@ -4,15 +4,31 @@
 // It never touches a plugin state file: the grants it knows live in the file named by FAKE_ADMIN_GRANTS_FILE (a JSON array of list entries), which the test owns.
 //
 // FAKE_ADMIN_SCENARIO: ok (default) | corrupt | bad-schema | no-schema | not-json | wrong-type | usage | exit7 | hang | huge | error-as-success | revoke-mismatch | revoke-fails (list works, revoke exits 1)
-// FAKE_ADMIN_LOG: when set, one JSON line per call is appended there (the argv), so a test can read what was run.
+// Grant scenarios (the "grant" subcommand reads the PIN access token on STDIN, nothing secret on argv, and appends the new entry with origin "ui" to the grants file):
+//   grant-elevation | grant-pin-not-set | grant-unreachable | grant-spam | grant-not-bypassable (the plugin refuses) | grant-echo-token (its error text contains the token)
+//   grant-wrong-category (answers another category) | grant-slow (answers after 600 ms) | grant-no-origin (the list entries it writes have no origin field)
+// FAKE_ADMIN_RULES_FILE: a JSON array of categories for "rules" (default: a short list with rm, git-push and two not bypassable ones).
+// FAKE_ADMIN_RULES_CONFIG_ERROR: the text of config.error in the rules answer.
+// FAKE_ADMIN_LOG: when set, one JSON line per call is appended there: the argv, the text read on stdin (grant only) and whether the token is in any environment value.
 
 const fs = require('fs');
 
 const argv = process.argv.slice(2);
 const scenario = process.env.FAKE_ADMIN_SCENARIO || 'ok';
 
+let stdinText = '';
+if (argv[1] === 'grant') {
+  try {
+    stdinText = fs.readFileSync(0, 'utf8');
+  } catch (e) {
+    stdinText = '';
+  }
+}
+
 if (process.env.FAKE_ADMIN_LOG) {
-  fs.appendFileSync(process.env.FAKE_ADMIN_LOG, JSON.stringify({ argv }) + '\n');
+  const token = stdinText.trim();
+  const tokenInEnv = token !== '' && Object.values(process.env).some((value) => String(value).includes(token));
+  fs.appendFileSync(process.env.FAKE_ADMIN_LOG, JSON.stringify({ argv, stdin: stdinText, tokenInEnv }) + '\n');
 }
 
 function flag(name) {
@@ -29,8 +45,78 @@ function grantsOf() {
   return file ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
 }
 
+const DEFAULT_RULES = [
+  { name: 'rm', decision: 'deny', source: 'default', bypassable: true, hardcoded: false },
+  { name: 'git-push', decision: 'ask', source: 'config', bypassable: true, hardcoded: false },
+  { name: 'git-commit-push', decision: 'deny', source: 'default', bypassable: true, hardcoded: false },
+  { name: 'ssh-config', decision: 'deny', source: 'hardcoded', bypassable: false, hardcoded: true },
+  { name: 'secrets-leak', decision: 'deny', source: 'hardcoded', bypassable: false, hardcoded: true },
+];
+
+function rulesOf() {
+  const file = process.env.FAKE_ADMIN_RULES_FILE;
+  return file ? JSON.parse(fs.readFileSync(file, 'utf8')) : DEFAULT_RULES;
+}
+
 const sub = argv[1];
 const cwd = flag('cwd');
+
+function grant() {
+  const token = stdinText.trim();
+  const category = flag('category');
+  const mode = flag('mode');
+  const session = flag('session');
+  const rationale = flag('rationale');
+  const error = (text, code) => out({ schema: 'w-guardrails.error/1', error: text }, code === undefined ? 1 : code);
+  if (scenario === 'grant-elevation') {
+    return error('Verification failed: elevation-required. The PIN access token is older than 10 minutes or the PIN is locked.');
+  }
+  if (scenario === 'grant-pin-not-set') {
+    return error('Verification failed: pin-not-set. No PIN is set in app-core.');
+  }
+  if (scenario === 'grant-unreachable') {
+    return error('Verification failed: app-core is unreachable (stale port file: connect ECONNREFUSED 127.0.0.1:4850).');
+  }
+  if (scenario === 'grant-spam') {
+    return error('Spam lock active: too many bypass requests for this session. Try again in 60 s.');
+  }
+  if (scenario === 'grant-not-bypassable') {
+    return error(`Category "${category}" is not bypassable.`);
+  }
+  if (scenario === 'grant-echo-token') {
+    return error(`Verification failed: the token ${token} was rejected.`);
+  }
+  if (token === '') {
+    return error('No PIN access token on stdin. Pass the Bearer value on stdin.');
+  }
+  if (!category || !session || !rationale || !['once', '10m', '30m', '4h'].includes(mode)) {
+    return error('Bad grant arguments.');
+  }
+  const run = () => {
+    const entry = {
+      id: 'c0ffee01',
+      category,
+      mode: mode === 'once' ? 'once' : 'ttl',
+      session_id: session,
+      expires: new Date(Date.now() + (mode === 'once' ? 600000 : mode === '10m' ? 600000 : mode === '30m' ? 1800000 : 14400000)).toISOString(),
+      remaining_ms: mode === 'once' ? 600000 : mode === '10m' ? 600000 : mode === '30m' ? 1800000 : 14400000,
+      uses_left: mode === 'once' ? 1 : null,
+      reason: rationale,
+    };
+    if (scenario !== 'grant-no-origin') {
+      entry.origin = 'ui';
+    }
+    if (process.env.FAKE_ADMIN_GRANTS_FILE) {
+      fs.writeFileSync(process.env.FAKE_ADMIN_GRANTS_FILE, JSON.stringify([...grantsOf(), entry]));
+    }
+    out({ schema: 'w-guardrails.bypass-grant/1', granted: true, id: entry.id, category: scenario === 'grant-wrong-category' ? 'kill' : category, mode, session_id: session, expires: entry.expires, origin: 'ui' }, 0);
+  };
+  if (scenario === 'grant-slow') {
+    setTimeout(run, 600);
+  } else {
+    run();
+  }
+}
 
 if (scenario === 'usage') {
   process.stderr.write('Unknown flag "--session".\n\nUsage: fake\n');
@@ -74,6 +160,11 @@ if (scenario === 'hang') {
   const session = flag('session');
   const grants = grantsOf().filter((g) => !session || g.session_id === session);
   out({ schema: 'w-guardrails.bypass-list/1', cwd, now: new Date().toISOString(), grants }, 0);
+} else if (sub === 'grant') {
+  grant();
+} else if (argv[0] === 'rules') {
+  const configError = process.env.FAKE_ADMIN_RULES_CONFIG_ERROR;
+  out({ schema: 'w-guardrails.rules/1', cwd, config: { path: cwd + '/.claude/guardrails.json', present: Boolean(configError), error: configError || null }, categories: rulesOf() }, 0);
 } else if (sub === 'revoke') {
   const id = flag('id');
   const all = grantsOf();

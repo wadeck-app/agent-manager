@@ -19,6 +19,11 @@ export function CliGrantItem({ grant, now, busy, onRevoke }: { grant: CliGrantDt
           <p className="flex flex-wrap items-center gap-x-1.5">
             <span className="font-medium text-content">{grant.category}</span>
             <span className="text-muted">{grant.mode === 'once' ? 'once' : 'time-boxed'}</span>
+            {grant.origin === null ? null : (
+              <span data-origin={grant.origin} title={grant.origin === 'ui' ? 'Created from this page, with your PIN' : `The plugin reports the origin "${grant.origin}"`} className="text-muted">
+                {grant.origin === 'ui' ? 'added from this page' : `origin: ${grant.origin}`}
+              </span>
+            )}
             <span data-full-session="" title={`Matched on the full session id ${grant.sessionId}`} className="inline-flex items-center gap-0.5 text-muted">
               <KeyRound aria-hidden="true" className="h-3 w-3" />
               full id

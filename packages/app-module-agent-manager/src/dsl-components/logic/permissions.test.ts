@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { GrantDto, SessionBlocksDto } from '../shared.js';
 import { overview } from './permissionsFixtures.js';
-import { GUARDRAILS_REVOKE_ENABLED, GUARDRAILS_WRITE_ENABLED, GUARDRAILS_WRITE_NEEDS, permissionsOf, sameFolder } from './permissions.js';
+import * as permissionsModule from './permissions.js';
+import { GUARDRAILS_REVOKE_ENABLED, permissionsOf, sameFolder } from './permissions.js';
 
 const SID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -9,10 +10,9 @@ const OTHER = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const grant = (id: string, sessionId: string, project: string, overrides: Partial<GrantDto> = {}): GrantDto => ({ id, category: 'rm', mode: 'once', expiresAt: 10_000, remainingMs: 5000, sessionId, sessionName: '', project, rationale: 'because', used: 0, maxUses: 1, ...overrides });
 const blocks = (sessionId: string): SessionBlocksDto => ({ sessionId, prefix: sessionId.slice(0, 8), sessionName: '', project: '/w/shop', blocks: [{ category: 'rm', count: 2 }], total: 2, refusedCount: 1, timeoutUntil: null, lastRequestAt: null });
 describe('the write switch', () => {
-  it('Add is off, with the reason the tooltips give; Revoke is on (the admin CLI of the plugin does it)', () => {
-    expect(GUARDRAILS_WRITE_ENABLED).toBe(false);
+  it('Revoke is on (the admin CLI of the plugin does it); there is no flag for Add: it is available when the route is', () => {
     expect(GUARDRAILS_REVOKE_ENABLED).toBe(true);
-    expect(GUARDRAILS_WRITE_NEEDS).toBe('Needs POST /api/auth/verify of app-core (pending)');
+    expect(Object.keys(permissionsModule).filter((name) => name.startsWith('GUARDRAILS_WRITE'))).toEqual([]);
   });
 });
 

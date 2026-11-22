@@ -4,11 +4,13 @@ import { useState, type ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
 import type { GroupsApi } from '../lists/common.js';
 import { useSelection } from '../lists/selection.js';
-import { GUARDRAILS_WRITE_ENABLED, GUARDRAILS_WRITE_NEEDS } from '../logic/permissions.js';
 import { selectedText } from '../logic/selection.js';
 import { BatchAct } from './BatchAct.js';
 import { BatchMoveDialog } from './BatchMoveDialog.js';
 import { BatchSendDialog } from './BatchSendDialog.js';
+
+/** Adding or removing a bypass for a whole selection is a separate piece of work (not built): the button says so and where one session can be done. */
+const BATCH_BYPASS_OFF = 'Not available for a selection yet. Open one session and use Add bypass in its Permissions tab.';
 
 export interface BatchBarProps {
   /** The selected sessions that the page still has, in the order of the list. */
@@ -21,7 +23,7 @@ export interface BatchBarProps {
 
 /**
  * The bar that appears above the list while at least one session is selected: how many, and what can be done to all of them. Sending a message and moving
- * open a dialog; pinning and marking as seen act at once. Add / remove bypass is drawn off with the reason (no w-guardrails API to grant or revoke yet).
+ * open a dialog; pinning and marking as seen act at once. Add / remove bypass is drawn off with the reason (the batch version is not built; one session has Add bypass in its Permissions tab).
  */
 export function BatchBar({ rows, groups, onPin, onSeen }: BatchBarProps) {
   const selection = useSelection();
@@ -46,7 +48,7 @@ export function BatchBar({ rows, groups, onPin, onSeen }: BatchBarProps) {
           onClick={() => onPin(allPinned ? rows : rows.filter((row) => !row.pinned), !allPinned)}
         />
         <BatchAct label="Move to group" icon={<FolderInput aria-hidden="true" className={icon} />} {...(groups === undefined ? { off: 'The groups are not available on this page: reload it.' } : { onClick: () => setDialog('move') })} />
-        <BatchAct label="Add / remove bypass" icon={<ShieldPlus aria-hidden="true" className={icon} />} {...(GUARDRAILS_WRITE_ENABLED ? {} : { off: GUARDRAILS_WRITE_NEEDS })} />
+        <BatchAct label="Add / remove bypass" icon={<ShieldPlus aria-hidden="true" className={icon} />} off={BATCH_BYPASS_OFF} />
       </span>
       <span className="ml-auto">
         <IconButton size="icon-sm" aria-label="Clear the selection (Escape)" onClick={selection.clear} icon={<X aria-hidden="true" className={icon} />} />

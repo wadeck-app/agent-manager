@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // violations-suppress: ts/no-deep-relative test fixtures of the logic folder
 import { overview } from '../../logic/permissionsFixtures.js';
-import { GUARDRAILS_WRITE_NEEDS, permissionsOf, row } from '../deps.js';
+import { permissionsOf, row } from '../deps.js';
 import type { CliGrantDto, GrantDto, SessionGrantsDto } from '../deps.js';
 // violations-suppress: ts/no-deep-relative test fixtures of the owned folder
 import { stubFetch } from '../../owned/testFetch.js';
@@ -50,12 +50,12 @@ describe('the Permissions panel', () => {
     expect(screen.getByText('The folder of this session is unknown, so its project cannot be matched.')).toBeInTheDocument();
   });
 
-  it('Add bypass stays disabled with the reason as the tooltip; nothing is sent', () => {
+  it('Add bypass is off while the admin CLI is missing (feedOf reads the files), with the reason in words; nothing is sent', () => {
+    const { calls } = stubFetch({});
     render(<PermissionsPanel session={session} feed={feedOf([grant('g1', SID)])} />);
-    const add = screen.getByRole('button', { name: 'Add bypass' });
-    expect(add).toBeDisabled();
-    expect(add.closest('[data-write-control]')).toHaveAttribute('title', GUARDRAILS_WRITE_NEEDS);
-    expect(GUARDRAILS_WRITE_NEEDS).toBe('Needs POST /api/auth/verify of app-core (pending)');
+    expect(screen.getByRole('button', { name: 'Add bypass' })).toBeDisabled();
+    expect(screen.getByText(/Add bypass needs the w-guardrails admin CLI/)).toBeInTheDocument();
+    expect(calls.filter((call) => call.method === 'POST')).toEqual([]);
   });
 
   it('without the admin CLI the files are read, said in words, and there is no Revoke button (nothing can revoke from the files)', () => {
