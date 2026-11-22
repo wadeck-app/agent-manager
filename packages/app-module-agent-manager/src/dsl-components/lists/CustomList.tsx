@@ -30,7 +30,9 @@ type Anchor = { x: number; y: number };
  * order, header color and body color (the folder-cog button). Drag and drop, M (the Move dialog) and Alt+Up / Alt+Down arrange the agents and the groups;
  * a right-click (or the kebab button) flags an agent or marks it unread. Nothing is created for you: with no group the list says to use New group.
  */
-export function CustomList({ sessions: shown, selectedId, onSelect, now, query, searching, groups, marks }: ListProps) {
+export function CustomList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups, marks }: ListProps) {
+  // The view option "Show sub-agents under each agent": off, no row has a chevron, children or expansion state (the count chip stays).
+  const showSubagents = options.subagents.show;
   const sections = useMemo(() => customSections(shown, groups?.groups ?? []), [shown, groups]);
   const rowsById = useMemo(() => new Map(sections.flatMap((section) => section.sessions).map((row) => [agentId(row), row])), [sections]);
   const hasGroups = (groups?.groups.length ?? 0) > 0;
@@ -132,14 +134,15 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
   const renderRow = (session: AgentRow, groupId: string | null, bodyClass: string) => {
     const id = agentId(session);
     const selected = id === selectedId;
-    const tint = herdrTint(density, session.state, selected);
+    const tint = herdrTint(density, session.state, selected, session.flagged, session.unread);
     const over = dnd.over?.target.kind === 'row' && dnd.over.target.id === id && dnd.over.outcome.kind === 'move' ? dnd.over.outcome : undefined;
     // Before the target when the drop lands before it; after it when the dragged one comes from above and takes its place.
     const edge = over === undefined ? undefined : over.beforeId === id ? 'before' : 'after';
     const dragged = dnd.dragging?.kind === 'agent' && dnd.dragging.id === id;
-    const open = openAgents[id] === true;
-    // The background of an agent: its open look, its state tint, the flag, then the body color of its group.
-    const base = tint ?? (session.flagged ? 'bg-hue-orange-bg' : bodyClass);
+    const hasChildren = showSubagents && session.subagentCount > 0;
+    const open = hasChildren && openAgents[id] === true;
+    // The background of an agent: its open look, its state tint (needs you, unseen, flagged), then the body color of its group.
+    const base = tint ?? bodyClass;
     const onContextMenu = (event: MouseEvent<HTMLDivElement>): void => {
       event.preventDefault();
       // The context-menu key reports no pointer: the menu opens under the row.
@@ -158,11 +161,11 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
             onSelect={onSelect}
             look={{ selected: `border-l-2 border-transparent ${tint ?? 'bg-primary-light'}`, idle: `border-l-2 border-transparent ${base === '' ? 'hover:bg-muted-bg' : `${base} hover:brightness-95`}` }}
             className={`group relative h-[31px] py-0 pl-5 pr-2 ${dragged ? 'opacity-50' : ''}`}
-            expanded={session.subagentCount > 0 ? open : undefined}
+            expanded={hasChildren ? open : undefined}
             rowProps={dnd.row(id, groupId)}
           >
             <DropBar edge={edge} />
-            <HerdrRowBody session={session} density={density} now={now} terms={query.terms} subagents={session.subagentCount > 0 ? { open, toggle: () => setOpenAgents((current) => ({ ...current, [id]: !open })) } : undefined} onMove={groups === undefined ? undefined : () => setMoving(id)} {...(marks === undefined ? {} : { onMenu: (anchor: Anchor) => openMenu(session, anchor) })} />
+            <HerdrRowBody session={session} density={density} now={now} terms={query.terms} showSlot={showSubagents} subagents={hasChildren ? { open, toggle: () => setOpenAgents((current) => ({ ...current, [id]: !open })) } : undefined} onMove={groups === undefined ? undefined : () => setMoving(id)} {...(marks === undefined ? {} : { onMenu: (anchor: Anchor) => openMenu(session, anchor) })} />
           </OptionShell>
         </div>
         {open ? <SubagentRows sessionId={session.sessionId} /> : null}

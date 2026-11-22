@@ -147,13 +147,25 @@ export interface DenialsDto {
   problems: GuardrailsProblem[];
 }
 
-/** What a session row says about the guardrails (counters of the plugin for its folder). Absent when none. */
+/**
+ * The window of the "recent" blocks, the only ones the list badge shows (the full history is noise there). Evaluated against the clock of each poll of
+ * GET /sessions, on the `ts` of the journal records.
+ */
+export const RECENT_BLOCK_WINDOW_MS = 30 * 60_000;
+
+/** What a session row says about the guardrails. Absent when there is nothing to say. */
 export interface GuardrailBlocksDto {
+  /** All time, from the plugin counters of the session folder (denials that carry a bypass hint only). 0 when the session has no counters. */
   total: number;
   /** Most blocked first. */
   categories: { category: string; count: number }[];
   /** A bypass request timeout is running for this session. */
   timeout: boolean;
+  /**
+   * The denials of the blocked journal of this session (sub-agents included) in the last RECENT_BLOCK_WINDOW_MS, most blocked first. A different source
+   * than `total`: the journal counts every deny, the counters only the ones with a bypass hint, so `recent.total` can exceed `total`.
+   */
+  recent: { total: number; categories: { category: string; count: number }[] };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------

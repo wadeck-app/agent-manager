@@ -5,7 +5,7 @@ export { failureText, requestJson } from '../data/http.js';
 export type { Outcome } from '../data/http.js';
 export { PAGE_BASE } from '../data/http.js';
 export type { CliGrantDto, GrantDto, GrantRevokedDto, GuardrailsOverviewDto, SessionGrantsDto } from '../shared.js';
-export { bypassCommand, remainingText, clockText } from '../logic/guardrails.js';
+export { bypassCommand, RECENT_WINDOW_TEXT, remainingText, clockText } from '../logic/guardrails.js';
 export { GUARDRAILS_REVOKE_ENABLED, permissionsOf } from '../logic/permissions.js';
 export { addableCategories, categoryOptions, confirmLine, decisionWords, MODE_CHOICES, rationaleProblem, sourceWords } from '../logic/grantForm.js';
 export type { GrantAddedDto, GrantModeDto, RuleCategoryDto, SessionRulesDto } from '../shared.js';

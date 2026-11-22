@@ -1,5 +1,6 @@
 import type { HTMLAttributes, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
+import { stateTint } from '../logic/herdrRow.js';
 import { agentId } from '../logic/states.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { visibleSessionIds } from '../workspace/usePageShortcuts.js';
@@ -28,6 +29,8 @@ export interface OptionShellProps {
 export function OptionShell({ session, selected, tabbable, onSelect, role = 'option', level, expanded, className = '', look, rowProps, children }: OptionShellProps) {
   const id = agentId(session);
   const selection = useSelection();
+  // The open row keeps the primary look; any other row has the tint of its state (needs you, finished and unseen, flagged), the same in every list mode.
+  const tint = stateTint(session.state, session.flagged, session.unread);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     // Space selects like a click (Enter is the list's: select and go to the composer).
     if (event.key === ' ' && event.target === event.currentTarget) {
@@ -70,7 +73,7 @@ export function OptionShell({ session, selected, tabbable, onSelect, role = 'opt
       }}
       onKeyDown={onKeyDown}
       {...rowProps}
-      className={`group relative cursor-pointer text-sm ${look === undefined ? `border-l-2 ${selected ? 'border-primary bg-primary-light' : 'border-transparent hover:bg-muted-bg'}` : selected ? look.selected : look.idle} ${FOCUS_RING} focus-visible:ring-inset ${selection?.isSelected(id) === true ? 'ring-2 ring-inset ring-primary' : ''} ${className}`}
+      className={`group relative cursor-pointer text-sm ${look === undefined ? `border-l-2 ${selected ? 'border-primary bg-primary-light' : tint === undefined ? 'border-transparent hover:bg-muted-bg' : `border-transparent ${tint} hover:brightness-95`}` : selected ? look.selected : look.idle} ${FOCUS_RING} focus-visible:ring-inset ${selection?.isSelected(id) === true ? 'ring-2 ring-inset ring-primary' : ''} ${className}`}
     >
       <RowCheckbox id={id} name={session.displayName} />
       {children}

@@ -3,7 +3,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { defaultConfigDir, getErrorMessage, readSessionRegistry, resolveSessionsDir, type Session } from '@wadeck-app/agent-manager-core';
 import { FolderError, checkAbsolutePath, isInside, pathKey, readLaunchRoots } from '@wadeck-app/agent-manager-core/folders';
-import type { DenialDto, DenialsDto, GrantDto, GuardrailBlocksDto, GuardrailsOverviewDto, GuardrailsProblem, ProjectConfigDto, ScannedProject, SessionBlocksDto } from '../commons/guardrails.js';
+import { RECENT_BLOCK_WINDOW_MS, type DenialDto, type DenialsDto, type GrantDto, type GuardrailBlocksDto, type GuardrailsOverviewDto, type GuardrailsProblem, type ProjectConfigDto, type ScannedProject, type SessionBlocksDto } from '../commons/guardrails.js';
 import { errorTextOf, type OwnedSource } from './daemon/ownedSource.js';
 import { countersFileOf, grantsFileOf, ioStats, parseGrants, parseRules, problem, readCounters, readJsonFile, readKillSwitch, rulesFileOf, RULES_NOTE, type ActiveGrant, type RawSessionBlocks } from './guardrailsFiles.js';
 import { DAY_PATTERN, DEFAULT_BUDGET_BYTES, DEFAULT_LIMIT, journalDirOf, listJournalDays, MAX_LIMIT, readJournalTail } from './guardrailsJournal.js';
@@ -50,6 +50,9 @@ const dedupeKey = pathKey;
 function homeOf(options: GuardrailsOptions): string {
   return options.homeDir ?? homedir();
 }
+
+/** The blocked journal folder of these options (the home of a test, else the user's). */
+export const journalDirOfOptions = (options: GuardrailsOptions): string => journalDirOf(homeOf(options));
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // Which project folders to look at
@@ -405,7 +408,7 @@ export function registerGuardrailsRoutes(kit: RouteKit, options: GuardrailsOptio
  * What the Agents list says about the guardrails: for each session, the counters of the plugin in ITS folder (matched on the first 8 characters of the id,
  * the full id first). Never throws: a state file that cannot be read is `errorText` (shown on the page), the rows stay.
  */
-export async function guardrailBlocksFor(rows: readonly { sessionId: string; cwd: string }[], now: number): Promise<{ byId: Map<string, GuardrailBlocksDto>; errorText: string }> {
+export async function guardrailBlocksFor(rows: readonly { sessionId: string; cwd: string }[], now: number, journalDir: string): Promise<{ byId: Map<string, GuardrailBlocksDto>; errorText: string }> {
   const byId = new Map<string, GuardrailBlocksDto>();
   const folders = new Map<string, string>();
   let refused = 0;
@@ -419,6 +422,29 @@ export async function guardrailBlocksFor(rows: readonly { sessionId: string; cwd
     }
   }
   const problems: GuardrailsProblem[] = [];
+  // The denials of the last RECENT_BLOCK_WINDOW_MS, by 8-character session prefix (sub-agent records carry the prefix of their session), read against `now` on every call.
+  const recentByPrefix = new Map<string, Map<string, number>>();
+  const journalNotes: string[] = [];
+  try {
+    const tail = await readJournalTail(journalDir, { limit: Number.MAX_SAFE_INTEGER, budgetBytes: DEFAULT_BUDGET_BYTES, sinceMs: now - RECENT_BLOCK_WINDOW_MS });
+    for (const record of tail.records) {
+      if (record.decision === 'deny' && record.at <= now) {
+        const counts = recentByPrefix.get(record.prefix.toLowerCase()) ?? new Map<string, number>();
+        counts.set(record.category, (counts.get(record.category) ?? 0) + 1);
+        recentByPrefix.set(record.prefix.toLowerCase(), counts);
+      }
+    }
+    // A journal folder that does not exist is the normal state of a machine without the plugin (the Guardrails page says it); any other problem is said here.
+    const notable = tail.problems.filter((item) => !item.message.startsWith('does not exist'));
+    if (notable.length > 0) {
+      journalNotes.push(`The recent guardrail blocks may be incomplete: ${notable[0]!.file} ${notable[0]!.message}`);
+    }
+    if (tail.truncated) {
+      journalNotes.push(`The blocked journal is larger than the ${DEFAULT_BUDGET_BYTES / 1024 / 1024} MB read per poll: the recent guardrail blocks are a lower bound.`);
+    }
+  } catch (error) {
+    journalNotes.push(`The recent guardrail blocks could not be read: ${getErrorMessage(error)}. Open the Guardrails page for details.`);
+  }
   try {
     const counters = new Map<string, RawSessionBlocks[]>();
     await Promise.all(
@@ -448,14 +474,19 @@ export async function guardrailBlocksFor(rows: readonly { sessionId: string; cwd
           ambiguous += 1;
         }
       }
-      if (match !== undefined && (match.total > 0 || match.timeoutUntil !== null)) {
-        byId.set(id, { total: match.total, categories: match.blocks, timeout: match.timeoutUntil !== null });
+      // A journal prefix shared by two sessions cannot be told apart: such a session gets no recent count (same rule as the counters above).
+      const recentCounts = (idsByPrefix.get(prefix)?.size ?? 0) === 1 ? recentByPrefix.get(prefix) : undefined;
+      const recentCategories = [...(recentCounts ?? new Map<string, number>())].map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count || a.category.localeCompare(b.category));
+      const recent = { total: recentCategories.reduce((sum, item) => sum + item.count, 0), categories: recentCategories };
+      const hasCounters = match !== undefined && (match.total > 0 || match.timeoutUntil !== null);
+      if (hasCounters || recent.total > 0) {
+        byId.set(id, { total: match?.total ?? 0, categories: match?.blocks ?? [], timeout: match?.timeoutUntil !== null && match?.timeoutUntil !== undefined, recent });
       }
     }
   } catch (error) {
     return { byId, errorText: `The guardrail counters could not be read: ${getErrorMessage(error)}. The chips are missing; open the Guardrails page for details.` };
   }
-  const parts: string[] = [];
+  const parts: string[] = [...journalNotes];
   if (problems.length > 0) {
     parts.push(`${problems.length} guardrail file(s) cannot be read, so some chips are missing: ${problems[0]!.file} ${problems[0]!.message}. See the Guardrails page.`);
   }

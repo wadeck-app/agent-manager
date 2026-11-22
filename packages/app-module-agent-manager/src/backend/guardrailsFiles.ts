@@ -2,10 +2,10 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
 import type { GuardrailsProblem } from '../commons/guardrails.js';
-import { COUNTERS_FILE, GRANTS_FILE, KILL_SWITCH_FILE, MAX_GRANTS_BYTES, MAX_OTHER_BYTES, PLUGIN_STATE_DIR, RULES_FILE } from './guardrailsNames.js';
+import { COUNTERS_FILE, COUNTERS_SCHEMA, GRANTS_FILE, GRANTS_SCHEMA, KILL_SWITCH_FILE, MAX_GRANTS_BYTES, MAX_OTHER_BYTES, PLUGIN_STATE_DIR, RULES_FILE } from './guardrailsNames.js';
 
 /*
- * Versioned readers of the w-guardrails files (shape version 1 = plugin 1.29.0, whose files carry no version field).
+ * Versioned readers of the w-guardrails files (shape version 1 = plugin 1.29.0; its files carry a `schema` tag, older files have none, see schemaError).
  * The rule of this file: a shape it does not know is a `GuardrailsProblem` (file, what, what to do), never a guess and never an empty answer that looks like
  * "nothing there". The module only reads these files; the hook (not this code) decides what is honoured.
  */
@@ -19,6 +19,8 @@ export const RATIONALE_MAX = 160;
 const FIX_BY_HAND = 'The module only reads this file. Fix or delete it by hand in an editor (agents may not); until then the plugin treats it as empty or ignores it.';
 const UNKNOWN_SHAPE_HINT = 'The plugin may have changed its file format since w-guardrails 1.29.0: update this module, or ask the plugin owner for the documented schema (request A1 of research/guardrails-management.md). Nothing from this file is shown meanwhile.';
 
+const UNKNOWN_SCHEMA_HINT = 'The plugin is newer than this module (it writes a schema tag this module does not know): update the agent-manager module. The plugin itself ignores a file with an unknown tag (fail-closed), so nothing from this file is shown meanwhile.';
+
 export function problem(file: string, message: string, hint: string): GuardrailsProblem {
   return { file, message, hint };
 }
@@ -29,6 +31,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
+/** Why the `schema` tag is not the one this reader knows, or undefined when it is absent (older plugin, version 1) or equal. */
+export function schemaError(tag: unknown, expected: string): string | undefined {
+  if (tag === undefined || tag === expected) {
+    return undefined;
+  }
+  return typeof tag === 'string' ? `the schema '${tag}', this module knows '${expected}'` : `a 'schema' that is not text, this module knows '${expected}'`;
 }
 
 function unknownKeys(record: Record<string, unknown>, allowed: readonly string[]): string[] {
@@ -176,7 +186,11 @@ export interface ParsedGrants {
 
 /** The grants of one file: the entries the hook honours at `now`, plus what was left out and why. An unknown top-level shape lists nothing and says so. */
 export function parseGrants(value: unknown, file: string, now: number): ParsedGrants {
-  if (!isRecord(value) || !Array.isArray(value['overrides']) || unknownKeys(value, ['overrides']).length > 0) {
+  const wrongSchema = isRecord(value) ? schemaError(value['schema'], GRANTS_SCHEMA) : undefined;
+  if (wrongSchema !== undefined) {
+    return { grants: [], hidden: 0, problems: [problem(file, `has ${wrongSchema}`, UNKNOWN_SCHEMA_HINT)] };
+  }
+  if (!isRecord(value) || !Array.isArray(value['overrides']) || unknownKeys(value, ['schema', 'overrides']).length > 0) {
     const found = isRecord(value) ? `the keys ${Object.keys(value).map((key) => `'${key}'`).join(', ') || '(none)'}` : 'something that is not an object';
     return { grants: [], hidden: 0, problems: [problem(file, `has an unknown shape: expected { "overrides": [...] }, found ${found}`, UNKNOWN_SHAPE_HINT)] };
   }
@@ -252,7 +266,11 @@ export interface ParsedCounters {
 
 /** The counters of one file. A timeout in the past is reported as no timeout (the hook resets it on its next check). */
 export function parseCounters(value: unknown, file: string, now: number): ParsedCounters {
-  if (!isRecord(value) || !isRecord(value['requests']) || unknownKeys(value, ['requests']).length > 0) {
+  const wrongSchema = isRecord(value) ? schemaError(value['schema'], COUNTERS_SCHEMA) : undefined;
+  if (wrongSchema !== undefined) {
+    return { sessions: [], problems: [problem(file, `has ${wrongSchema}`, UNKNOWN_SCHEMA_HINT)] };
+  }
+  if (!isRecord(value) || !isRecord(value['requests']) || unknownKeys(value, ['schema', 'requests']).length > 0) {
     const found = isRecord(value) ? `the keys ${Object.keys(value).map((key) => `'${key}'`).join(', ') || '(none)'}` : 'something that is not an object';
     return { sessions: [], problems: [problem(file, `has an unknown shape: expected { "requests": { "<sessionId>": {...} } }, found ${found}`, UNKNOWN_SHAPE_HINT)] };
   }

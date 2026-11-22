@@ -14,5 +14,7 @@ sections:
   - $type: agent-manager:PageTitle
     title: Guardrails
     subtitle: 'What the w-guardrails plugin granted, blocked and is set to do on this machine. Read-only for now: bypasses are still granted in the session itself.'
+    # The problems of the plugin files (and a failed overview) are behind the notices button at the right end of this line.
+    guardrails: $sources.overview
   - $type: agent-manager:GuardrailsPage
     overview: $sources.overview

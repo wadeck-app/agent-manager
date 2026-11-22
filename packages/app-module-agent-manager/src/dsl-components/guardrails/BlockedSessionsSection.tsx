@@ -21,7 +21,7 @@ export function BlockedSessionsSection({ sessions, now }: { sessions: readonly S
             <tr className="border-b border-border">
               <th className={TH}>Session</th>
               <th className={TH}>Project</th>
-              <th className={TH}>Blocked</th>
+              <th className={TH}>Blocked in total</th>
               <th className={TH}>Bypass requests</th>
             </tr>
           </thead>

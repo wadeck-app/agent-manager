@@ -208,18 +208,21 @@ describe('the Agents page', () => {
     expect(page).not.toMatch(/DataTable|tableColumns|#[0-9a-fA-F]{3,6}\b|rgb\(|bg-[a-z]+-\d{3}/);
   });
 
-  it('opens with the module title (16 px like the Agents page), not the 24 px page header, and has no notice slot when there is nothing to say', () => {
+  it('opens with the module title (16 px like the Agents page), not the 24 px page header, and carries the notices button of the page (never an inline stack)', () => {
     for (const file of ['sessions-table.yaml', 'guardrails-page.yaml']) {
       const nodes = ((parseView(file)['sections'] as Record<string, unknown>[]) ?? []);
       expect(nodes[0]?.['$type'], file).toBe('agent-manager:PageTitle');
       expect(JSON.stringify(nodes), file).not.toContain('"PageHeader"');
     }
-    // An empty notice component still leaves its wrapper in the page (a gap, and the workspace no longer reaches the top edge in dark mode): it is not rendered unless a text exists.
-    for (const file of ['sessions-table.yaml', 'sessions-page.yaml']) {
-      const notices = ((parseView(file)['sections'] as Record<string, unknown>[]) ?? []).find((s) => s['$type'] === 'agent-manager:PageNotices');
-      expect(notices?.['$if'], file).toContain('$sources.sessions.errorText');
+    // The notices are behind a button of the title line (no inline stack): no page draws the old PageNotices line.
+    for (const file of ['sessions-table.yaml', 'sessions-page.yaml', 'guardrails-page.yaml']) {
+      expect(readFileSync(join(viewsDir, file), 'utf8'), file).not.toContain('agent-manager:PageNotices');
     }
-    expect(((parseView('sessions-table.yaml')['sections'] as Record<string, unknown>[]) ?? []).find((s) => s['$type'] === 'agent-manager:PageNotices')?.['$if']).toBe('$sources.sessions.errorText || $sources.sessions.unreadableText');
+    const titleOf = (file: string): Record<string, unknown> | undefined => ((parseView(file)['sections'] as Record<string, unknown>[]) ?? []).find((s) => s['$type'] === 'agent-manager:PageTitle');
+    expect(titleOf('sessions-table.yaml')).toMatchObject({ errorText: '$sources.sessions.errorText', unreadableText: '$sources.sessions.unreadableText' });
+    expect(titleOf('guardrails-page.yaml')).toMatchObject({ guardrails: '$sources.overview' });
+    // On the Agents page the workspace (and its toolbar button) is not drawn when the registry cannot be listed: a title line carries the button then, and only then.
+    expect(titleOf('sessions-page.yaml')).toMatchObject({ errorText: '$sources.sessions.errorText', $if: '$sources.sessions.errorText' });
   });
 
   it('surfaces the errors and the unreadable files as badges, not as an empty list', () => {

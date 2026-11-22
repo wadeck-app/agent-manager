@@ -12,13 +12,10 @@ $type: PageContent
 maxWidth: full
 sections:
   # The module title (16 px, as the Agents page), not the 24 px page header.
+  # The problems (registry cannot be listed, unreadable files) are behind the notices button at the right end of the title line.
   - $type: agent-manager:PageTitle
     title: Agents table
     subtitle: The Claude Code sessions running on this machine, most recent status change first.
-  # One compact notice line (short sentence, Details, dismiss), not full-width badges with the whole texts.
-  - $type: agent-manager:PageNotices
-    # Not rendered without a text: an empty notice component still leaves its wrapper in the page.
-    $if: $sources.sessions.errorText || $sources.sessions.unreadableText
     errorText: $sources.sessions.errorText
     unreadableText: $sources.sessions.unreadableText
   # In the module body size (the base Markdown reads 14 px next to the 15 px of the table).

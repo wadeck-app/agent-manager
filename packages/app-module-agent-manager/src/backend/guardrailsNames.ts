@@ -21,10 +21,15 @@ export const JOURNAL_DIR_PARTS = ['.claude', 'logs', 'w-guardrails'] as const;
 export const JOURNAL_PREFIX = 'w-guardrails-blocked-';
 export const JOURNAL_SUFFIX = '.jsonl';
 
-/** The shape version of those files this module knows (w-guardrails 1.29.0 has no version field in them). A change of shape is refused, see guardrailsFiles.ts. */
+/** The shape version of those files this module knows (w-guardrails 1.29.0 writes a `schema` tag in them, see the schema constants below; older files have none). A change of shape is refused, see guardrailsFiles.ts. */
 export const FORMAT_VERSION = 1;
 
 /** The grants file above this size is ignored by the hook, so the module reports it instead of listing it. */
 export const MAX_GRANTS_BYTES = 65_536;
 /** The plugin has no limit for the other two; the module refuses a file this big instead of loading it. */
 export const MAX_OTHER_BYTES = 1_048_576;
+
+/** The schema tags of the plugin (README "State files, journals and schemas"): `"<id>/<version>"`, first key of a file or of a journal record. A missing tag is version 1. */
+export const GRANTS_SCHEMA = 'w-guardrails.bypass-state/1';
+export const COUNTERS_SCHEMA = 'w-guardrails.spam-state/1';
+export const BLOCKED_SCHEMA = 'w-guardrails.blocked/1';

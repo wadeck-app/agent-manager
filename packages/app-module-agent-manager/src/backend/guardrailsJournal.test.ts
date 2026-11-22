@@ -13,7 +13,7 @@ describe('parseJournalLine (shape version 1)', () => {
   it('names what is wrong instead of guessing', () => {
     expect(parseJournalLine('{nope', 'd')).toEqual({ error: expect.stringMatching(/^not JSON/) });
     expect(parseJournalLine('[1]', 'd')).toEqual({ error: 'not a JSON object' });
-    expect(parseJournalLine(JSON.stringify(journalLine({ schema: 2 })), 'd')).toEqual({ error: "unknown field 'schema'" });
+    expect(parseJournalLine(JSON.stringify(journalLine({ version: 2 })), 'd')).toEqual({ error: "unknown field 'version'" });
     expect(parseJournalLine(JSON.stringify(journalLine({ decision: 'allow' })), 'd')).toEqual({ error: expect.stringMatching(/'decision' is "allow"/) });
     expect(parseJournalLine(JSON.stringify(journalLine({ ts: 'yesterday' })), 'd')).toEqual({ error: expect.stringMatching(/'ts'/) });
     expect(parseJournalLine(JSON.stringify(journalLine({ command: 5 })), 'd')).toEqual({ error: expect.stringMatching(/'command'/) });
@@ -76,6 +76,21 @@ describe('readJournalTail', () => {
     putJournal(home.journalDir, '2026-11-21', [journalLine({ command: 'first' }), journalLine({ command: 'last' })]);
     const tail = await readJournalTail(home.journalDir, { limit: 10, budgetBytes: BIG });
     expect(tail.records.map((r) => r.command)).toEqual(['last', 'first']);
+  });
+
+  it('accepts a record with the schema tag the plugin writes, and a record without it', async () => {
+    putJournal(home.journalDir, '2026-11-21', [journalLine({ command: 'old' }), journalLine({ schema: 'w-guardrails.blocked/1', command: 'new' })]);
+    const tail = await readJournalTail(home.journalDir, { limit: 10, budgetBytes: BIG });
+    expect(tail.records.map((r) => r.command)).toEqual(['new', 'old']);
+    expect(tail.problems).toEqual([]);
+  });
+
+  it('reports a record with an unknown schema tag as a problem, never as a denial', async () => {
+    putJournal(home.journalDir, '2026-11-21', [journalLine({ schema: 'w-guardrails.blocked/9', command: 'future' })]);
+    const tail = await readJournalTail(home.journalDir, { limit: 10, budgetBytes: BIG });
+    expect(tail.records).toEqual([]);
+    expect(tail.skipped.example).toContain("schema 'w-guardrails.blocked/9', this module knows 'w-guardrails.blocked/1'");
+    expect(tail.problems.length).toBeGreaterThan(0);
   });
 
   it('does not skip lines silently: an unknown shape is counted, named and reported as a problem', async () => {

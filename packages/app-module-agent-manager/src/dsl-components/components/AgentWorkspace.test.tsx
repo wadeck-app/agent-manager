@@ -174,7 +174,7 @@ describe('AgentWorkspace', () => {
         <AgentWorkspace sessions={[SHOP]} userStateError="agents-user-state.json is not valid JSON. Fix or delete it." />
       </Page>,
     );
-    expect(screen.getByText('Pins and seen markers unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('Pins and seen markers unavailable')).toBeNull();
     await expectNoticeDetails(/agents-user-state.json is not valid JSON. Fix or delete it./);
   });
 
@@ -653,7 +653,7 @@ describe('the search box walks the data, not the DOM', () => {
     fireEvent.keyDown(box, { key: 'Enter' });
     await expectNoticeDetails(/2 agents match, none in the list you are looking at/);
     expect(screen.getByTestId('url').textContent).toBe('');
-    fireEvent.click(screen.getByRole('button', { name: /^Dismiss/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Dismiss: / }));
     expect(screen.queryByText(/none in the list you are looking at/)).toBeNull();
   });
 });

@@ -187,3 +187,9 @@ Decisions:
 - The counters count only denials with a bypass hint; the timeline counts every deny and ask.
 
 Not done: revoke, grant from the browser, editing `guardrails.json` (need A3/A4 or a diff-and-confirm design), grant history, pending-request feed.
+
+## Schema tags (w-guardrails 1.29.0 README, "State files, journals and schemas"; module fix 2026-11-22, #102)
+
+- The plugin writes `schema` as first key: the grants file = `w-guardrails.bypass-state/1`, `bypass-state.json` = `w-guardrails.spam-state/1`, each blocked journal record = `w-guardrails.blocked/1` (the metrics journal, `w-guardrails.metrics/1`, is not read by the module). A missing tag is version 1.
+- Measured on the real files (read only): the grants file of `_test-factory` and the counters files carry the tag. Before the fix the Agents page showed "6 guardrail file(s) cannot be read ... unknown shape ... found the keys 'schema', 'requests'". After the fix: 20 session folders read, 0 problems.
+- Rule of the readers (`schemaError` in `backend/guardrailsFiles.ts`): a tag that is absent or equal to the known one is accepted; any other value (or a value that is not text) is a problem naming the tag found and the one known, with the hint to update the module, and nothing of the file is shown. The plugin itself fails closed on an unknown tag.

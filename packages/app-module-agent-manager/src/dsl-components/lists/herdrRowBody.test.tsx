@@ -7,7 +7,7 @@ const NOW = 2_000_000;
 const session = row({ folder: 'shop', displayName: 'billing-owner', state: 'idle', statusUpdatedAt: 100 });
 
 function body(overrides: Partial<Parameters<typeof HerdrRowBody>[0]> = {}) {
-  return render(<HerdrRowBody session={session} density="herdr-line" now={NOW} terms={undefined} subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} {...overrides} />);
+  return render(<HerdrRowBody session={session} density="herdr-line" now={NOW} terms={undefined} showSlot subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} {...overrides} />);
 }
 
 /*
@@ -74,5 +74,11 @@ describe('the left alignment of a Herdr row', () => {
     expect(slot?.querySelector('button')).not.toBeNull();
     expect(slot?.previousElementSibling).toBeNull();
     expect(slot?.className).toBe(withoutClass);
+  });
+
+  it('has no slot at all when the list does not show sub-agents, so every row starts with the program icon', () => {
+    const { container } = body({ showSlot: false });
+    expect(container.querySelector('[data-row-chevron-slot]')).toBeNull();
+    expect(container.querySelector('button[aria-label*="sub-agents"]')).toBeNull();
   });
 });

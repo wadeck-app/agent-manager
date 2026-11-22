@@ -117,7 +117,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
                         <TimeInState session={session} now={now} />
                       </div>
                       {line !== '' ? (
-                        <p className={`truncate text-xs ${session.state === 'needs-you' ? 'text-hue-red' : 'text-muted'}`} title={line}>
+                        <p className={`truncate text-xs ${session.state === 'needs-you' ? 'text-hue-red' : 'text-muted-tint'}`} title={line}>
                           <Highlight text={line} terms={query.terms} />
                         </p>
                       ) : null}

@@ -2,8 +2,8 @@ import { open, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
 import type { GuardrailsProblem } from '../commons/guardrails.js';
-import { problem } from './guardrailsFiles.js';
-import { JOURNAL_DIR_PARTS, JOURNAL_PREFIX, JOURNAL_SUFFIX } from './guardrailsNames.js';
+import { problem, schemaError } from './guardrailsFiles.js';
+import { BLOCKED_SCHEMA, JOURNAL_DIR_PARTS, JOURNAL_PREFIX, JOURNAL_SUFFIX } from './guardrailsNames.js';
 
 /*
  * The blocked journal of w-guardrails: one JSON line per deny or ask, one file per day, all projects together (235k lines, 56 MB on the author's machine).
@@ -36,7 +36,7 @@ export interface JournalRecord {
   command: string | null;
 }
 
-const RECORD_KEYS = ['ts', 'session', 'decision', 'trigger', 'project', 'tool', 'command', 'file'];
+const RECORD_KEYS = ['schema', 'ts', 'session', 'decision', 'trigger', 'project', 'tool', 'command', 'file'];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -54,6 +54,10 @@ export function parseJournalLine(text: string, day: string): { record: JournalRe
   }
   if (!isRecord(value)) {
     return { error: 'not a JSON object' };
+  }
+  const wrongSchema = schemaError(value['schema'], BLOCKED_SCHEMA);
+  if (wrongSchema !== undefined) {
+    return { error: wrongSchema };
   }
   const extra = Object.keys(value).find((key) => !RECORD_KEYS.includes(key));
   if (extra !== undefined) {
@@ -101,6 +105,11 @@ export interface JournalQuery {
   sessionPrefix?: string;
   limit: number;
   budgetBytes: number;
+  /**
+   * Epoch ms: stop at the first record older than this (the files are appended in time order, so everything after it in the newest-first walk is older too).
+   * Reaching it is not a truncation. A line without a readable `ts` never reaches the records (it is skipped and reported), so it is never "recent".
+   */
+  sinceMs?: number;
 }
 
 export interface JournalTail {
@@ -181,9 +190,10 @@ export async function readJournalTail(dir: string, query: JournalQuery): Promise
   const seen = new Set<string>();
   const budget = { left: Math.min(query.budgetBytes, MAX_BUDGET_BYTES), used: 0 };
   let stopped = false;
+  let windowStartReached = false;
   for (const day of selected) {
     if (stopped) {
-      result.truncated = true;
+      result.truncated ||= !windowStartReached;
       break;
     }
     const file = path.join(dir, `${JOURNAL_PREFIX}${day}${JOURNAL_SUFFIX}`);
@@ -199,6 +209,11 @@ export async function readJournalTail(dir: string, query: JournalQuery): Promise
           return true;
         }
         const record = parsed.record;
+        if (query.sinceMs !== undefined && record.at < query.sinceMs) {
+          windowStartReached = true;
+          stopped = true;
+          return false;
+        }
         if (query.sessionPrefix !== undefined && !record.prefix.toLowerCase().startsWith(query.sessionPrefix)) {
           return true;
         }
@@ -212,7 +227,7 @@ export async function readJournalTail(dir: string, query: JournalQuery): Promise
         }
         return true;
       });
-      if (!reachedStart) {
+      if (!reachedStart && !windowStartReached) {
         // Either the limit was reached (stopped) or the byte budget ran out in the middle of this file: older lines exist.
         result.truncated = true;
         stopped = true;

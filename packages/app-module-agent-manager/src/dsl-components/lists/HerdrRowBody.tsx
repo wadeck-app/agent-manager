@@ -17,7 +17,9 @@ export interface HerdrRowBodyProps {
   density: HerdrDensity;
   now: number;
   terms: readonly string[] | undefined;
-  /** The sub-agents of the row: open or closed; undefined when it has none. */
+  /** The list shows sub-agents under its agents (view option): the chevron slot is reserved on every row. False: no slot on any row. */
+  showSlot: boolean;
+  /** The sub-agents of the row: open or closed; undefined when it has none (or when the list does not show them). */
   subagents: { open: boolean; toggle: () => void } | undefined;
   /** Opens the Move to a group dialog; undefined when there are no custom groups API. */
   onMove: (() => void) | undefined;
@@ -29,11 +31,12 @@ export interface HerdrRowBodyProps {
  * The content of an agent row in the Herdr variants of the A/B question `ui-tree-density`: program icon, bold name, muted middle dot and folder, the marks
  * (host, pin, sub-agents) then the age and the state light on the right. 31 px high, one line, like the Herdr panel. The row click and keyboard are the Tree's.
  */
-export function HerdrRowBody({ session, density, now, terms, subagents, onMove, onMenu }: HerdrRowBodyProps) {
+export function HerdrRowBody({ session, density, now, terms, showSlot, subagents, onMove, onMenu }: HerdrRowBodyProps) {
   const showFolder = herdrRowShape(density).folder && session.folder !== session.displayName;
   return (
     <div className="flex h-full items-center gap-2">
-      {/* The slot is always there, with or without sub-agents: the state icon and the name start at the same x on every row. */}
+      {/* The slot is on every row of a list that shows sub-agents, with or without any: the state icon and the name start at the same x on every row. A list that does not show them has no slot on any row. */}
+      {showSlot ? (
       <span data-row-chevron-slot="" className="-ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center">
       {subagents !== undefined ? (
         <button
@@ -44,12 +47,13 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
             event.stopPropagation();
             subagents.toggle();
           }}
-          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
         >
           {subagents.open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
         </button>
       ) : null}
       </span>
+      ) : null}
       <HerdrProgramIcon session={session} />
       {/* The name comes first: it takes what it needs up to the whole box. The folder wraps out of the one-line clipped box (never squeezes the name) when less than its minimum is left. */}
       <span className="flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 overflow-hidden leading-5" title={session.displayName}>
@@ -72,13 +76,13 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
       {/* Only what the row cannot say otherwise: the host is in the tooltip of the program icon, the waiting state is the light. */}
       <GuardrailChip blocks={session.guardrailBlocks} />
       {session.pinned ? (
-        <span className="inline-flex shrink-0 text-muted">
+        <span className="inline-flex shrink-0 text-muted-tint">
           <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span className="sr-only">Pinned</span>
         </span>
       ) : null}
       {session.subagentCount > 0 ? (
-        <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted">
+        <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-tint">
           <Bot aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span aria-label={`${session.subagentCount} sub-agents`}>{session.subagentCount}</span>
         </span>
@@ -96,7 +100,7 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
                 event.stopPropagation();
                 onMove();
               }}
-              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
             >
               <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </button>
@@ -114,7 +118,7 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
                 const box = event.currentTarget.getBoundingClientRect();
                 onMenu({ x: box.left, y: box.bottom + 2 });
               }}
-              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
             >
               <MoreHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </button>

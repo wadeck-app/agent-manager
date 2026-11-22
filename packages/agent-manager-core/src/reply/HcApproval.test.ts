@@ -27,7 +27,7 @@ afterEach(() => {
   }
 });
 
-function dialogScreen(options: { command?: string; description?: string; question?: string; cursorOn?: number; labels?: string[]; header?: string } = {}): string {
+function dialogScreen(options: { command?: string; description?: string; question?: string; cursorOn?: number; labels?: string[]; header?: string; between?: string[] } = {}): string {
   const labels = options.labels ?? ['Yes', 'Yes, and always allow access to C:\\proj from this project', 'No'];
   const cursorOn = options.cursorOn ?? 1;
   return [
@@ -40,6 +40,7 @@ function dialogScreen(options: { command?: string; description?: string; questio
     DASHES,
     ` ${options.command ?? 'touch am-allow.txt'}`,
     DASHES,
+    ...(options.between ?? []),
     ` ${options.question ?? 'Do you want to proceed?'}`,
     ...labels.map((label, index) => `${index + 1 === cursorOn ? ` ${CURSOR} ` : '   '}${index + 1}. ${label}`),
     '',
@@ -209,6 +210,49 @@ describe('parsePermissionDialog (the layout measured on Claude Code 2.1.330)', (
     expect(parsePermissionDialog(dialogScreen({ command: `echo shown\n${spoof}\necho hidden` }))).toMatchObject({ ok: false, reason: expect.stringMatching(/ambiguous/) });
   });
 
+  describe('text between the closing rule of the command and the question (the reason of a hook "ask")', () => {
+    const CONTINUED = 'node "${USERPROFILE:-$HOME}/scripts/grant.js" \\\n  --category git-commit-push \\\n  --mode 30m \\\n  --session f30960b8-0000-0000-0000-000000000000 \\\n  --token 0123456789abcdef';
+    const NOTICE = [' HOOK REQUEST for THIS agent - session f30960b8', '   Category  git-commit-push', '   Duration  30m, starts now', '   Reason    commit and push the work', ''];
+
+    it('reads a multi-line command with backslash continuations and keeps the extra text apart as the notice, never in the body', () => {
+      const dialog = parsePermissionDialog(dialogScreen({ command: CONTINUED, between: NOTICE }), 40);
+      expect(dialog).toMatchObject({ ok: true, question: 'Do you want to proceed?' });
+      if (dialog.ok) {
+        expect(dialog.body.split('\n')).toHaveLength(5);
+        expect(dialog.body).toContain('--token 0123456789abcdef');
+        expect(dialog.body).not.toContain('HOOK REQUEST');
+        expect(dialog.notice).toBe('HOOK REQUEST for THIS agent - session f30960b8\n  Category  git-commit-push\n  Duration  30m, starts now\n  Reason    commit and push the work');
+        expect(dialog.text).toContain('Reason    commit and push the work');
+        expect(assertAnswerable(dialog)).toBeUndefined();
+      }
+    });
+
+    it('has an empty notice when there is none', () => {
+      expect(parsePermissionDialog(dialogScreen())).toMatchObject({ ok: true, notice: '' });
+    });
+
+    it('refuses extra text that holds a rule-like line, a numbered option, a question or the footer (it could hide or imitate part of the dialog)', () => {
+      const bad: Record<string, string> = {
+        'dashed rule': String.fromCodePoint(0x254c).repeat(12),
+        'solid rule': String.fromCodePoint(0x2500).repeat(12),
+        option: '  2. Yes, and always allow',
+        cursor: ` ${CURSOR} 1. Yes`,
+        question: ' Do you want to run this?',
+        footer: ' Esc to cancel',
+      };
+      for (const [name, line] of Object.entries(bad)) {
+        const dialog = parsePermissionDialog(dialogScreen({ between: [' some text', line] }));
+        expect(dialog, name).toMatchObject({ ok: false, code: 'dialog-not-recognized', reason: expect.stringMatching(/ambiguous|between the closing rule/) });
+      }
+    });
+
+    it('refuses an extra text longer than 12 lines or 2000 characters', () => {
+      const many = Array.from({ length: 13 }, (_, index) => ` line ${index}`);
+      expect(parsePermissionDialog(dialogScreen({ between: many }))).toMatchObject({ ok: false, reason: expect.stringMatching(/ambiguous|between the closing rule/) });
+      expect(parsePermissionDialog(dialogScreen({ between: [` ${'x'.repeat(2100)}`] }))).toMatchObject({ ok: false, reason: expect.stringMatching(/ambiguous|between the closing rule/) });
+    });
+  });
+
   it('refuses a screen with no dialog, a dialog with no question or with a question that is not "Do you want to"', () => {
     expect(parsePermissionDialog('just a prompt\n> ')).toMatchObject({ ok: false });
     expect(parsePermissionDialog(dialogScreen({ question: 'Select a model?' }))).toMatchObject({ ok: false, reason: expect.stringMatching(/not a "Do you want to/) });
@@ -251,6 +295,35 @@ describe('read', () => {
   it('says unsupported, with the fix, for the workspace trust dialog (kind permission, default "No, exit")', async () => {
     const { approval } = setup({ ...BASE, get: { t2: blocked(1000, 'trust this folder') }, read: { t2: TRUST_SCREEN } });
     expect(await approval.read(session())).toMatchObject({ kind: 'unsupported', code: 'dialog-not-recognized', fix: expect.stringMatching(/answer it in its terminal/) });
+  });
+
+  it('offers the dialog of a hook ask (multi-line command, extra text above the question) with the notice, and types enter for allow', async () => {
+    const screen = dialogScreen({ command: 'node grant.js \\\n  --category git-commit-push \\\n  --mode 30m', between: [' HOOK REQUEST for THIS agent', '   Category  git-commit-push', ''] });
+    const { approval, keyCalls } = setup({ ...BASE, read: { t2: screen } });
+    const state = await approval.read(session());
+    expect(state).toMatchObject({ kind: 'prompt', prompt: { notice: 'HOOK REQUEST for THIS agent\n  Category  git-commit-push' } });
+    expect(state.kind === 'prompt' && state.prompt.body.split('\n')).toHaveLength(3);
+    const result = await approval.decide(session(), 'allow', await currentPromptId(approval));
+    expect(result.keys).toEqual(['enter']);
+    expect(keyCalls()).toHaveLength(1);
+  });
+
+  it('the notice is part of the prompt id: another notice, another id', async () => {
+    const one = setup({ ...BASE, read: { t2: dialogScreen({ between: [' reason A'] }) } });
+    const two = setup({ ...BASE, read: { t2: dialogScreen({ between: [' reason B'] }) } });
+    expect(await currentPromptId(one.approval)).not.toBe(await currentPromptId(two.approval));
+  });
+
+  it('refuses with a short message: the status message cut to 80 characters, what to do', async () => {
+    const msg = `approve Bash: ${'x'.repeat(300)}`;
+    const { approval } = setup({ ...BASE, get: { t2: blocked(1000, msg) }, read: { t2: dialogScreen({ between: [' ok', String.fromCodePoint(0x254c).repeat(12)] }) } });
+    const state = await approval.read(session());
+    expect(state.kind).toBe('unsupported');
+    if (state.kind === 'unsupported') {
+      expect(state.reason).not.toContain('x'.repeat(81));
+      expect(state.reason.length).toBeLessThan(400);
+      expect(state.fix).toMatch(/answer it in its terminal/);
+    }
   });
 
   it('throws no-terminal with the "started in a herdr-core terminal" explanation when no terminal runs the session', async () => {

@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 const SID = '00000000-0000-4000-8000-000000000001';
-const session = row({ sessionId: SID, cwd: '/w/shop', guardrailBlocks: { total: 5, categories: [{ category: 'rm', count: 3 }, { category: 'interpreter-exec', count: 2 }], timeout: false } });
+const session = row({ sessionId: SID, cwd: '/w/shop', guardrailBlocks: { total: 5, categories: [{ category: 'rm', count: 3 }, { category: 'interpreter-exec', count: 2 }], timeout: false, recent: { total: 2, categories: [{ category: 'rm', count: 2 }] } } });
 const future = Date.now() + 600_000;
 const grant = (id: string, sessionId: string, overrides: Partial<GrantDto> = {}): GrantDto => ({ id, category: 'rm', mode: 'ttl', expiresAt: future, remainingMs: 600_000, sessionId, sessionName: '', project: '/w/shop', rationale: 'clean the build folder', used: 1, maxUses: null, ...overrides });
 
@@ -70,6 +70,9 @@ describe('the Permissions panel', () => {
     render(<PermissionsPanel session={session} feed={feedOf([])} />);
     const blocked = screen.getByRole('region', { name: 'Blocked' });
     expect(within(blocked).getByText('interpreter-exec')).toBeInTheDocument();
+    // Each number says its window: the counters are all time, the journal count is the last 30 min.
+    expect(blocked).toHaveTextContent('5 in total');
+    expect(blocked).toHaveTextContent('2 in the last 30 min');
     expect(within(blocked).getByRole('button', { name: /Copy \/w-guardrails:request-bypass rm once/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Guardrails page' })).toHaveAttribute('href', '/modules/agent-manager/guardrails');
   });

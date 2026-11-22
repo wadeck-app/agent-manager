@@ -73,7 +73,7 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
                         <TimeInState session={session} now={now} />
                       </div>
                       {preview && line !== '' ? (
-                        <p className="truncate text-xs text-muted" title={line}>
+                        <p className="truncate text-xs text-muted-tint" title={line}>
                           <Highlight text={line} terms={query.terms} />
                         </p>
                       ) : null}

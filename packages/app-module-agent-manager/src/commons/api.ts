@@ -1114,6 +1114,8 @@ export interface HcPermissionPromptDto {
   description: string;
   /** The command or change the dialog shows, whole (a dialog longer than the server shows whole is answered in the terminal: state 'unsupported', code 'dialog-too-long'). */
   body: string;
+  /** Plain text the dialog shows between the command and the question (the reason of a hook "ask"); empty when none. */
+  notice: string;
   question: string;
   options: HcPermissionOptionDto[];
   statusMessage: string;

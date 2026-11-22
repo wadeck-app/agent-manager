@@ -22,6 +22,13 @@ export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcP
       </p>
       {prompt.description !== '' ? <p className="text-sm text-content">{prompt.description}</p> : null}
       {prompt.body !== '' ? <PermissionInput label={prompt.header} text={prompt.body} /> : <p className="text-sm text-muted-tint">The dialog shows no command or change.</p>}
+      {/* Text the terminal prints between the command and the question (a hook reason): shown whole, apart from the command. */}
+      {prompt.notice !== '' ? (
+        <div data-hc-notice="" className="flex flex-col gap-1">
+          <p className="text-xs text-muted-tint">Shown by the terminal below the command:</p>
+          <pre className="whitespace-pre-wrap break-words rounded border border-border bg-surface px-2 py-1.5 text-sm text-content">{prompt.notice}</pre>
+        </div>
+      ) : null}
       <p className="text-xs text-muted-tint">{`The terminal asks: ${prompt.question}`}</p>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <ButtonAction variant="danger-outline" disabled={inFlight} onClick={() => onDecide('deny')} icon={<X aria-hidden="true" className="h-4 w-4" />} label="Deny" />

@@ -245,7 +245,7 @@ describe('sub-agents under a session of the tree', () => {
     const service: UrlParamService = { get: () => null, set: () => undefined };
     render(
       <UrlParamContext.Provider value={service}>
-        <TreeList sessions={[parent]} selectedId={undefined} onSelect={() => undefined} now={0} query={parseQuery("")} searching={false} options={DEFAULT_VIEW_OPTIONS} />
+        <TreeList sessions={[parent]} selectedId={undefined} onSelect={() => undefined} now={0} query={parseQuery("")} searching={false} options={{ ...DEFAULT_VIEW_OPTIONS, subagents: { show: true } }} />
       </UrlParamContext.Provider>,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Show the 1 sub-agents' }));

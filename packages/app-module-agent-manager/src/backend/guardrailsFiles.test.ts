@@ -47,6 +47,41 @@ describe('parseGrants (shape version 1)', () => {
   });
 });
 
+describe('schema tag written by w-guardrails (README: State files, journals and schemas)', () => {
+  const now = Date.now();
+
+  it('accepts the grants file with its schema tag first, as the plugin writes it', () => {
+    const parsed = parseGrants({ schema: 'w-guardrails.bypass-state/1', overrides: [grantEntry()] }, FILE, now);
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.grants).toHaveLength(1);
+  });
+
+  it('accepts the counters file with its schema tag', () => {
+    const parsed = parseCounters({ schema: 'w-guardrails.spam-state/1', requests: { s: { refused_count: 0, last_request_ts: null, timeout_until: null, block_counts: { 'interpreter-exec': 2 } } } }, FILE, now);
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.sessions.map((s) => s.sessionId)).toEqual(['s']);
+  });
+
+  it('still accepts files without a schema (older plugin: a missing tag is version 1)', () => {
+    expect(parseGrants({ overrides: [grantEntry()] }, FILE, now).problems).toEqual([]);
+    expect(parseCounters({ requests: {} }, FILE, now).problems).toEqual([]);
+  });
+
+  it('refuses an unknown schema loudly and lists nothing, naming the tag found and the one known', () => {
+    const grants = parseGrants({ schema: 'w-guardrails.bypass-state/2', overrides: [grantEntry()] }, FILE, now);
+    expect(grants.grants).toEqual([]);
+    expect(grants.problems[0]!.message).toContain("schema 'w-guardrails.bypass-state/2', this module knows 'w-guardrails.bypass-state/1'");
+    expect(grants.problems[0]!.hint).toMatch(/update/i);
+    const counters = parseCounters({ schema: 'other/1', requests: {} }, FILE, now);
+    expect(counters.sessions).toEqual([]);
+    expect(counters.problems[0]!.message).toContain("schema 'other/1', this module knows 'w-guardrails.spam-state/1'");
+  });
+
+  it('refuses a schema that is not text', () => {
+    expect(parseCounters({ schema: 3, requests: {} }, FILE, now).problems[0]!.message).toMatch(/schema/);
+  });
+});
+
 describe('parseCounters (shape version 1)', () => {
   const now = Date.now();
 

@@ -17,7 +17,7 @@ export interface GuardrailsPageProps {
 export function GuardrailsPage({ overview }: GuardrailsPageProps) {
   return (
     <Scope>
-      <Body overview={overview !== undefined && overview.ok ? overview : undefined} failed={overview !== undefined && !overview.ok} errorText={overview !== undefined && !overview.ok ? overview.errorText : ''} />
+      <Body overview={overview !== undefined && overview.ok ? overview : undefined} failed={overview !== undefined && !overview.ok} />
     </Scope>
   );
 }

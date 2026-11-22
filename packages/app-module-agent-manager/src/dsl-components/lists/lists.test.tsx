@@ -1,5 +1,5 @@
 import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { AgentRow } from '../data/types.js';
@@ -164,7 +164,7 @@ describe('InboxList', () => {
 
 describe('TreeList', () => {
   const many = [row({ folder: 'shop', cwd: '/a/shop', state: 'needs-you' }), row({ folder: 'shop', cwd: '/a/shop', state: 'idle' }), row({ folder: 'old', cwd: '/a/old', state: 'idle' })];
-  const attention = withOptions({ tree: { grouping: 'workspace', expansion: 'attention' } });
+  const attention = withOptions({ tree: { grouping: 'workspace', expansion: 'attention' }, subagents: { show: true } });
 
   it('all expanded (default): every folder open, treeitems with levels and aria-expanded', () => {
     render(<Harness sessions={many} List={TreeList} />);
@@ -223,5 +223,58 @@ describe('TreeList', () => {
     expect(screen.getByRole('button', { name: 'Hide the 2 sub-agents' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show the 3 sub-agents' })).toBeInTheDocument();
     vi.unstubAllGlobals();
+  });
+});
+
+describe('row highlight by state (the same variables in every mode, see styles/agents.css)', () => {
+  const NEEDS = '--am-herdr-needs-bg';
+  const UNSEEN = '--am-herdr-unseen-bg';
+  const rows = [
+    row({ folder: 'a', displayName: 'needs-row', state: 'needs-you' }),
+    row({ folder: 'b', displayName: 'unseen-row', state: 'done' }),
+    row({ folder: 'c', displayName: 'flag-row', state: 'idle', flagged: true }),
+    row({ folder: 'd', displayName: 'quiet-row', state: 'idle' }),
+  ];
+  const rowOf = (name: string): HTMLElement => screen.getByText(name, { selector: 'span' }).closest('[data-session-id]') as HTMLElement;
+
+  for (const [mode, List] of [['Tree', TreeList], ['Groups', GroupsList]] as const) {
+    it(`${mode}: needs you is tinted red, finished and unseen blue, flagged orange, a quiet row is not tinted`, () => {
+      render(<Harness sessions={rows} List={List} />);
+      const needs = rowOf('needs-row');
+      expect(needs.className).toContain(NEEDS);
+      expect(rowOf('unseen-row').className).toContain(UNSEEN);
+      expect(rowOf('flag-row').className).toContain('bg-hue-orange-bg');
+      const quiet = rowOf('quiet-row').className;
+      expect(quiet).not.toMatch(/--am-herdr|bg-hue-orange-bg/);
+      expect(quiet).toContain('hover:bg-muted-bg');
+    });
+  }
+
+  // The Inbox lists one tab at a time: the first non-empty tab opens, so each state is looked at in a list of its own.
+  it('Inbox: the tint of the first tab (needs you) and of a list that has only a finished and unseen row or only a flagged one', () => {
+    const first = render(<Harness sessions={[rows[0]!]} List={InboxList} />);
+    expect(rowOf('needs-row').className).toContain(NEEDS);
+    first.unmount();
+    const quiet = render(<Harness sessions={[rows[3]!]} List={InboxList} />);
+    expect(rowOf('quiet-row').className).not.toMatch(/--am-herdr|bg-hue-orange-bg/);
+    quiet.unmount();
+    const second = render(<Harness sessions={[rows[1]!]} List={InboxList} />);
+    expect(rowOf('unseen-row').className).toContain(UNSEEN);
+    second.unmount();
+    render(<Harness sessions={[rows[2]!]} List={InboxList} />);
+    expect(rowOf('flag-row').className).toContain('bg-hue-orange-bg');
+  });
+
+  it('the open row keeps its own look over the state tint (the open row stays readable as the open one)', () => {
+    render(<Harness sessions={rows} List={GroupsList} initial={agentId(rows[0]!)} />);
+    const open = rowOf('needs-row').className;
+    expect(open).toContain('bg-primary-light');
+    expect(open).not.toContain(NEEDS);
+  });
+
+  it('a flagged row says so in words for a screen reader, not by colour only', () => {
+    render(<Harness sessions={rows} List={TreeList} />);
+    expect(within(rowOf('flag-row')).getByText('Flagged')).toBeInTheDocument();
+    expect(within(rowOf('quiet-row')).queryByText('Flagged')).toBeNull();
   });
 });

@@ -1,19 +1,23 @@
 import { ShieldAlert } from 'lucide-react';
-import { blockedText } from '../logic/guardrails.js';
+import { recentBlockedText } from '../logic/guardrails.js';
 import type { GuardrailBlocksDto } from '../shared.js';
 import { Tooltip } from '../ui/Tooltip.js';
 
-/** The small "blocked by a guardrail" mark of a list row: a shield and the count, the sentence in the tooltip. Nothing for a session with no counters. */
+/**
+ * The small "blocked by a guardrail" mark of a list row: a shield and the number of blocks of the LAST 30 MINUTES, the sentence (with the window) in the tooltip.
+ * Nothing when there is none in that window, however many blocks the session had before: the full history is in the detail header and on the Guardrails page.
+ */
 export function GuardrailChip({ blocks }: { blocks: GuardrailBlocksDto | undefined }) {
-  if (blocks === undefined) {
+  const sentence = blocks === undefined ? '' : recentBlockedText(blocks);
+  if (blocks === undefined || sentence === '') {
     return null;
   }
-  const text = `${blockedText(blocks)}${blocks.timeout ? '. Bypass requests are timed out' : ''}`;
+  const text = `${sentence}${blocks.timeout ? '. Bypass requests are timed out' : ''}`;
   return (
     <Tooltip content={text}>
       <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-hue-orange-bg px-1.5 text-xs text-hue-orange">
         <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        <span aria-label={text}>{blocks.total}</span>
+        <span aria-label={text}>{blocks.recent.total}</span>
       </span>
     </Tooltip>
   );

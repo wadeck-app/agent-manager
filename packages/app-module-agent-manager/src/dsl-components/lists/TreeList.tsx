@@ -47,6 +47,8 @@ function wantsYou(session: AgentRow): boolean {
  */
 export function TreeList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups }: ListProps) {
   const { grouping, expansion } = options.tree;
+  // The view option "Show sub-agents under each agent": off, no row has a chevron, children or expansion state (the count chip stays).
+  const showSubagents = options.subagents.show;
   // The custom groups come first; what no group claims is the automatic tree (by workspace, or flat) below them.
   const { sections, ungrouped: sessions } = useMemo(() => partitionByGroup(shown, groups?.groups ?? [], searching), [shown, groups, searching]);
   const hasGroups = (groups?.groups.length ?? 0) > 0;
@@ -152,7 +154,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     if (groups !== undefined && !isTypingTarget(event.target) && !event.ctrlKey && !event.metaKey && keyboardGroupMove(event, id, session)) {
       return;
     }
-    if (id !== undefined && session !== undefined && session.subagentCount > 0 && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
+    if (showSubagents && id !== undefined && session !== undefined && session.subagentCount > 0 && (event.key === 'ArrowRight' || event.key === 'ArrowLeft')) {
       event.preventDefault();
       toggleAgents(id, event.key === 'ArrowRight');
       return;
@@ -181,10 +183,11 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     const edge = dnd.over?.kind === 'row' && dnd.over.id === id ? (dnd.over.after ? 'after' : 'before') : undefined;
     const dragged = dnd.dragging?.kind === 'agent' && dnd.dragging.id === id;
     const line = detailLine(session);
-    const open = agentsOpen(session);
+    const hasChildren = showSubagents && session.subagentCount > 0;
+    const open = hasChildren && agentsOpen(session);
     const herdr = isHerdrDensity(density);
     const selected = id === selectedId;
-    const tint = herdrTint(density, session.state, selected);
+    const tint = herdrTint(density, session.state, selected, session.flagged, session.unread);
     const nameLine = showFolder ? (
       <ProjectLabel session={session} terms={query.terms} />
     ) : (
@@ -203,7 +206,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
           onSelect={onSelect}
           {...(herdr && density === 'herdr-tinted' ? { look: { selected: `border-l-2 border-transparent ${tint ?? ''}`, idle: `border-l-2 border-transparent ${tint ?? 'hover:bg-muted-bg'}` } } : {})}
           className={`group relative ${herdr ? 'h-[31px] py-0 pr-2' : 'min-h-am-hit py-1 pr-3'} ${level === 2 ? 'pl-5' : 'pl-3'} ${dragged ? 'opacity-50' : ''}`}
-          expanded={session.subagentCount > 0 ? open : undefined}
+          expanded={hasChildren ? open : undefined}
           rowProps={dnd.row(id, session.customGroupId, members)}
         >
           <DropBar edge={edge} />
@@ -213,12 +216,13 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
               density={density}
               now={now}
               terms={query.terms}
-              subagents={session.subagentCount > 0 ? { open, toggle: () => toggleAgents(id, !open) } : undefined}
+              showSlot={showSubagents}
+              subagents={hasChildren ? { open, toggle: () => toggleAgents(id, !open) } : undefined}
               onMove={groups === undefined ? undefined : () => setMoving(id)}
             />
           ) : (
             <div className="flex items-center gap-2">
-              {session.subagentCount > 0 ? (
+              {hasChildren ? (
                 <button
                   type="button"
                   tabIndex={-1}
@@ -227,13 +231,13 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                     event.stopPropagation();
                     toggleAgents(id, !open);
                   }}
-                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
                 >
                   {open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
                 </button>
-              ) : (
+              ) : showSubagents ? (
                 <span aria-hidden="true" className="h-6 w-6 shrink-0" />
-              )}
+              ) : null}
               <StateIconTip session={session} />
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-1.5" title={line === '' ? undefined : line}>
@@ -251,7 +255,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                       event.stopPropagation();
                       setMoving(id);
                     }}
-                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-tint opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
                   >
                     <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
                   </button>

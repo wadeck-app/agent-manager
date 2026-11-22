@@ -18,7 +18,7 @@ import { agentId } from '../logic/states.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
 import { MODE_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
-import { useNotices } from '../ui/Notices.js';
+import { NoticesButton } from '../ui/Notices.js';
 import { actionSummary, workspaceNotices, type NoticeItem } from '../logic/notices.js';
 import { focusComposer, useNow } from '../ui/hooks.js';
 import { useFillContentArea } from '../ui/useFillContentArea.js';
@@ -129,8 +129,10 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     [setModeParam],
   );
   const [options, setOptions] = useState<ViewOptions>(readViewOptions);
+  // A storage that refuses is said on the page (the choice still applies until a reload), never swallowed.
+  const [optionsSaveError, setOptionsSaveError] = useState('');
   const changeOptions = useCallback((next: ViewOptions) => {
-    saveViewOptions(next);
+    setOptionsSaveError(saveViewOptions(next) ?? '');
     setOptions(next);
   }, []);
   // The search is the same in every mode: it filters the rows before the mode draws them.
@@ -350,14 +352,14 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     );
   }
 
-  // The problems of the page, each one a short sentence on ONE line (details, copy fix and dismiss behind it): see ui/Notices.tsx.
+  // The problems of the page, behind the notices button of the toolbar (a short title, detail text, copy fix and dismiss per notice): see ui/Notices.tsx.
   const noticeItems: NoticeItem[] = [
     ...(resolvedMode.note === '' ? [] : [{ key: 'mode', tone: 'warning' as const, summary: 'Unknown mode in the address', details: resolvedMode.note, action: { label: 'Remove it from the address', run: () => setModeParam('') } }]),
     ...(searchNote === '' ? [] : [{ key: 'search', tone: 'warning' as const, summary: 'The search could not open an agent', details: searchNote, onDismiss: () => setSearchNote('') }]),
+    ...(optionsSaveError === '' ? [] : [{ key: 'view-options', tone: 'warning' as const, summary: 'The view options were not saved', details: optionsSaveError, onDismiss: () => setOptionsSaveError('') }]),
     ...workspaceNotices({ ownedDownText, ownedStateErrorText, unreadableText, guardrailsErrorText, userStateError }),
     ...(actionError === '' ? [] : [{ key: 'action', tone: 'error' as const, summary: actionSummary(actionError), details: actionError, onDismiss: () => setActionError('') }]),
   ];
-  const notices = useNotices(noticeItems);
 
   let detail: ReactNode;
   if (selected !== undefined) {
@@ -388,7 +390,8 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     <SelectionKeys />
     <DaemonStateProvider down={ownedError?.code === 'daemon-not-running'}>
     <LiveThreadsProvider count={liveThreads}>
-    <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
+    {/* The reply box stays above the floating batch popup while sessions are selected (BatchPopup publishes the room). */}
+    <div ref={root} data-agent-workspace="" style={{ paddingBottom: 'var(--batch-popup-reserve, 0px)' }} className="flex min-h-0 flex-col bg-surface">
       <Toolbar
         count={rows.length}
         hiddenDead={hiddenDead}
@@ -404,11 +407,10 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         onNewSession={() => setLaunchOpen(true)}
         detailOpen={selectedId !== undefined}
         onNewGroup={async (name) => (await grouped.api.create(name)) !== undefined}
-        noticeBadge={notices.badge}
+        notices={<NoticesButton items={noticeItems} />}
         selectableIds={orderedIds()}
       />
       {launchOpen ? <NewSessionDialog ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
-      {notices.line !== null ? <div className="border-b border-border px-2 py-1">{notices.line}</div> : null}
       <div className="min-h-0 flex-1">
         <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />
       </div>

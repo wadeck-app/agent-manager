@@ -18,41 +18,42 @@ function show(props: { ownedDownText?: string; ownedStateErrorText?: string }) {
 }
 
 describe('Workspace: owned sessions without a daemon', () => {
-  it('shows ONE short line with the sentence and a Copy fix button, the full text behind Details', async () => {
+  it('shows no inline notice: one button in the toolbar, the sentence and a Copy fix button in its panel', async () => {
     show({ ownedDownText: TEXT });
-    const line = screen.getByText('Daemon off: 2 owned sessions unavailable');
-    expect(line.closest('[role="status"]')).not.toBeNull();
-    // The line is short: the long text (file, why) is not on the page until Details is opened.
-    expect(screen.queryByText(/their Stop, Resume and Move actions are unavailable/)).toBeNull();
+    expect(screen.queryByText('Daemon off: 2 owned sessions unavailable')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '1 notice' }));
+    expect(screen.getByText('Daemon off: 2 owned sessions unavailable')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy fix' })).toBeInTheDocument();
     await expectNoticeDetails(/2 owned sessions are listed in owned-sessions.json but the daemon is not running/);
   });
 
   it('shows the state file problem as its own notice', async () => {
     show({ ownedStateErrorText: 'the file of owned sessions X cannot be used (not valid JSON)' });
-    expect(screen.getByText('Owned sessions file unusable')).toBeInTheDocument();
     await expectNoticeDetails(/cannot be used \(not valid JSON\)/);
+    expect(screen.getByText('Owned sessions file unusable')).toBeInTheDocument();
   });
 
-  it('two problems are ONE line "2 notices"', () => {
+  it('two problems are ONE button counting 2, both in its panel', () => {
     show({ ownedDownText: TEXT, ownedStateErrorText: 'the file of owned sessions X cannot be used (not valid JSON)' });
-    expect(screen.getByText('2 notices')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show' }));
+    fireEvent.click(screen.getByRole('button', { name: '2 notices' }));
     expect(screen.getByText('Daemon off: 2 owned sessions unavailable')).toBeInTheDocument();
     expect(screen.getByText('Owned sessions file unusable')).toBeInTheDocument();
   });
 
-  it('a dismissed notice leaves a badge in the toolbar and comes back from it', () => {
-    show({ ownedDownText: TEXT });
-    fireEvent.click(screen.getByRole('button', { name: /^Dismiss/ }));
+  it('the button sits immediately left of New group (Tree), and a dismissed notice can be restored from the panel while another is active', () => {
+    show({ ownedDownText: TEXT, ownedStateErrorText: 'the file of owned sessions X cannot be used (not valid JSON)' });
+    const button = screen.getByRole('button', { name: '2 notices' });
+    expect(button.closest('[data-notices-slot]')?.nextElementSibling?.textContent).toMatch(/new group/i);
+    fireEvent.click(button);
+    fireEvent.click(screen.getByRole('button', { name: /^Dismiss: Daemon off/ }));
     expect(screen.queryByText('Daemon off: 2 owned sessions unavailable')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: '1 notice dismissed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore 1 dismissed' }));
     expect(screen.getByText('Daemon off: 2 owned sessions unavailable')).toBeInTheDocument();
   });
 
   it('shows nothing when there is nothing to say', () => {
     show({});
     expect(screen.queryByText(/owned sessions/)).toBeNull();
-    expect(screen.queryByText(/dismissed/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /notices?$/ })).toBeNull();
   });
 });

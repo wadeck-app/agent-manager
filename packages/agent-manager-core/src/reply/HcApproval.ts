@@ -71,6 +71,8 @@ export interface HcPrompt {
   description: string;
   /** The command or the change the dialog shows, as printed (several lines, whole: a body above MAX_BODY_CHARS is not offered). */
   body: string;
+  /** Plain text the dialog shows between the closing rule of the command and the question (the reason of a hook "ask"), '' when none. Shown whole by the page. */
+  notice: string;
   question: string;
   options: HcPromptOption[];
   /** What hc says (`approve Bash: touch am-allow.txt`). */
@@ -159,7 +161,7 @@ function lastIndexWhere(lines: readonly string[], test: (line: string) => boolea
 }
 
 export type ParsedDialog =
-  | { ok: true; header: string; description: string; body: string; question: string; options: (HcPromptOption & { selected: boolean })[]; text: string }
+  | { ok: true; header: string; description: string; body: string; notice: string; question: string; options: (HcPromptOption & { selected: boolean })[]; text: string }
   | { ok: false; code: string; reason: string };
 
 /** A line made only of the rule character, at least 10 of them, with no leading blank. With `columns`, only a line exactly as wide as the terminal is a rule. */
@@ -170,6 +172,26 @@ function isRule(line: string, character: number, columns: number | undefined): b
     return false;
   }
   return columns === undefined || text.length === columns;
+}
+
+export const MAX_NOTICE_LINES = 12;
+export const MAX_NOTICE_CHARS = 2_000;
+const BOX_CHARACTER = /[\u2500-\u257f]/;
+
+/** Why a block of lines between the closing rule and the question is not accepted, undefined when it is plain text. */
+function noticeFault(lines: readonly string[]): string | undefined {
+  if (lines.length > MAX_NOTICE_LINES || lines.join('\n').length > MAX_NOTICE_CHARS) {
+    return `more than ${MAX_NOTICE_LINES} lines or ${MAX_NOTICE_CHARS} characters`;
+  }
+  for (const line of lines) {
+    if (BOX_CHARACTER.test(line)) {
+      return 'a line has box-drawing characters';
+    }
+    if (OPTION_LINE.test(line) || QUESTION_LINE.test(line) || /^\s*Esc to cancel/.test(line)) {
+      return 'a line looks like an option, the question or the footer';
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -218,9 +240,15 @@ export function parsePermissionDialog(screen: string, columns?: number): ParsedD
     return { ok: false, code: 'dialog-not-recognized', reason: `the frame of the dialog is ambiguous (${dashed.length} dashed rules and ${inside.filter(solid).length} solid rule(s) between the top rule and the question, expected 2 and 0): a line of the command may imitate a rule` };
   }
   const [bodyStart, bodyEnd] = [dashed[0]!, dashed[1]!];
-  if (inside.slice(bodyEnd + 1).some((line) => line.trim() !== '')) {
-    return { ok: false, code: 'dialog-not-recognized', reason: 'there is text between the closing rule of the command and the question' };
+  // Text between the closing rule and the question (measured source: the reason of a hook "ask"). Accepted only as plain text that cannot imitate a part of the
+  // dialog: no box character, no numbered option, no question, no footer, bounded. It is shown whole by the page and is part of the prompt id.
+  const noticeLines = inside.slice(bodyEnd + 1).filter((line) => line.trim() !== '');
+  const noticeProblem = noticeFault(noticeLines);
+  if (noticeProblem !== undefined) {
+    return { ok: false, code: 'dialog-not-recognized', reason: `there is text between the closing rule of the command and the question that is not plain text (${noticeProblem})` };
   }
+  const noticeIndent = Math.min(...noticeLines.map((line) => /^ */.exec(line)![0].length));
+  const notice = noticeLines.map((line) => line.slice(noticeIndent).replace(/\s+$/, '')).join('\n');
   const head = inside.slice(0, bodyStart);
   const headerIndex = head.findIndex((line) => line.trim() !== '');
   const header = headerIndex === -1 ? '' : head[headerIndex]!.trim();
@@ -231,7 +259,7 @@ export function parsePermissionDialog(screen: string, columns?: number): ParsedD
     .map((line) => line.slice(Number.isFinite(indent) ? indent : 0).replace(/\s+$/, ''))
     .join('\n')
     .replace(/^\n+|\n+$/g, '');
-  return { ok: true, header, description, body, question: questionMatch[1]!, options, text: lines.slice(rule + 1, footer + 1).join('\n') };
+  return { ok: true, header, description, body, notice, question: questionMatch[1]!, options, text: lines.slice(rule + 1, footer + 1).join('\n') };
 }
 
 /**
@@ -251,6 +279,12 @@ export function assertAnswerable(dialog: Extract<ParsedDialog, { ok: true }>): {
     return { code: 'dialog-not-recognized', reason: `the last option is not "No" (${lastOption.number}. ${excerpt(lastOption.label)}): esc would not mean "no"` };
   }
   return undefined;
+}
+
+/** A one-line preview of at most `max` characters. */
+function cut(text: string, max: number): string {
+  const flat = text.replace(/s+/g, ' ').trim();
+  return flat.length > max ? `${flat.slice(0, max)}...` : flat;
 }
 
 function toolOf(statusMessage: string | undefined): string | undefined {
@@ -364,8 +398,8 @@ export function createHcApproval(options: HcApprovalOptions = {}): HcApproval {
           kind: 'unsupported',
           terminal: facts.address,
           code: refusal?.code ?? 'dialog-not-recognized',
-          reason: `the terminal ${facts.address} is blocked on a permission dialog this module cannot answer safely${facts.statusMessage === undefined ? '' : ` (${excerpt(facts.statusMessage)})`}: ${refusal?.reason ?? 'unknown layout'}`,
-          fix: 'answer it in its terminal (agent-manager types only into the tool permission dialogs it recognises: cursor on "1. Yes", last option "No")',
+          reason: `the terminal ${facts.address} is blocked on a permission dialog this module cannot answer safely${facts.statusMessage === undefined ? '' : ` (${cut(facts.statusMessage, 80)})`}: ${refusal?.reason ?? 'unknown layout'}`,
+          fix: 'answer it in its terminal (agent-manager only answers a tool dialog with the cursor on "1. Yes" and "No" last)',
         },
         id: undefined,
         dialog: undefined,
@@ -389,6 +423,7 @@ export function createHcApproval(options: HcApprovalOptions = {}): HcApproval {
       header: dialog.header,
       description: dialog.description,
       body: dialog.body,
+      notice: dialog.notice,
       question: dialog.question,
       options: dialog.options.map(({ number, label }) => ({ number, label })),
       statusMessage: facts.statusMessage ?? '',

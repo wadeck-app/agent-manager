@@ -40,23 +40,33 @@ export function herdrLight(state: AgentState): HerdrLight {
 }
 
 /**
- * The tint classes of a row in the tinted variant (undefined: no tint). The colours are the CSS variables of styles/agents.css (`--am-herdr-*`), so they are
- * changed in one place. Classes are written in full: a class built at run time generates no CSS rule.
+ * The background of a row by its state, the same in every list mode (Tree, Groups, Inbox, Custom): red when it needs you, blue when it finished and is unseen,
+ * orange when the user flagged it; an idle agent marked unread is blue too (undefined: no tint). The first that applies wins (needs you, flagged, unseen: the order of the Herdr WAgents mod). The red and the blue are the CSS variables of styles/agents.css
+ * (`--am-herdr-*`), so they are changed in one place; the orange is the `hue-orange` token of the palette. Classes are written in full: a class built at run
+ * time generates no CSS rule.
  */
-export function herdrTint(density: TreeDensityVariant, state: AgentState, selected: boolean): string | undefined {
-  if (density !== 'herdr-tinted') {
-    return undefined;
-  }
-  if (selected) {
-    return 'ring-1 ring-inset ring-[color:var(--am-herdr-active-edge)] bg-[image:var(--am-herdr-active-bg)]';
-  }
+export function stateTint(state: AgentState, flagged: boolean, unread = false): string | undefined {
   if (state === 'needs-you') {
     return 'bg-[color:var(--am-herdr-needs-bg)]';
   }
-  if (state === 'done') {
-    return 'bg-[color:var(--am-herdr-unseen-bg)]';
+  // The order of the Herdr WAgents mod: needs you, then flagged, then the blue dot.
+  if (flagged) {
+    return 'bg-hue-orange-bg';
   }
-  return undefined;
+  // An idle agent the user marked unread counts as finished and unseen, as in the Custom mode (logic/customMode.ts).
+  return state === 'done' || (unread && state === 'idle') ? 'bg-[color:var(--am-herdr-unseen-bg)]' : undefined;
+}
+
+/**
+ * The background classes of a row of the Herdr rows (undefined: none): the open row of the tinted variant is a gold outline and gradient, any other row has
+ * the tint of its state (every density: the row shape does not decide whether an agent that needs you shows it). The other variants give the open row their
+ * own look.
+ */
+export function herdrTint(density: TreeDensityVariant, state: AgentState, selected: boolean, flagged = false, unread = false): string | undefined {
+  if (selected) {
+    return density === 'herdr-tinted' ? 'ring-1 ring-inset ring-[color:var(--am-herdr-active-edge)] bg-[image:var(--am-herdr-active-bg)]' : undefined;
+  }
+  return stateTint(state, flagged, unread);
 }
 
 /** What the row writes besides the name: the grey folder text, except in the name-only variant. */

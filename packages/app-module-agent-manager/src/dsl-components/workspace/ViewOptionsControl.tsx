@@ -40,10 +40,13 @@ export function ViewOptionsControl({ mode, options, onChange }: ViewOptionsContr
               </OptionGroup>
             </>
           ) : null}
+          {mode === 'tree' || mode === 'custom' ? (
+            <OptionToggle checked={options.subagents.show} onToggle={(show) => onChange({ ...options, subagents: { show } })} label="Show sub-agents under each agent" hint="Off: rows keep the sub-agent count; the list is in the right panel (Sub-agents tab)" />
+          ) : null}
           {mode === 'groups' ? (
             <OptionToggle checked={options.groups.preview} onToggle={(preview) => onChange({ ...options, groups: { preview } })} label="Show the last activity" hint="A second line with why it needs you or what it did last" />
           ) : null}
-          {mode === 'custom' ? <p className="text-xs text-muted">No option here: the order and the colors are set per group (the folder button of each header), the look of the rows by the Tree rows question of the dock.</p> : null}
+          {mode === 'custom' ? <p className="text-xs text-muted">The order and the colors are set per group (the folder button of each header), the look of the rows by the Tree rows question of the dock.</p> : null}
           {mode === 'inbox' ? (
             <OptionToggle checked={options.inbox.autoNext} onToggle={(autoNext) => onChange({ ...options, inbox: { autoNext } })} label="Open the next agent after a reply" hint="When the agent you are on stops needing you, the next one that does opens by itself" />
           ) : null}

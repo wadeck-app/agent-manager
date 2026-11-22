@@ -1,4 +1,4 @@
-import { Bot, Pin } from 'lucide-react';
+import { Bot, Flag, Pin } from 'lucide-react';
 import type { AgentRow } from '../data/types.js';
 import { GuardrailChip } from '../guardrails/GuardrailChip.js';
 import { HostBadge } from '../owned/OwnedChips.js';
@@ -14,14 +14,20 @@ export function RowMarks({ session, iconOnly = false }: { session: AgentRow; ico
       <HostBadge session={session} iconOnly={iconOnly} />
       <OwnedStateChip session={session} compact iconOnly={iconOnly} />
       <GuardrailChip blocks={session.guardrailBlocks} />
+      {session.flagged ? (
+        <span className="inline-flex shrink-0 text-hue-orange">
+          <Flag aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+          <span className="sr-only">Flagged</span>
+        </span>
+      ) : null}
       {session.pinned ? (
-        <span className="inline-flex shrink-0 text-muted">
+        <span className="inline-flex shrink-0 text-muted-tint">
           <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span className="sr-only">Pinned</span>
         </span>
       ) : null}
       {session.subagentCount > 0 ? (
-        <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted">
+        <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-tint">
           <Bot aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span aria-label={`${session.subagentCount} sub-agents`}>{session.subagentCount}</span>
         </span>

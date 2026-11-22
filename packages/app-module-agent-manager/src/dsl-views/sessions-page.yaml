@@ -18,11 +18,11 @@ $type: PageContent
 # `full`: the page frame adds no width cap of its own (the default "xl" stopped the workspace at 1152 px, whatever the screen). The workspace (AgentWorkspace) stretches over the frame padding itself.
 maxWidth: full
 sections:
-  # What went wrong, in boxes of their own: nothing is hidden behind an empty list.
-  # One compact notice line (short sentence, Details, dismiss), not a full-width badge with the whole text.
-  # Not rendered without a text: an empty notice component still leaves its wrapper in the page (a gap above the workspace, a dark band in dark mode).
-  - $type: agent-manager:PageNotices
+  # The registry could not be listed: the workspace (and its toolbar, which holds the notices button) is not drawn, so a title line with the same notices button says why.
+  # Not rendered without a text: an empty component still leaves its wrapper in the page (a gap above the workspace, a dark band in dark mode).
+  - $type: agent-manager:PageTitle
     $if: $sources.sessions.errorText
+    title: Agents
     errorText: $sources.sessions.errorText
   # The unreadable registry files and the unreadable w-guardrails counters are warnings of the workspace itself (props below): a pill above it pushed the whole page down.
   - $type: Badge

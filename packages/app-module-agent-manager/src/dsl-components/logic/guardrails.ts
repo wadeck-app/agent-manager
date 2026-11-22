@@ -1,4 +1,6 @@
 import type { GuardrailBlocksDto } from '../shared.js';
+// violations-suppress: ts/no-deep-relative the window is defined once, in commons/ (shared by the backend and the page), next to the DTO
+import { RECENT_BLOCK_WINDOW_MS } from '../../commons/guardrails.js';
 
 /** Pure text helpers of the Guardrails page and of the "blocked" chip of the session rows. */
 
@@ -10,15 +12,35 @@ export function bypassCommand(category: string, mode: string = 'once'): string {
   return `/w-guardrails:request-bypass ${category} ${mode}`;
 }
 
-/** "Blocked 37 times on interpreter-exec" or "Blocked 67 times (interpreter-exec 37, rm 30)". */
-export function blockedText(blocks: GuardrailBlocksDto): string {
-  const times = blocks.total === 1 ? '1 time' : `${blocks.total} times`;
-  if (blocks.categories.length === 1) {
-    return `Blocked ${times} on ${blocks.categories[0]!.category}`;
+/** "30 min", from the window of the backend. */
+export const RECENT_WINDOW_TEXT = `${RECENT_BLOCK_WINDOW_MS / 60_000} min`;
+
+/** "37 times on interpreter-exec" or "67 times (interpreter-exec 37, rm 30)"; `scope` (" in total", " in the last 30 min") goes after the count. */
+function countText(count: number, categories: readonly { category: string; count: number }[], scope: string): string {
+  const times = count === 1 ? '1 time' : `${count} times`;
+  if (categories.length === 1) {
+    return `${times}${scope} on ${categories[0]!.category}`;
   }
-  const shown = blocks.categories.slice(0, 3).map((item) => `${item.category} ${item.count}`);
-  const more = blocks.categories.length > 3 ? `, ${blocks.categories.length - 3} more` : '';
-  return `Blocked ${times} (${shown.join(', ')}${more})`;
+  const shown = categories.slice(0, 3).map((item) => `${item.category} ${item.count}`);
+  const more = categories.length > 3 ? `, ${categories.length - 3} more` : '';
+  return `${times}${scope}${categories.length === 0 ? '' : ` (${shown.join(', ')}${more})`}`;
+}
+
+/**
+ * The full history, each number with its window (detail header, Permissions tab): "Blocked 37 times in total on interpreter-exec, 2 in the last 30 min",
+ * "..., none in the last 30 min", or "Blocked 2 times in the last 30 min on rm" when the plugin counters hold nothing for the session.
+ */
+export function blockedText(blocks: GuardrailBlocksDto): string {
+  if (blocks.total === 0) {
+    return blocks.recent.total === 0 ? 'Blocked 0 times' : `Blocked ${countText(blocks.recent.total, blocks.recent.categories, ` in the last ${RECENT_WINDOW_TEXT}`)}`;
+  }
+  const recent = blocks.recent.total === 0 ? `none in the last ${RECENT_WINDOW_TEXT}` : `${blocks.recent.total} in the last ${RECENT_WINDOW_TEXT}`;
+  return `Blocked ${countText(blocks.total, blocks.categories, ' in total')}, ${recent}`;
+}
+
+/** What the list badge says: only the blocks of the last 30 min ("Blocked 2 times in the last 30 min on rm"); empty when there are none (no badge). */
+export function recentBlockedText(blocks: GuardrailBlocksDto): string {
+  return blocks.recent.total === 0 ? '' : `Blocked ${countText(blocks.recent.total, blocks.recent.categories, ` in the last ${RECENT_WINDOW_TEXT}`)}`;
 }
 
 /** How much of a command a row shows before "Show full". */

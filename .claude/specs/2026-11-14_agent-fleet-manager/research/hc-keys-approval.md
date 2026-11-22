@@ -60,6 +60,7 @@ Prompt id of #1: `6c5dc04d143654c5`, status message `approve Bash: touch am-allo
 
 ## UNKNOWN
 
+- Dialog of a hook `ask` (2026-11-22): a user report says there is text between the closing dashed rule and the question. Not captured (terminal t15 no longer showed it, no blocked terminal to read); the hook reason is a 4 to 5 row text (`ask-messages.js`: title, Category, Duration, Reason). The parser accepts such text as a plain-text `notice` under bounds (no box character, option, question or footer line, 12 lines, 2000 characters) and refuses the rest. To verify on the next real one: `hc read --json -- <t>` while blocked, read only.
 - Other dialog layouts (file edit, MCP tool, plan approval): only Bash was measured; any other layout that does not match the parser is refused with a visible reason.
 - Behaviour with a person typing in the terminal at the same moment (window of a few tens of milliseconds between the last `hc get` and the keys).
 - macOS and Linux hosts; hc versions other than 0.1.21.

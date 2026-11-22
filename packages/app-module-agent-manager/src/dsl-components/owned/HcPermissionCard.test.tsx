@@ -20,6 +20,7 @@ const prompt = (patch: Partial<HcPermissionPromptDto> = {}): HcPermissionPromptD
   header: 'Bash command',
   description: 'Create am-allow.txt file',
   body: 'touch am-allow.txt',
+  notice: '',
   question: 'Do you want to proceed?',
   options: [
     { number: 1, label: 'Yes' },
@@ -176,6 +177,23 @@ describe('HcPermissionCard: answering', () => {
     render(<HcPermissionCard session={waitingRow()} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Allow once' }));
     expect(await screen.findByRole('status')).toHaveTextContent(/enter was typed into t21, but the dialog is still displayed after a few seconds\. Look at the terminal t21/);
+  });
+
+  it('shows the text the dialog prints between the command and its question, as its own block labelled as such', async () => {
+    stubFetch({ [GET]: shown({ notice: 'HOOK REQUEST for THIS agent\n  Category  git-commit-push' }) });
+    render(<HcPermissionCard session={waitingRow()} />);
+    const card = await screen.findByRole('region', { name: 'Permission request in the terminal' });
+    const notice = card.querySelector('[data-hc-notice]');
+    expect(notice).toHaveTextContent('Shown by the terminal below the command');
+    expect(notice?.querySelector('pre')?.textContent).toBe('HOOK REQUEST for THIS agent\n  Category  git-commit-push');
+    expect(card.querySelector('[data-permission-input] pre')?.textContent).toBe('touch am-allow.txt');
+  });
+
+  it('shows no notice block when the dialog has none', async () => {
+    stubFetch({ [GET]: shown() });
+    render(<HcPermissionCard session={waitingRow()} />);
+    await screen.findByRole('region', { name: 'Permission request in the terminal' });
+    expect(document.querySelector('[data-hc-notice]')).toBeNull();
   });
 
   it('an answer whose outcome could not be checked says the key was sent and to look at the terminal, never "nothing was typed"', async () => {

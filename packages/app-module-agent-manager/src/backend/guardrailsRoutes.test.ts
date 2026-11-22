@@ -212,7 +212,7 @@ describe('the chip of GET /sessions', () => {
     putCounters(project, { requests: { [`${SESSION.slice(0, 8)}-aaaa-bbbb-cccc-dddddddddddd`]: { block_counts: { rm: 2, kill: 5 } } } });
     const { body } = await mod().call('GET', '/sessions');
     const row = body.sessions.find((s: { pid: number }) => s.pid === process.pid);
-    expect(row.guardrailBlocks).toEqual({ total: 7, categories: [{ category: 'kill', count: 5 }, { category: 'rm', count: 2 }], timeout: false });
+    expect(row.guardrailBlocks).toEqual({ total: 7, categories: [{ category: 'kill', count: 5 }, { category: 'rm', count: 2 }], timeout: false, recent: { total: 0, categories: [] } });
     expect(body.guardrailsErrorText).toBe('');
   });
 

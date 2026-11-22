@@ -6,7 +6,6 @@ import type { ComponentRegistryEntry, RegistryRenderProps } from '@wadeck-app/ds
 import { AgentWorkspace } from '../components/AgentWorkspace.js'
 import { GuardrailsPage } from '../components/GuardrailsPage.js'
 import { PageNote } from '../components/PageNote.js'
-import { PageNotices } from '../components/PageNotices.js'
 import { PageTitle } from '../components/PageTitle.js'
 import { SessionsTable } from '../components/SessionsTable.js'
 declare const process: { env: { NODE_ENV?: string } }
@@ -47,23 +46,16 @@ export const PageNoteEntry: ComponentRegistryEntry = {
 	},
 }
 
-export const PageNoticesEntry: ComponentRegistryEntry = {
-	name: 'PageNotices', category: 'atomic', tags: ["notices","errors","sessions"],
-	nodeSchema: null as never,
-	render: ({ node, ctx }: RegistryRenderProps) => {
-		const errorText = coerceProp(resolveExpressionValue(node['errorText'], ctx), 'PageNotices.errorText', 'string', false) as import('../components/PageNotices.js').PageNoticesProps['errorText']
-		const unreadableText = coerceProp(resolveExpressionValue(node['unreadableText'], ctx), 'PageNotices.unreadableText', 'string', false) as import('../components/PageNotices.js').PageNoticesProps['unreadableText']
-		return <PageNotices errorText={errorText} unreadableText={unreadableText} />
-	},
-}
-
 export const PageTitleEntry: ComponentRegistryEntry = {
-	name: 'PageTitle', category: 'atomic', tags: ["header","title"],
+	name: 'PageTitle', category: 'atomic', tags: ["header","title","notices"],
 	nodeSchema: null as never,
 	render: ({ node, ctx }: RegistryRenderProps) => {
 		const title = coerceProp(resolveExpressionValue(node['title'], ctx), 'PageTitle.title', 'string', true) as import('../components/PageTitle.js').PageTitleProps['title']
 		const subtitle = coerceProp(resolveExpressionValue(node['subtitle'], ctx), 'PageTitle.subtitle', 'string', false) as import('../components/PageTitle.js').PageTitleProps['subtitle']
-		return <PageTitle title={title} subtitle={subtitle} />
+		const errorText = coerceProp(resolveExpressionValue(node['errorText'], ctx), 'PageTitle.errorText', 'string', false) as import('../components/PageTitle.js').PageTitleProps['errorText']
+		const unreadableText = coerceProp(resolveExpressionValue(node['unreadableText'], ctx), 'PageTitle.unreadableText', 'string', false) as import('../components/PageTitle.js').PageTitleProps['unreadableText']
+		const guardrails = coerceProp(resolveExpressionValue(node['guardrails'], ctx), 'PageTitle.guardrails', 'object', false) as import('../components/PageTitle.js').PageTitleProps['guardrails']
+		return <PageTitle title={title} subtitle={subtitle} errorText={errorText} unreadableText={unreadableText} guardrails={guardrails} />
 	},
 }
 
@@ -83,7 +75,6 @@ export const allEntries: ComponentRegistryEntry[] = [
 	AgentWorkspaceEntry,
 	GuardrailsPageEntry,
 	PageNoteEntry,
-	PageNoticesEntry,
 	PageTitleEntry,
 	SessionsTableEntry,
 ]
@@ -93,6 +84,5 @@ export const allEntries: ComponentRegistryEntry[] = [
 AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["customGroups","guardrailsErrorText","hiddenDead","ownedDownText","ownedError","ownedErrorText","ownedStateErrorText","sessions","unreadableText","userStateError"] : [];
 GuardrailsPageEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["overview"] : [];
 PageNoteEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["text"] : [];
-PageNoticesEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["errorText","unreadableText"] : [];
-PageTitleEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["subtitle","title"] : [];
+PageTitleEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["errorText","guardrails","subtitle","title","unreadableText"] : [];
 SessionsTableEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["emptyText","hiddenText","rows"] : [];

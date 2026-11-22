@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { herdrLight, herdrRowShape, herdrTint, isHerdrDensity } from './herdrRow.js';
+import { herdrLight, herdrRowShape, herdrTint, isHerdrDensity, stateTint } from './herdrRow.js';
 
 describe('the Herdr light of a state', () => {
   it('finished and unseen is a blue dot, working a spinner, needs you a red pill with words, idle a grey ring', () => {
@@ -15,14 +15,31 @@ describe('the Herdr light of a state', () => {
   });
 });
 
+describe('the state tint', () => {
+  it('red for needs you, blue for finished and unseen, orange for a flag, nothing for the quiet states; needs you wins over flagged over unseen (the order of the Herdr WAgents mod)', () => {
+    expect(stateTint('needs-you', false)).toContain('--am-herdr-needs-bg');
+    expect(stateTint('done', false)).toContain('--am-herdr-unseen-bg');
+    expect(stateTint('idle', true)).toBe('bg-hue-orange-bg');
+    expect(stateTint('working', true)).toBe('bg-hue-orange-bg');
+    expect(stateTint('idle', false, true)).toContain('--am-herdr-unseen-bg');
+    expect(stateTint('working', false, true)).toBeUndefined();
+    expect(stateTint('needs-you', true)).toContain('--am-herdr-needs-bg');
+    expect(stateTint('done', true)).toBe('bg-hue-orange-bg');
+    for (const state of ['idle', 'working', 'other', 'ended'] as const) {
+      expect(stateTint(state, false)).toBeUndefined();
+    }
+  });
+});
+
 describe('the Herdr tint', () => {
-  it('only the tinted variant tints: red for needs you, blue for finished and unseen, nothing for the quiet states', () => {
-    expect(herdrTint('herdr-line', 'needs-you', false)).toBeUndefined();
-    expect(herdrTint('herdr-name', 'done', false)).toBeUndefined();
-    expect(herdrTint('herdr-tinted', 'needs-you', false)).toContain('--am-herdr-needs-bg');
-    expect(herdrTint('herdr-tinted', 'done', false)).toContain('--am-herdr-unseen-bg');
-    expect(herdrTint('herdr-tinted', 'idle', false)).toBeUndefined();
-    expect(herdrTint('herdr-tinted', 'working', false)).toBeUndefined();
+  it('the state tint shows in every density (a choice of row shape never hides that an agent needs you)', () => {
+    for (const density of ['compact', 'herdr-line', 'herdr-name', 'herdr-tinted'] as const) {
+      expect(herdrTint(density, 'needs-you', false)).toContain('--am-herdr-needs-bg');
+      expect(herdrTint(density, 'done', false)).toContain('--am-herdr-unseen-bg');
+      expect(herdrTint(density, 'idle', false, true)).toBe('bg-hue-orange-bg');
+      expect(herdrTint(density, 'idle', false)).toBeUndefined();
+      expect(herdrTint(density, 'working', false)).toBeUndefined();
+    }
   });
 
   it('the open row of the tinted variant is a gold outline with a gold gradient, whatever its state', () => {
@@ -31,7 +48,9 @@ describe('the Herdr tint', () => {
       expect(look).toContain('--am-herdr-active-edge');
       expect(look).toContain('--am-herdr-active-bg');
     }
+    // The other variants keep their own open look (the list gives it).
     expect(herdrTint('herdr-line', 'idle', true)).toBeUndefined();
+    expect(herdrTint('herdr-line', 'needs-you', true)).toBeUndefined();
   });
 });
 

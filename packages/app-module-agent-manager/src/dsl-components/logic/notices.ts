@@ -1,6 +1,8 @@
+import { getErrorMessage } from './errorText.js';
+
 export type NoticeTone = 'error' | 'warning' | 'info';
 
-/** The longest one-line sentence of a notice (the full text goes to the Details disclosure). */
+/** The longest one-line sentence of a notice (the full text is behind the More button of the panel). */
 export const SUMMARY_MAX = 70;
 
 export interface NoticeItem {
@@ -40,23 +42,47 @@ export function isDismissed(item: NoticeItem, dismissed: readonly string[]): boo
   return item.onDismiss === undefined && dismissed.includes(item.details);
 }
 
-/** Remembers the dismissal for this browser session only. A storage that refuses means it comes back at the next poll: said by nothing, it is the safe side. */
-export function dismissNotice(item: NoticeItem): void {
+/** What a write to the browser storage came to: stored, or why it was not (the panel says "not remembered" with the reason). */
+export type StoreResult = { stored: true } | { stored: false; reason: string };
+
+function failure(error: unknown): StoreResult {
+  return { stored: false, reason: getErrorMessage(error) };
+}
+
+/** Remembers the dismissal for this browser session only. A storage that refuses is returned, never swallowed: the caller says it is not remembered. */
+export function dismissNotice(item: NoticeItem): StoreResult {
   try {
     const next = [...readDismissed().filter((entry) => entry !== item.details), item.details];
     window.sessionStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
-  } catch {
-    // Not remembered: the notice shows again, which is the safe side.
+    return { stored: true };
+  } catch (error) {
+    return failure(error);
   }
 }
 
-/** Brings every dismissed notice back (the badge of the toolbar). */
-export function restoreNotices(): void {
+/** Brings every dismissed notice back. A storage that refuses is returned: the dismissals it holds would come back hidden after a reload. */
+export function restoreNotices(): StoreResult {
   try {
     window.sessionStorage.removeItem(DISMISSED_KEY);
-  } catch {
-    // Nothing was remembered in the first place.
+    return { stored: true };
+  } catch (error) {
+    return failure(error);
   }
+}
+
+const SEVERITY: Record<NoticeTone, number> = { info: 0, warning: 1, error: 2 };
+
+/** The most severe tone of a list (the colour of the notices button). 'info' for an empty list. */
+export function worstTone(items: readonly NoticeItem[]): NoticeTone {
+  return items.reduce<NoticeTone>((worst, item) => (SEVERITY[item.tone] > SEVERITY[worst] ? item.tone : worst), 'info');
+}
+
+/** The longest detail text shown before the More button. */
+export const DETAILS_SHORT_MAX = 140;
+
+/** The first words of a detail text, for the compact row of the panel (the whole text is one More click away). */
+export function shortDetails(text: string): string {
+  return text.length <= DETAILS_SHORT_MAX ? text : `${text.slice(0, DETAILS_SHORT_MAX - 3).trimEnd()}...`;
 }
 
 function clip(text: string): string {
@@ -148,4 +174,12 @@ export function guardrailsNotices(input: { errorText: string; killSwitchError: s
 export function actionSummary(message: string): string {
   const cut = message.indexOf(': ');
   return clip(cut > 0 ? message.slice(0, cut) : message);
+}
+
+/** The notices of the Guardrails page from the answer of its page source: a failed answer is one error, loading says nothing. */
+export function guardrailsNoticesOf(overview: ({ ok: true } & { killSwitch: { errorText: string }; problems: readonly GuardrailProblem[] }) | { ok: false; errorText: string } | undefined): NoticeItem[] {
+  if (overview === undefined) {
+    return [];
+  }
+  return overview.ok ? guardrailsNotices({ errorText: '', killSwitchError: overview.killSwitch.errorText, problems: overview.problems }) : guardrailsNotices({ errorText: overview.errorText, killSwitchError: '', problems: [] });
 }

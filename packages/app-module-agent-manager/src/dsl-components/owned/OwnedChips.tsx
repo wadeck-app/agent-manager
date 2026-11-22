@@ -16,7 +16,7 @@ export function HostBadge({ session, iconOnly = false }: { session: Pick<Session
   const Icon = HOST_ICON[session.host];
   return (
     <Tooltip content={iconOnly ? `${HOST_LABEL[session.host]}: ${HOST_MEANING[session.host]}` : HOST_MEANING[session.host]}>
-      <span data-host-badge={session.host} className={`${CHIP} border border-border text-muted`}>
+      <span data-host-badge={session.host} className={`${CHIP} border border-border text-muted-tint`}>
         <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
         {iconOnly ? <span className="sr-only">{HOST_LABEL[session.host]}</span> : HOST_LABEL[session.host]}
       </span>

@@ -8,7 +8,7 @@
   display: contents;
 }
 
-/* The colours of the Herdr rows of the Tree (A/B question ui-tree-density, logic/herdrRow.ts): the tint of a row that needs you, of one that finished unseen, and the open row (gold outline and gradient). Change them here. */
+/* The colours of the rows (logic/herdrRow.ts): the tint of a row that needs you and of one that finished unseen (every list mode), and the open row of the tinted variant of the A/B question ui-tree-density (gold outline and gradient). A flagged row uses the hue-orange token. Change them here. */
 .agents-scope {
   --am-herdr-needs-bg: color-mix(in srgb, var(--color-hue-red-text, #b91c1c) 16%, transparent);
   --am-herdr-unseen-bg: color-mix(in srgb, var(--color-primary, #2563eb) 14%, transparent);

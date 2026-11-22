@@ -1,6 +1,4 @@
 import { ShieldOff } from 'lucide-react';
-import { guardrailsNotices } from '../logic/notices.js';
-import { NoticeStrip } from '../ui/Notices.js';
 import { useNow } from '../ui/hooks.js';
 import { BlockedSessionsSection } from './BlockedSessionsSection.js';
 import { DenialsSection } from './DenialsSection.js';
@@ -14,7 +12,7 @@ import type { GuardrailsOverviewDto } from '../shared.js';
  * Everything is read from the plugin's files; nothing here can change them. A file it cannot read or whose shape it does not know is a banner naming the
  * file and what to do, never an empty section.
  */
-export function GuardrailsPage({ overview, failed = false, errorText = '' }: { overview: GuardrailsOverviewDto | undefined; /** The page source answered an error (the page shows it): do not claim to be loading. */ failed?: boolean; /** The error of the failed answer (the notice line says it). */ errorText?: string }) {
+export function GuardrailsPage({ overview, failed = false }: { overview: GuardrailsOverviewDto | undefined; /** The page source answered an error (the notices button of the page header says it): do not claim to be loading. */ failed?: boolean }) {
   const now = useNow(1000);
   const data = overview;
   return (
@@ -36,7 +34,6 @@ export function GuardrailsPage({ overview, failed = false, errorText = '' }: { o
           </div>
         </div>
       ) : null}
-      <NoticeStrip items={guardrailsNotices({ errorText, killSwitchError: data?.killSwitch.errorText ?? '', problems: data?.problems ?? [] })} />
       {data !== undefined ? (
         <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
           <GrantsSection grants={data.grants} hiddenEntries={data.hiddenEntries} now={now} scanned={data.projects.length} />

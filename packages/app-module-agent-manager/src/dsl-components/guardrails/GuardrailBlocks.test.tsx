@@ -15,9 +15,11 @@ const LONG: GuardrailBlocksDto = {
     { category: 'eval', count: 40 },
     { category: 'python', count: 17 },
   ],
-} as GuardrailBlocksDto;
+  timeout: false,
+  recent: { total: 4, categories: [{ category: 'rm', count: 4 }] },
+};
 
-const FULL = 'Blocked 555 times (rm 179, interpreter-exec 173, kill 46, 2 more)';
+const FULL = 'Blocked 555 times in total (rm 179, interpreter-exec 173, kill 46, 2 more), 4 in the last 30 min';
 
 function viewport(phone: boolean): void {
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: phone && query.includes('max-width'), media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));

@@ -47,7 +47,7 @@ export const UI_QUESTIONS = {
     options: {
       compact: { label: 'A Compact', hint: 'Recommended. One line per agent: state icon, name, host icon, time. Shows on every agent row of the list (left).' },
       'herdr-line': { label: 'B Herdr line', hint: 'Like the Herdr panel: program icon, bold name, muted folder, age, and a state light on the right (blue dot = finished and unseen, spinner = working, red pill = needs you, grey ring = idle). Shows on every agent row of the list (left).' },
-      'herdr-tinted': { label: 'C Herdr tinted', hint: 'Herdr line with a background tint by state: red when it needs you, blue when finished and unseen, and the open row in a gold outline. Shows on every agent row of the list (left).' },
+      'herdr-tinted': { label: 'C Herdr tinted', hint: 'Herdr line with the open row in a gold outline and gradient (every row shape tints by state now: red when it needs you, blue when finished and unseen, orange when flagged). Shows on every agent row of the list (left).' },
       'herdr-name': { label: 'D Herdr name only', hint: 'Herdr line without the grey folder text: only the session name and the state light. The densest. Shows on every agent row of the list (left).' },
     },
   },

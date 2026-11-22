@@ -13,6 +13,7 @@ const PROMPT = {
   header: 'Bash command',
   description: 'Create am-allow.txt file',
   body: 'touch am-allow.txt',
+  notice: '',
   question: 'Do you want to proceed?',
   options: [
     { number: 1, label: 'Yes' },

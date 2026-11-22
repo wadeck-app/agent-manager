@@ -236,7 +236,7 @@ describe('orderedSessionIds (the order of the keyboard, from the data)', () => {
     row({ sessionId: 'bbbbbbbb-0000-0000-0000-000000000002', folder: 'api', cwd: '/w/api', state: 'needs-you' }),
     row({ sessionId: 'cccccccc-0000-0000-0000-000000000003', folder: 'shop', cwd: '/w/shop', state: 'working' }),
   ];
-  const options = { tree: { grouping: 'workspace', expansion: 'all' }, groups: { preview: true }, inbox: { autoNext: false } } as const;
+  const options = { tree: { grouping: 'workspace', expansion: 'all' }, groups: { preview: true }, inbox: { autoNext: false }, subagents: { show: false } } as const;
 
   it('tree by workspace: folder by folder, the most urgent folder first; flat: most urgent first', () => {
     const byFolder = orderedSessionIds('tree', rows, options, null);

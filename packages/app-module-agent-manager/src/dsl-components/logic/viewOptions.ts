@@ -1,3 +1,5 @@
+import { getErrorMessage } from './errorText.js';
+
 /**
  * The options of each mode (the "View options" popover), remembered per mode in localStorage. Every option has a default; a stored value that is not valid is
  * replaced by the default of that option only (the other options keep theirs).
@@ -9,12 +11,15 @@ export interface ViewOptions {
   tree: { grouping: TreeGrouping; expansion: TreeExpansion };
   groups: { preview: boolean };
   inbox: { autoNext: boolean };
+  /** Tree and Custom lists: the sub-agents of an agent as expandable children under its row. Off by default to save room. */
+  subagents: { show: boolean };
 }
 
 export const DEFAULT_VIEW_OPTIONS: ViewOptions = {
   tree: { grouping: 'workspace', expansion: 'all' },
   groups: { preview: true },
   inbox: { autoNext: false },
+  subagents: { show: false },
 };
 
 export const VIEW_OPTIONS_STORAGE_KEY = 'agent-manager.viewOptions';
@@ -40,6 +45,7 @@ export function parseViewOptions(text: string | null): ViewOptions {
   const tree = record(stored['tree']);
   const groups = record(stored['groups']);
   const inbox = record(stored['inbox']);
+  const subagents = record(stored['subagents']);
   return {
     tree: {
       grouping: pick(tree['grouping'], ['workspace', 'none'], DEFAULT_VIEW_OPTIONS.tree.grouping),
@@ -47,6 +53,7 @@ export function parseViewOptions(text: string | null): ViewOptions {
     },
     groups: { preview: typeof groups['preview'] === 'boolean' ? groups['preview'] : DEFAULT_VIEW_OPTIONS.groups.preview },
     inbox: { autoNext: typeof inbox['autoNext'] === 'boolean' ? inbox['autoNext'] : DEFAULT_VIEW_OPTIONS.inbox.autoNext },
+    subagents: { show: typeof subagents['show'] === 'boolean' ? subagents['show'] : DEFAULT_VIEW_OPTIONS.subagents.show },
   };
 }
 
@@ -59,10 +66,12 @@ export function readViewOptions(): ViewOptions {
   }
 }
 
-export function saveViewOptions(options: ViewOptions): void {
+/** Stores the options. Returns undefined when saved, else the sentence to show: the choice applies until the page reloads, then it is lost. */
+export function saveViewOptions(options: ViewOptions): string | undefined {
   try {
     window.localStorage.setItem(VIEW_OPTIONS_STORAGE_KEY, JSON.stringify(options));
-  } catch {
-    // Not saved: the options reset on reload. Nothing the user could fix, nothing worth an error banner.
+    return undefined;
+  } catch (error) {
+    return `The view options could not be saved (${getErrorMessage(error)}). They apply until you reload the page, then they go back to the defaults. Allow site data for this page in the browser, or free its storage, then change the option again.`;
   }
 }

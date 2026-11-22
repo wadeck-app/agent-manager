@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { blockedText, bypassCommand, clockText, COMMAND_PREVIEW, previewOf, remainingText, subagentOf } from '../logic/guardrails.js';
+import { blockedText, bypassCommand, recentBlockedText, clockText, COMMAND_PREVIEW, previewOf, remainingText, subagentOf } from '../logic/guardrails.js';
 import { row } from '../logic/fixtures.js';
 import { folderName } from '../logic/folderPicker.js';
 import { RowMarks } from '../lists/RowMarks.js';
 import type { DenialDto, DenialsDto, GuardrailsOverviewDto } from '../shared.js';
 import { GuardrailsPage } from '../components/GuardrailsPage.js';
+import { PageTitle } from '../components/PageTitle.js';
 
 const json = (body: unknown, ok = true, status = 200): Response => ({ ok, status, json: async () => body }) as unknown as Response;
 
@@ -73,9 +74,12 @@ describe('text helpers', () => {
   it('bypassCommand, blockedText, folderName, subagentOf, clockText', () => {
     expect(bypassCommand('rm')).toBe('/w-guardrails:request-bypass rm once');
     expect(bypassCommand('rm', '5m')).toBe('/w-guardrails:request-bypass rm 5m');
-    expect(blockedText({ total: 37, categories: [{ category: 'interpreter-exec', count: 37 }], timeout: false })).toBe('Blocked 37 times on interpreter-exec');
-    expect(blockedText({ total: 1, categories: [{ category: 'rm', count: 1 }], timeout: false })).toBe('Blocked 1 time on rm');
-    expect(blockedText({ total: 10, categories: ['a', 'b', 'c', 'd'].map((category) => ({ category, count: 1 })), timeout: false })).toBe('Blocked 10 times (a 1, b 1, c 1, 1 more)');
+    expect(blockedText({ total: 37, categories: [{ category: 'interpreter-exec', count: 37 }], timeout: false, recent: { total: 2, categories: [{ category: 'interpreter-exec', count: 2 }] } })).toBe('Blocked 37 times in total on interpreter-exec, 2 in the last 30 min');
+    expect(blockedText({ total: 1, categories: [{ category: 'rm', count: 1 }], timeout: false, recent: { total: 0, categories: [] } })).toBe('Blocked 1 time in total on rm, none in the last 30 min');
+    expect(blockedText({ total: 10, categories: ['a', 'b', 'c', 'd'].map((category) => ({ category, count: 1 })), timeout: false, recent: { total: 1, categories: [{ category: 'a', count: 1 }] } })).toBe('Blocked 10 times in total (a 1, b 1, c 1, 1 more), 1 in the last 30 min');
+    expect(blockedText({ total: 0, categories: [], timeout: true, recent: { total: 2, categories: [{ category: 'rm', count: 2 }] } })).toBe('Blocked 2 times in the last 30 min on rm');
+    expect(recentBlockedText({ total: 37, categories: [], timeout: false, recent: { total: 2, categories: [{ category: 'rm', count: 1 }, { category: 'kill', count: 1 }] } })).toBe('Blocked 2 times in the last 30 min (rm 1, kill 1)');
+    expect(recentBlockedText({ total: 37, categories: [], timeout: false, recent: { total: 0, categories: [] } })).toBe('');
     expect(folderName('/work/shop/')).toBe('shop');
     expect(subagentOf('287760ca:M')).toBe('');
     expect(subagentOf('287760ca:A:a2a5:general-purpose')).toBe('general-purpose');
@@ -107,6 +111,8 @@ describe('GuardrailsPage', () => {
     expect(within(grants).getByText('0 of 1')).toBeInTheDocument();
     const blocked = screen.getByRole('table', { name: 'Blocked sessions' });
     expect(within(blocked).getByText('37')).toBeInTheDocument();
+    // The page keeps the full history and says so in the column title.
+    expect(within(blocked).getByRole('columnheader', { name: 'Blocked in total' })).toBeInTheDocument();
     expect(within(blocked).getByText('on interpreter-exec')).toBeInTheDocument();
     expect(within(blocked).getByText(/Timed out for .* after 3 refused requests/)).toBeInTheDocument();
     expect(screen.getByText(/Rules view needs plugin API A2/)).toBeInTheDocument();
@@ -145,9 +151,16 @@ describe('GuardrailsPage', () => {
       problems: [{ file: '/work/shop/.claude/w-guardrails/state.json', message: 'has an unknown shape', hint: 'Update this module.' }],
       configs: [{ ...OVERVIEW.configs[0]!, state: 'malformed' as const, categories: [], warnings: [], errorText: 'is not valid JSON: Unexpected end. Fix it by hand.' }],
     };
-    render(<GuardrailsPage overview={broken} />);
-    expect(await screen.findByText('state.json: has an unknown shape')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+    render(
+      <>
+        <PageTitle title="Guardrails" guardrails={broken} />
+        <GuardrailsPage overview={broken} />
+      </>,
+    );
+    // The problem file is a notice behind the button of the title line, never an inline stack on the page.
+    expect(screen.queryByText('state.json: has an unknown shape')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: '1 notice' }));
+    expect(screen.getByText('state.json: has an unknown shape')).toBeInTheDocument();
     expect(screen.getByText('/work/shop/.claude/w-guardrails/state.json has an unknown shape. Update this module.')).toBeInTheDocument();
     expect(screen.getByText(/The plugin IGNORES this file/)).toBeInTheDocument();
     expect(screen.getByText(/is not valid JSON: Unexpected end/)).toBeInTheDocument();
@@ -266,11 +279,25 @@ describe('GuardrailsPage', () => {
 });
 
 describe('the chip of a session row', () => {
-  it('shows the count and the sentence for a blocked session, nothing for another', () => {
-    const blocked = row({ guardrailBlocks: { total: 37, categories: [{ category: 'interpreter-exec', count: 37 }], timeout: false } });
+  it('shows the RECENT count and says the window for a session blocked in the last 30 min, nothing for another', () => {
+    const blocked = row({ guardrailBlocks: { total: 37, categories: [{ category: 'interpreter-exec', count: 37 }], timeout: false, recent: { total: 2, categories: [{ category: 'interpreter-exec', count: 2 }] } } });
     const { container, rerender } = render(<RowMarks session={blocked} />);
-    expect(screen.getByLabelText('Blocked 37 times on interpreter-exec')).toHaveTextContent('37');
+    expect(screen.getByLabelText('Blocked 2 times in the last 30 min on interpreter-exec')).toHaveTextContent('2');
+    expect(container.textContent).not.toContain('37');
     rerender(<RowMarks session={row()} />);
     expect(container.querySelector('svg')).toBeNull();
+  });
+
+  it('shows no badge at all when nothing was blocked in the last 30 min, however many times it was blocked before', () => {
+    const old = row({ guardrailBlocks: { total: 37, categories: [{ category: 'rm', count: 37 }], timeout: false, recent: { total: 0, categories: [] } } });
+    const { container } = render(<RowMarks session={old} />);
+    expect(container.querySelector('svg')).toBeNull();
+    expect(screen.queryByLabelText(/Blocked/)).toBeNull();
+  });
+
+  it('a bypass timeout is said in the tooltip text of a recent badge', () => {
+    const blocked = row({ guardrailBlocks: { total: 3, categories: [{ category: 'rm', count: 3 }], timeout: true, recent: { total: 1, categories: [{ category: 'rm', count: 1 }] } } });
+    render(<RowMarks session={blocked} />);
+    expect(screen.getByLabelText('Blocked 1 time in the last 30 min on rm. Bypass requests are timed out')).toHaveTextContent('1');
   });
 });

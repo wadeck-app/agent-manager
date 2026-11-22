@@ -9,7 +9,7 @@ import { emptyUserState, guarded, parsePinBody, parseSessionId, readUserState, r
 import { groupDto, registerGroupsRoutes, registerMarksRoutes } from './groupsRoutes.js';
 import { GROUP_ABSENT_PRUNE_MS } from '../commons/groups.js';
 import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
-import { guardrailBlocksFor, registerGuardrailsRoutes } from './guardrailsRoutes.js';
+import { guardrailBlocksFor, journalDirOfOptions, registerGuardrailsRoutes, type GuardrailsOptions } from './guardrailsRoutes.js';
 import { registerLogRoute } from './logRoute.js';
 import { registerReplyRoutes, type ModuleOptions } from './replyRoutes.js';
 import { createDaemonApi } from './daemon/daemonApi.js';
@@ -72,7 +72,7 @@ const PRUNE_EVERY_MS = 60 * 60 * 1000;
  * Always 200 when the route itself worked: a registry that cannot be read is `ok: false` with `error` and `errorText` (never an empty list that
  * looks like "no sessions"); the files that could not be read are in `unreadable`.
  */
-function registerSessions(kit: RouteKit, source: OwnedSource): void {
+function registerSessions(kit: RouteKit, source: OwnedSource, guardrailsOptions: GuardrailsOptions): void {
   let lastPruneAt = 0;
   kit.route('GET', '/sessions', async (req) => {
     const show = showOf(req.query);
@@ -146,7 +146,7 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
     // The status line data (model, context, tokens, duration, branch, role, bypasses): read from the transcript digest and the registry folder of each session.
     const statuses = await Promise.all(shown.map((row, index) => statusOf(row, digests[index]!.usage, digests[index]!.note, now)));
     // The chip "blocked by a guardrail": the counters of the plugin in each session folder (a file that cannot be read is `guardrailsErrorText`, never silence).
-    const guardrails = await guardrailBlocksFor(shown, now);
+    const guardrails = await guardrailBlocksFor(shown, now, journalDirOfOptions(guardrailsOptions));
     const rows = shown.map((row, index): SessionRow & SessionRowDto => {
       const digest = digests[index]!;
       const seenAt = user.seen[row.sessionId.toLowerCase()];
@@ -287,7 +287,7 @@ export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {
   registerUserState(kit, source);
   registerGroupsRoutes(kit);
   registerMarksRoutes(kit);
-  registerSessions(kit, source);
+  registerSessions(kit, source, options.guardrails ?? {});
   registerSummary(kit, source);
   registerHealth(kit);
   registerLogRoute(kit, source);
