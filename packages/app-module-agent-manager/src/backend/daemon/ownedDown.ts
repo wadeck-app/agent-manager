@@ -1,5 +1,5 @@
 import { defaultConfigDir, getErrorMessage } from '@wadeck-app/agent-manager-core';
-import { LaunchError, ownedStatePath, readOwnedState } from '@wadeck-app/agent-manager-core/launch';
+import { ownedStatePath, readOwnedState } from '@wadeck-app/agent-manager-core/launch';
 // violations-suppress: ts/no-deep-relative the module's own commons/ contract, one level above this subfolder
 import type { ApiError, OwnedDown } from '../../commons/api.js';
 import { START_COMMAND } from './daemonApi.js';
@@ -28,8 +28,8 @@ export async function ownedDownOf(ownedError: ApiError | null, env: NodeJS.Proce
   try {
     count = (await readOwnedState(path)).length;
   } catch (error) {
-    const fix = error instanceof LaunchError ? `. ${error.fix}` : '';
-    return { ...NOTHING, ownedStateErrorText: `The daemon cannot be asked and ${getErrorMessage(error)}${fix}` };
+    // A LaunchError message already ends with its own `Fix: ...` sentence: it is the message alone, never the message plus the fix again.
+    return { ...NOTHING, ownedStateErrorText: `The daemon cannot be asked and ${getErrorMessage(error)}` };
   }
   if (count === 0) {
     return NOTHING;

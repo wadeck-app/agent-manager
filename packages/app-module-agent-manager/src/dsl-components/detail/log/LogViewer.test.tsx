@@ -23,6 +23,10 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
+      // The Permissions tab of the rail reads the guardrails files: answered apart, it must not take an answer queued for the log.
+      if (url.includes('/guardrails/overview')) {
+        return new Response(JSON.stringify({ ok: true, grants: [], sessions: [], problems: [], killSwitch: { active: false, path: '', errorText: '' } }), { status: 200 });
+      }
       urls.push(url);
       const next = queue.length > 1 ? queue.shift() : queue[0];
       if (next === undefined) {

@@ -11,6 +11,7 @@ import { Tooltip } from '../ui/Tooltip.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { DropBar } from './DropBar.js';
 import { GroupDot } from './GroupDot.js';
+import { GroupSelectBox } from './GroupSelectBox.js';
 import type { GroupDnd } from './useGroupDnd.js';
 
 export interface CustomGroupSectionProps {
@@ -92,6 +93,7 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
               <Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </button>
           </Tooltip>
+          <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={group.name} />
           <span className={`text-xs tabular-nums text-muted ${groupHeaderCount(headerStyle)}`}>{sessions.length}</span>
           {rollup !== undefined ? (
             <Tooltip content={`${STATE_LOOK[rollup].label}: the most urgent state in this group`} side="left">

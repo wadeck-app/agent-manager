@@ -179,7 +179,7 @@ Marks: [D] documented, [M] measured on the 40 newest local transcripts (`poc/scr
 - Dismissal is per message text in `sessionStorage` (`agent-manager.dismissedNotices`): a changed text shows again. A dismissed notice leaves a "N notices dismissed" button (toolbar; under the line on pages without one) that restores them. A storage that throws dismisses nothing.
 - Transient page messages (refused action, search note, unknown mode) use the same line; their dismiss clears the page state instead.
 - Table, Agents (registry error) and Guardrails pages use the registered component `agent-manager:PageNotices` (Guardrails problems go through `GuardrailsPage`). The kill-switch-ON alert stays a large red block on purpose. Dialog banners (launch, fork, thread, owned bar) are untouched.
-- Found, not fixed: `ownedStateErrorText` repeats the "Fix: ..." sentence twice (`backend/daemon/ownedDown.ts`, the error message already holds the fix).
+- Fixed 2026-11-22 (#95): `ownedStateErrorText` said its "Fix: ..." sentence twice (`backend/daemon/ownedDown.ts`); the message of a `LaunchError` already holds it. Test: `backend/ownedDown.test.ts`.
 
 ## Custom mode, port of WAgents (2026-11-22, todo #91)
 
@@ -204,3 +204,29 @@ Marks: [D] documented, [M] measured on the 40 newest local transcripts (`poc/scr
 - Routes `POST /groups/preset`, `POST /sessions/:sessionId/marks`, and the new fields of `POST /groups/:id` are not PIN-gated (`routeClasses.ts`). Marks of sessions absent for 14 days are pruned with the hourly pass.
 - Follow-up, not built: import of the Herdr groups. Mapping: herdr terminal -> `hc get` foreground pid -> registry pid -> session id, then `agents.groups` / `agents.order` / `agents.marks`.
 - Not built: the Tree's attention expansion of sub-agents; the Shortcuts help does not list M / Alt+arrows for this mode.
+
+## Names cut in the Herdr rows (2026-11-22, todo #95)
+
+Cause: the move and menu hover buttons were opacity-0 but kept their 20 px slot (plus gaps), and name and folder shrank together. Fix (`lists/HerdrRowBody.tsx`): the buttons float over the age and light (`absolute`, shown on hover and focus-within); name and folder sit in one clipped one-line box (`flex-wrap overflow-hidden`): the name takes what it needs, the folder wraps out of the box when less than 7 characters remain (so it is hidden, never squeezed); age and light never shrink; host stays in the program icon tooltip.
+
+- Checked at list widths 300 and 400 (1440 px) and 390 px, Tree herdr-tinted and Custom: `poc/results/ui-audit/a-*.png`. Only a name longer than the pane is cut (a row with chevron, sub-agent count and the "Needs you" pill still cuts `agent-manager-owner` at 300 px).
+- Tests: `lists/herdrRowBody.test.tsx` (classes only: jsdom has no layout).
+
+## Permissions tab of the right rail (2026-11-22, todo #93)
+
+The rail beside the log (was: sub-agents, only when there are some) now always exists and has two tabs: Sub-agents and Permissions (shield icon, badge = active bypasses of the session plus the other sessions of its project). A session with no sub-agents opens on Permissions, collapsed by default. On a phone (< 600 px) the open rail floats over the log.
+
+- Data, all existing: `GET /guardrails/overview` (grants: category, mode, time left, uses, reason, session; read on selection and every 30 s, refresh button), `guardrailBlocks` of the row (counters by category, copy command buttons), link to the Guardrails page. Absence is a sentence ("No active bypass for this session."), a failed read is an alert, an answer of another shape is an error, never "no bypass".
+- Add bypass and Revoke are drawn disabled; the single switch is `GUARDRAILS_WRITE_ENABLED = false` in `logic/permissions.ts`, tooltip "Needs the w-guardrails API (list/revoke/grant): not available yet". Turn it on only with the API and a PIN class for the routes.
+- Code: `detail/permissions/`, `logic/permissions.ts`, rail in `detail/log/SubagentAside.tsx`. Tests: `detail/permissions/permissions.test.tsx`, `logic/permissions.test.ts`.
+- Not seen with real data: the dev app has no grants file, so only the empty states were screenshotted (`b-permissions-*.png`); the populated list is covered by tests.
+
+## Multi-selection and batch actions (2026-11-22, todo #94 part 1)
+
+- Selection: checkbox on every row (hover, focus-within, or always once something is selected; out of the tab order), Shift click = range among the rows on screen, Ctrl or Cmd click = toggle, X ticks the focused row, Esc clears (not while a dialog is open), select-all in the toolbar, in Tree folders, custom groups and Custom mode blocks (indeterminate for some). State in `lists/selection.tsx` by lowercase session id, pruned when a session disappears. Groups and Inbox modes have row checkboxes but no group select-all.
+- Selection UI: no A/B question; the default asked (hover / focus / when selecting) is the only one built.
+- Batch bar (`batch/BatchBar.tsx`) above the list: Send a message..., Mark as seen (finished ones only), Pin / Unpin, Move to group (page group API, one move per session, not PIN-gated), Add / remove bypass (off, same switch and tooltip as the Permissions tab).
+- Send dialog: recipients read once from the existing `GET /sessions/:id/reply/status` (2 at a time); a dead session or unavailable transport is listed unticked with its reason; "N will receive it"; over 20 ticked the button is off and says how many to untick. After the send the per-recipient results stay until closed, with Copy and a retry of the refused or failed ones (never a maybe-sent one). A new text or new ticks gets a new `requestId`; a failed request keeps the form, and sending again with the same id never messages a recipient twice.
+- Route `POST /sessions/batch/reply {ids[], text, requestId?}` (sensitive: one PIN prompt, CSRF kept; threat-model T-21). Same send logic as the single reply (`sendOne` in `backend/replyRoutes.ts`), 2 at a time, at most 20 recipients (400 above, on duplicates, empty text, unknown fields). Result per recipient `{id, name, state: sent|queued|refused|maybe-sent|failed, reason}`: `maybe-sent` = `OutcomeUnknownError`, `refused` = any 4xx or the service's refused codes, `failed` = the rest. One audit line per recipient (the service writes it); message id = `<requestId>-<session id>`. Registered before `/sessions/:sessionId/reply`.
+- Tests: `backend/batchReply.test.ts` (uses 3 idle child processes for live pids), `lists/selection.test.tsx`, `batch/*.test.*`, `backend/routeClasses.test.ts`.
+- Not built: batch bypass add / remove (needs the w-guardrails API), group select-all in Groups and Inbox.

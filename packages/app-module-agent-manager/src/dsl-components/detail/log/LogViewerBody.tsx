@@ -15,7 +15,8 @@ import { describePending, describeRow, type OpenContext } from './rowModel.js';
 import { BOTTOM_SLACK_PX, LOCATE_MAX_PAGES, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
 import { LocateBanner, locateAnnouncement } from './LocateBanner.js';
 import { publishLogStatus } from '../status/useSessionStatus.js';
-import { SubagentAside } from './SubagentAside.js';
+import { SubagentAside, type RailTab } from './SubagentAside.js';
+import { useSessionGrants } from '../permissions/useSessionGrants.js';
 import { PANEL_OPEN_MIN_PX, useSubagentPrefs } from './subagentPrefs.js';
 import { flattenSubagents } from './subagentModel.js';
 import { useLocateCall } from './useLocateCall.js';
@@ -63,6 +64,9 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
   // A selection (a click on a sub-agent, a search for its call) must be seen: a collapsed panel opens for it WITHOUT touching the saved preference. Collapsing or
   // opening it by hand is the user's choice and is saved.
   const [forcedOpen, setForcedOpen] = useState(false);
+  const grants = useSessionGrants(session);
+  // The tab the user chose; until then the sub-agents when there are some, else the permissions.
+  const [chosenTab, setChosenTab] = useState<RailTab | undefined>(undefined);
   const pending = usePending(session.sessionId);
   const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
   const scroller = useRef<HTMLDivElement>(null);
@@ -239,7 +243,8 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
 <ButtonAction variant="secondary" size="sm" icon={<RefreshCw aria-hidden="true" className="h-3.5 w-3.5" />} label="Retry" onClick={retry} />
   );
   const cut = state.truncated;
-  const showAside = items.length > 0;
+  // The rail always exists: the Permissions tab has something to say for every session (its bypasses, or that there are none).
+  const showAside = true;
   const subagentProps = {
     items,
     mode: prefs.mode,
@@ -253,7 +258,7 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
   };
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="relative flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {state.loaded ? <LogFilterBar feed={filters} filtered={filtered} /> : null}
         {items.length === 0 && state.subagentsNote !== '' ? <p className={`border-b border-border px-3 py-1.5 ${LOG_META} text-warning-text`}>{state.subagentsNote}</p> : null}
@@ -347,7 +352,11 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
       {showAside ? (
         <SubagentAside
           {...subagentProps}
-          collapsed={(prefs.collapsed ?? !roomy) && !forcedOpen}
+          session={session}
+          grants={grants}
+          tab={chosenTab ?? (items.length > 0 ? 'subagents' : 'permissions')}
+          onTab={setChosenTab}
+          collapsed={(prefs.collapsed ?? (items.length === 0 || !roomy)) && !forcedOpen}
           onCollapsed={(collapsed) => {
             setForcedOpen(false);
             changePrefs({ collapsed });

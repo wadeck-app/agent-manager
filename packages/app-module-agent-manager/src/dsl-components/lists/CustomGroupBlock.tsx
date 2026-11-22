@@ -8,6 +8,7 @@ import { GROUP_LOOK } from '../ui/groupLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { DropBar } from './DropBar.js';
+import { GroupSelectBox } from './GroupSelectBox.js';
 import type { CustomDnd } from './useCustomDnd.js';
 
 export interface CustomGroupBlockProps {
@@ -87,6 +88,7 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
           {name}
         </span>
         <span className="tabular-nums text-muted">{sessions.length}</span>
+        <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={name} />
         {/* Folded: the most urgent state inside, so a closed group still says when something needs you. */}
         {!open && rollup !== undefined ? (
           <Tooltip content={`${STATE_LOOK[rollup].label}: the most urgent state in this group`} side="right">

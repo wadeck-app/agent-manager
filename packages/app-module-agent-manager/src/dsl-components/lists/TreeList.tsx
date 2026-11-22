@@ -21,6 +21,7 @@ import { Highlight } from './Highlight.js';
 import { CustomGroupSection } from './CustomGroupSection.js';
 import { DropBar } from './DropBar.js';
 import { GroupDialog } from './GroupDialog.js';
+import { GroupSelectBox } from './GroupSelectBox.js';
 import { ListScroll } from './ListScroll.js';
 import { MoveToGroupDialog } from './MoveToGroupDialog.js';
 import { OptionShell } from './OptionShell.js';
@@ -298,7 +299,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                 tabIndex={visibleIds.length === 0 && sections.length === 0 && node === nodes[0] ? 0 : -1}
                 onClick={() => toggle(node, !open)}
                 onKeyDown={(event) => onFolderKey(event, node)}
-                className={`flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${groupHeaderBar(headerStyle, GROUP_LOOK.none.edge)} ${FOCUS_RING} focus-visible:ring-inset`}
+                className={`group flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${groupHeaderBar(headerStyle, GROUP_LOOK.none.edge)} ${FOCUS_RING} focus-visible:ring-inset`}
               >
                 <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
                 <FolderIcon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
@@ -309,6 +310,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                   </span>
                 ) : null}
                 <span className="ml-auto flex shrink-0 items-center gap-2">
+                  <GroupSelectBox ids={node.sessions.map(agentId)} name={node.folder} />
                   <span className={`text-xs tabular-nums text-muted ${groupHeaderCount(headerStyle)}`}>{node.sessions.length}</span>
                   <Tooltip content={`${STATE_LOOK[node.rollup].label}: the most urgent state in this folder`} side="left">
                     <span className="inline-flex">

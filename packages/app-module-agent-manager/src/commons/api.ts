@@ -524,6 +524,35 @@ export interface ReplyOk {
 export type ReplyResponse = ReplyOk | ApiFailure;
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
+// POST /sessions/batch/reply {ids: string[], text: string, requestId?: string}  (sensitive: ONE PIN prompt for the whole batch)
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * What happened to one recipient. sent: handed over (a direct transport). queued: held by a mailbox transport. refused: nothing was sent (dead or unknown session,
+ * transport unavailable, rate limit). maybe-sent: the outcome is unknown (timeout, lost connection): the message may have arrived, NEVER retried by the module,
+ * look at the log of the session. failed: something else went wrong, nothing is known to have been sent.
+ */
+export type BatchRecipientState = 'sent' | 'queued' | 'refused' | 'maybe-sent' | 'failed';
+
+export interface BatchRecipientResult {
+  id: string;
+  /** The registry name of the session, its folder name when it has none, the id when it is unknown. */
+  name: string;
+  state: BatchRecipientState;
+  /** Why (message and fix), empty for a plain 'sent' or 'queued'. */
+  reason: string;
+}
+
+export interface BatchReplyOk {
+  ok: true;
+  /** One entry per recipient, in the order asked. */
+  results: BatchRecipientResult[];
+  counts: Record<BatchRecipientState, number>;
+}
+
+export type BatchReplyResponse = BatchReplyOk | ApiFailure;
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
 // GET /sessions/:sessionId/reply/status
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 

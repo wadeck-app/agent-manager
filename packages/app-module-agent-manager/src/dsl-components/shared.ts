@@ -2,6 +2,7 @@
 // (the violations rule ts/no-deep-relative forbids '../../').
 export type * from '../commons/api.js';
 export type * from '../commons/guardrails.js';
+export { BATCH_CONCURRENCY, MAX_BATCH_RECIPIENTS } from '../commons/batch.js';
 export { DEFAULT_MODE, isMode, MODE_LABEL, MODES } from '../commons/variants.js';
 export type { ModeId } from '../commons/variants.js';
 export { CSRF_HEADER, CSRF_PATH } from '../commons/csrf.js';

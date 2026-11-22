@@ -23,6 +23,9 @@ import { actionSummary, workspaceNotices, type NoticeItem } from '../logic/notic
 import { focusComposer, useNow } from '../ui/hooks.js';
 import { useFillContentArea } from '../ui/useFillContentArea.js';
 import { SplitPane } from '../ui/SplitPane.js';
+import { SelectionProvider } from '../lists/selection.js';
+import { SelectedBar } from '../batch/SelectedBar.js';
+import { SelectionKeys } from '../batch/SelectionKeys.js';
 import { Toolbar } from './Toolbar.js';
 import { useInFlight } from './useInFlight.js';
 import { DaemonStateProvider } from '../owned/DaemonState.js';
@@ -87,6 +90,8 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   const grouped = useCustomGroups(ownedRows.rows, customGroups, sendGroupRequest);
   const rows = grouped.rows;
   // The selection handler is defined before the marks request exists: it reads them through refs.
+  // Every session the page has: a selected id that is not in it any more is dropped.
+  const existingIds = useMemo(() => new Set(rows.map(agentId)), [rows]);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
   const setMarksRef = useRef<(sessionId: string, marks: { flag?: boolean; unread?: boolean }) => void>(() => undefined);
@@ -214,6 +219,24 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     [act, optimistic],
   );
 
+  // The batch actions: the same requests as the single ones, one per session (pin and seen are module-local markers, no PIN).
+  const pinMany = useCallback(
+    (batch: readonly SessionRowDto[], pinned: boolean) => {
+      for (const session of batch) {
+        pin(session, pinned);
+      }
+    },
+    [pin],
+  );
+  const seenMany = useCallback(
+    (batch: readonly SessionRowDto[]) => {
+      for (const session of batch) {
+        markSeen(session);
+      }
+    },
+    [markSeen],
+  );
+
   // Opening a Done session marks it seen once it has stayed open a moment (not on every key press while moving through the list).
   const seenKey = selected?.state === 'done' ? `${selected.sessionId}:${selected.statusUpdatedAt ?? ''}` : undefined;
   useEffect(() => {
@@ -295,6 +318,12 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     select(target);
     setFocusWanted(target);
   };
+  // The rows in the order of the screen first (the batch dialogs list them like the list does), then any other.
+  const orderedRows = useMemo(() => {
+    const position = new Map(orderedIds().map((id, index) => [id, index]));
+    return [...rows].sort((a, b) => (position.get(agentId(a)) ?? Number.MAX_SAFE_INTEGER) - (position.get(agentId(b)) ?? Number.MAX_SAFE_INTEGER));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, shownRows, mode, options, tabParam, grouped.api.groups]);
   let listColumn: ReactNode;
   if (loading) {
     listColumn = (
@@ -313,7 +342,12 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
       />
     );
   } else {
-    listColumn = <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} groups={mode === 'tree' || mode === 'custom' ? grouped.api : undefined} {...(mode === 'custom' ? { marks: marksApi } : {})} />;
+    listColumn = (
+      <>
+        <SelectedBar rows={orderedRows} groups={grouped.api} onPin={pinMany} onSeen={seenMany} />
+        <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} groups={mode === 'tree' || mode === 'custom' ? grouped.api : undefined} {...(mode === 'custom' ? { marks: marksApi } : {})} />
+      </>
+    );
   }
 
   // The problems of the page, each one a short sentence on ONE line (details, copy fix and dismiss behind it): see ui/Notices.tsx.
@@ -350,6 +384,8 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   }
 
   return (
+    <SelectionProvider existing={existingIds}>
+    <SelectionKeys />
     <DaemonStateProvider down={ownedError?.code === 'daemon-not-running'}>
     <LiveThreadsProvider count={liveThreads}>
     <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
@@ -369,6 +405,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         detailOpen={selectedId !== undefined}
         onNewGroup={async (name) => (await grouped.api.create(name)) !== undefined}
         noticeBadge={notices.badge}
+        selectableIds={orderedIds()}
       />
       {launchOpen ? <NewSessionDialog ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
       {notices.line !== null ? <div className="border-b border-border px-2 py-1">{notices.line}</div> : null}
@@ -378,5 +415,6 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     </div>
     </LiveThreadsProvider>
     </DaemonStateProvider>
+    </SelectionProvider>
   );
 }

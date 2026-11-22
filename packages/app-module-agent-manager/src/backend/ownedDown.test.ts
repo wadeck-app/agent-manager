@@ -79,6 +79,9 @@ describe('GET /sessions: owned sessions whose daemon is down', () => {
     expect(body.ownedStateErrorText).toContain('owned-sessions.json');
     expect(body.ownedStateErrorText).toContain('not valid JSON');
     expect(body.ownedStateErrorText).toContain('.bad');
+    // The fix is said once: LaunchError.message already ends with 'Fix: ...', it is not appended a second time (the sentence was shown twice).
+    expect(body.ownedStateErrorText.match(/Fix:/g)).toHaveLength(1);
+    expect(body.ownedStateErrorText.match(/move it aside/g)).toHaveLength(1);
   });
 
   it('daemon down and a file of an unknown version: the version message', async () => {

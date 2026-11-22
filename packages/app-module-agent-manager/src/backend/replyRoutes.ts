@@ -6,7 +6,9 @@ import {
   DELIVERED_AS_TEXT,
   MAX_TEXT_CHARS,
   MAX_UPLOAD_BYTES,
+  OutcomeUnknownError,
   ReplyError,
+  SAFE_ID,
   createReplyService,
   readAudit,
   implementedTransports,
@@ -23,7 +25,9 @@ import {
   type ReplyTransport,
 } from '@wadeck-app/agent-manager-core/reply';
 import { readTail, resolveProjectsDir, transcriptPath, type Entry } from '@wadeck-app/agent-manager-core/transcript';
-import type { DeliveryStateName, DeliveryUi, ReplyDefaultTransportSetOk, ReplyMarkerDto, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyStatusLimits, ReplyStatusOk, ReplyTransportSetOk, TransportStatusDto } from '../commons/api.js';
+import type { BatchRecipientResult, BatchRecipientState, BatchReplyOk, DeliveryStateName, DeliveryUi, ReplyDefaultTransportSetOk, ReplyMarkerDto, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyStatusLimits, ReplyStatusOk, ReplyTransportSetOk, TransportStatusDto } from '../commons/api.js';
+import { BATCH_CONCURRENCY, MAX_BATCH_RECIPIENTS } from '../commons/batch.js';
+import { SESSION_ID_PATTERN } from './userState.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import type { DaemonApi } from './daemon/daemonApi.js';
 import { ownedDeliveryStatus } from './daemon/ownedDelivery.js';
@@ -33,7 +37,7 @@ import { OWNED_TRANSPORT_ID, createOwnedTransport } from './daemon/ownedTranspor
 import type { GuardrailsOptions } from './guardrailsRoutes.js';
 import { findSession } from './sessionLookup.js';
 import type { RouteAnswer, RouteKit } from './routeKit.js';
-import { ok, queryValue } from './routeKit.js';
+import { RequestError, ok, queryValue } from './routeKit.js';
 
 /** What a test (or a future caller) can replace; app-core calls the module with the context only. */
 export interface ModuleOptions {
@@ -146,6 +150,93 @@ function parseBody(body: unknown): ReplyRequest {
     request.messageId = messageId as string;
   }
   return request;
+}
+
+const BATCH_FIELDS = ['ids', 'text', 'requestId'] as const;
+/** The longest request id: the id of a recipient is "<requestId>-<its whole session id>" (36 characters) and an id is at most 128 characters. */
+const MAX_REQUEST_ID = 64;
+
+interface BatchRequest {
+  ids: string[];
+  text: string;
+  requestId?: string;
+}
+
+/** The body of POST /sessions/batch/reply, checked as a whole before anything is sent: a bad request sends nothing to anybody. */
+export function parseBatchBody(body: unknown): BatchRequest {
+  const example = '{"ids": ["<sessionId>", ...], "text": "...", "requestId": "optional-id-for-a-safe-retry"}';
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    return bad('The body must be a JSON object', `Send ${example} with Content-Type: application/json.`);
+  }
+  const extra = Object.keys(body).filter((key) => !(BATCH_FIELDS as readonly string[]).includes(key));
+  if (extra.length > 0) {
+    bad(`Unknown field(s) in the body: ${extra.map((key) => `'${key.slice(0, 40)}'`).join(', ')}`, `The fields are ${BATCH_FIELDS.join(', ')}: a batch sends one text, with no image.`);
+  }
+  const ids: unknown = Reflect.get(body, 'ids');
+  if (!Array.isArray(ids)) {
+    bad("'ids' must be a list of session ids", `Send ${example}.`);
+  }
+  const list = ids as unknown[];
+  if (list.length === 0) {
+    bad("'ids' needs at least one session id", 'Select the sessions to message, then send again.');
+  }
+  if (list.length > MAX_BATCH_RECIPIENTS) {
+    bad(`A batch has at most ${MAX_BATCH_RECIPIENTS} recipients, got ${list.length}`, `Send the batch in parts of ${MAX_BATCH_RECIPIENTS} or fewer.`);
+  }
+  const seen = new Set<string>();
+  for (const id of list) {
+    if (typeof id !== 'string' || !SESSION_ID_PATTERN.test(id)) {
+      bad(`'${String(id).slice(0, 80)}' is not a session id`, 'Use the sessionId of GET /sessions (8-4-4-4-12 hexadecimal characters).');
+    }
+    const key = (id as string).toLowerCase();
+    if (seen.has(key)) {
+      bad(`The session ${key} is listed twice`, 'List each recipient once: a message is never sent twice to the same session by one batch.');
+    }
+    seen.add(key);
+  }
+  const text: unknown = Reflect.get(body, 'text');
+  if (typeof text !== 'string') {
+    bad(`'text' must be a string, got ${text === undefined ? 'nothing' : typeof text}`, `Send ${example}.`);
+  }
+  if ((text as string).trim() === '') {
+    bad('The text must not be empty', 'Write the message to send to every recipient.');
+  }
+  const request: BatchRequest = { ids: list as string[], text: text as string };
+  const requestId: unknown = Reflect.get(body, 'requestId');
+  if (requestId !== undefined) {
+    if (typeof requestId !== 'string' || !SAFE_ID.test(requestId) || requestId.length > MAX_REQUEST_ID) {
+      bad(`'requestId' must be 1 to ${MAX_REQUEST_ID} letters, digits, '_' or '-', got ${JSON.stringify(requestId)?.slice(0, 40)}`, 'Use the same requestId to retry a batch safely: a recipient that already got it is not messaged again.');
+    }
+    request.requestId = requestId as string;
+  }
+  return request;
+}
+
+/** Runs `run` over `items` with at most `limit` in flight; the results keep the order of the items. `run` must not throw. */
+async function mapLimit<T, R>(items: readonly T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await run(items[index] as T);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+/** The codes the reply service itself audits as "refused" (nothing was sent), whatever their HTTP status. */
+const REFUSED_CODES = ['transport-unavailable', 'rate-limited', 'unknown-session', 'session-dead'];
+
+/** "message. hint" of a failed answer, each sentence once. */
+function failureReason(body: unknown): string {
+  const detail = (body as { error?: { message?: unknown; hint?: unknown } }).error;
+  const text = detail?.message;
+  const message = typeof text === 'string' ? text : 'The send failed without a message.';
+  const hint = typeof detail?.hint === 'string' ? detail.hint : '';
+  return hint === '' || message.includes(hint) ? message : `${message.replace(/\.$/, '')}. ${hint}`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
@@ -406,14 +497,19 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
   const preferenceProblems = new Map<string, string>();
   const services = serviceFactory(options, owned, preferenceProblems);
 
-  kit.route(
-    'POST',
-    '/sessions/:sessionId/reply',
-    shaped(async (req) => {
-      const request = parseBody(req.body);
-      const found = await findSession(req.params?.['sessionId'], owned);
+  /** What one send answered: the HTTP answer of the single route, and what a batch needs to tell the recipients apart. */
+  interface SendOutcome {
+    answer: RouteAnswer;
+    session?: Session;
+    /** The transport could not say whether the message arrived (timeout, lost connection): never retried. */
+    outcomeUnknown?: boolean;
+  }
+
+  /** One reply to one session: the whole logic of POST /sessions/:sessionId/reply, shared with the batch route. A RequestError (unknown or unsafe id) is thrown. */
+  async function sendOne(rawId: string | undefined, request: ReplyRequest): Promise<SendOutcome> {
+      const found = await findSession(rawId, owned);
       if ('registryError' in found) {
-        return fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
+        return { answer: fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint) };
       }
       const { session } = found;
       const { service, transports } = services();
@@ -421,7 +517,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
       const ownedFound = await owned.find(session.sessionId);
       if (ownedFound.ok && (ownedFound.view?.hostKind === 'stream-json' || ownedFound.view?.hostKind === 'bg') && (ownedFound.view.state === 'exited' || ownedFound.view.state === 'interrupted')) {
         const { view } = ownedFound;
-        return fail(409, 'owned-session-ended', `The owned session ${session.sessionId} is ${view.state}: ${view.state === 'interrupted' ? 'the daemon that owned it ended while it was live and its claude process ended with it' : 'its claude process ended'}`, 'Resume it (POST /owned/:id/resume): the conversation continues, the turn that was lost is not replayed. Then send the reply again.');
+        return { session, answer: fail(409, 'owned-session-ended', `The owned session ${session.sessionId} is ${view.state}: ${view.state === 'interrupted' ? 'the daemon that owned it ended while it was live and its claude process ended with it' : 'its claude process ended'}`, 'Resume it (POST /owned/:id/resume): the conversation continues, the turn that was lost is not replayed. Then send the reply again.') };
       }
       try {
         const record = await service.send({
@@ -445,7 +541,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
           auditWarning: record.auditError === undefined ? '' : `${record.auditError.message}. ${record.auditError.fix}`,
           imagesSaved: request.images?.length ?? 0,
         };
-        return ok(body satisfies ReplyResponse);
+        return { session, answer: ok(body satisfies ReplyResponse) };
       } catch (error) {
         if (error instanceof ReplyError) {
           // The service does not see an owned session when the daemon cannot be asked: say that (and the fix) instead of a bare "no such session".
@@ -453,14 +549,65 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
             const listed = await owned.list();
             if (!listed.ok) {
               const { code, message, hint } = listed.error;
-              return fail(409, code, `${error.reason}; the agent-manager daemon cannot be asked, so a session it owns is not known: ${message}`, hint);
+              return { session, answer: fail(409, code, `${error.reason}; the agent-manager daemon cannot be asked, so a session it owns is not known: ${message}`, hint) };
             }
           }
-          return replyFailure(error);
+          return { session, answer: replyFailure(error), outcomeUnknown: error instanceof OutcomeUnknownError };
         }
         throw error;
       }
+  }
+
+  /** One recipient of a batch: never throws (the others must still be messaged), and never retries. */
+  async function sendToRecipient(id: string, text: string, requestId: string | undefined): Promise<BatchRecipientResult> {
+    // A request id makes the send idempotent per recipient (the service knows the ids it sent): a retried batch does not message twice.
+    const request: ReplyRequest = { text, ...(requestId === undefined ? {} : { messageId: `${requestId}-${id.toLowerCase()}` }) };
+    let outcome: SendOutcome;
+    try {
+      outcome = await sendOne(id, request);
+    } catch (error) {
+      if (error instanceof RequestError) {
+        return { id, name: id, state: 'refused', reason: error.hint === undefined ? getErrorMessage(error) : `${getErrorMessage(error).replace(/\.$/, '')}. ${error.hint}` };
+      }
+      return { id, name: id, state: 'failed', reason: `Unexpected failure: ${getErrorMessage(error)}. Look at the app-core output and report it.` };
+    }
+    const name = outcome.session === undefined ? id : (outcome.session.name ?? outcome.session.folder);
+    const { answer } = outcome;
+    const body = answer.body as { ok?: unknown; duplicate?: unknown; deliveryState?: unknown; auditWarning?: unknown; error?: { code?: unknown } };
+    if (answer.status === 200 && body.ok === true) {
+      const reason = body.duplicate === true ? 'already sent with this request id' : typeof body.auditWarning === 'string' ? body.auditWarning : '';
+      return { id, name, state: body.deliveryState === 'queued' ? 'queued' : 'sent', reason };
+    }
+    const reason = failureReason(answer.body);
+    if (outcome.outcomeUnknown === true) {
+      return { id, name, state: 'maybe-sent', reason: `${reason} The message may have arrived: look at the log of the session before sending it again.` };
+    }
+    const code = body.error?.code;
+    const refused = answer.status < 500 || (typeof code === 'string' && REFUSED_CODES.includes(code));
+    return { id, name, state: refused ? 'refused' : 'failed', reason };
+  }
+
+  // Registered before /sessions/:sessionId/reply: a router that takes the first match would read "batch" as a session id.
+  kit.route(
+    'POST',
+    '/sessions/batch/reply',
+    shaped(async (req) => {
+      const { ids, text, requestId } = parseBatchBody(req.body);
+      const results = await mapLimit(ids, BATCH_CONCURRENCY, (id) => sendToRecipient(id, text, requestId));
+      const counts: Record<BatchRecipientState, number> = { sent: 0, queued: 0, refused: 0, 'maybe-sent': 0, failed: 0 };
+      for (const result of results) {
+        counts[result.state] += 1;
+      }
+      const body: BatchReplyOk = { ok: true, results, counts };
+      return ok(body);
     }),
+    { sensitive: true },
+  );
+
+  kit.route(
+    'POST',
+    '/sessions/:sessionId/reply',
+    shaped(async (req) => (await sendOne(req.params?.['sessionId'], parseBody(req.body))).answer),
     { sensitive: true },
   );
 

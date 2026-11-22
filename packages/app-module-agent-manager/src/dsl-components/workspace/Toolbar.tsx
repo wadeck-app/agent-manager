@@ -1,6 +1,7 @@
 import { ButtonAction, CompactSelect, HorizontalStack } from '@wadeck-app/dsl-ui';
 import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { SelectAllBox } from '../batch/SelectAllBox.js';
 import { useMediaQuery } from '../ui/hooks.js';
 import type { ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
@@ -31,6 +32,8 @@ export interface ToolbarProps {
   onNewGroup?: (name: string) => Promise<boolean>;
   /** A session is open: below the lg breakpoint the detail replaces the list, so the toolbar (which acts on the list) gives its room back to the detail. */
   detailOpen?: boolean;
+  /** The ids the list shows (what the select-all box ticks); absent: no box. */
+  selectableIds?: readonly string[];
   /** The small button of the dismissed notices (null when none is dismissed): a notice is never hidden for good. */
   noticeBadge?: ReactNode;
 }
@@ -39,13 +42,14 @@ export interface ToolbarProps {
  * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the toggle between the listing modes, the search, which
  * sessions to show, then the icon buttons (view options of the mode, text size, shortcut help).
  */
-export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession, onNewGroup, detailOpen = false, noticeBadge = null }: ToolbarProps) {
+export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession, onNewGroup, detailOpen = false, selectableIds, noticeBadge = null }: ToolbarProps) {
   // Under 1280 px (the shell menu takes 240 px of it) the toolbar keeps one row: icons for the modes and for New group, a number for the count, short labels.
   const countText = `${count} ${count === 1 ? 'session' : 'sessions'}${show === 'alive' && hiddenDead > 0 ? `, ${hiddenDead} ended hidden` : ''}`;
   const tight = useMediaQuery('(max-width: 1279px)');
   return (
     <div data-toolbar="" className={`${detailOpen ? 'hidden lg:flex' : 'flex'} min-h-am-hit flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1`}>
       <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
+      {selectableIds === undefined ? null : <SelectAllBox ids={selectableIds} />}
       <span className="text-sm text-muted" title={tight ? countText : undefined}>
         {tight ? (
           <>

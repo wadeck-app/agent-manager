@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NOT_SENSITIVE_ROUTES, SENSITIVE_ROUTES } from '../commons/routeClasses.js';
+import { NOT_SENSITIVE_ROUTES, SENSITIVE_ROUTES, isSensitiveRequest } from '../commons/routeClasses.js';
 import { createRouteKit } from './routeKit.js';
 import { makeModule } from './testKit.js';
 import type { ModuleContext } from '@wadeck-app/app-core-sdk';
@@ -49,5 +49,13 @@ describe('PIN class of the routes (T-01, T-12)', () => {
     kit.route('POST', '/b', run, { sensitive: false });
     kit.route('POST', '/c', run);
     expect(seen).toEqual([{ effect: 'sensitive' }, undefined, undefined]);
+  });
+});
+
+describe('the batch reply route (T-21)', () => {
+  it('is sensitive: one PIN prompt for the batch, registered with the sensitive effect, and the shell asks for the PIN for its path', () => {
+    expect(SENSITIVE_ROUTES).toContain('POST /sessions/batch/reply');
+    expect(makeModule().registered.find((route) => route.key === 'POST /sessions/batch/reply')?.effect).toBe('sensitive');
+    expect(isSensitiveRequest('POST', '/sessions/batch/reply')).toBe(true);
   });
 });

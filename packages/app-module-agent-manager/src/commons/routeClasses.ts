@@ -14,6 +14,7 @@
  * | POST /owned/:id/permission-mode         | sensitive     | widens or narrows what the agent may do alone    |
  * | POST /owned/:id/permissions/:requestId  | sensitive     | allows or denies a tool call                     |
  * | POST /sessions/:sessionId/reply         | sensitive     | sends a message to an agent                      |
+ * | POST /sessions/batch/reply              | sensitive     | sends ONE message to up to 20 agents: one PIN prompt for the batch, the same power as the single reply times N (threat-model T-21) |
  * | POST /sessions/:sessionId/hc-permission | sensitive     | types the answer of a permission dialog          |
  * | POST /sessions/:sessionId/pin           | not sensitive | module-local preference                          |
  * | POST /sessions/:sessionId/seen          | not sensitive | module-local marker                              |
@@ -41,6 +42,7 @@ export const SENSITIVE_ROUTES: readonly string[] = [
   'POST /owned/:id/forget',
   'POST /owned/:id/permission-mode',
   'POST /owned/:id/permissions/:requestId',
+  'POST /sessions/batch/reply',
   'POST /sessions/:sessionId/reply',
   'POST /sessions/:sessionId/hc-permission',
   // A GET, and the one read route behind the PIN: a blocked command is a risky one by nature and the journal keeps 500 unmasked characters of it. GET /guardrails/denials is the same list without them (threat-model T-13).

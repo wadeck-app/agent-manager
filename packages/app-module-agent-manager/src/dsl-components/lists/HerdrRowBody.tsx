@@ -48,12 +48,13 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
         </button>
       ) : null}
       <HerdrProgramIcon session={session} />
-      <span className="flex min-w-0 flex-1 items-baseline gap-1.5" title={session.displayName}>
-        <span className="min-w-0 truncate font-semibold text-content">
+      {/* The name comes first: it takes what it needs up to the whole box. The folder wraps out of the one-line clipped box (never squeezes the name) when less than its minimum is left. */}
+      <span className="flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 overflow-hidden leading-5" title={session.displayName}>
+        <span data-herdr-name="" className="min-w-0 max-w-full truncate font-semibold text-content">
           <Highlight text={session.displayName} terms={terms} />
         </span>
         {showFolder ? (
-          <span className="min-w-0 shrink-[2] truncate text-xs text-muted" title={session.folder}>
+          <span data-herdr-folder="" className="min-w-[7ch] shrink grow basis-[7ch] truncate text-xs text-muted" title={session.folder}>
             {`${MIDDLE_DOT} `}
             <Highlight text={session.folder} terms={terms} />
           </span>
@@ -79,39 +80,44 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
           <span aria-label={`${session.subagentCount} sub-agents`}>{session.subagentCount}</span>
         </span>
       ) : null}
-      {onMove !== undefined ? (
-        <Tooltip content="Move to a group (M)" side="left">
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label={`Move ${session.displayName} to a group`}
-            onClick={(event) => {
-              event.stopPropagation();
-              onMove();
-            }}
-            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
-          >
-            <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          </button>
-        </Tooltip>
-      ) : null}
-      {onMenu !== undefined ? (
-        <Tooltip content="Flag, mark as unread, move (right-click)" side="left">
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label={`Actions of ${session.displayName}`}
-            aria-haspopup="menu"
-            onClick={(event) => {
-              event.stopPropagation();
-              const box = event.currentTarget.getBoundingClientRect();
-              onMenu({ x: box.left, y: box.bottom + 2 });
-            }}
-            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
-          >
-            <MoreHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          </button>
-        </Tooltip>
+      {/* The hover buttons float over the age and the light: a hidden slot in the flow would take the width of the name. */}
+      {onMove !== undefined || onMenu !== undefined ? (
+        <span data-herdr-actions="" className="absolute right-7 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded bg-surface px-0.5 shadow-sm ring-1 ring-border group-focus-within:flex group-hover:flex">
+        {onMove !== undefined ? (
+          <Tooltip content="Move to a group (M)" side="left">
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={`Move ${session.displayName} to a group`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onMove();
+              }}
+              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+            >
+              <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            </button>
+          </Tooltip>
+        ) : null}
+        {onMenu !== undefined ? (
+          <Tooltip content="Flag, mark as unread, move (right-click)" side="left">
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={`Actions of ${session.displayName}`}
+              aria-haspopup="menu"
+              onClick={(event) => {
+                event.stopPropagation();
+                const box = event.currentTarget.getBoundingClientRect();
+                onMenu({ x: box.left, y: box.bottom + 2 });
+              }}
+              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+            >
+              <MoreHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            </button>
+          </Tooltip>
+        ) : null}
+        </span>
       ) : null}
       <TimeInState session={session} now={now} />
       <HerdrLightView session={session} />

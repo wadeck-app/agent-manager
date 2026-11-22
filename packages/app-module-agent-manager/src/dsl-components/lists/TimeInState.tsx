@@ -10,7 +10,7 @@ export function TimeInState({ session, now }: { session: AgentRow; now: number }
   }
   return (
     <Tooltip content={describeTimeInState(session.statusUpdatedAt, now)}>
-      <span className="shrink-0 text-xs tabular-nums text-muted">{text}</span>
+      <span data-herdr-age="" className="shrink-0 text-xs tabular-nums text-muted">{text}</span>
     </Tooltip>
   );
 }

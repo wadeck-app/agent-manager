@@ -3,12 +3,17 @@
 export type { DeliveryUi, LogEntry, LogLimits, LocateOk, LocateResponse, LogOk, LogResponse, LogTruncation, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyDefaultTransportSetResponse, ReplyMarkerMode, ReplyStatusOk, ReplyStatusResponse, ReplyTransportSetResponse, TransportStatusDto, SessionRowDto, SessionStatusDto, ModelDto, BypassDto, SubagentDto } from '../shared.js';
 export { failureText, requestJson } from '../data/http.js';
 export type { Outcome } from '../data/http.js';
+export { PAGE_BASE } from '../data/http.js';
+export type { GrantDto, GuardrailsOverviewDto } from '../shared.js';
+export { bypassCommand, remainingText, clockText } from '../logic/guardrails.js';
+export { GUARDRAILS_WRITE_ENABLED, GUARDRAILS_WRITE_NEEDS, permissionsOf } from '../logic/permissions.js';
+export type { PermissionsView } from '../logic/permissions.js';
 export type { AgentRow } from '../data/types.js';
 export { row } from '../logic/fixtures.js';
 export { getErrorMessage } from '../logic/errorText.js';
 export { Banner } from '../ui/Banner.js';
 export { FOCUS_RING } from '../ui/focusRing.js';
-export { useMinWidth, useNow, WIDE_SCREEN_PX } from '../ui/hooks.js';
+export { useMediaQuery, useMinWidth, useNow, WIDE_SCREEN_PX } from '../ui/hooks.js';
 export { AUTO_ML_FROM_PX } from '../ui/density.js';
 export { Tooltip } from '../ui/Tooltip.js';
 export { usePopover } from '../ui/usePopover.js';
