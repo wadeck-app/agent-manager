@@ -19,7 +19,10 @@ export interface PageNoticesProps {
 export function PageNotices({ errorText, unreadableText }: PageNoticesProps) {
   return (
     <Scope>
-      <NoticeStrip items={registryNotices({ errorText: errorText ?? '', unreadableText: unreadableText ?? '' })} />
+      {/* pt-4 = the space-y-4 of PageContent: the host wrapper of a custom component does not get that margin. */}
+      <div className="pt-4">
+        <NoticeStrip items={registryNotices({ errorText: errorText ?? '', unreadableText: unreadableText ?? '' })} />
+      </div>
     </Scope>
   );
 }

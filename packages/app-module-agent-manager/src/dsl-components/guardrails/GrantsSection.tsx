@@ -6,7 +6,7 @@ import { Tooltip } from '../ui/Tooltip.js';
 import { Empty } from './Empty.js';
 import { TD, TH } from './parts.js';
 import { Section } from './Section.js';
-import { TableBox } from './TableBox.js';
+import { ScrollTable } from '../ui/ScrollTable.js';
 import { SessionCell } from './SessionCell.js';
 
 /** The bypasses the hook honours now: category, mode, time left, session, project, the reason the agent gave, uses. */
@@ -17,7 +17,7 @@ export function GrantsSection({ grants, hiddenEntries, now, scanned }: { grants:
         <Empty title="No active bypass" hint={`${scanned} project folder(s) scanned.${hiddenEntries > 0 ? ` ${hiddenEntries} entr${hiddenEntries === 1 ? 'y is' : 'ies are'} left out because the hook ignores them (expired, used up, or expiring more than 24 h ahead).` : ''}`} />
       ) : (
         <>
-          <TableBox label="Active bypasses">
+          <ScrollTable label="Active bypasses">
             <thead>
               <tr className="border-b border-border">
                 <th className={TH}>Category</th>
@@ -53,7 +53,7 @@ export function GrantsSection({ grants, hiddenEntries, now, scanned }: { grants:
                 );
               })}
             </tbody>
-          </TableBox>
+          </ScrollTable>
           {hiddenEntries > 0 ? <p className="border-t border-border px-3 py-2 text-xs text-muted">{hiddenEntries} more entr{hiddenEntries === 1 ? 'y is' : 'ies are'} left out because the hook ignores them (expired, used up, or expiring more than 24 h ahead).</p> : null}
         </>
       )}

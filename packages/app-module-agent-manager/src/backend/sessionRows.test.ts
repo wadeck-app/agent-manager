@@ -31,12 +31,11 @@ describe('GET /sessions: the fields of the master-detail list', () => {
       lastActivity: 'I am working on it',
       activityNote: '',
       subagentCount: 0,
-      // the columns of the table still work
+      // the fields the Table page used to read still answer
       displayName: 'api work',
       statusDetail: 'waiting: permission prompt',
       aliveText: 'alive',
     });
-    expect(body.tableColumns.length).toBeGreaterThan(0);
   });
 
   it('reason is empty when the session does not wait', async () => {

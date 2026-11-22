@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 export type BannerTone = 'error' | 'warning' | 'info';
 
 const TONE_CLASS: Record<BannerTone, string> = {
-  error: 'border-danger bg-danger-bg text-danger-text',
+  error: 'border-danger bg-danger-bg text-hue-red',
   warning: 'border-warning bg-warning-bg text-warning-text',
   info: 'border-border bg-info-bg text-info-text',
 };

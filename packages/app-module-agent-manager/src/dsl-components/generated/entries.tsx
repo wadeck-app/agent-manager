@@ -5,7 +5,10 @@ import { coerceProp, renderChildren, resolveExpressionValue } from '@wadeck-app/
 import type { ComponentRegistryEntry, RegistryRenderProps } from '@wadeck-app/dsl-renderer'
 import { AgentWorkspace } from '../components/AgentWorkspace.js'
 import { GuardrailsPage } from '../components/GuardrailsPage.js'
+import { PageNote } from '../components/PageNote.js'
 import { PageNotices } from '../components/PageNotices.js'
+import { PageTitle } from '../components/PageTitle.js'
+import { SessionsTable } from '../components/SessionsTable.js'
 declare const process: { env: { NODE_ENV?: string } }
 
 export const AgentWorkspaceEntry: ComponentRegistryEntry = {
@@ -35,6 +38,15 @@ export const GuardrailsPageEntry: ComponentRegistryEntry = {
 	},
 }
 
+export const PageNoteEntry: ComponentRegistryEntry = {
+	name: 'PageNote', category: 'atomic', tags: ["note","text"],
+	nodeSchema: null as never,
+	render: ({ node, ctx }: RegistryRenderProps) => {
+		const text = coerceProp(resolveExpressionValue(node['text'], ctx), 'PageNote.text', 'string', true) as import('../components/PageNote.js').PageNoteProps['text']
+		return <PageNote text={text} />
+	},
+}
+
 export const PageNoticesEntry: ComponentRegistryEntry = {
 	name: 'PageNotices', category: 'atomic', tags: ["notices","errors","sessions"],
 	nodeSchema: null as never,
@@ -44,16 +56,43 @@ export const PageNoticesEntry: ComponentRegistryEntry = {
 		return <PageNotices errorText={errorText} unreadableText={unreadableText} />
 	},
 }
+
+export const PageTitleEntry: ComponentRegistryEntry = {
+	name: 'PageTitle', category: 'atomic', tags: ["header","title"],
+	nodeSchema: null as never,
+	render: ({ node, ctx }: RegistryRenderProps) => {
+		const title = coerceProp(resolveExpressionValue(node['title'], ctx), 'PageTitle.title', 'string', true) as import('../components/PageTitle.js').PageTitleProps['title']
+		const subtitle = coerceProp(resolveExpressionValue(node['subtitle'], ctx), 'PageTitle.subtitle', 'string', false) as import('../components/PageTitle.js').PageTitleProps['subtitle']
+		return <PageTitle title={title} subtitle={subtitle} />
+	},
+}
+
+export const SessionsTableEntry: ComponentRegistryEntry = {
+	name: 'SessionsTable', category: 'composite', tags: ["sessions","table"],
+	nodeSchema: null as never,
+	render: ({ node, ctx }: RegistryRenderProps) => {
+		const rows = coerceProp(resolveExpressionValue(node['rows'], ctx), 'SessionsTable.rows', 'array', false) as import('../components/SessionsTable.js').SessionsTableProps['rows']
+		const hiddenText = coerceProp(resolveExpressionValue(node['hiddenText'], ctx), 'SessionsTable.hiddenText', 'string', false) as import('../components/SessionsTable.js').SessionsTableProps['hiddenText']
+		const emptyText = coerceProp(resolveExpressionValue(node['emptyText'], ctx), 'SessionsTable.emptyText', 'string', false) as import('../components/SessionsTable.js').SessionsTableProps['emptyText']
+		return <SessionsTable rows={rows} hiddenText={hiddenText} emptyText={emptyText} />
+	},
+}
 // ─── All entries ──────────────────────────────────────────────────────────────
 
 export const allEntries: ComponentRegistryEntry[] = [
 	AgentWorkspaceEntry,
 	GuardrailsPageEntry,
+	PageNoteEntry,
 	PageNoticesEntry,
+	PageTitleEntry,
+	SessionsTableEntry,
 ]
 
 // ─── Auto-detected metadata (allowedChildren, providesContext, requiresContext) ─
 // Generated from @slot JSDoc tags and createContext/useContext calls in component sources.
 AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["customGroups","guardrailsErrorText","hiddenDead","ownedDownText","ownedError","ownedErrorText","ownedStateErrorText","sessions","unreadableText","userStateError"] : [];
 GuardrailsPageEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["overview"] : [];
+PageNoteEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["text"] : [];
 PageNoticesEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["errorText","unreadableText"] : [];
+PageTitleEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["subtitle","title"] : [];
+SessionsTableEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["emptyText","hiddenText","rows"] : [];

@@ -19,6 +19,10 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        // Muted text on a tinted surface (chips, selected row, red card): the muted token mixed toward the content colour, see styles/agents.css.
+        'muted-tint': 'var(--am-muted-tint)',
+      },
       fontSize: {
         // Secondary text, timestamps, counts (never below 12 px).
         xs: ['var(--am-fs-xs)', { lineHeight: 'var(--am-lh-xs)' }],

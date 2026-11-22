@@ -17,7 +17,7 @@ export function MetaChips({ chips }: { chips: readonly MetaChip[] }) {
     return null;
   }
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted" data-meta-chips="">
+    <span className="inline-flex shrink-0 items-center gap-1 text-xs tabular-nums text-muted-tint" data-meta-chips="">
       {chips.map((chip) => (
         <span key={chip.id} role="img" aria-label={chip.label} title={chip.label} data-chip={chip.id} className="inline-flex items-center gap-1 whitespace-nowrap rounded bg-muted-bg px-1">
           {chip.parts.map((part, index) => (

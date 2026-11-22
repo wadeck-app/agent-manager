@@ -6,7 +6,7 @@ import { CompactSelect, IconButton, TabButton } from '@wadeck-app/dsl-ui';
 import { Empty } from './Empty.js';
 import { FIELD, MONO, TH } from './parts.js';
 import { Section } from './Section.js';
-import { TableBox } from './TableBox.js';
+import { ScrollTable } from '../ui/ScrollTable.js';
 import { useDenials, type DenialFilter } from './useGuardrails.js';
 
 const LIMITS = [50, 100, 250, 500];
@@ -95,7 +95,7 @@ export function DenialsSection() {
       ) : null}
       {value !== undefined && value.denials.length === 0 ? <Empty title="No denial matches" hint={value.truncated ? 'Older records were not searched (read limit); pick a day to look further back.' : 'The filters match nothing in the journal.'} /> : null}
       {value !== undefined && value.denials.length > 0 ? (
-        <TableBox label="Recent denials">
+        <ScrollTable label="Recent denials">
           <thead>
             <tr className="border-b border-border">
               <th className={TH}>Time</th>
@@ -112,7 +112,7 @@ export function DenialsSection() {
               <DenialRow key={`${denial.at}|${denial.session}|${index}`} denial={denial} withCommands={value.withCommands} />
             ))}
           </tbody>
-        </TableBox>
+        </ScrollTable>
       ) : null}
       {value !== undefined ? (
         <p className="border-t border-border px-3 py-2 text-xs text-muted">

@@ -8,7 +8,6 @@ import { statusOf } from './sessionStatus.js';
 import { emptyUserState, guarded, parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserGroup, type UserState } from './userState.js';
 import { groupDto, registerGroupsRoutes, registerMarksRoutes } from './groupsRoutes.js';
 import { GROUP_ABSENT_PRUNE_MS } from '../commons/groups.js';
-import { sessionColumns } from './columns.js';
 import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
 import { guardrailBlocksFor, registerGuardrailsRoutes } from './guardrailsRoutes.js';
 import { registerLogRoute } from './logRoute.js';
@@ -179,7 +178,6 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
       sessions: rows,
       customGroups: user.groups.map(groupDto),
       latestVersion: latest,
-      tableColumns: sessionColumns(shown),
       userStateError,
       guardrailsErrorText: guardrails.errorText,
       ownedError: joined.ownedError,

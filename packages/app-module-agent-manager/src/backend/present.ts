@@ -56,15 +56,6 @@ export function presentSession(session: Session, latest?: string): SessionRow {
   };
 }
 
-/** The `badge` map of the Harness column: cell text -> variant (a DataTable badge map is keyed by the cell value, the values are only known at run time). */
-export function harnessBadges(rows: readonly SessionRow[]): Record<string, HarnessVariant> {
-  const map: Record<string, HarnessVariant> = {};
-  for (const row of rows) {
-    map[row.harness] = row.harnessVariant;
-  }
-  return map;
-}
-
 export interface Summary {
   busy: number;
   idle: number;

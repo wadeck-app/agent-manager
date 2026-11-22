@@ -74,7 +74,7 @@ export function PermissionCard({ session }: { session: AgentRow }) {
       ) : null}
       {current !== undefined ? <PermissionRequest key={current.requestId} request={current} total={waiting.length} inFlight={inFlight !== undefined} onDecide={(request, decision, message) => void decide(request, decision, message)} /> : null}
       {waiting.length > 1 ? (
-        <ul aria-label="Requests waiting behind this one" className="flex flex-col gap-0.5 text-sm text-muted">
+        <ul aria-label="Requests waiting behind this one" className="flex flex-col gap-0.5 text-sm text-muted-tint">
           {waiting.slice(1).map((request) => (
             <li key={request.requestId} data-permission-queued={request.requestId} className="truncate">
               {`Next: ${request.displayName ?? request.toolName}${request.description !== undefined && request.description !== '' ? `, ${request.description}` : ''}`}

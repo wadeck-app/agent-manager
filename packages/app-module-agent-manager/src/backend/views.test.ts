@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
-import { sessionColumns } from './columns.js';
 import { presentSession } from './present.js';
 import { makeModule } from './testKit.js';
 
@@ -201,16 +200,26 @@ describe('the Agents page', () => {
     expect(collect(parseView('sessions-table.yaml'), 'urlParam')).toContain('show');
   });
 
-  it('shows the status as a badge with semantic variants, never a raw colour, and dates through the shell formatter', () => {
-    // The columns are built by the route (the Harness badge map depends on the versions found on this machine): the view only points at them.
+  it('draws the table with the module component (state chips of the Agents page, neutral harness), never a raw colour', () => {
     const page = readFileSync(join(viewsDir, 'sessions-table.yaml'), 'utf8');
-    expect(page).toContain('columns: $sources.sessions.tableColumns');
-    const columns = sessionColumns([]);
-    const byKey = Object.fromEntries(columns.map((column) => [String(column.key), column]));
-    expect(byKey.statusUpdatedAt?.format).toBe('datetime');
-    expect(byKey.statusGroup?.badge).toEqual({ busy: 'info', idle: 'success', other: 'warning' });
-    expect(byKey.harness?.label).toBe('Harness');
-    expect(JSON.stringify(columns) + page).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgb\(|bg-[a-z]+-\d{3}/);
+    expect(page).toContain('$type: agent-manager:SessionsTable');
+    expect(page).toContain('rows: $sources.sessions.sessions');
+    expect(page).toContain('hiddenText: $sources.sessions.hiddenText');
+    expect(page).not.toMatch(/DataTable|tableColumns|#[0-9a-fA-F]{3,6}\b|rgb\(|bg-[a-z]+-\d{3}/);
+  });
+
+  it('opens with the module title (16 px like the Agents page), not the 24 px page header, and has no notice slot when there is nothing to say', () => {
+    for (const file of ['sessions-table.yaml', 'guardrails-page.yaml']) {
+      const nodes = ((parseView(file)['sections'] as Record<string, unknown>[]) ?? []);
+      expect(nodes[0]?.['$type'], file).toBe('agent-manager:PageTitle');
+      expect(JSON.stringify(nodes), file).not.toContain('"PageHeader"');
+    }
+    // An empty notice component still leaves its wrapper in the page (a gap, and the workspace no longer reaches the top edge in dark mode): it is not rendered unless a text exists.
+    for (const file of ['sessions-table.yaml', 'sessions-page.yaml']) {
+      const notices = ((parseView(file)['sections'] as Record<string, unknown>[]) ?? []).find((s) => s['$type'] === 'agent-manager:PageNotices');
+      expect(notices?.['$if'], file).toContain('$sources.sessions.errorText');
+    }
+    expect(((parseView('sessions-table.yaml')['sections'] as Record<string, unknown>[]) ?? []).find((s) => s['$type'] === 'agent-manager:PageNotices')?.['$if']).toBe('$sources.sessions.errorText || $sources.sessions.unreadableText');
   });
 
   it('surfaces the errors and the unreadable files as badges, not as an empty list', () => {
@@ -231,7 +240,7 @@ describe('the Agents table page', () => {
   });
 
   it('holds the table of the sessions and the dead-session filter, with no button back (the side menu is the way)', () => {
-    expect(sections().some((s) => s['$type'] === 'DataTable' && s['rows'] === '$sources.sessions.sessions')).toBe(true);
+    expect(sections().some((s) => s['$type'] === 'agent-manager:SessionsTable' && s['rows'] === '$sources.sessions.sessions')).toBe(true);
     expect(collect(table(), 'urlParam')).toContain('show');
     expect(JSON.stringify(table())).not.toContain('ButtonLink');
   });

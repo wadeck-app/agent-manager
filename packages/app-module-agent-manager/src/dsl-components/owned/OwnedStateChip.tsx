@@ -9,7 +9,7 @@ const TONE: Record<ChipTone, { bg: string; text: string }> = {
   attention: { bg: 'bg-hue-red-bg', text: 'text-hue-red' },
   working: { bg: 'bg-hue-yellow-bg', text: 'text-hue-yellow' },
   warning: { bg: 'bg-warning-bg', text: 'text-warning-text' },
-  muted: { bg: 'bg-muted-bg', text: 'text-muted' },
+  muted: { bg: 'bg-muted-bg', text: 'text-muted-tint' },
 };
 
 const TONE_ICON: Record<ChipTone, LucideIcon> = { attention: CircleAlert, working: LoaderCircle, warning: OctagonAlert, muted: CircleX };

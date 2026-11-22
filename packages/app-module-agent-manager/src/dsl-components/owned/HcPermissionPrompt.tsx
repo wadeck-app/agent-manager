@@ -11,7 +11,7 @@ export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcP
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <ShieldAlert aria-hidden="true" className="h-am-icon w-am-icon shrink-0 text-hue-red" />
         <h3 className="text-base font-semibold text-content">{`Permission request: ${title}`}</h3>
-        <span className="rounded-full bg-surface px-2 text-xs text-muted">{`terminal ${prompt.terminal}`}</span>
+        <span className="rounded-full bg-surface px-2 text-xs text-muted-tint">{`terminal ${prompt.terminal}`}</span>
       </div>
       {/* The warning of the header: what a click does is a key typed into a real terminal. */}
       <p data-hc-warning="" className="flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-sm text-warning-text">
@@ -21,8 +21,8 @@ export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcP
         </span>
       </p>
       {prompt.description !== '' ? <p className="text-sm text-content">{prompt.description}</p> : null}
-      {prompt.body !== '' ? <PermissionInput label={prompt.header} text={prompt.body} /> : <p className="text-sm text-muted">The dialog shows no command or change.</p>}
-      <p className="text-xs text-muted">{`The terminal asks: ${prompt.question}`}</p>
+      {prompt.body !== '' ? <PermissionInput label={prompt.header} text={prompt.body} /> : <p className="text-sm text-muted-tint">The dialog shows no command or change.</p>}
+      <p className="text-xs text-muted-tint">{`The terminal asks: ${prompt.question}`}</p>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <ButtonAction variant="danger-outline" disabled={inFlight} onClick={() => onDecide('deny')} icon={<X aria-hidden="true" className="h-4 w-4" />} label="Deny" />
         <ButtonAction variant="primary" loading={inFlight} onClick={() => onDecide('allow')} icon={<Check aria-hidden="true" className="h-4 w-4" />} label="Allow once" />

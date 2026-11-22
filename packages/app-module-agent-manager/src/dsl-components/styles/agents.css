@@ -16,6 +16,11 @@
   --am-herdr-active-bg: linear-gradient(90deg, rgb(212 160 23 / 0.24), rgb(212 160 23 / 0.06));
 }
 
+/* Muted text ON a tinted surface (a chip on bg-muted-bg, a selected row, a red card): the plain muted token is 4.34:1 on the light grey chip and 4.0:1 on the dark ones, under the 4.5:1 of WCAG AA. A mix of the two existing tokens (muted toward content), so it follows the theme. Class: text-muted-tint. */
+.agents-scope {
+  --am-muted-tint: color-mix(in srgb, var(--color-muted) 78%, var(--color-content));
+}
+
 /* The density scale (ui/density.ts; the numbers are ui/densityScale.ts, checked against this file by build/scopedCss.test.ts): one set of variables per setting, read by the type steps and the `am-*` tokens of tailwind.config.ts. Custom properties
    inherit through `display: contents`, so every element under the wrapper (and a portal, which has its own wrapper) sees them. M is the default. */
 .agents-scope,

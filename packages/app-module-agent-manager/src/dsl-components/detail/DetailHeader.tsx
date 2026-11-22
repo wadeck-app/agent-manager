@@ -117,7 +117,8 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
             )}
           </p>
         );
-  const forkDialog = forkFor === forkId ? <ForkDialog key={forkId} session={session} onClose={() => setForkFor(undefined)} onForked={onForked} /> : null;
+  // The key differs from the one of OwnedBar below (the lower-cased session id): two siblings with one key make React duplicate one of them in the DOM.
+  const forkDialog = forkFor === forkId ? <ForkDialog key={`fork-${forkId}`}session={session} onClose={() => setForkFor(undefined)} onForked={onForked} /> : null;
   if (actionsLook !== 'detailed') {
     // The one-line header: everything on one line, the actions at its right; only what has something to say gets a line under it (a fork or thread origin, a warning, a reason).
     return (

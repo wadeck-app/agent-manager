@@ -14,7 +14,7 @@ export function ProjectLabel({ session, className = '', terms }: { session: Agen
         <Highlight text={session.folder} terms={terms} />
       </span>
       {name !== '' ? (
-        <span className="truncate text-muted" title={name}>
+        <span className="truncate text-muted-tint" title={name}>
           <Highlight text={name} terms={terms} />
         </span>
       ) : null}

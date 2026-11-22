@@ -23,12 +23,12 @@ export function PermissionRequest({ request, total, inFlight, onDecide }: Permis
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <ShieldAlert aria-hidden="true" className="h-am-icon w-am-icon shrink-0 text-hue-red" />
         <h3 className="text-base font-semibold text-content">{`Permission request: ${title}`}</h3>
-        {title !== request.toolName ? <span className="text-xs text-muted">{request.toolName}</span> : null}
+        {title !== request.toolName ? <span className="text-xs text-muted-tint">{request.toolName}</span> : null}
         {total > 1 ? <span className="rounded-full bg-surface px-2 text-xs text-hue-red">{`1 of ${total}`}</span> : null}
       </div>
       {request.description !== undefined && request.description !== '' ? <p className="text-sm text-content">{request.description}</p> : null}
       {request.blockedPath !== undefined && request.blockedPath !== '' ? (
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-tint">
           Path outside the allowed folders: <span className="break-all font-mono text-am-mono text-content">{request.blockedPath}</span>
         </p>
       ) : null}

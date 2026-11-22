@@ -21,9 +21,9 @@ export const STATE_LOOK: Record<AgentState, StateLook> = {
   'needs-you': { label: STATE_LABEL['needs-you'], icon: CircleAlert, text: 'text-hue-red', bg: 'bg-hue-red-bg', iconClass: '' },
   done: { label: STATE_LABEL.done, icon: CircleDot, text: 'text-hue-blue', bg: 'bg-hue-blue-bg', iconClass: '' },
   working: { label: STATE_LABEL.working, icon: LoaderCircle, text: 'text-hue-yellow', bg: 'bg-hue-yellow-bg', iconClass: 'animate-spin motion-reduce:animate-none' },
-  idle: { label: STATE_LABEL.idle, icon: Circle, text: 'text-muted', bg: 'bg-muted-bg', iconClass: '' },
+  idle: { label: STATE_LABEL.idle, icon: Circle, text: 'text-muted-tint', bg: 'bg-muted-bg', iconClass: '' },
   other: { label: STATE_LABEL.other, icon: CircleHelp, text: 'text-hue-orange', bg: 'bg-hue-orange-bg', iconClass: '' },
-  ended: { label: STATE_LABEL.ended, icon: CircleOff, text: 'text-muted', bg: 'bg-muted-bg', iconClass: '' },
+  ended: { label: STATE_LABEL.ended, icon: CircleOff, text: 'text-muted-tint', bg: 'bg-muted-bg', iconClass: '' },
 };
 
 /** The heading colour of a group: the state colour, neutral for Pinned. */

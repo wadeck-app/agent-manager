@@ -11,7 +11,7 @@ $sources:
 $type: PageContent
 maxWidth: full
 sections:
-  - $type: PageHeader
+  - $type: agent-manager:PageTitle
     title: Guardrails
     subtitle: 'What the w-guardrails plugin granted, blocked and is set to do on this machine. Read-only for now: bypasses are still granted in the session itself.'
   - $type: agent-manager:GuardrailsPage

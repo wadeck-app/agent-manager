@@ -11,25 +11,23 @@ $sources:
 $type: PageContent
 maxWidth: full
 sections:
-  # One compact notice line (short sentence, Details, dismiss), not full-width badges with the whole texts.
-  - $type: agent-manager:PageNotices
-    errorText: $sources.sessions.errorText
-    unreadableText: $sources.sessions.unreadableText
-  - $type: Badge
-    $if: $sources.sessions.emptyText
-    label: $sources.sessions.emptyText
-    variant: info
-  - $type: PageHeader
+  # The module title (16 px, as the Agents page), not the 24 px page header.
+  - $type: agent-manager:PageTitle
     title: Agents table
     subtitle: The Claude Code sessions running on this machine, most recent status change first.
-  - $type: Card
-    padding: sm
-    items:
-      - $type: Markdown
-        text: 'Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page. Hooks are not built yet; the daemon host API and its live updates (SSE) exist but this table does not use them.'
+  # One compact notice line (short sentence, Details, dismiss), not full-width badges with the whole texts.
+  - $type: agent-manager:PageNotices
+    # Not rendered without a text: an empty notice component still leaves its wrapper in the page.
+    $if: $sources.sessions.errorText || $sources.sessions.unreadableText
+    errorText: $sources.sessions.errorText
+    unreadableText: $sources.sessions.unreadableText
+  # In the module body size (the base Markdown reads 14 px next to the 15 px of the table).
+  - $type: agent-manager:PageNote
+    text: 'Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page. Hooks are not built yet; the daemon host API and its live updates (SSE) exist but this table does not use them.'
   - $type: HorizontalStack
     gap: gap-3
     align: items-center
+    wrap: true
     items:
       - $type: CompactSelect
         urlParam: show
@@ -38,14 +36,8 @@ sections:
         placeholder: Alive sessions
         options:
           - { value: all, label: Alive and dead sessions }
-      - $type: Badge
-        $if: $sources.sessions.hiddenText
-        label: $sources.sessions.hiddenText
-        variant: info
-        tone: subtle
-  - $type: DataTable
+  # The table, its loading and empty states, the sentence about the hidden dead sessions: one component (state chips of the Agents page, neutral harness chip, scroll region with a cue).
+  - $type: agent-manager:SessionsTable
     rows: $sources.sessions.sessions
-    rowKey: sessionId
-    emptyMessage: No session to show
-    # Built by the route: the Harness badge map (green for the most recent version, orange for an older one) depends on the versions found on this machine.
-    columns: $sources.sessions.tableColumns
+    hiddenText: $sources.sessions.hiddenText
+    emptyText: $sources.sessions.emptyText

@@ -174,7 +174,7 @@ describe('the Tree row densities', () => {
     const row = document.querySelector('[data-session-id]') as HTMLElement;
     expect(row.className).toContain('h-[31px]');
     expect(within(row).getByText('agent-one').className).toContain('font-semibold');
-    expect(within(row).getByText(/shop/, { selector: 'span.text-muted' })).toBeInTheDocument();
+    expect(within(row).getByText(/shop/, { selector: 'span.text-muted-tint' })).toBeInTheDocument();
     expect(document.querySelector('[data-herdr-light="ring"]')).not.toBeNull();
   });
 

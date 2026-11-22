@@ -6,7 +6,7 @@ import type { SessionBlocksDto } from '../shared.js';
 import { Empty } from './Empty.js';
 import { TD, TH } from './parts.js';
 import { Section } from './Section.js';
-import { TableBox } from './TableBox.js';
+import { ScrollTable } from '../ui/ScrollTable.js';
 import { SessionCell } from './SessionCell.js';
 
 /** The counters of the plugin per session: blocked N times on [category], refused requests and a timeout. A "copy command" gives the text to run in that session. */
@@ -16,7 +16,7 @@ export function BlockedSessionsSection({ sessions, now }: { sessions: readonly S
       {sessions.length === 0 ? (
         <Empty title="No session has been blocked" hint="Counters come from the plugin state of each scanned project. They count only the denials that carry a bypass hint; the timeline below counts every denial." />
       ) : (
-        <TableBox label="Blocked sessions">
+        <ScrollTable label="Blocked sessions">
           <thead>
             <tr className="border-b border-border">
               <th className={TH}>Session</th>
@@ -61,7 +61,7 @@ export function BlockedSessionsSection({ sessions, now }: { sessions: readonly S
               </tr>
             ))}
           </tbody>
-        </TableBox>
+        </ScrollTable>
       )}
     </Section>
   );

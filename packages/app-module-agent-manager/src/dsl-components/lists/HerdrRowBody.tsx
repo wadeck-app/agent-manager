@@ -54,7 +54,7 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
           <Highlight text={session.displayName} terms={terms} />
         </span>
         {showFolder ? (
-          <span data-herdr-folder="" className="min-w-[7ch] shrink grow basis-[7ch] truncate text-xs text-muted" title={session.folder}>
+          <span data-herdr-folder="" className="min-w-[7ch] shrink grow basis-[7ch] truncate text-xs text-muted-tint" title={session.folder}>
             {`${MIDDLE_DOT} `}
             <Highlight text={session.folder} terms={terms} />
           </span>
