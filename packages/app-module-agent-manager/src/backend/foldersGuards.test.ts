@@ -47,7 +47,9 @@ afterEach(() => {
 const session = (pid: number, cwd: string): void => writeFileSync(join(registry, `${pid}.json`), JSON.stringify({ pid, sessionId: `s-${pid}`, cwd, version: '2.1.323', status: 'idle', statusUpdatedAt: 1000 + pid }));
 
 describe('a forged working directory in the registry is never opened', () => {
-  const FORGED = ['\\\\attacker\\share\\x', '//attacker/share/x', 'relative\\dir', 'C:drive-relative', '/ok\u0007/control'];
+  // '//attacker/share/x' is a UNC name on Windows but an ordinary absolute path on POSIX: there the refused equivalent is a path with a '..' segment.
+  const forgedSlashes = process.platform === 'win32' ? '//attacker/share/x' : '/work/../attacker/share/x';
+  const FORGED = ['\\\\attacker\\share\\x', forgedSlashes, 'relative\\dir', 'C:drive-relative', '/ok\u0007/control'];
 
   it('GET /folders/recent, /search, /roots and /list skip it, count it in a visible note, and make no file system call that names it', async () => {
     session(1, join(work, 'shop'));

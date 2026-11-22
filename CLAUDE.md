@@ -35,7 +35,7 @@ Config dir: `$AGENT_MANAGER_CONFIG_DIR`, else `$XDG_CONFIG_HOME/agent-manager`, 
 1. Verify locally: `npm test`, `npm run build`, `BUNDLE_VERSION=0.0.0-local npm run bundle`, `violations check`.
 2. Run the bundle only in an isolated env (temp HOME/USERPROFILE, `AGENT_MANAGER_CONFIG_DIR`, `XDG_CONFIG_HOME`, `autoUpdate: false` in its `config.yml`).
 3. Commit and push to `main`. CI (`.github/workflows/publish.yml`) tests on 3 OS, builds the Go launcher, computes the CalVer version, publishes the platform packages then the main package, then `verify-install` installs the published version on 3 OS.
-4. Wait for CI: `queue wait ci <sha> --name agent-manager.ci-<sha7> --cli-foreground` (run in background).
+4. Wait for CI: `queue wait ci <sha> --name agent-manager.ci-<sha7> --cli-foreground` (run in background, ALONE: never append `; echo $?`, the notification would show the echo's 0; read the printed verdict and cross-check the run with the Actions API, see `.claude/kb/lessons-learned.md`).
 5. Check the registry: `npm view @wadeck-app/agent-manager-cli versions --registry=https://npm.pkg.github.com`.
 6. Update the local app: `UPDATER_MANUAL=1 agent-manager cli update`, then `agent-manager -v`.
 

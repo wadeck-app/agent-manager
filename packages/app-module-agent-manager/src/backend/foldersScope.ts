@@ -1,5 +1,6 @@
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
+import { realpathSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { getErrorMessage, readSessionRegistry, resolveSessionsDir } from '@wadeck-app/agent-manager-core';
 import { FolderError, checkAbsolutePath, isFilesystemRoot, isInside, parentOf, pathKey, readLaunchRoots } from '@wadeck-app/agent-manager-core/folders';
@@ -112,15 +113,18 @@ async function realDirectory(path: string): Promise<string | undefined> {
 
 /** The folders that hold the accounts of a machine: listing one would show every account name. Besides the parent of the home folder, the usual ones. */
 // violations-suppress: shared/no-out-of-repo-path the names of the folders that hold accounts, compared with paths, never read from disk
-const ACCOUNT_PARENTS = ['/home', '/Users', 'C:\\Users'];
+const ACCOUNT_PARENTS = ['/home', '/Users'];
 
-function accountParents(home: string): Set<string> {
-  const parents = new Set(ACCOUNT_PARENTS.map(pathKey));
+/** Windows: the same folder of accounts on any drive (resolve() of '/home' would use the drive of the current folder, which differs between machines). */
+function withoutDrive(key: string): string {
+  return process.platform === 'win32' ? key.replace(/^[a-z]:/, '') : key;
+}
+
+function accountParents(home: string): (key: string) => boolean {
+  const usual = new Set(ACCOUNT_PARENTS.map((name) => withoutDrive(pathKey(name))));
   const above = parentOf(home);
-  if (above !== null) {
-    parents.add(pathKey(above));
-  }
-  return parents;
+  const own = above === null ? undefined : pathKey(above);
+  return (key) => key === own || usual.has(withoutDrive(key));
 }
 
 /**
@@ -130,16 +134,31 @@ function accountParents(home: string): Set<string> {
  */
 export function derivedRootOf(cwd: string, home: string = homedir()): string | undefined {
   const parent = parentOf(cwd);
-  const accounts = accountParents(home);
-  if (parent === null || isInside(cwd, home) || accounts.has(pathKey(cwd)) || accounts.has(pathKey(parent))) {
+  if (parent === null) {
+    return undefined;
+  }
+  // The home folder as named by the system AND as it really is (macOS: /var/... is /private/var/...): a cwd is a real path, the home folder may not be.
+  const homes = [home, realOrSame(home)];
+  const accounts = homes.map(accountParents);
+  const isAccount = (path: string): boolean => accounts.some((test) => test(pathKey(path)));
+  if (homes.some((each) => isInside(cwd, each)) || isAccount(cwd) || isAccount(parent)) {
     return undefined;
   }
   // The parent is the home folder of another account when it sits directly in a folder of accounts: not a root either.
   const above = parentOf(parent);
-  if (isFilesystemRoot(parent) || isInside(parent, home) || (above !== null && accounts.has(pathKey(above)))) {
+  if (isFilesystemRoot(parent) || homes.some((each) => isInside(parent, each)) || (above !== null && isAccount(above))) {
     return cwd;
   }
   return parent;
+}
+
+/** The real path of a folder that exists, else the path itself (a home folder that does not exist has no other name). */
+function realOrSame(path: string): string {
+  try {
+    return realpathSync.native(path);
+  } catch {
+    return path;
+  }
 }
 
 export interface Scope {

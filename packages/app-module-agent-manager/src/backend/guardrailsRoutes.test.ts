@@ -46,7 +46,9 @@ describe('GET /guardrails/overview', () => {
     putSession(box, 4242, { cwd: known });
     putGrants(known, { overrides: [grantEntry({ id: 'known-grant' })] });
     putGrants(stranger, { overrides: [grantEntry({ id: 'stranger-grant' })] });
-    putJournal(home.journalDir, '2026-11-21', [journalLine({ project: known }), journalLine({ project: stranger }), journalLine({ project: '\\\\evil-host\\share\\x' }), journalLine({ project: '//evil-host/share' }), journalLine({ project: 'relative/dir' })]);
+    // '//evil-host/share' is a UNC name on Windows but an ordinary absolute path on POSIX (a folder the journal names, not refused), so the POSIX equivalent is a refused '..' path.
+    const slashUnc = process.platform === 'win32' ? '//evil-host/share' : '/tmp/../etc';
+    putJournal(home.journalDir, '2026-11-21', [journalLine({ project: known }), journalLine({ project: stranger }), journalLine({ project: '\\\\evil-host\\share\\x' }), journalLine({ project: slashUnc }), journalLine({ project: 'relative/dir' })]);
     // Without launch roots: only the folder of the session is read, the stranger is named and left alone.
     const first = (await mod().call('GET', '/guardrails/overview')).body;
     expect(first.grants.map((g: { id: string }) => g.id)).toEqual(['known-grant']);

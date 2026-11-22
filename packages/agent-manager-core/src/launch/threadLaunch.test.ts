@@ -136,7 +136,8 @@ describe('fakeClaude honours --resume-session-at (the mock of the real flag)', (
       });
       child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString()));
       child.on('error', reject);
-      child.on('exit', (code) => resolve({ ...(reply === undefined ? {} : { reply }), code, stderr }));
+      // 'close', not 'exit': on POSIX 'exit' can fire before stdout and stderr are drained.
+      child.on('close', (code) => resolve({ ...(reply === undefined ? {} : { reply }), code, stderr }));
       child.stdin.write(`${JSON.stringify({ type: 'user', uuid: 'c0000000-0000-4000-8000-000000000001', message: { role: 'user', content: 'RECALL' } })}\n`);
     });
   }

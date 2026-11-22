@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { removeDir } from '../../testFixtures.js';
+import { deadPid, removeDir } from '../../testFixtures.js';
 import { LaunchError } from '../errors.js';
 import { StreamJsonSession } from '../StreamJsonSession.js';
 import type { StreamJsonSessionOptions } from '../StreamJsonSession.js';
@@ -178,7 +178,7 @@ describe('check() (review 3)', () => {
   it('validates the file and changes nothing: a live record stays live until init', async () => {
     const root = mkdtempSync(join(tmpdir(), 'agent-manager-check-'));
     dirs.push(root);
-    const record: OwnedSessionRecord = { id: 'aaaaaaaa-0000-4000-8000-000000000002', hostKind: 'stream-json', cwd: root, claudeVersion: '9', startedAt: 1, status: 'live', pid: 999999, daemonPid: 1 };
+    const record: OwnedSessionRecord = { id: 'aaaaaaaa-0000-4000-8000-000000000002', hostKind: 'stream-json', cwd: root, claudeVersion: '9', startedAt: 1, status: 'live', pid: deadPid(), daemonPid: 1 };
     const path = ownedStatePath(root);
     const content = JSON.stringify({ version: 1, sessions: [record] });
     writeFileSync(path, content);
@@ -194,7 +194,7 @@ describe('check() (review 3)', () => {
   it('a shutdown of a host that never read the file does not write the empty list over it', async () => {
     const root = mkdtempSync(join(tmpdir(), 'agent-manager-check-'));
     dirs.push(root);
-    const record: OwnedSessionRecord = { id: 'aaaaaaaa-0000-4000-8000-000000000004', hostKind: 'stream-json', cwd: root, claudeVersion: '9', startedAt: 1, status: 'live', pid: 999999, daemonPid: 1 };
+    const record: OwnedSessionRecord = { id: 'aaaaaaaa-0000-4000-8000-000000000004', hostKind: 'stream-json', cwd: root, claudeVersion: '9', startedAt: 1, status: 'live', pid: deadPid(), daemonPid: 1 };
     const path = ownedStatePath(root);
     const content = JSON.stringify({ version: 1, sessions: [record] });
     writeFileSync(path, content);
