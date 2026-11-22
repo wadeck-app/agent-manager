@@ -58,7 +58,8 @@ describe('LogViewer', () => {
     const group = await screen.findByRole('button', { name: /2 tool calls/ });
     expect(screen.queryByText('one')).toBeNull();
     fireEvent.click(group);
-    fireEvent.click(screen.getAllByRole('button', { name: /Bash/ })[0]!);
+    // The group line has chips whose names mention Bash: the line of the call is the button whose name STARTS with it.
+    fireEvent.click(screen.getByRole('button', { name: /^Bash/ }));
     expect(screen.getByText('one')).toBeInTheDocument();
   });
 

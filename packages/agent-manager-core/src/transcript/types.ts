@@ -121,8 +121,68 @@ export type ThinkingEntry = EntryBase & {
 
 export type ToolCallStatus = 'running' | 'ok' | 'error' | 'unknown';
 
+/**
+ * What the transcript lets us say about a tool call beyond its text, every field optional: a value that cannot be read (a field missing or of another type,
+ * a call that failed, a shape not observed) is ABSENT, never 0 or false. Computed from the whole tool_use input (the kept `input` may be cut) and from the
+ * `toolUseResult` sibling of the result line when it belongs to this call alone. Observed on 2.1.3xx unless marked UNVERIFIED (poc/scripts/probe-tool-meta*.mjs).
+ */
+export type ToolMeta = {
+  /** Edit, MultiEdit, Write, Read: the `file_path` of the input. */
+  file?: string;
+  /** Edit, MultiEdit, Write: lines added and removed. From the `structuredPatch` of the result (exact), else from the input (see churnApprox). Never set on a failed call. */
+  added?: number;
+  removed?: number;
+  /** The churn comes from the input (old_string/new_string with the common lines trimmed), not from a diff: a replace_all, or an edit not seen finishing, can differ. */
+  churnApprox?: true;
+  /** Write: the result says `type: create`. */
+  created?: true;
+  /** MultiEdit (UNVERIFIED shape): the number of edits of the input. */
+  edits?: number;
+  /** Bash, Agent: `run_in_background` of the input is true. */
+  background?: true;
+  /** Bash: `timeout` of the input, ms. */
+  timeoutMs?: number;
+  /** Bash: "Exit code N" on the first line of a failed result. Absent when the result says no such thing (a hook blocked the call, a success). */
+  exitCode?: number;
+  /** Bash: `toolUseResult.interrupted` is true. */
+  interrupted?: true;
+  /** Bash: `toolUseResult.backgroundTaskId`. */
+  backgroundTaskId?: string;
+  /** Bash: lines of the result text (0 for an empty one). */
+  outputLines?: number;
+  /** Read: lines returned, first line number, lines of the file (`toolUseResult.file`). */
+  readLines?: number;
+  readFrom?: number;
+  readTotal?: number;
+  /** Read of an image. */
+  image?: true;
+  /** Grep: `toolUseResult.mode` (files_with_matches, content, count). */
+  mode?: string;
+  /** Grep (files with matches), Glob: files found (`numFiles`). */
+  files?: number;
+  /** Grep content mode: lines of the output (`numLines`: matches and their context, not a match count). */
+  lines?: number;
+  /** Grep count mode: `numMatches`. */
+  matches?: number;
+  /** Grep: `appliedLimit` present, the answer was cut at `head_limit`. */
+  limited?: true;
+  /** Glob: `truncated` is true. */
+  truncated?: true;
+  /** WebFetch: host of the `url` input (absent when the url does not parse), status code and size of the page (`toolUseResult`). */
+  host?: string;
+  httpCode?: number;
+  fetchedBytes?: number;
+  /** Agent: `subagent_type` of the input (absent when the call gave none). */
+  subagentType?: string;
+  /** `mcp__<server>__<tool>`: split at the first `__` after the prefix (a server name containing `__` would be split wrong). */
+  mcpServer?: string;
+  mcpTool?: string;
+};
+
 export type ToolCallEntry = EntryBase & {
   kind: 'tool-call';
+  /** See ToolMeta. Absent when nothing could be read. */
+  meta?: ToolMeta;
   /** The `tool_use` id (the key of the pairing). */
   id: string;
   name: string;
@@ -180,6 +240,37 @@ export type SystemNoticeEntry = EntryBase & {
   /** compact_boundary only (UNVERIFIED field names: compactMetadata.trigger / preTokens). */
   compactTrigger?: string;
   compactPreTokens?: number;
+};
+
+export type HookOutcome = 'success' | 'error' | 'cancelled' | 'message' | 'async' | 'other';
+
+/**
+ * A hook of Claude Code, from an `attachment` line (observed types: hook_success, hook_non_blocking_error, hook_cancelled, hook_system_message,
+ * async_hook_response). The attachment type is the first key of the attachment, which is how the tailer decides to parse the line. Read-only.
+ * The Stop hook summary is a `system-notice` (noticeKind stop-hook), not this entry.
+ */
+export type HookEntry = EntryBase & {
+  kind: 'hook';
+  /** `hookEvent`: PreToolUse, PostToolUse, Stop, SessionStart, UserPromptSubmit, ... (raw). */
+  hookEvent: string;
+  /** `hookName`: "PreToolUse:Bash", "SessionStart:compact", "Stop" (raw). */
+  hookName: string;
+  outcome: HookOutcome;
+  /** The raw `attachment.type`. */
+  attachmentType: string;
+  /** The hook command as configured (may hold ${CLAUDE_PLUGIN_ROOT}). */
+  command?: string;
+  durationMs?: number;
+  exitCode?: number;
+  /** `toolUseID`: the tool_use id for PreToolUse/PostToolUse hooks, another id for the others. */
+  toolUseId?: string;
+  /** `content` when not empty, else `stdout` (async: stdout); ANSI stripped, at most LIMITS.noticeChars characters. */
+  output?: string;
+  outputTruncated?: boolean;
+  stderr?: string;
+  stderrTruncated?: boolean;
+  timedOut?: boolean;
+  timeoutMs?: number;
 };
 
 /** `queue-operation` lines: the delivery state signal of a message sent to a busy session (enqueue -> dequeue, or remove). */
@@ -286,6 +377,7 @@ export type Entry =
   | ThinkingEntry
   | ToolCallEntry
   | SystemNoticeEntry
+  | HookEntry
   | QueueOperationEntry
   | UsageEntry
   | ModelInfoEntry

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow, row } from '../logic/fixtures.js';
 import { stubFetch } from '../owned/testFetch.js';
+import { DaemonStateProvider } from '../owned/DaemonState.js';
 import { ForkDialog } from './ForkDialog.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -18,6 +19,21 @@ function open(session: Parameters<typeof ForkDialog>[0]['session']) {
 }
 
 const forkButton = (): HTMLElement => screen.getByRole('button', { name: 'Fork' });
+
+describe('Fork dialog: the daemon is not running', () => {
+  it('disables Fork, says why with the fix command, and never posts', () => {
+    const { calls } = stubFetch({});
+    render(
+      <DaemonStateProvider down>
+        <ForkDialog session={row({ sessionId: SOURCE, displayName: 'shop' })} onClose={vi.fn()} onForked={vi.fn()} />
+      </DaemonStateProvider>,
+    );
+    expect(forkButton()).toBeDisabled();
+    expect(screen.getByText(/daemon is not running, so you cannot fork a session/)).toBeInTheDocument();
+    expect(screen.getByText('agent-manager start --detach')).toBeInTheDocument();
+    expect(calls.some((call) => call.path === '/owned/fork')).toBe(false);
+  });
+});
 
 describe('Fork dialog: a discovered session', () => {
   it('starts with "fork of <name>", Claude Code deciding model and mode, and posts only what the user chose', async () => {

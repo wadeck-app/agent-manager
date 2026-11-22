@@ -2,7 +2,7 @@
 
 `agent-manager`: follow and answer your Claude Code sessions.
 
-**Status: M1b partial slice.** The only feature is a Sessions overview in app-core (`agent-manager cli register`), fed by the Claude Code session registry (`~/.claude/sessions`, override `AGENT_MANAGER_SESSIONS_DIR`). Liveness is pid-only (a reused pid shows a dead session alive). Daemon (owned sessions): `start [--detach]`, `stop`, `status` (exit 3 when it is not running); no hooks or transcripts yet.
+**Status: partial slice.** The Agents pages in app-core (`agent-manager cli register`), fed by the Claude Code session registry (`~/.claude/sessions`, override `AGENT_MANAGER_SESSIONS_DIR`). Liveness is pid-only (a reused pid shows a dead session alive). Daemon (owned sessions): `start [--detach]`, `stop`, `status` (exit 3 when it is not running); no hooks or transcripts yet.
 
 ## Install
 

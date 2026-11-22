@@ -116,3 +116,41 @@ Limit: the folder path stays on its own line above (a path of 40+ characters can
 ### Transport popup (#78)
 
 One compact row per transport: status icon, name, badges (In use, Default, This session), actions "Use here" and "Make default" (only on an available row), one line under it (available: "Ready, peer message"; unavailable: the first clause of the reason, at most 70 characters, plus the fix: a command in code with a copy button, else the first clause). The whole reason, the fix sentence, how it delivers and the typed-delivery warning are behind a per-row "Details" toggle. No A/B question: the two layouts were not in doubt (the user's request was explicit); the dock was not touched.
+
+## Log: tool meta and filters (2026-11-22, todos #76, #77)
+
+Marks: [D] documented, [M] measured on the 40 newest local transcripts (`poc/scripts/probe-tool-meta*.mjs`, read-only, shapes only), [U] unknown. No A/B question: one layout, the request was explicit.
+
+### Tool meta (#76)
+
+`ToolCallEntry.meta` (additive, core `toolMeta.ts`): computed from the WHOLE tool_use input (the kept `input` is cut at 8 KiB) and from `toolUseResult` of the result line. A field that cannot be read is absent, never 0. `toolUseResult` is ignored when the line holds several tool_result blocks.
+
+| Tool | Source | Chips |
+|---|---|---|
+| Edit | [M] result `structuredPatch` (hunk `lines` starting `+`/`-`) exact; else input old/new strings with common lines trimmed (`churnApprox`, shown `~`) | `+12 -3`; none when the call failed |
+| Write | [M] result `type` create/update; create: lines of `content`; update: patch | `+N -0`, `new` |
+| MultiEdit | [U] not in the sample; documented input `edits[]` | churn, `N edits` |
+| Bash | [M] input `run_in_background`, `timeout`; result text lines; `toolUseResult.interrupted`, `backgroundTaskId`; duration = line timestamps (already shown) | `bg`, `exit N`, `interrupted`, `N lines` |
+| Read | [M] `toolUseResult.file` `numLines/startLine/totalLines`; `type: image` | `10-59 of 400`, `120 lines`, `image` |
+| Grep | [M] `mode`, `numFiles` (files mode only: it is 0 in the other modes), `numLines` (content: matches AND context), `numMatches` (count), `appliedLimit` | `12 files`, `20 lines`, `31 matches`, `cut` |
+| Glob | [M] `numFiles`, `truncated` | `100 files`, `cut` |
+| WebFetch | [M] host of input `url`; `code`, `bytes` | host, status (red from 400), size |
+| Agent/Task | [M] input `subagent_type`, `run_in_background` | type, `bg` |
+| MCP | name `mcp__<server>__<tool>` (a server containing `__` splits wrong) | row label = tool, chip `mcp <server>` |
+
+- [M] Bash has no exit code field: "Exit code N" is the first line of an error result; a hook-blocked call has none (no code shown).
+- [U] Sync Agent result (duration, tool count): only the async shape was seen (`isAsync, status, agentId`); nothing is read. A sub-agent tool count would need its own transcript.
+- [U] WebSearch result shape; row summary already shows the query, so no chip.
+- Group row: `3 files +45 -12` (failed edits excluded, `~` while an edit runs), `2 bash 14 s` (omitted time while one runs), `2 reads 480 lines` (only when every read says it); native tooltip = one line per call.
+- Orphan results (call outside the window) keep no meta: the name is unknown.
+
+### Hooks and filters (#77)
+
+- [M] Hooks are `attachment` lines (type is the first key of the attachment): `hook_success` (1581 in the sample), `hook_non_blocking_error`, `hook_cancelled` (`timedOut`), `hook_system_message`, `async_hook_response`; fields `hookEvent`, `hookName` ("PreToolUse:Bash"), `command`, `durationMs`, `exitCode`, `stdout`/`stderr`/`content`, `toolUseID` (the tool_use id for Pre/PostToolUse). They were skipped before; the tailer now parses them (`HookEntry`, output bounded at 500 chars, ANSI stripped). Other attachments stay skipped. The Stop summary stays a `system-notice` (`stop-hook`) and counts as a hook.
+- [M] A hook line sits between the tool_use and its result: in a run of calls it is held and drawn after the group, so groups do not split.
+- [M] A hook that blocks a call shows in the tool result ("PreToolUse:Bash hook error"), not as an attachment.
+- Categories (`logFilters.ts`): hooks (off), tools (on), agent messages (on) = SendMessage, Agent/Task calls, prompts with source `peer` or `task-notification`, queue lines of those. A message sent from here (`webReply`) is not one.
+- [U] `task-notification` covers background shell tasks and sub-agent results alike: the origin does not tell them apart, both are "agent messages".
+- Counts are over the loaded entries only; the bar shows `N hidden` (tooltip by category), not one marker per run: hooks come twice per tool call, inline markers would split every group. Everything hidden says so in the log area. The call of the selected sub-agent is never hidden.
+- Stored per browser in `agent-manager.log-filters.v1`; an unreadable value gives the defaults and a dismissible sentence.
+- Not done: the "N new entries" button still counts hidden entries.

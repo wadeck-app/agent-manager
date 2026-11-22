@@ -326,7 +326,7 @@ describe('TranscriptTailer: skipping', () => {
   });
 
   it('still counts an attachment whose key order differs (parsed, then skipped)', async () => {
-    const line = { uuid: 'u', type: 'attachment', attachment: { type: 'hook_success' } };
+    const line = { uuid: 'u', type: 'attachment', attachment: { type: 'total_tokens_reminder' } };
     const result = await new TranscriptTailer().readNew(tempFile(jsonl([line])));
     expect(result.entries).toEqual([]);
     expect(result.state.counts).toMatchObject({ lines: 1, skipped: { attachment: 1 }, unknown: 0 });

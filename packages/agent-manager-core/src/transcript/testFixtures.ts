@@ -196,7 +196,7 @@ export function queueLine(seconds: number, operation: string, extra: Obj = {}): 
 }
 
 /** The key order of the real line: the type comes AFTER the attachment object. */
-export function attachmentLine(seconds: number, payload: Obj = { type: 'hook_success', hookName: 'Stop', content: 'neutral hook output' }): Obj {
+export function attachmentLine(seconds: number, payload: Obj = { type: 'total_tokens_reminder', text: 'neutral reminder' }): Obj {
   return { parentUuid: uid(), isSidechain: false, attachment: payload, type: 'attachment', uuid: uid(), timestamp: ts(seconds), userType: 'external', entrypoint: 'cli', cwd: '/work/shop', sessionId: SESSION_ID, version: '2.1.999', gitBranch: 'main' };
 }
 

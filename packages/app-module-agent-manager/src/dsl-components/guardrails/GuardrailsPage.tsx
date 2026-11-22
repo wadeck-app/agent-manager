@@ -17,7 +17,8 @@ export function GuardrailsPage({ overview, failed = false }: { overview: Guardra
   const now = useNow(1000);
   const data = overview;
   return (
-    <div className="flex min-w-0 flex-col gap-3">
+    // pt-4 = the space-y-4 of PageContent: the host wrapper of a custom component does not get that margin (the header line touched the first card).
+    <div className="flex min-w-0 flex-col gap-3 pt-4">
       {data === undefined && !failed ? (
         <div role="status" aria-busy="true" className="p-3 text-sm text-muted">
           Reading the plugin files...

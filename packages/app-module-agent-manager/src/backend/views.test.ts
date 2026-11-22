@@ -224,9 +224,10 @@ describe('the Agents table page', () => {
   const table = (): Record<string, unknown> => parseView('sessions-table.yaml');
   const sections = (): Record<string, unknown>[] => (table()['sections'] as Record<string, unknown>[]) ?? [];
 
-  it('says on the page itself that this is the partial M1b slice, in the exact words of the spec', () => {
+  it('says on the page itself what feeds it today: registry plus daemon-owned sessions, hooks not built, SSE not used by the table', () => {
     const note = sections().flatMap((s) => collect(s, 'text'));
-    expect(note).toContain('M1b: sessions from the Claude Code registry (pid-only liveness). The log and the reply box (socket transport) are on the Agents page. Daemon, hooks and live updates (SSE): planned');
+    expect(note).toContain('Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page. Hooks are not built yet; the daemon host API and its live updates (SSE) exist but this table does not use them.');
+    expect(note.join(' ')).not.toMatch(/M1b|planned/);
   });
 
   it('holds the table of the sessions and the dead-session filter, with no button back (the side menu is the way)', () => {

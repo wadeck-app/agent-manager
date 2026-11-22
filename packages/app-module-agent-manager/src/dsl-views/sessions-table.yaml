@@ -30,7 +30,7 @@ sections:
     padding: sm
     items:
       - $type: Markdown
-        text: 'M1b: sessions from the Claude Code registry (pid-only liveness). The log and the reply box (socket transport) are on the Agents page. Daemon, hooks and live updates (SSE): planned'
+        text: 'Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page. Hooks are not built yet; the daemon host API and its live updates (SSE) exist but this table does not use them.'
   - $type: HorizontalStack
     gap: gap-3
     align: items-center

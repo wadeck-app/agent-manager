@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow, row } from '../logic/fixtures.js';
 import { shortMessage } from '../logic/threadForm.js';
 import { stubFetch } from '../owned/testFetch.js';
+import { DaemonStateProvider } from '../owned/DaemonState.js';
 import { ThreadDialog } from './ThreadDialog.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -21,6 +22,21 @@ function open(session: Parameters<typeof ThreadDialog>[0]['session']) {
 }
 
 const startButton = (): HTMLElement => screen.getByRole('button', { name: 'Start thread' });
+
+describe('Thread dialog: the daemon is not running', () => {
+  it('disables Start thread, says why with the fix command, and never posts', () => {
+    const { calls } = stubFetch({});
+    render(
+      <DaemonStateProvider down>
+        <ThreadDialog session={row({ sessionId: SOURCE, displayName: 'shop' })} anchor={{ uuid: ANCHOR, text: MESSAGE }} onClose={vi.fn()} onStarted={vi.fn()} />
+      </DaemonStateProvider>,
+    );
+    expect(startButton()).toBeDisabled();
+    expect(screen.getByText(/daemon is not running, so you cannot start a thread/)).toBeInTheDocument();
+    expect(screen.getByText('agent-manager start --detach')).toBeInTheDocument();
+    expect(calls.some((call) => call.path === '/owned/fork')).toBe(false);
+  });
+});
 
 describe('Thread dialog', () => {
   it('names the source, quotes the message, defaults the name to "thread: <first 40 characters>" and says what a thread is', () => {

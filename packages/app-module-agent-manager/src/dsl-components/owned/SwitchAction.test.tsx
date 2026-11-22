@@ -5,6 +5,7 @@ import { ownedDto, ownedRow } from '../logic/fixtures.js';
 import type { AdoptReadinessDto, SessionRowDto } from '../shared.js';
 import { DEFAULT_UI_VARIANTS, type SwitchReadinessVariant } from '../logic/uiVariants.js';
 import { UiVariantsContext } from '../ui/UiVariants.js';
+import { DaemonStateProvider } from './DaemonState.js';
 import { OwnedBar } from './OwnedBar.js';
 import { stubFetch } from './testFetch.js';
 
@@ -42,6 +43,19 @@ const button = (): HTMLElement => {
   }
   return found;
 };
+
+describe('the Move button: the daemon is not running', () => {
+  it('is disabled and its title says the daemon is down and how to start it', () => {
+    stubFetch({ ...LIST });
+    render(
+      <DaemonStateProvider down>
+        <OwnedBar session={ownedRow({ sessionId: ID, adoptReadiness: FREE })} onChange={vi.fn()} onForgotten={vi.fn()} />
+      </DaemonStateProvider>,
+    );
+    expect(button()).toBeDisabled();
+    expect(wrapper().getAttribute('title')).toMatch(/daemon is not running.*agent-manager start --detach/s);
+  });
+});
 
 describe('the Move button: free', () => {
   it('is neutral, says where it moves, and moves at once without a dialog', async () => {

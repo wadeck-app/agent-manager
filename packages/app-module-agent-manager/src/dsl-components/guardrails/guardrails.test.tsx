@@ -115,6 +115,11 @@ describe('GuardrailsPage', () => {
     expect(screen.getByText(/1 folder\(s\) from 1 session\(s\)/)).toBeInTheDocument();
   });
 
+  it('keeps the base page spacing (1rem) above its first card: the page header line above must not touch it', () => {
+    const { container } = render(<GuardrailsPage overview={OVERVIEW} />);
+    expect(container.firstElementChild?.firstElementChild).toHaveClass('pt-4');
+  });
+
   it('copies the bypass command of a category (the module grants nothing)', async () => {
     stub();
     const writeText = vi.fn(async () => undefined);

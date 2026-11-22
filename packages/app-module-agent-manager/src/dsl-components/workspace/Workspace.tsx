@@ -22,6 +22,7 @@ import { useFillContentArea } from '../ui/useFillContentArea.js';
 import { SplitPane } from '../ui/SplitPane.js';
 import { Toolbar } from './Toolbar.js';
 import { useInFlight } from './useInFlight.js';
+import { DaemonStateProvider } from '../owned/DaemonState.js';
 import { useCustomGroups, type SendGroupRequest } from './useCustomGroups.js';
 import { useOptimisticRows } from './useOptimisticRows.js';
 import { useOwnedRows } from './useOwnedRows.js';
@@ -381,6 +382,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   }
 
   return (
+    <DaemonStateProvider down={ownedError?.code === 'daemon-not-running'}>
     <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
       <Toolbar
         count={rows.length}
@@ -404,5 +406,6 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />
       </div>
     </div>
+    </DaemonStateProvider>
   );
 }

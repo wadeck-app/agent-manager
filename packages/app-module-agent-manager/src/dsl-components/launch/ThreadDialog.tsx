@@ -6,7 +6,9 @@ import type { AgentRow } from '../data/types.js';
 import { MODEL_OPTIONS, MAX_NAME_CHARS, PERMISSION_MODE_OPTIONS, type ChoiceOption } from '../logic/launchForm.js';
 import { isOwned } from '../logic/owned.js';
 import { THREAD_CAP_NOTE, THREAD_MEANING, shortMessage, threadBody } from '../logic/threadForm.js';
+import { useDaemonDown } from '../owned/DaemonState.js';
 import { useOwnedSession } from '../owned/useOwnedSession.js';
+import { DaemonNotRunning } from './DaemonNotRunning.js';
 import { threadNameOf } from '../shared.js';
 import type { OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
@@ -55,7 +57,9 @@ export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDial
   const model = chosenModel ?? dto?.model ?? '';
   const mode = chosenMode ?? dto?.permissionMode ?? '';
   const nameText = name.trim().length > MAX_NAME_CHARS ? `The name has ${name.trim().length} characters, the limit is ${MAX_NAME_CHARS}.` : '';
-  const blocked = starting || nameText !== '' || recordPending;
+  // The daemon is known to be down: nothing can start, said with the fix instead of a click that fails.
+  const daemonDown = useDaemonDown();
+  const blocked = starting || nameText !== '' || recordPending || daemonDown;
 
   const start = async (): Promise<void> => {
     if (blocked) {
@@ -88,7 +92,8 @@ export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDial
       >
         <blockquote className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words rounded border-l-2 border-primary bg-muted-bg px-2.5 py-1.5 text-sm text-content">{quoteOf(anchor.text)}</blockquote>
         <p className="text-sm text-content">{THREAD_MEANING}</p>
-        {recordPending ? (readError !== '' ? <Banner tone="error">{`The daemon record of this session could not be read, so the thread stays off: its model and permission mode are not known. ${readError}`}</Banner> : <p role="status" className="text-sm text-muted">Reading the model and permission mode of this session...</p>) : null}
+        {daemonDown ? <DaemonNotRunning what="start a thread" enables="Start thread" /> : null}
+        {recordPending && !daemonDown ? (readError !== '' ? <Banner tone="error">{`The daemon record of this session could not be read, so the thread stays off: its model and permission mode are not known. ${readError}`}</Banner> : <p role="status" className="text-sm text-muted">Reading the model and permission mode of this session...</p>) : null}
 
         <FieldText label="Name" value={name} onChange={setName} disabled={starting} autoComplete="off" error={nameText} description={THREAD_CAP_NOTE} />
 

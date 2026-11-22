@@ -44,8 +44,9 @@ export function skippableType(head: string): string | undefined {
     return undefined;
   }
   if (head.startsWith('{"parentUuid":') && ATTACHMENT_HEAD.test(head)) {
-    // The `model` attachment (the name and the exact id of the model, see ModelInfoEntry) is the one attachment that is parsed: a few per session.
-    return head.includes('"attachment":{"type":"model"') ? undefined : 'attachment';
+    // Two kinds of attachment are parsed, the others skipped: the `model` one (the name and the exact id of the model, see ModelInfoEntry: a few per session) and the
+    // hook ones (HookEntry: hook_success, hook_non_blocking_error, hook_cancelled, hook_system_message, async_hook_response). The type is the first key of the attachment.
+    return head.includes('"attachment":{"type":"model"') || head.includes('"attachment":{"type":"hook_') || head.includes('"attachment":{"type":"async_hook_response"') ? undefined : 'attachment';
   }
   return undefined;
 }

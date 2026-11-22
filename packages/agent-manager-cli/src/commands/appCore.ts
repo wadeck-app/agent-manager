@@ -18,7 +18,7 @@ function outputOf(attempt: AppCoreAttempt): CommandOutput {
 
 export const registerCommand: Command = {
   name: 'cli register',
-  summary: 'Show the Agents pages in app-core (M1b: the sessions of the Claude Code registry only). This is the first registration: only this command does it; updates then keep it current',
+  summary: 'Show the Agents pages in app-core (the sessions of the Claude Code registry and of the daemon). This is the first registration: only this command does it; updates then keep it current',
   args: [],
   options: {},
   run: async () => {

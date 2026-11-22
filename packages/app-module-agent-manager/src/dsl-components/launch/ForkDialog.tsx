@@ -6,7 +6,9 @@ import type { AgentRow } from '../data/types.js';
 import { FORK_MEANING, forkBody, forkBusyWarning, forkNameDefault, modelAliasOf } from '../logic/forkForm.js';
 import { MODEL_OPTIONS, MAX_NAME_CHARS, PERMISSION_MODE_OPTIONS, type ChoiceOption } from '../logic/launchForm.js';
 import { isOwned } from '../logic/owned.js';
+import { useDaemonDown } from '../owned/DaemonState.js';
 import { useOwnedSession } from '../owned/useOwnedSession.js';
+import { DaemonNotRunning } from './DaemonNotRunning.js';
 import type { OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { ButtonAction, FieldSelect, FieldText } from '@wadeck-app/dsl-ui';
@@ -48,7 +50,9 @@ export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
   const model = chosenModel ?? dto?.model ?? '';
   const mode = chosenMode ?? dto?.permissionMode ?? '';
   const nameText = name.trim().length > MAX_NAME_CHARS ? `The name has ${name.trim().length} characters, the limit is ${MAX_NAME_CHARS}.` : '';
-  const blocked = forking || nameText !== '' || recordPending;
+  // The daemon is known to be down: nothing can start, said with the fix instead of a click that fails.
+  const daemonDown = useDaemonDown();
+  const blocked = forking || nameText !== '' || recordPending || daemonDown;
   const rowFamily = modelAliasOf(session.model);
   const busyWarning = forkBusyWarning(session);
   const modelKnown = dto?.model !== undefined;
@@ -83,7 +87,8 @@ export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
         }}
       >
         <p className="text-sm text-content">{FORK_MEANING}</p>
-        {recordPending ? (readError !== '' ? <Banner tone="error">{`The daemon record of this session could not be read, so Fork stays off: its model and permission mode are not known. ${readError}`}</Banner> : <p role="status" className="text-sm text-muted">Reading the model and permission mode of this session...</p>) : null}
+        {daemonDown ? <DaemonNotRunning what="fork a session" enables="Fork" /> : null}
+        {recordPending && !daemonDown ? (readError !== '' ? <Banner tone="error">{`The daemon record of this session could not be read, so Fork stays off: its model and permission mode are not known. ${readError}`}</Banner> : <p role="status" className="text-sm text-muted">Reading the model and permission mode of this session...</p>) : null}
         {busyWarning !== undefined ? <Banner tone="warning">{busyWarning}</Banner> : null}
 
         <FieldText label="Name" value={name} onChange={setName} disabled={forking} autoComplete="off" error={nameText} description={'Shown in the list; the new session also shows that it was forked from this one.'} />

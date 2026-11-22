@@ -1,4 +1,5 @@
 import type { LogEntry } from '../deps.js';
+import { toolLabel } from './toolChips.js';
 
 export type ToolCall = Extract<LogEntry, { kind: 'tool-call' }>;
 
@@ -8,17 +9,25 @@ export type Row = { type: 'entry'; key: string; entry: LogEntry } | { type: 'gro
 export function buildRows(entries: readonly LogEntry[]): Row[] {
   const rows: Row[] = [];
   let run: ToolCall[] = [];
+  // Hook entries met inside a run (a hook is written between a call and its result): they do not split the group, they follow it.
+  let held: LogEntry[] = [];
   const flush = (): void => {
     if (run.length === 1) {
       rows.push({ type: 'entry', key: run[0]!.key, entry: run[0]! });
     } else if (run.length > 1) {
       rows.push({ type: 'group', key: `group:${run[0]!.key}`, calls: run });
     }
+    for (const entry of held) {
+      rows.push({ type: 'entry', key: entry.key, entry });
+    }
     run = [];
+    held = [];
   };
   for (const entry of entries) {
     if (entry.kind === 'tool-call') {
       run.push(entry);
+    } else if (entry.kind === 'hook' && run.length > 0) {
+      held.push(entry);
     } else {
       flush();
       rows.push({ type: 'entry', key: entry.key, entry });
@@ -41,7 +50,7 @@ export function summariseGroup(calls: readonly ToolCall[]): GroupSummary {
   let running = 0;
   let errors = 0;
   for (const call of calls) {
-    counts.set(call.name, (counts.get(call.name) ?? 0) + 1);
+    counts.set(toolLabel(call), (counts.get(toolLabel(call)) ?? 0) + 1);
     running += call.status === 'running' ? 1 : 0;
     errors += call.status === 'error' ? 1 : 0;
   }

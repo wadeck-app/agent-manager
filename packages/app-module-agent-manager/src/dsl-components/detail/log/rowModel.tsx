@@ -1,4 +1,4 @@
-import { ArrowLeftRight, Bell, Bot, Brain, ChevronDown, ChevronRight, CircleHelp, Clock, Cpu, GitFork, Layers, ListOrdered, Terminal, TriangleAlert, User, Users, Wrench, type LucideIcon } from 'lucide-react';
+import { ArrowLeftRight, Bell, Bot, Brain, ChevronDown, ChevronRight, CircleHelp, Clock, Cpu, GitFork, Layers, ListOrdered, Terminal, TriangleAlert, User, Users, Webhook, Wrench, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { LogEntry, ReplyMessageDto, ThreadAnchor } from '../deps.js';
 import { threadAnchorOf } from '../deps.js';
@@ -8,6 +8,8 @@ import { PendingActions } from './PendingActions.js';
 import { PriorityMark } from './PriorityMark.js';
 import { firstLine, formatBytes, formatDuration } from './format.js';
 import { summariseGroup, type Row, type ToolCall } from './grouping.js';
+import { MetaChips } from './MetaChips.js';
+import { callChips, groupChips, groupTooltip, toolLabel } from './toolChips.js';
 import { Markdown } from './markdown.js';
 import { LOG_ICON, LOG_META, LOG_MONO } from './sizes.js';
 import { ToolBody, durationText } from './ToolBody.js';
@@ -40,6 +42,8 @@ export interface RowModel {
   body: ((context: OpenContext) => ReactNode) | null;
   /** A message of the conversation: the transcript entry a thread can stop at (or why it cannot). Absent for every other row. */
   anchor?: ThreadAnchor;
+  /** The native tooltip of the header (a group: one line per call). */
+  tooltip?: string;
   /** The id of the tool call, for the highlight of its sub-agent. */
   callId?: string;
   subagentId?: string;
@@ -207,6 +211,8 @@ function describeEntryBase(entry: LogEntry, deliveryOf?: DeliveryLookup): RowMod
       return callModel(entry);
     case 'system-notice':
       return noticeModel(entry);
+    case 'hook':
+      return hookModel(entry);
     case 'queue-operation': {
       const what = [entry.operation, entry.reason, entry.contentKind === undefined ? undefined : `(${entry.contentKind})`].filter(Boolean).join(' ');
       return { key: entry.key, role: 'meta', icon: ListOrdered, iconClass: 'text-muted', label: 'Queue', summary: `${what}${entry.contentPreview ? `: ${firstLine(entry.contentPreview, 100)}` : ''}`, tone: 'muted', expandable: false, body: null, ...at };
@@ -255,6 +261,49 @@ function unknownKindModel(entry: never): RowModel {
   return { key, role: 'meta', icon: CircleHelp, iconClass: 'text-muted', label: 'Unrecognised entry', summary: `kind "${kind}": this page does not know how to show it`, tone: 'muted', expandable: false, body: null };
 }
 
+const HOOK_OUTCOME_TEXT: Record<Extract<LogEntry, { kind: 'hook' }>['outcome'], string> = {
+  success: '',
+  error: 'error (not blocking)',
+  cancelled: 'cancelled',
+  message: 'message',
+  async: 'async response',
+  other: 'unknown outcome',
+};
+
+/** A hook of Claude Code: a quiet collapsed row, read-only; the command, the exit code, the output and the errors are one click away. */
+function hookModel(entry: Extract<LogEntry, { kind: 'hook' }>): RowModel {
+  const failed = entry.outcome === 'error' || entry.outcome === 'cancelled';
+  const outcome = HOOK_OUTCOME_TEXT[entry.outcome];
+  const facts = [
+    entry.command === undefined ? undefined : `Command: ${entry.command}`,
+    entry.exitCode === undefined ? undefined : `Exit code: ${entry.exitCode}`,
+    entry.timedOut === true ? `Timed out${entry.timeoutMs === undefined ? '' : ` after ${formatDuration(entry.timeoutMs)}`}` : undefined,
+    entry.toolUseId === undefined ? undefined : `Id: ${entry.toolUseId}`,
+    entry.outcome === 'other' ? `Attachment type: ${entry.attachmentType}` : undefined,
+  ].filter((fact): fact is string => fact !== undefined);
+  return {
+    key: entry.key,
+    role: 'meta',
+    icon: Webhook,
+    iconClass: failed ? 'text-hue-red' : 'text-muted',
+    label: 'Hook',
+    summary: [entry.hookName, outcome, entry.output === undefined ? '' : firstLine(entry.output, 100)].filter((part) => part !== '').join(' - '),
+    tone: failed ? 'error' : 'muted',
+    expandable: true,
+    ...(entry.timestamp === undefined ? {} : { timestamp: entry.timestamp }),
+    ...(entry.durationMs === undefined ? {} : { trailing: <span className={`${LOG_META} tabular-nums text-muted`}>{formatDuration(entry.durationMs)}</span> }),
+    body: () => (
+      <div className="flex flex-col gap-1">
+        {facts.length === 0 ? null : <p className={`${LOG_META} whitespace-pre-wrap break-words text-muted`}>{facts.join('\n')}</p>}
+        {entry.output === undefined ? null : <pre className={`max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-muted-bg p-2 ${LOG_MONO}`}>{entry.output}</pre>}
+        {entry.outputTruncated === true ? <p className={`${LOG_META} text-muted`}>Shortened: the output is cut at {entry.output?.length} characters.</p> : null}
+        {entry.stderr === undefined ? null : <pre className={`max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-muted-bg p-2 text-hue-red ${LOG_MONO}`}>{entry.stderr}</pre>}
+        {entry.output === undefined && entry.stderr === undefined ? <p className={`${LOG_META} text-muted`}>This hook printed nothing.</p> : null}
+      </div>
+    ),
+  };
+}
+
 function callModel(call: ToolCall): RowModel {
   const orphan = call.orphan === true;
   return {
@@ -262,7 +311,7 @@ function callModel(call: ToolCall): RowModel {
     role: 'tool',
     icon: Wrench,
     iconClass: 'text-muted',
-    label: orphan ? 'Tool result' : call.name,
+    label: orphan ? 'Tool result' : toolLabel(call),
     summary: orphan ? firstLine(call.resultPreview ?? '') : call.inputSummary,
     tone: call.status === 'error' ? 'error' : 'normal',
     expandable: true,
@@ -271,6 +320,7 @@ function callModel(call: ToolCall): RowModel {
     ...(call.startedAt === undefined && call.finishedAt === undefined ? {} : { timestamp: call.startedAt ?? call.finishedAt ?? 0 }),
     trailing: (
       <span className="inline-flex items-center gap-1.5">
+        {orphan ? null : <MetaChips chips={callChips(call)} />}
         <span className={`${LOG_META} tabular-nums text-muted`}>{durationText(call)}</span>
         <ToolStatusIcon call={call} />
       </span>
@@ -310,9 +360,11 @@ export function describeGroup(row: Extract<Row, { type: 'group' }>): RowModel {
     summary: summary.names,
     tone: summary.errors > 0 ? 'error' : 'normal',
     expandable: true,
+    tooltip: groupTooltip(row.calls),
     ...(at === undefined ? {} : { timestamp: at }),
     trailing: (
       <span className={`inline-flex items-center gap-1.5 ${LOG_META} text-muted`}>
+        <MetaChips chips={groupChips(row.calls)} />
         {summary.errors > 0 ? <span className="text-hue-red">{summary.errors} failed</span> : null}
         {summary.running > 0 ? <ToolStatusIcon call={row.calls.find((call) => call.status === 'running') ?? first} /> : null}
       </span>

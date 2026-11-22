@@ -5,11 +5,11 @@ import { Banner } from '../ui/Banner.js';
 export const DAEMON_START_COMMAND = 'agent-manager start --detach';
 
 /** The fix of a daemon that is not running: the command, ready to copy. */
-export function DaemonNotRunning() {
+export function DaemonNotRunning({ what = 'launch a session', enables = 'Launch' }: { what?: string; enables?: string }) {
   return (
     <Banner tone="warning">
-      <p className="font-medium">The agent-manager daemon is not running, so no session can be launched from here.</p>
-      <p className="mt-1">Start it in a terminal, then come back: this dialog notices within 5 seconds and enables Launch.</p>
+      <p className="font-medium">{`The agent-manager daemon is not running, so you cannot ${what} from here.`}</p>
+      <p className="mt-1">{`Start it in a terminal, then come back: this page notices within 5 seconds and enables ${enables}.`}</p>
       <div className="mt-2 flex items-center gap-2">
         <code data-daemon-command="" className="rounded border border-border bg-surface px-2 py-1 font-mono text-am-mono text-content">
           {DAEMON_START_COMMAND}

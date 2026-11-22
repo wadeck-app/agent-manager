@@ -7,7 +7,10 @@ import { switchViewOf } from '../logic/adoptSwitch.js';
 import type { SwitchView } from '../logic/adoptSwitch.js';
 import type { OwnedSessionDto, OwnedSwitchResponse } from '../shared.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
+import { useDaemonDown } from './DaemonState.js';
 import { ReasonList } from './ReasonList.js';
+
+const DAEMON_DOWN_TITLE = 'The agent-manager daemon is not running, so the session cannot move. Start it in a terminal: agent-manager start --detach';
 import { useUiVariant } from '../ui/UiVariants.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 
@@ -40,6 +43,7 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError }: S
   const [serverText, setServerText] = useState('');
   const [sending, setSending] = useState(false);
   const [dialogError, setDialogError] = useState('');
+  const daemonDown = useDaemonDown();
   if (view === undefined) {
     return null;
   }
@@ -101,11 +105,11 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError }: S
   return (
     <>
       {/* The base button takes no data attribute and no title: the wrapper carries them (the tests and the tooltip read them there). */}
-      <span data-adopt-button="" data-readiness={view.readiness} data-tone={tone} title={view.title} className="inline-flex shrink-0">
+      <span data-adopt-button="" data-readiness={view.readiness} data-tone={tone} title={daemonDown ? DAEMON_DOWN_TITLE : view.title} className="inline-flex shrink-0">
         <ButtonAction
           variant={tone === 'warning' ? 'danger-outline' : 'secondary'}
           size="sm"
-          disabled={disabled || sending}
+          disabled={disabled || sending || daemonDown}
           onClick={click}
           icon={<Icon aria-hidden="true" className="h-3.5 w-3.5" />}
           label={separate ? baseLabel : view.label}

@@ -20,7 +20,7 @@ export function RowHeader({ model, expandable, open, onToggle }: { model: RowMod
   );
   const row = 'flex w-full min-w-0 items-center gap-2 text-left';
   return expandable ? (
-    <button type="button" aria-expanded={open} onClick={onToggle} className={`${row} rounded px-1 py-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
+    <button type="button" aria-expanded={open} onClick={onToggle} title={model.tooltip} className={`${row} rounded px-1 py-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
       {content}
     </button>
   ) : (

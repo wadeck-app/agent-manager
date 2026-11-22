@@ -1,6 +1,6 @@
 `# app-module-agent-manager
 `
-`app-core module `agent-manager` (title Agents). **M1b partial slice: sessions from the Claude Code registry only, pid-only liveness. No hooks, transcripts, replies or push.**
+`app-core module `agent-manager` (title Agents). **Partial slice: sessions from the Claude Code registry (pid-only liveness) plus the sessions owned by the daemon, transcript log and replies. No hooks yet.**
 `
 `| Part | What |
 `|---|---|

@@ -1,5 +1,7 @@
 import { ShieldAlert } from 'lucide-react';
+import { useState } from 'react';
 import { CopyButton } from '../detail/log/CopyButton.js';
+import { useMediaQuery } from '../ui/hooks.js';
 import { blockedText, bypassCommand } from '../logic/guardrails.js';
 import type { GuardrailBlocksDto } from '../shared.js';
 
@@ -8,13 +10,25 @@ import type { GuardrailBlocksDto } from '../shared.js';
  * The module grants nothing: the user runs the command in that session and answers the plugin's own dialog there.
  */
 export function GuardrailBlocks({ blocks }: { blocks: GuardrailBlocksDto | undefined }) {
+  const phone = useMediaQuery('(max-width: 599px)');
+  const [expanded, setExpanded] = useState(false);
   if (blocks === undefined) {
     return null;
   }
+  const sentence = blockedText(blocks);
+  // On a phone the sentence wraps over many lines: 2 lines, the full text in the tooltip and behind "more".
+  const clamped = phone && !expanded;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-hue-orange">
       <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
-      <span>{blockedText(blocks)}</span>
+      <span title={sentence} className={`min-w-0 ${clamped ? 'line-clamp-2' : ''}`}>
+        {sentence}
+      </span>
+      {phone ? (
+        <button type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)} className="shrink-0 text-xs text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          {expanded ? 'less' : 'more'}
+        </button>
+      ) : null}
       {blocks.timeout ? <span className="text-warning-text">Bypass requests are timed out</span> : null}
       <a href="/guardrails" className="text-primary underline">
         Guardrails page

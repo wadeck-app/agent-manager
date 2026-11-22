@@ -9,6 +9,8 @@ import { RowFrame } from './frames.js';
 import { buildRows, toggleOpen, type Row } from './grouping.js';
 import { drawable, reconcilePending } from './reconcile.js';
 import { hideWebQueueLines } from './webQueue.js';
+import { applyFilters, useLogFilters } from './logFilters.js';
+import { LogFilterBar } from './LogFilterBar.js';
 import { describePending, describeRow, type OpenContext } from './rowModel.js';
 import { BOTTOM_SLACK_PX, LOCATE_MAX_PAGES, LOG_ICON, LOG_META, TOP_LOAD_PX } from './sizes.js';
 import { LocateBanner, locateAnnouncement } from './LocateBanner.js';
@@ -78,7 +80,6 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
   const delivery = useDelivery(session.sessionId);
   const deliveryOf = useCallback((messageId: string) => delivery.get(messageId), [delivery]);
   // The queue lines of a message sent from here are redundant with its bubble: not drawn.
-  const rows = useMemo(() => buildRows(hideWebQueueLines(state.entries)), [state.entries]);
   const shownPending = useMemo(() => drawable(waiting, now), [waiting, now]);
   const toggle = useCallback((key: string) => setOpen((current) => toggleOpen(current, key)), []);
   const context = useMemo<OpenContext>(() => ({ isOpen: (key) => open.has(key), toggle }), [open, toggle]);
@@ -92,6 +93,14 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
     }
   }, [locate.selectedId]);
   const agent = useMemo(() => (locate.selectedId === undefined ? undefined : items.find((item) => item.dto.agentId === locate.selectedId)?.dto), [locate.selectedId, items]);
+  // The filters (hooks, tools, agent messages) apply to the entries before they become rows. The call that started the selected sub-agent stays whatever they say:
+  // a click on the panel must always have a row to show. The queue lines of a message sent from here are redundant with its bubble: not drawn.
+  const filters = useLogFilters();
+  const filtered = useMemo(
+    () => applyFilters(hideWebQueueLines(state.entries), filters.prefs, (entry) => agent !== undefined && entry.kind === 'tool-call' && (entry.id === agent.toolUseId || entry.subagentId === agent.agentId)),
+    [state.entries, filters.prefs, agent],
+  );
+  const rows = useMemo(() => buildRows(filtered.entries), [filtered.entries]);
   // The rows of the call that started the selected sub-agent: highlighted once it is shown (not while it is being looked for).
   const subagentHot = useMemo(() => new Set(agent === undefined || locate.state.phase !== 'found' ? [] : rows.filter((row) => rowMatches(row, agent)).map((row) => row.key)), [agent, rows, locate.state.phase]);
 
@@ -246,6 +255,7 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {state.loaded ? <LogFilterBar feed={filters} filtered={filtered} /> : null}
         {items.length === 0 && state.subagentsNote !== '' ? <p className={`border-b border-border px-3 py-1.5 ${LOG_META} text-warning-text`}>{state.subagentsNote}</p> : null}
         {anchorNote !== undefined ? (
           <div className="px-3 pt-2">
@@ -281,6 +291,9 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
             ) : null}
             {state.loaded && state.entries.length === 0 && shownPending.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted">{state.note !== '' ? state.note : 'The transcript has no entry yet.'}</p>
+            ) : null}
+            {state.loaded && rows.length === 0 && state.entries.length > 0 && filtered.hiddenTotal > 0 && shownPending.length === 0 ? (
+              <p className={`py-8 text-center ${LOG_META} text-muted`}>Every loaded entry is hidden by the filters above ({filtered.hiddenTotal} hidden).</p>
             ) : null}
             <div className={`mx-auto flex w-full max-w-am-log flex-col gap-2`}>
               {rows.map((row) => (

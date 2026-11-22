@@ -2,6 +2,7 @@ import {
   LIMITS,
   type Entry,
   type EntryBase,
+  type HookOutcome,
   type ImageRef,
   type NoticeKind,
   type PromptSource,
@@ -12,6 +13,7 @@ import {
 } from './types.js';
 import { classifyHarnessText } from './harness.js';
 import { parseWebReply } from './webReply.js';
+import { metaFromInput, metaFromResult } from './toolMeta.js';
 import { asNumber, asString, base64Bytes, boundValue, isRecord, oneLine, parseTimestamp, stripAnsi, truncateText } from './text.js';
 
 /** Line types skipped by prefix, WITHOUT JSON.parse, and counted per type (decision 29 / R-08 plus the types observed on real transcripts). */
@@ -102,7 +104,7 @@ export function handleLine(sink: Sink, line: Record<string, unknown>, offset: nu
     });
     return;
   }
-  if (type === 'attachment' && handleModelAttachment(sink, ctx, line)) {
+  if (type === 'attachment' && (handleModelAttachment(sink, ctx, line) || handleHookAttachment(sink, ctx, line))) {
     return;
   }
   if (type !== undefined && SKIPPED_LINE_TYPES.has(type)) {
@@ -126,6 +128,57 @@ function handleModelAttachment(sink: Sink, ctx: LineContext, line: Record<string
   const marketingName = asString(identity.marketingName);
   const cutoff = asString(identity.knowledgeCutoff);
   push(sink, ctx, { kind: 'model-info', modelId, displayName: marketingName !== undefined && marketingName !== '' ? marketingName : modelId, ...(cutoff !== undefined ? { knowledgeCutoff: cutoff } : {}) });
+  return true;
+}
+
+const HOOK_OUTCOMES: ReadonlyMap<string, HookOutcome> = new Map<string, HookOutcome>([
+  ['hook_success', 'success'],
+  ['hook_non_blocking_error', 'error'],
+  ['hook_cancelled', 'cancelled'],
+  ['hook_system_message', 'message'],
+  ['async_hook_response', 'async'],
+]);
+
+/** True when the attachment type is one the tailer parses as a hook (see skippableType in lines.ts, which tests the same prefixes on the raw head). */
+export function isHookAttachmentType(type: string): boolean {
+  return type.startsWith('hook_') || type === 'async_hook_response';
+}
+
+/** A bounded one-line-ish text of a hook (ANSI stripped); undefined when empty. */
+function hookText(value: unknown): { text: string; truncated: boolean } | undefined {
+  const raw = asString(value);
+  if (raw === undefined || raw === '') {
+    return undefined;
+  }
+  const cut = truncateText(stripAnsi(raw), LIMITS.noticeChars);
+  return { text: cut.text, truncated: cut.truncated };
+}
+
+/** `attachment` of a hook type: a hook entry. Any other attachment is not handled (it stays a skipped line). */
+function handleHookAttachment(sink: Sink, ctx: LineContext, line: Record<string, unknown>): boolean {
+  const attachment = isRecord(line.attachment) ? line.attachment : undefined;
+  const attachmentType = asString(attachment?.type);
+  if (attachment === undefined || attachmentType === undefined || !isHookAttachmentType(attachmentType)) {
+    return false;
+  }
+  // The text a person would read: `content` (the hook's own message) when there is one, else what it printed.
+  const output = hookText(asString(attachment.content) !== undefined && asString(attachment.content) !== '' ? attachment.content : attachment.stdout);
+  const stderr = hookText(attachment.stderr);
+  push(sink, ctx, {
+    kind: 'hook',
+    hookEvent: asString(attachment.hookEvent) ?? '(unknown)',
+    hookName: asString(attachment.hookName) ?? asString(attachment.hookEvent) ?? '(unknown)',
+    outcome: HOOK_OUTCOMES.get(attachmentType) ?? 'other',
+    attachmentType,
+    ...(asString(attachment.command) !== undefined ? { command: asString(attachment.command) } : {}),
+    ...(asNumber(attachment.durationMs) !== undefined ? { durationMs: asNumber(attachment.durationMs) } : {}),
+    ...(asNumber(attachment.exitCode) !== undefined ? { exitCode: asNumber(attachment.exitCode) } : {}),
+    ...(asString(attachment.toolUseID) !== undefined ? { toolUseId: asString(attachment.toolUseID) } : {}),
+    ...(output === undefined ? {} : { output: output.text, outputTruncated: output.truncated }),
+    ...(stderr === undefined ? {} : { stderr: stderr.text, stderrTruncated: stderr.truncated }),
+    ...(typeof attachment.timedOut === 'boolean' ? { timedOut: attachment.timedOut } : {}),
+    ...(asNumber(attachment.timeoutMs) !== undefined ? { timeoutMs: asNumber(attachment.timeoutMs) } : {}),
+  });
   return true;
 }
 
@@ -224,13 +277,17 @@ function startToolCall(sink: Sink, ctx: LineContext, block: Record<string, unkno
     return;
   }
   const bounded = boundValue(block.input, LIMITS.inputChars);
+  const name = asString(block.name) ?? 'unknown';
+  // From the whole input: the kept copy is cut at LIMITS.inputChars.
+  const meta = metaFromInput(name, block.input);
   const call = push(
     sink,
     ctx,
     {
       kind: 'tool-call',
       id,
-      name: asString(block.name) ?? 'unknown',
+      name,
+      ...(meta === undefined ? {} : { meta }),
       inputSummary: summarizeToolInput(block.input),
       input: bounded.value,
       inputTruncated: bounded.truncated,
@@ -325,13 +382,14 @@ function handleUser(sink: Sink, ctx: LineContext, line: Record<string, unknown>)
     texts.push(content);
     sawPromptContent = true;
   } else if (Array.isArray(content)) {
+    const singleResult = content.filter((block) => isRecord(block) && block.type === 'tool_result').length === 1;
     for (const block of content) {
       if (!isRecord(block)) {
         continue;
       }
       const type = asString(block.type);
       if (type === 'tool_result') {
-        finishToolCall(sink, ctx, line, block);
+        finishToolCall(sink, ctx, line, block, singleResult);
       } else if (type === 'text') {
         texts.push(asString(block.text) ?? '');
         sawPromptContent = true;
@@ -386,7 +444,7 @@ function classifyPrompt(originKind: string | undefined, turnOrigin: string | und
   return isMeta ? 'injected' : 'other';
 }
 
-function finishToolCall(sink: Sink, ctx: LineContext, line: Record<string, unknown>, block: Record<string, unknown>): void {
+function finishToolCall(sink: Sink, ctx: LineContext, line: Record<string, unknown>, block: Record<string, unknown>, single: boolean): void {
   const id = asString(block.tool_use_id);
   if (id === undefined) {
     return;
@@ -418,13 +476,13 @@ function finishToolCall(sink: Sink, ctx: LineContext, line: Record<string, unkno
     emit = true;
   }
   delete sink.state.pending[id];
-  applyResult(call, ctx, line, block);
+  applyResult(call, ctx, line, block, single);
   if (emit) {
     sink.entries.push(call);
   }
 }
 
-function applyResult(call: ToolCallEntry, ctx: LineContext, line: Record<string, unknown>, block: Record<string, unknown>): void {
+function applyResult(call: ToolCallEntry, ctx: LineContext, line: Record<string, unknown>, block: Record<string, unknown>, single: boolean): void {
   call.status = block.is_error === true ? 'error' : 'ok';
   const { text, images } = resultParts(block.content);
   const cut = truncateText(stripAnsi(text.length > 4 * LIMITS.resultPreviewChars ? text.slice(0, 4 * LIMITS.resultPreviewChars) : text), LIMITS.resultPreviewChars);
@@ -449,6 +507,13 @@ function applyResult(call: ToolCallEntry, ctx: LineContext, line: Record<string,
   const agentId = isRecord(toolUseResult) ? asString(toolUseResult.agentId) : undefined;
   if (agentId !== undefined) {
     call.agentId = agentId;
+  }
+  // `toolUseResult` describes ONE result: with several results in the line it cannot be attributed to any, so it is not used.
+  const meta = metaFromResult(call.name, call.meta, text, single ? toolUseResult : undefined, block.is_error === true);
+  if (meta === undefined) {
+    delete call.meta;
+  } else {
+    call.meta = meta;
   }
 }
 
