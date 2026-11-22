@@ -183,7 +183,7 @@ Marks: [D] documented, [M] measured on the 40 newest local transcripts (`poc/scr
 
 ## Custom mode, port of WAgents (2026-11-22, todo #91)
 
-4th list mode (`?mode=custom`): every live agent inside the user's custom groups, the rest in a last Ungrouped bucket. Source: the Herdr mod `~/.config/herdr-app/mods/my-agents` (read only). The user's Herdr groups: Focus 5, Regular 6, Secondary 3, Meta 6, Icebox 2, all manual, no colors, 3 flagged agents.
+4th list mode (`?mode=custom`): every live agent inside the user's custom groups, the rest in a last Ungrouped bucket. Source: the Herdr mod `~/.config/herdr-app/mods/my-agents` (read only). Only user-made groups exist: no preset and no import of Herdr groups (user decision 2026-11-22; the one-click preset and `POST /groups/preset` were removed).
 
 | WAgents | Here |
 |---|---|
@@ -199,10 +199,8 @@ Marks: [D] documented, [M] measured on the 40 newest local transcripts (`poc/scr
 | `track` (done and idle are one state) | not needed: `statusUpdatedAt` comes from the registry and does not change when a finished agent is seen |
 | `ROW_LAYOUTS`, `FOCUS_BGS`, settings menu, state colors | not ported. Rows are the Herdr rows of the `ui-tree-density` question (tinted by default in this mode); the open row is the gold outline of the tinted variant |
 | sort modes priority, space, agent, machine | not ported (Tree, Groups and Inbox exist) |
-| one-click groups | `POST /groups/preset {preset:"herdr"}`: Focus, Regular, Secondary, Meta, Icebox, only into an empty list (409 otherwise), never automatic |
 
-- Routes `POST /groups/preset`, `POST /sessions/:sessionId/marks`, and the new fields of `POST /groups/:id` are not PIN-gated (`routeClasses.ts`). Marks of sessions absent for 14 days are pruned with the hourly pass.
-- Follow-up, not built: import of the Herdr groups. Mapping: herdr terminal -> `hc get` foreground pid -> registry pid -> session id, then `agents.groups` / `agents.order` / `agents.marks`.
+- Routes `POST /sessions/:sessionId/marks`, and the new fields of `POST /groups/:id` are not PIN-gated (`routeClasses.ts`). Marks of sessions absent for 14 days are pruned with the hourly pass.
 - Not built: the Tree's attention expansion of sub-agents; the Shortcuts help does not list M / Alt+arrows for this mode.
 
 ## Names cut in the Herdr rows (2026-11-22, todo #95)

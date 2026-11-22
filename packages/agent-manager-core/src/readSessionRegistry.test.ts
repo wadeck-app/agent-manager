@@ -202,3 +202,27 @@ describe('sortByStatusUpdatedDesc', () => {
     expect(sortByStatusUpdatedDesc(sessions).map((s) => s.pid)).toEqual([2, 4, 1, 3]);
   });
 });
+
+describe('readSessionRegistry: one session id in several files', () => {
+  // Evidence (2026-11-22, real registry): 8332.json and 18532.json both held session 3b48318e... (the session was resumed in a new process); the old pid had been
+  // reused by another program, so pid-only liveness reported both alive and the list showed the same agent twice.
+  const SAME = '3b48318e-ae05-417f-95b1-5d1b964c8e86';
+  it('keeps one session per id: the most recently started process', async () => {
+    const dir = registry({
+      '18532.json': registryEntry(process.pid, { sessionId: SAME, pid: 18532, startedAt: 1_000 }),
+      '8332.json': registryEntry(process.pid, { sessionId: SAME.toUpperCase(), pid: 8332, startedAt: 2_000 }),
+      '9.json': registryEntry(process.pid, { pid: 9 }),
+    });
+    const sessions = sessionsOf(await readSessionRegistry(dir, { isAlive: () => true }));
+    expect(sessions.map((s) => s.pid)).toEqual([9, 8332]);
+  });
+
+  it('prefers an alive process over a newer dead one', async () => {
+    const dir = registry({
+      '100.json': registryEntry(100, { sessionId: SAME, startedAt: 1_000 }),
+      '200.json': registryEntry(200, { sessionId: SAME, startedAt: 2_000 }),
+    });
+    const sessions = sessionsOf(await readSessionRegistry(dir, { isAlive: (pid) => pid === 100 }));
+    expect(sessions.map((s) => s.pid)).toEqual([100]);
+  });
+});

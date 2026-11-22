@@ -34,8 +34,6 @@ export interface GroupsApi {
   /** Creates a group at the end; resolves with it, or undefined when the server refused (the page shows why). */
   create: (name: string, color?: GroupColor | null) => Promise<CustomGroupDto | undefined>;
   update: (id: string, patch: { name?: string; color?: GroupColor | null; collapsed?: boolean; sort?: GroupSort; bodyColor?: GroupColor | null }) => void;
-  /** Creates the five groups of the Herdr preset (only into an empty list); resolves true when they were created, false when the server refused (the page shows why). */
-  seedHerdr: () => Promise<boolean>;
   remove: (id: string) => void;
   /** Sets the order of the groups: every group id, once. */
   reorder: (ids: string[]) => void;

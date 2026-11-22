@@ -19,7 +19,6 @@ function fakeApi(groups: CustomGroupDto[]) {
     move: vi.fn<GroupsApi['move']>(),
     create: vi.fn<GroupsApi['create']>(),
     update: vi.fn<GroupsApi['update']>(),
-    seedHerdr: vi.fn<GroupsApi['seedHerdr']>(() => Promise.resolve(true)),
     remove: vi.fn<GroupsApi['remove']>(),
     reorder: vi.fn<GroupsApi['reorder']>(),
   };
@@ -103,20 +102,19 @@ describe('CustomList', () => {
     expect(names[1]).toContain('a-one');
   });
 
-  it('with no group, offers the Herdr preset and creates nothing by itself', () => {
+  it('with no group, says so in one line, offers no preset button and creates nothing by itself', () => {
     const api = fakeApi([]);
     render(<Custom sessions={all} api={api} />);
-    expect(api.seedHerdr).not.toHaveBeenCalled();
-    expect(screen.getByText(/Focus, Regular, Secondary, Meta, Icebox/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Create the Herdr groups' }));
-    expect(api.seedHerdr).toHaveBeenCalledTimes(1);
+    expect(api.create).not.toHaveBeenCalled();
+    expect(screen.getByText('No custom group yet: all the agents are below, ungrouped. Use New group in the toolbar to make one.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Herdr/ })).toBeNull();
     // the agents are listed meanwhile, ungrouped
     expect(screen.getByText('loose-one')).toBeInTheDocument();
   });
 
-  it('does not offer the preset once there is a group', () => {
+  it('does not show the empty-state line once there is a group', () => {
     render(<Custom sessions={all} api={fakeApi(groups())} />);
-    expect(screen.queryByRole('button', { name: 'Create the Herdr groups' })).toBeNull();
+    expect(screen.queryByText(/No custom group yet/)).toBeNull();
   });
 
   describe('drag and drop (the held item is read before it is cleared)', () => {

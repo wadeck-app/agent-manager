@@ -120,7 +120,7 @@ describe('the batch bar', () => {
   it('Move to group moves every selected session with the page API and clears the selection', () => {
     const group: CustomGroupDto = { id: 'g1', name: 'Reviews', color: null, collapsed: false, order: 0, sort: 'manual', bodyColor: null };
     const move = vi.fn();
-    const groups = { groups: [group], move, create: vi.fn(), update: vi.fn(), seedHerdr: vi.fn(), remove: vi.fn(), reorder: vi.fn() } as unknown as GroupsApi;
+    const groups = { groups: [group], move, create: vi.fn(), update: vi.fn(), remove: vi.fn(), reorder: vi.fn() } as unknown as GroupsApi;
     render(<Harness rows={[billing, docs]} groups={groups} />);
     tick('billing-owner', 'docs-writer');
     fireEvent.click(screen.getByRole('button', { name: 'Move to group' }));

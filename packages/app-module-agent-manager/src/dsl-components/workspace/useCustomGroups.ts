@@ -32,11 +32,6 @@ function groupOf(value: unknown): CustomGroupDto | undefined {
   return typeof id === 'string' && typeof name === 'string' ? (group as CustomGroupDto) : undefined;
 }
 
-function groupsOf(value: unknown): CustomGroupDto[] {
-  const groups = value !== null && typeof value === 'object' ? Reflect.get(value, 'groups') : undefined;
-  return Array.isArray(groups) ? groups.filter((group): group is CustomGroupDto => group !== null && typeof group === 'object' && typeof Reflect.get(group, 'id') === 'string' && typeof Reflect.get(group, 'name') === 'string') : [];
-}
-
 /**
  * The custom groups of the page: the server's groups and each row's group, with the user's own changes applied at once (a drop must not wait up to 5 s for
  * the next poll). Every change is a pending operation replayed on top of the last server answer. An operation is dropped when the server shows its effect,
@@ -94,15 +89,6 @@ export function useCustomGroups(rows: readonly SessionRowDto[], groups: readonly
           push((current) => (current.groups.some((group) => group.id === created.id) ? current : { groups: [...current.groups, created], members: { ...current.members, [created.id]: [] } }));
         }
         return created;
-      },
-      seedHerdr: async () => {
-        const result = await sendRef.current('/groups/preset', { preset: 'herdr' }, 'Could not create the Herdr groups');
-        const created = result.ok ? groupsOf(result.value) : [];
-        if (created.length === 0) {
-          return false;
-        }
-        push((current) => (current.groups.length > 0 ? current : { groups: created, members: Object.fromEntries(created.map((group) => [group.id, [] as string[]])) }));
-        return true;
       },
       update: (id, patch) => {
         const op = push((current) => ({ ...current, groups: current.groups.map((group) => (group.id === id ? { ...group, ...patch } : group)) }));

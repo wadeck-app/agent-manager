@@ -107,8 +107,27 @@ export async function readSessionRegistry(dir: string, options: ReadOptions = {}
       unreadable.push({ file, reason: error instanceof SessionFormatError ? getErrorMessage(error) : `liveness check failed: ${getErrorMessage(error)}` });
     }
   }
-  sessions.sort((a, b) => a.pid - b.pid);
-  return { ok: true, dir, sessions, unreadable };
+  const unique = oneBySessionId(sessions);
+  unique.sort((a, b) => a.pid - b.pid);
+  return { ok: true, dir, sessions: unique, unreadable };
+}
+
+/**
+ * One session per session id (case-insensitive). Claude Code leaves the file of an old process behind when a session is resumed in a new one, and with pid-only
+ * liveness a reused pid makes the old file look alive: the list would show the same agent several times. Kept: an alive process over a dead one, then the most
+ * recently started, then the highest pid.
+ */
+function oneBySessionId(sessions: readonly Session[]): Session[] {
+  const better = (a: Session, b: Session): boolean => (Number(a.alive) - Number(b.alive) || (a.startedAt ?? 0) - (b.startedAt ?? 0) || a.pid - b.pid) > 0;
+  const byId = new Map<string, Session>();
+  for (const session of sessions) {
+    const key = session.sessionId.toLowerCase();
+    const current = byId.get(key);
+    if (current === undefined || better(session, current)) {
+      byId.set(key, session);
+    }
+  }
+  return [...byId.values()];
 }
 
 /** Most recent status change first; sessions without `statusUpdatedAt` last, by pid. */

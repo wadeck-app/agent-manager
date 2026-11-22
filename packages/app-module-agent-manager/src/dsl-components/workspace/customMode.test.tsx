@@ -37,23 +37,14 @@ describe('the Custom mode in the workspace', () => {
     expect(screen.getByRole('button', { name: 'New group' })).toBeInTheDocument();
   });
 
-  it('the Herdr preset button posts the preset and lists the five groups at once', async () => {
-    const created = ['Focus', 'Regular', 'Secondary', 'Meta', 'Icebox'].map((name, order) => group(`00000000-0000-4000-8000-00000000000${order + 1}`, name, order));
-    const { calls } = stubFetch({ 'POST /groups/preset': { body: { ok: true, groups: created } } });
+  it('with no group, the list says to use New group, offers no preset and lists no group', () => {
+    const { calls } = stubFetch({});
     render(<Page sessions={[row({ displayName: 'shop-agent' })]} customGroups={[]} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Create the Herdr groups' }));
-    await waitFor(() => expect(screen.getByRole('treeitem', { name: /Icebox/ })).toBeInTheDocument());
-    expect(calls.find((call) => call.path === '/groups/preset')?.body).toEqual({ preset: 'herdr' });
-    expect(screen.queryByRole('button', { name: 'Create the Herdr groups' })).toBeNull();
-  });
-
-  it('a refused preset is said in the notice line, and nothing is listed as created', async () => {
-    stubFetch({ 'POST /groups/preset': { status: 409, body: { ok: false, message: 'The page already has groups (1)', hint: 'Create the groups you miss one by one.' } } });
-    render(<Page sessions={[row({ displayName: 'shop-agent' })]} customGroups={[]} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Create the Herdr groups' }));
-    await userEvent.click(await screen.findByRole('button', { name: 'Details' }));
-    expect(screen.getByText(/Could not create the Herdr groups: The page already has groups/)).toBeInTheDocument();
+    expect(screen.getByText(/No custom group yet/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'New group' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Herdr/ })).toBeNull();
     expect(screen.queryByRole('treeitem', { name: /Icebox/ })).toBeNull();
+    expect(calls).toHaveLength(0);
   });
 
   it('flags an agent at once and sends the mark', async () => {

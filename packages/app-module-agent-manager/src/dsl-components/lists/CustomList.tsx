@@ -1,5 +1,3 @@
-import { ButtonAction } from '@wadeck-app/dsl-ui';
-import { FolderPlus } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { customSections, UNGROUPED_ID, type DropContext } from '../logic/customMode.js';
@@ -7,7 +5,6 @@ import { stepGroupIds } from '../logic/customGroups.js';
 import { herdrTint, isHerdrDensity, type HerdrDensity } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
-import { HERDR_GROUP_NAMES } from '../shared.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { BODY_LOOK } from '../ui/groupLook.js';
 import { useUiVariant } from '../ui/UiVariants.js';
@@ -31,7 +28,7 @@ type Anchor = { x: number; y: number };
  * The Custom mode: ALL the live agents inside the user's custom groups (the ones no group claims in a last "Ungrouped" bucket), as the Herdr panel shows them.
  * Rows are the Herdr rows of the A/B question `ui-tree-density` (tinted by default here: a compact choice reads as tinted in this mode); each group has its own
  * order, header color and body color (the folder-cog button). Drag and drop, M (the Move dialog) and Alt+Up / Alt+Down arrange the agents and the groups;
- * a right-click (or the kebab button) flags an agent or marks it unread. Nothing is created for you: with no group the list offers the Herdr preset.
+ * a right-click (or the kebab button) flags an agent or marks it unread. Nothing is created for you: with no group the list says to use New group.
  */
 export function CustomList({ sessions: shown, selectedId, onSelect, now, query, searching, groups, marks }: ListProps) {
   const sections = useMemo(() => customSections(shown, groups?.groups ?? []), [shown, groups]);
@@ -189,11 +186,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
       ) : null}
       <ListScroll label="Agents by custom group" role="tree" onKeyDown={onKeyDown}>
         {!hasGroups && groups !== undefined ? (
-          <div className="flex flex-col items-start gap-2 border-b border-border px-3 py-3 text-sm">
-            <p className="font-medium text-content">No custom group yet</p>
-            <p className="text-muted">All the agents are below, ungrouped. Create the groups of your Herdr panel in one click ({HERDR_GROUP_NAMES.join(', ')}), or use New group in the toolbar. Nothing is created until you click.</p>
-            <ButtonAction variant="primary" size="sm" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} label="Create the Herdr groups" onClick={() => void groups.seedHerdr()} />
-          </div>
+          <p className="border-b border-border px-3 py-3 text-sm text-muted">No custom group yet: all the agents are below, ungrouped. Use New group in the toolbar to make one.</p>
         ) : null}
         {visibleSections.map((section, index) => (
           <CustomGroupBlock

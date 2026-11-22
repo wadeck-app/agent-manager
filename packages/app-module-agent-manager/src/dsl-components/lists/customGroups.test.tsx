@@ -29,7 +29,6 @@ function fakeApi(groups: CustomGroupDto[]): FakeApi {
     move: vi.fn<GroupsApi['move']>(),
     create: vi.fn<GroupsApi['create']>((name) => Promise.resolve({ id: 'new', name, color: null, collapsed: false, order: groups.length, sort: 'manual', bodyColor: null })),
     update: vi.fn<GroupsApi['update']>(),
-    seedHerdr: vi.fn<GroupsApi['seedHerdr']>(() => Promise.resolve(true)),
     remove: vi.fn<GroupsApi['remove']>(),
     reorder: vi.fn<GroupsApi['reorder']>(),
   };

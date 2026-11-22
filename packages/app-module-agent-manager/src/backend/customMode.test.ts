@@ -2,14 +2,14 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { HERDR_GROUP_NAMES, isGroupSort } from '../commons/groups.js';
+import { isGroupSort } from '../commons/groups.js';
 import { makeModule } from './testKit.js';
 
 const ID = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
-// The persistence behind the Custom mode (the Herdr-like list): the order of the agents of a group, the body color, the flag and the unread mark, and the
-// one-click preset. All of it lives in agents-user-state.json as additive fields.
-describe('Custom mode: group settings, marks and the Herdr preset', () => {
+// The persistence behind the Custom mode (the Herdr-like list): the order of the agents of a group, the body color, the flag and the unread mark.
+// All of it lives in agents-user-state.json as additive fields.
+describe('Custom mode: group settings and marks', () => {
   let registry: string;
   let data: string;
   beforeEach(() => {
@@ -79,29 +79,12 @@ describe('Custom mode: group settings, marks and the Herdr preset', () => {
     });
   });
 
-  describe('the Herdr preset', () => {
-    it('creates Focus, Regular, Secondary, Meta and Icebox in this order, once', async () => {
+  describe('no preset', () => {
+    it('there is no preset route: nothing is created for the user', async () => {
       const { call } = makeModule({ dataDir: data });
       const answer = await call('POST', '/groups/preset', { body: { preset: 'herdr' } });
-      expect(answer.status, JSON.stringify(answer.body)).toBe(200);
-      expect(answer.body.groups.map((group: { name: string }) => group.name)).toEqual([...HERDR_GROUP_NAMES]);
-      expect(HERDR_GROUP_NAMES).toEqual(['Focus', 'Regular', 'Secondary', 'Meta', 'Icebox']);
-      expect(stateFile().groups.map((group) => group.name)).toEqual([...HERDR_GROUP_NAMES]);
-      const again = await call('POST', '/groups/preset', { body: { preset: 'herdr' } });
-      expect(again.status).toBe(409);
-      expect(again.body.message).toMatch(/already has groups/);
-      expect(again.body.hint).toBeTruthy();
-    });
-
-    it('is refused when a group exists (it never merges into the user groups), and for an unknown preset', async () => {
-      const { call } = makeModule({ dataDir: data });
-      await call('POST', '/groups', { body: { name: 'Mine' } });
-      expect((await call('POST', '/groups/preset', { body: { preset: 'herdr' } })).status).toBe(409);
-      expect(stateFile().groups.map((group) => group.name)).toEqual(['Mine']);
-      const unknown = await call('POST', '/groups/preset', { body: { preset: 'other' } });
-      expect(unknown.status).toBe(400);
-      expect(unknown.body.message).toMatch(/preset/);
-      expect((await call('POST', '/groups/preset', { body: {} })).status).toBe(400);
+      expect(answer.status).toBeGreaterThanOrEqual(400);
+      expect((await call('GET', '/sessions')).body.customGroups).toEqual([]);
     });
   });
 

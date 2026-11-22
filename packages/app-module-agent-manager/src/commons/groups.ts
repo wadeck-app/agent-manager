@@ -63,9 +63,6 @@ export function isGroupSort(value: unknown): value is GroupSort {
   return typeof value === 'string' && (GROUP_SORTS as readonly string[]).includes(value);
 }
 
-/** The groups the one-click Herdr preset creates, in this order (the groups of the user's Herdr panel). */
-export const HERDR_GROUP_NAMES = ['Focus', 'Regular', 'Secondary', 'Meta', 'Icebox'] as const;
-
 /** The marks of a session in the Custom mode: a flag (kept until removed) and "unread" (cleared when the agent is selected). `at`: epoch ms of the last change, the clock of the absence prune. */
 export interface SessionMarks {
   flag: boolean;

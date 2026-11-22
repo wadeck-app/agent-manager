@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { checkGroupName, GROUP_COLORS, GROUP_SORTS, HERDR_GROUP_NAMES, isGroupColor, isGroupSort, MAX_GROUPS, placeMember, type GroupColor, type GroupSort } from '../commons/groups.js';
+import { checkGroupName, GROUP_COLORS, GROUP_SORTS, isGroupColor, isGroupSort, MAX_GROUPS, placeMember, type GroupColor, type GroupSort } from '../commons/groups.js';
 import type { CustomGroupDto } from '../commons/api.js';
 import { RequestError, ok, type RouteKit } from './routeKit.js';
 import { guarded, parseSessionId, SESSION_ID_PATTERN, updateUserState, type UserGroup, type UserState } from './userState.js';
@@ -112,25 +112,6 @@ export function registerGroupsRoutes(kit: RouteKit): void {
       }),
     );
     return ok({ ok: true, ids: wanted });
-  });
-
-  // Registered before '/groups/:id' (a static segment first): 'preset' is never a group id (those are UUIDs). The one-click Herdr preset: only into an empty list, never merged.
-  kit.route('POST', '/groups/preset', async (req) => {
-    const fields = bodyObject(req.body, ['preset'], '{"preset": "herdr"}');
-    if (fields['preset'] !== 'herdr') {
-      throw new RequestError(400, `'preset' must be "herdr", got ${JSON.stringify(fields['preset'])}`, 'The only preset is "herdr": Focus, Regular, Secondary, Meta, Icebox.');
-    }
-    let created: UserGroup[] = [];
-    await guarded(() =>
-      updateUserState(kit.dataDir, (current) => {
-        if (current.groups.length > 0) {
-          throw new RequestError(409, `The page already has groups (${current.groups.length}): the preset is only created into an empty list`, 'Create the groups you miss one by one, or delete the existing ones first.');
-        }
-        created = HERDR_GROUP_NAMES.map((name, order): UserGroup => ({ id: randomUUID(), name, color: null, collapsed: false, order, sort: 'manual', bodyColor: null, members: [], seenAt: {} }));
-        return { ...current, groups: created };
-      }),
-    );
-    return ok({ ok: true, groups: created.map(groupDto) });
   });
 
   kit.route('POST', '/groups/:id', async (req) => {
