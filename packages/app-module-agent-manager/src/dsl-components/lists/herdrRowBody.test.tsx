@@ -57,3 +57,22 @@ describe('the width priority of a Herdr row', () => {
     expect(nameOnly.container.querySelector('[data-herdr-folder]')).toBeNull();
   });
 });
+
+describe('the left alignment of a Herdr row', () => {
+  // The chevron slot is always the first child of the row, with and without sub-agents, so the state icon and the name start at the same x.
+  it('reserves the same first slot with and without sub-agents', () => {
+    const without = body({ subagents: undefined });
+    const withoutSlot = without.container.querySelector<HTMLElement>('[data-row-chevron-slot]');
+    expect(withoutSlot).not.toBeNull();
+    expect(withoutSlot?.querySelector('button')).toBeNull();
+    expect(withoutSlot?.previousElementSibling).toBeNull();
+    const withoutClass = withoutSlot?.className;
+    without.unmount();
+    const withSubs = body({ subagents: { open: false, toggle: vi.fn() } });
+    const slot = withSubs.container.querySelector<HTMLElement>('[data-row-chevron-slot]');
+    expect(slot).not.toBeNull();
+    expect(slot?.querySelector('button')).not.toBeNull();
+    expect(slot?.previousElementSibling).toBeNull();
+    expect(slot?.className).toBe(withoutClass);
+  });
+});

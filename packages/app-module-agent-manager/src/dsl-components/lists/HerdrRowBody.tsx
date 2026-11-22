@@ -33,6 +33,8 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
   const showFolder = herdrRowShape(density).folder && session.folder !== session.displayName;
   return (
     <div className="flex h-full items-center gap-2">
+      {/* The slot is always there, with or without sub-agents: the state icon and the name start at the same x on every row. */}
+      <span data-row-chevron-slot="" className="-ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center">
       {subagents !== undefined ? (
         <button
           type="button"
@@ -42,11 +44,12 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove, 
             event.stopPropagation();
             subagents.toggle();
           }}
-          className={`-ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
+          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
         >
           {subagents.open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
         </button>
       ) : null}
+      </span>
       <HerdrProgramIcon session={session} />
       {/* The name comes first: it takes what it needs up to the whole box. The folder wraps out of the one-line clipped box (never squeezes the name) when less than its minimum is left. */}
       <span className="flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 overflow-hidden leading-5" title={session.displayName}>

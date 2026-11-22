@@ -1,4 +1,4 @@
-import { Checkbox } from '@wadeck-app/dsl-ui';
+import { StyledCheckbox } from '../ui/StyledCheckbox.js';
 import { useSelection } from './selection.js';
 
 /**
@@ -13,13 +13,12 @@ export function RowCheckbox({ id, name }: { id: string; name: string }) {
   const checked = selection.isSelected(id);
   const shown = selection.count > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100';
   return (
-    <span data-row-checkbox="" className={`absolute left-0.5 top-1/2 z-10 -translate-y-1/2 rounded bg-surface px-0.5 py-0.5 shadow-sm ring-1 ring-border ${checked ? 'opacity-100' : shown}`} onClick={(event) => event.stopPropagation()}>
-      <Checkbox
+    <span data-row-checkbox="" className={`absolute left-0.5 top-1/2 z-10 -translate-y-1/2 inline-flex rounded bg-surface p-0.5 shadow-sm ring-1 ring-border ${checked ? 'opacity-100' : shown}`} onClick={(event) => event.stopPropagation()}>
+      <StyledCheckbox
         tabIndex={-1}
         aria-label={`Select ${name}`}
         checked={checked}
         onChange={() => selection.toggle(id)}
-        className="block"
       />
     </span>
   );
