@@ -85,7 +85,7 @@ describe('the batch bar', () => {
     tick('billing-owner');
     const button = screen.getByRole('button', { name: 'Add / remove bypass' });
     expect(button).toBeDisabled();
-    expect(button.closest('span[title]')).toHaveAttribute('title', 'Needs the w-guardrails API (list/revoke/grant): not available yet');
+    expect(button.closest('span[title]')).toHaveAttribute('title', 'Needs POST /api/auth/verify of app-core (pending)');
   });
 
   it('Mark as seen acts on the finished sessions only, and is off with the reason when none is', () => {

@@ -1,7 +1,9 @@
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { RefreshCw, ShieldAlert } from 'lucide-react';
-import { bypassCommand, PAGE_BASE, useNow, type AgentRow } from '../deps.js';
+import { useState } from 'react';
+import { bypassCommand, failureText, PAGE_BASE, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantRevokedDto } from '../deps.js';
 import { CopyButton } from '../log/CopyButton.js';
+import { CliGrantList } from './CliGrantList.js';
 import { DisabledWrite } from './DisabledWrite.js';
 import { GrantList } from './GrantList.js';
 import type { SessionGrantsFeed } from './useSessionGrants.js';
@@ -10,14 +12,30 @@ const NOTE = 'text-xs text-muted';
 const WARN = 'border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text';
 
 /**
- * The Permissions tab of the right rail. Read-only: the bypasses of this session and of the other sessions of its project (from the plugin files, through
- * GET /guardrails/overview), the categories that blocked the session with a button that copies the command to run in the session, and the write controls
- * disabled until the w-guardrails API exists (GUARDRAILS_WRITE_ENABLED). Every absence is said in words.
+ * The Permissions tab of the right rail: the bypasses of this session as the plugin's own admin CLI lists them (GET /guardrails/sessions/:id/grants), each with a
+ * Revoke button (confirmation, then the PIN-gated POST); the bypasses of the other sessions of its project (read from the plugin files, GET /guardrails/overview,
+ * read-only); the categories that blocked the session with a button that copies the command to run in the session; Add bypass, disabled until app-core can
+ * verify the user (GUARDRAILS_WRITE_ENABLED). Without the admin CLI the bypasses of this session are read from the files and the panel says so. Every absence is said in words.
  */
 export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: SessionGrantsFeed }) {
   const now = useNow(15_000);
-  const { overview, view, error, loading, reload } = feed;
+  const { overview, view, error, loading, reload, cli } = feed;
   const blocks = session.guardrailBlocks;
+  const [busy, setBusy] = useState(false);
+  const [outcome, setOutcome] = useState({ done: '', warning: '', failed: '' });
+  // The PIN dialog comes from the shell fetcher (the route is a sensitive route); the answer says what was removed, or why nothing was.
+  const revoke = async (grant: CliGrantDto): Promise<void> => {
+    setBusy(true);
+    setOutcome({ done: '', warning: '', failed: '' });
+    const result = await requestJson<GrantRevokedDto>(`/guardrails/grants/${grant.id}/revoke`, { method: 'POST', body: { sessionId: session.sessionId } });
+    setBusy(false);
+    if (!result.ok || !result.value.ok) {
+      setOutcome({ done: '', warning: '', failed: `The ${grant.category} bypass ${grant.id} was not revoked. ${result.ok ? failureText(result.value, 200) : result.text}` });
+    } else {
+      setOutcome({ done: `Revoked the ${grant.category} bypass (${grant.id}). The guardrail applies again to this session.`, warning: result.value.auditError, failed: '' });
+    }
+    reload();
+  };
   return (
     <div data-permissions-panel="" className="flex flex-col">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
@@ -36,9 +54,40 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
       {overview !== undefined && overview.problems.length > 0 ? (
         <p className={WARN}>{`${overview.problems.length} guardrails file${overview.problems.length === 1 ? '' : 's'} could not be read, so the list may be incomplete. The Guardrails page names them.`}</p>
       ) : null}
+      {outcome.done === '' ? null : (
+        <p role="status" className="border-b border-border bg-surface px-3 py-1.5 text-xs text-content">
+          {outcome.done}
+        </p>
+      )}
+      {outcome.warning === '' ? null : (
+        <p role="alert" className={WARN}>
+          {outcome.warning}
+        </p>
+      )}
+      {outcome.failed === '' ? null : (
+        <p role="alert" className={WARN}>
+          {outcome.failed}
+        </p>
+      )}
+      {cli.kind === 'loading' ? <p className={`px-3 py-2 ${NOTE}`}>Reading the bypasses of this session from the plugin...</p> : null}
+      {cli.kind === 'ok' ? <CliGrantList grants={cli.data.grants} cwdNote={cli.data.cwdNote} busy={busy} onRevoke={(grant) => void revoke(grant)} /> : null}
+      {cli.kind === 'error' ? (
+        <section aria-label="This session" className="border-b border-border">
+          <p role="alert" className={WARN}>
+            {`The bypasses of this session could not be read from the plugin: ${cli.text}`}
+          </p>
+          {cli.cwdNote === '' ? null : <p className={`px-3 py-1 break-words ${NOTE}`}>{cli.cwdNote}</p>}
+        </section>
+      ) : null}
+      {cli.kind === 'missing' ? (
+        <p className={`border-b border-border px-3 py-1.5 ${NOTE}`}>
+          <span className="font-medium text-warning-text">read from files (admin CLI not found)</span>
+          {` ${cli.text} Revoke needs the w-guardrails admin CLI (plugin 1.29.0 or later): install or update the plugin, then refresh.`}
+        </p>
+      ) : null}
       {view !== undefined ? (
         <>
-          <GrantList title="This session" grants={view.mine} empty="No active bypass for this session." now={now} showSession={false} />
+          {cli.kind === 'missing' ? <GrantList title="This session" grants={view.mine} empty="No active bypass for this session." now={now} showSession={false} /> : null}
           <GrantList
             title="Other sessions of this project"
             grants={view.project}
@@ -73,7 +122,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
       <section aria-label="Request a bypass" className="flex flex-col gap-2 px-3 py-2">
         <p className={NOTE}>To get a bypass today, copy a command above and run it in the session: the module grants nothing, you answer the plugin dialog there.</p>
         <div>
-          <DisabledWrite label="Add bypass" icon="add" />
+          <DisabledWrite label="Add bypass" />
         </div>
       </section>
     </div>

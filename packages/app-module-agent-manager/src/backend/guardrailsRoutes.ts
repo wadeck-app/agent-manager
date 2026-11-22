@@ -8,10 +8,11 @@ import { errorTextOf, type OwnedSource } from './daemon/ownedSource.js';
 import { countersFileOf, grantsFileOf, ioStats, parseGrants, parseRules, problem, readCounters, readJsonFile, readKillSwitch, rulesFileOf, RULES_NOTE, type ActiveGrant, type RawSessionBlocks } from './guardrailsFiles.js';
 import { DAY_PATTERN, DEFAULT_BUDGET_BYTES, DEFAULT_LIMIT, journalDirOf, listJournalDays, MAX_LIMIT, readJournalTail } from './guardrailsJournal.js';
 import { FORMAT_VERSION, JOURNAL_PREFIX, JOURNAL_SUFFIX, MAX_GRANTS_BYTES, MAX_OTHER_BYTES } from './guardrailsNames.js';
+import { registerGrantsRoutes, type GrantsOptions } from './guardrailsGrantsRoutes.js';
 import { RequestError, type RouteKit, ok, queryValue } from './routeKit.js';
 
 /** What a test replaces; app-core gives the module nothing of this. */
-export interface GuardrailsOptions {
+export interface GuardrailsOptions extends GrantsOptions {
   /** The home folder that holds .claude/logs and .claude/w-guardrails (the kill switch). Default: the user's home. */
   homeDir?: string;
   /** Bytes of the journal one request may read (default 2 MB). */
@@ -391,6 +392,7 @@ export function registerGuardrailsRoutes(kit: RouteKit, options: GuardrailsOptio
   kit.route('GET', '/guardrails/overview', async () => ok(await buildOverview(options, source)));
   kit.route('GET', '/guardrails/denials', async (req) => ok(await buildDenials(options, req.query, false)));
   kit.route('GET', '/guardrails/denials/commands', async (req) => ok(await buildDenials(options, req.query, true)), { sensitive: true });
+  registerGrantsRoutes(kit, options, source);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { clockText, remainingText, type GrantDto } from '../deps.js';
-import { DisabledWrite } from './DisabledWrite.js';
 
+/** A grant read from the plugin files (no admin CLI, or another session): read-only, nothing here can revoke it. */
 export function GrantItem({ grant, now, showSession }: { grant: GrantDto; now: number; showSession: boolean }) {
   const left = Math.max(0, grant.expiresAt - now);
   const uses = grant.maxUses === null ? `${grant.used} use${grant.used === 1 ? '' : 's'}, no limit` : `${grant.used} of ${grant.maxUses} uses`;
@@ -18,7 +18,6 @@ export function GrantItem({ grant, now, showSession }: { grant: GrantDto; now: n
         {showSession ? <p className="truncate text-muted">{`Session ${grant.sessionName === '' ? grant.sessionId.slice(0, 8) : grant.sessionName}`}</p> : null}
         <p className="break-words text-muted">{grant.rationale === '' ? 'No reason given' : grant.rationale}</p>
       </div>
-      <DisabledWrite label={`Revoke the ${grant.category} bypass`} icon="revoke" iconOnly />
     </li>
   );
 }

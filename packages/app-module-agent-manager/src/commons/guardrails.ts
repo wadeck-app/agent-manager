@@ -155,3 +155,54 @@ export interface GuardrailBlocksDto {
   /** A bypass request timeout is running for this session. */
   timeout: boolean;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// The bypasses of ONE session, from the admin CLI of the plugin (threat-model T-22)
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** A bypass the plugin's own CLI lists (the hook would honour it). */
+export interface CliGrantDto {
+  /** 8 hexadecimal characters. */
+  id: string;
+  category: string;
+  mode: 'once' | 'ttl';
+  /** The FULL session id. */
+  sessionId: string;
+  /** Epoch ms of the expiry. */
+  expiresAt: number;
+  /** Milliseconds left when the list was read. */
+  remainingMs: number;
+  /** The same, as text ("9 min"), for a client that does not count down. */
+  remainingText: string;
+  /** Uses left of a "once" grant, null for a time-boxed one. */
+  usesLeft: number | null;
+  reason: string;
+}
+
+/**
+ * GET /guardrails/sessions/:sessionId/grants (read-only, no PIN). Always HTTP 200: a failure is `ok: false` with `code` and `errorText` (message and fix).
+ * `code` 'not-installed' means the admin CLI is absent: the page then reads the files itself and says so.
+ */
+export interface SessionGrantsDto {
+  ok: boolean;
+  /** '' when ok, else the machine code (a GuardrailsAdminError code, 'no-cwd' or 'registry-unreadable'). */
+  code: string;
+  sessionId: string;
+  /** The folder the plugin was asked about: the cwd of the session as the transcript reports it now. '' when unknown. */
+  cwd: string;
+  /** "cwd used: <path> (the session moved from <registry cwd>)" when it differs from the registry, or why it could not be checked; '' when they agree. */
+  cwdNote: string;
+  grants: CliGrantDto[];
+  errorText: string;
+}
+
+/** POST /guardrails/grants/:id/revoke, success. A failure is the usual `{ ok: false, error: { code, message, hint } }`. */
+export interface GrantRevokedDto {
+  ok: true;
+  id: string;
+  category: string;
+  sessionId: string;
+  cwd: string;
+  /** '' when the audit line was written; else why it was not (the grant IS revoked). */
+  auditError: string;
+}

@@ -1,13 +1,20 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 // violations-suppress: ts/no-deep-relative test fixtures of the logic folder
 import { overview } from '../../logic/permissionsFixtures.js';
 import { GUARDRAILS_WRITE_NEEDS, permissionsOf, row } from '../deps.js';
-import type { GrantDto } from '../deps.js';
+import type { CliGrantDto, GrantDto, SessionGrantsDto } from '../deps.js';
+// violations-suppress: ts/no-deep-relative test fixtures of the owned folder
+import { stubFetch } from '../../owned/testFetch.js';
 import { SubagentAside, type RailTab } from '../log/SubagentAside.js';
 import { PermissionsPanel } from './PermissionsPanel.js';
-import type { SessionGrantsFeed } from './useSessionGrants.js';
+import type { CliGrantsState, SessionGrantsFeed } from './useSessionGrants.js';
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 const SID = '00000000-0000-4000-8000-000000000001';
 const session = row({ sessionId: SID, cwd: '/w/shop', guardrailBlocks: { total: 5, categories: [{ category: 'rm', count: 3 }, { category: 'interpreter-exec', count: 2 }], timeout: false } });
@@ -16,7 +23,7 @@ const grant = (id: string, sessionId: string, overrides: Partial<GrantDto> = {})
 
 function feedOf(grants: GrantDto[] | undefined, extra: Partial<SessionGrantsFeed> = {}): SessionGrantsFeed {
   const data = grants === undefined ? undefined : overview(grants);
-  return { overview: data, view: data === undefined ? undefined : permissionsOf(data, SID, session.cwd), error: '', loading: false, reload: vi.fn(), ...extra };
+  return { overview: data, view: data === undefined ? undefined : permissionsOf(data, SID, session.cwd), error: '', loading: false, reload: vi.fn(), cli: { kind: 'missing', text: 'w-guardrails is not installed (looked in C:\\x)' }, ...extra };
 }
 
 describe('the Permissions panel', () => {
@@ -43,15 +50,20 @@ describe('the Permissions panel', () => {
     expect(screen.getByText('The folder of this session is unknown, so its project cannot be matched.')).toBeInTheDocument();
   });
 
-  it('Add bypass and Revoke are drawn disabled with the reason as the tooltip; nothing is sent', () => {
+  it('Add bypass stays disabled with the reason as the tooltip; nothing is sent', () => {
     render(<PermissionsPanel session={session} feed={feedOf([grant('g1', SID)])} />);
     const add = screen.getByRole('button', { name: 'Add bypass' });
-    const revoke = screen.getByRole('button', { name: 'Revoke the rm bypass' });
-    for (const button of [add, revoke]) {
-      expect(button).toBeDisabled();
-      expect(button.closest('[data-write-control]')).toHaveAttribute('title', GUARDRAILS_WRITE_NEEDS);
-    }
-    expect(GUARDRAILS_WRITE_NEEDS).toBe('Needs the w-guardrails API (list/revoke/grant): not available yet');
+    expect(add).toBeDisabled();
+    expect(add.closest('[data-write-control]')).toHaveAttribute('title', GUARDRAILS_WRITE_NEEDS);
+    expect(GUARDRAILS_WRITE_NEEDS).toBe('Needs POST /api/auth/verify of app-core (pending)');
+  });
+
+  it('without the admin CLI the files are read, said in words, and there is no Revoke button (nothing can revoke from the files)', () => {
+    render(<PermissionsPanel session={session} feed={feedOf([grant('g1', SID)])} />);
+    expect(screen.getByText('read from files (admin CLI not found)')).toBeInTheDocument();
+    expect(screen.getByText(/w-guardrails is not installed \(looked in/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Revoke the/ })).toBeNull();
+    expect(screen.getByText(/Revoke needs the w-guardrails admin CLI/)).toBeInTheDocument();
   });
 
   it('shows the blocked counters by category with a copy button per category, and a link to the Guardrails page', () => {
@@ -81,7 +93,7 @@ describe('the Permissions panel', () => {
     const data = overview([]);
     data.problems = [{ file: 'x', message: 'bad', hint: 'fix' }];
     data.killSwitch = { active: true, path: 'p', errorText: '' };
-    rerender(<PermissionsPanel session={session} feed={{ overview: data, view: permissionsOf(data, SID, session.cwd), error: '', loading: false, reload: vi.fn() }} />);
+    rerender(<PermissionsPanel session={session} feed={{ overview: data, view: permissionsOf(data, SID, session.cwd), error: '', loading: false, reload: vi.fn(), cli: { kind: 'loading' } }} />);
     expect(screen.getByText(/1 guardrails file could not be read/)).toBeInTheDocument();
     expect(screen.getByText(/emergency switch is on/)).toBeInTheDocument();
   });

@@ -2,22 +2,8 @@ import type { GuardrailBlocksDto } from '../shared.js';
 
 /** Pure text helpers of the Guardrails page and of the "blocked" chip of the session rows. */
 
-/** "42 s", "29 min", "1 h 05 min": the time left of a grant. */
-export function remainingText(ms: number): string {
-  if (!Number.isFinite(ms) || ms <= 0) {
-    return 'expired';
-  }
-  const seconds = Math.ceil(ms / 1000);
-  if (seconds < 60) {
-    return `${seconds} s`;
-  }
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes} min`;
-  }
-  const hours = Math.floor(minutes / 60);
-  return `${hours} h ${String(minutes % 60).padStart(2, '0')} min`;
-}
+// violations-suppress: ts/no-deep-relative the module has no path alias; commons/ is shared by the backend and the page
+export { remainingText } from '../../commons/remainingText.js';
 
 /** The slash command the user runs in the session to grant a bypass himself (the module never grants one). */
 export function bypassCommand(category: string, mode: string = 'once'): string {

@@ -4,9 +4,9 @@ export type { DeliveryUi, LogEntry, LogLimits, LocateOk, LocateResponse, LogOk, 
 export { failureText, requestJson } from '../data/http.js';
 export type { Outcome } from '../data/http.js';
 export { PAGE_BASE } from '../data/http.js';
-export type { GrantDto, GuardrailsOverviewDto } from '../shared.js';
+export type { CliGrantDto, GrantDto, GrantRevokedDto, GuardrailsOverviewDto, SessionGrantsDto } from '../shared.js';
 export { bypassCommand, remainingText, clockText } from '../logic/guardrails.js';
-export { GUARDRAILS_WRITE_ENABLED, GUARDRAILS_WRITE_NEEDS, permissionsOf } from '../logic/permissions.js';
+export { GUARDRAILS_REVOKE_ENABLED, GUARDRAILS_WRITE_ENABLED, GUARDRAILS_WRITE_NEEDS, permissionsOf } from '../logic/permissions.js';
 export type { PermissionsView } from '../logic/permissions.js';
 export type { AgentRow } from '../data/types.js';
 export { row } from '../logic/fixtures.js';

@@ -27,6 +27,10 @@ beforeEach(() => {
       if (url.includes('/guardrails/overview')) {
         return new Response(JSON.stringify({ ok: true, grants: [], sessions: [], problems: [], killSwitch: { active: false, path: '', errorText: '' } }), { status: 200 });
       }
+      // The same for the bypasses of the session (the plugin admin CLI): here "not installed", so the panel falls back to the files.
+      if (url.includes('/guardrails/sessions/')) {
+        return new Response(JSON.stringify({ ok: false, code: 'not-installed', sessionId: 'x', cwd: '', cwdNote: '', grants: [], errorText: 'w-guardrails is not installed (looked in x). Install it.' }), { status: 200 });
+      }
       urls.push(url);
       const next = queue.length > 1 ? queue.shift() : queue[0];
       if (next === undefined) {
