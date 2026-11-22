@@ -1,5 +1,6 @@
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { Globe, LoaderCircle, Rocket, ServerCog, SquareTerminal } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
 import {
   HOST_CHOICES,
@@ -15,13 +16,12 @@ import {
 import type { FolderPick } from '../logic/folderPicker.js';
 import type { ApiError, OwnedHostKind, OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
-import { DIALOG_FOOTER, Modal } from '../ui/Modal.js';
+import { ButtonAction, FieldSelect, FieldText, FieldWrapper } from '@wadeck-app/dsl-ui';
+import { DialogActions } from '../ui/DialogActions.js';
+import { Modal } from '../ui/Modal.js';
 import { DaemonNotRunning } from './DaemonNotRunning.js';
-import { Field } from './Field.js';
 import { FolderPicker } from '../folders/FolderPicker.js';
 
-const FIELD = `w-full rounded border border-border bg-surface px-2.5 py-1.5 text-base text-content placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS_RING}`;
 const HOST_ICON: Record<OwnedHostKind, typeof Globe> = { 'stream-json': Globe, hc: SquareTerminal, bg: ServerCog };
 
 export interface NewSessionDialogProps {
@@ -39,7 +39,6 @@ export interface NewSessionDialogProps {
  * Launch stays disabled; any other problem with the daemon is shown as the server wrote it. A refused launch is written in the dialog with its hint.
  */
 export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunched }: NewSessionDialogProps) {
-  const ids = { cwd: useId(), model: useId(), mode: useId(), name: useId() };
   const [prefs, setPrefs] = useState<LaunchPrefs>(readLaunchPrefs);
   const [cwd, setCwd] = useState('');
   // What the picker knows of the folder in the field (name, branch): shown only while the field still holds that path.
@@ -91,21 +90,10 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
       >
         {daemonDown ? <DaemonNotRunning /> : ownedError !== null ? <Banner tone="error">{ownedErrorText !== '' ? ownedErrorText : `${ownedError.message}. ${ownedError.hint}`}</Banner> : null}
 
-        <Field
-          label="Folder"
-          htmlFor={ids.cwd}
-          hint={
-            cwdText !== '' ? (
-              <span role="alert" className="text-danger-text">
-                {cwdText}
-              </span>
-            ) : (
-              'The absolute path of the project folder: type it, or choose it below. It must exist, and Claude Code asks for its trust the first time.'
-            )
-          }
-        >
+        <FieldWrapper label="Folder" error={cwdText} description="The absolute path of the project folder: type it, or choose it below. It must exist, and Claude Code asks for its trust the first time.">
+          {(control) => (
           <FolderPicker
-            inputId={ids.cwd}
+            inputId={control.id}
             value={cwd}
             onChange={setCwd}
             onPick={(pick) => {
@@ -119,7 +107,8 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
             // violations-suppress: shared/no-out-of-repo-path an example of the path the user types, not a path the code reads
             placeholder="C:\Projects\shop"
           />
-        </Field>
+          )}
+        </FieldWrapper>
 
         <fieldset className="flex flex-col gap-2" disabled={launching}>
           <legend className="mb-1 text-sm font-medium text-content">How it runs</legend>
@@ -147,41 +136,11 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
         </fieldset>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Model" htmlFor={ids.model}>
-            <select id={ids.model} value={prefs.model} disabled={launching} onChange={(event) => change({ model: event.target.value })} className={FIELD}>
-              {MODEL_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Permission mode" htmlFor={ids.mode} hint={prefs.hostKind === 'hc' ? 'Applied when Claude Code starts in the terminal.' : prefs.hostKind === 'bg' ? 'Applied at start; a background session cannot change it remotely.' : 'You can change it later from the session header.'}>
-            <select id={ids.mode} value={prefs.permissionMode} disabled={launching} onChange={(event) => change({ permissionMode: event.target.value })} className={FIELD}>
-              {PERMISSION_MODE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <FieldSelect label="Model" value={prefs.model} onChange={(next) => change({ model: next })} options={[...MODEL_OPTIONS]} disabled={launching} />
+          <FieldSelect label="Permission mode" value={prefs.permissionMode} onChange={(next) => change({ permissionMode: next })} options={[...PERMISSION_MODE_OPTIONS]} disabled={launching} description={prefs.hostKind === 'hc' ? 'Applied when Claude Code starts in the terminal.' : prefs.hostKind === 'bg' ? 'Applied at start; a background session cannot change it remotely.' : 'You can change it later from the session header.'} />
         </div>
 
-        <Field
-          label="Name (optional)"
-          htmlFor={ids.name}
-          hint={
-            nameText !== '' ? (
-              <span role="alert" className="text-danger-text">
-                {nameText}
-              </span>
-            ) : (
-              'Shown in the list instead of the folder name.'
-            )
-          }
-        >
-          <input id={ids.name} type="text" value={name} onChange={(event) => setName(event.target.value)} disabled={launching} autoComplete="off" aria-invalid={nameText !== ''} className={`${FIELD} ${nameText !== '' ? 'border-danger' : ''}`} />
-        </Field>
+        <FieldText label="Name (optional)" value={name} onChange={setName} disabled={launching} autoComplete="off" error={nameText} description={'Shown in the list instead of the folder name.'} />
 
         {prefs.hostKind === 'bg' ? (
           <p data-bg-trust-note="" className="text-xs text-muted">
@@ -201,19 +160,10 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
           </p>
         ) : null}
 
-        <div className={DIALOG_FOOTER}>
-          <button type="button" onClick={onClose} disabled={launching} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg disabled:opacity-50 ${FOCUS_RING}`}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={blocked}
-            className={`inline-flex items-center gap-1.5 rounded border border-primary bg-primary-light px-3 py-1.5 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-          >
-            <Rocket aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Launch
-          </button>
-        </div>
+        <DialogActions>
+          <ButtonAction variant="secondary" label="Cancel" onClick={onClose} disabled={launching} />
+          <ButtonAction variant="primary" type="submit" icon={<Rocket aria-hidden="true" className="h-4 w-4" />} label="Launch" disabled={blocked} />
+        </DialogActions>
       </form>
     </Modal>
   );

@@ -3,8 +3,8 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { useFolderRecent, useFolderSearch } from '../data/useFolders.js';
 import { folderName, pickOf, readFavorites, saveFavorites, samePath, toggleFavorite, type FolderPick } from '../logic/folderPicker.js';
 import { Banner } from '../ui/Banner.js';
-import { IconButton } from '../ui/IconButton.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { Highlight } from '../lists/Highlight.js';
 import { BranchBadge } from './BranchBadge.js';
 import { EmptyLine } from './EmptyLine.js';
@@ -150,7 +150,7 @@ export function FolderSmartList({ value, onPick, disabled }: SmartListProps) {
           <BranchBadge branch={item.branch} />
           <span className="min-w-0 truncate text-xs text-muted">{item.missing ? 'no longer exists' : dir}</span>
         </button>
-        <IconButton icon={isPinned ? PinOff : Pin} label={isPinned ? `Unpin ${item.name}` : `Pin ${item.name}`} pressed={isPinned} disabled={disabled} onClick={() => pin(item.path)} />
+        <IconButton size="icon-sm" variant={isPinned ? 'neutral' : 'ghost'} icon={isPinned ? <PinOff aria-hidden="true" className="h-4 w-4" /> : <Pin aria-hidden="true" className="h-4 w-4" />} aria-label={isPinned ? `Unpin ${item.name}` : `Pin ${item.name}`} aria-pressed={isPinned} disabled={disabled} onClick={() => pin(item.path)} />
       </li>
     );
   };

@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
-import { FOCUS_RING } from './IconButton.js';
+import { FOCUS_RING } from './focusRing.js';
 
 export const MIN_LIST_WIDTH = 240;
 /** The most the user can give the list, and the most the automatic width reaches (on a wide screen the log needs the room more). */

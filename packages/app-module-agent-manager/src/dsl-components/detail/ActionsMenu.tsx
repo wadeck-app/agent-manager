@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
-import { FOCUS_RING, ICON_BUTTON_CLASS, Tooltip, usePopover } from './deps.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
+import { FOCUS_RING, usePopover } from './deps.js';
 
 export interface MenuItem {
   id: string;
@@ -28,19 +29,16 @@ export function ActionsMenu({ label, trigger, items, split = false }: { label: s
   };
   return (
     <div ref={box} className="relative shrink-0">
-      <Tooltip content={label}>
-        <button
-          type="button"
-          aria-label={label}
-          aria-haspopup="menu"
-          aria-expanded={open}
-          aria-controls={open ? panelId : undefined}
-          onClick={() => setOpen(!open)}
-          className={split ? `inline-flex h-am-hit w-am-hit items-center justify-center rounded-r border border-l-0 border-border text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}` : `${ICON_BUTTON_CLASS} ${open ? 'bg-muted-bg text-content' : ''}`}
-        >
-          {trigger}
-        </button>
-      </Tooltip>
+      <IconButton
+        variant={split ? 'secondary' : open ? 'neutral' : 'ghost'}
+        size={split ? 'icon-sm' : 'icon'}
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? panelId : undefined}
+        onClick={() => setOpen(!open)}
+        icon={trigger}
+      />
       {open ? (
         <div id={panelId} role="menu" aria-label={label} onKeyDown={onKeyDown} className="absolute right-0 top-full z-30 mt-1 flex min-w-48 flex-col rounded-lg border border-border bg-surface p-1 shadow-lg">
           {items.map((item) => (

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useUrlParam } from '@wadeck-app/dsl-ui';
 import { firstNonEmptyTab, INBOX_TABS, nextNeedingYou, parseTab, tabCounts, tabSessions, type InboxTab } from '../logic/inbox.js';
 import { agentId } from '../logic/states.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { detailLine, type ListProps } from './common.js';
 import { EmptyNote } from './EmptyNote.js';

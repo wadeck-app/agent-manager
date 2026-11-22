@@ -1,3 +1,4 @@
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { Keyboard, Plug } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { FOCUS_RING, Tooltip, failureText, requestJson } from '../deps.js';
@@ -100,9 +101,9 @@ export function TransportPicker({ sessionId, status, onChanged, onOpenChange }: 
             ))}
           </ul>
           {status.sessionOverrideTransportId !== null ? (
-            <button type="button" disabled={busy} onClick={() => void setSession(null)} className={`self-start rounded border border-border px-2 py-0.5 text-xs hover:bg-muted-bg disabled:opacity-50 ${FOCUS_RING}`}>
-              Follow the default ({status.defaultTransportId})
-            </button>
+            <span className="self-start">
+              <ButtonAction variant="secondary" size="sm" disabled={busy} onClick={() => void setSession(null)} label={`Follow the default (${status.defaultTransportId})`} />
+            </span>
           ) : null}
         </div>
       ) : null}

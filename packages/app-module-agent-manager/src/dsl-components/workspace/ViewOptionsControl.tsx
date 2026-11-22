@@ -1,7 +1,7 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { MODE_LABEL, type ModeId } from '../shared.js';
 import type { TreeExpansion, TreeGrouping, ViewOptions } from '../logic/viewOptions.js';
-import { ICON_BUTTON_CLASS } from '../ui/IconButton.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { Tooltip } from '../ui/Tooltip.js';
 import { usePopover } from '../ui/usePopover.js';
 import { OptionChoice } from './OptionChoice.js';
@@ -24,11 +24,7 @@ export function ViewOptionsControl({ mode, options, onChange }: ViewOptionsContr
   const setTree = (patch: Partial<{ grouping: TreeGrouping; expansion: TreeExpansion }>): void => onChange({ ...options, tree: { ...tree, ...patch } });
   return (
     <div ref={box} className="relative">
-      <Tooltip content="View options">
-        <button type="button" aria-label="View options" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpen(!open)} className={`${ICON_BUTTON_CLASS} ${open ? 'bg-muted-bg text-content' : ''}`}>
-          <SlidersHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        </button>
-      </Tooltip>
+      <IconButton variant={open ? 'neutral' : 'ghost'} aria-label="View options" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => setOpen(!open)} icon={<SlidersHorizontal aria-hidden="true" className="h-4 w-4" />} />
       {open ? (
         <div id={panelId} role="dialog" aria-label={`View options, ${MODE_LABEL[mode]}`} className="absolute right-0 top-full z-30 mt-1 flex w-80 flex-col gap-3 rounded-lg border border-border bg-surface p-3 shadow-lg">
           <p className="text-sm font-medium text-content">View options: {MODE_LABEL[mode]}</p>

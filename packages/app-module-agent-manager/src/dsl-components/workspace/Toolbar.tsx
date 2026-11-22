@@ -1,9 +1,9 @@
+import { ButtonAction, CompactSelect, HorizontalStack } from '@wadeck-app/dsl-ui';
 import { Plus } from 'lucide-react';
 import { useMediaQuery } from '../ui/hooks.js';
 import type { ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
 import { DensityControl } from '../ui/DensityControl.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
 import { ModeToggle } from './ModeToggle.js';
 import { NewGroupControl } from './NewGroupControl.js';
@@ -55,31 +55,24 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
       </span>
       <ModeToggle mode={mode} onMode={onMode} iconOnly={tight} />
       <SearchBox {...search} />
-      <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center gap-1">
-        {mode === 'tree' && onNewGroup !== undefined ? <NewGroupControl onCreate={onNewGroup} iconOnly={tight} /> : null}
-        <button
-          type="button"
-          onClick={onNewSession}
-          className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-primary bg-primary-light px-3 text-sm font-medium text-primary ${FOCUS_RING}`}
-        >
-          <Plus aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          New session
-        </button>
-        <label className="sr-only" htmlFor="agents-show">
-          Sessions to show
-        </label>
-        <select
-          id="agents-show"
-          value={show}
-          onChange={(event) => onShow(event.target.value === 'all' ? 'all' : 'alive')}
-          className={`h-am-hit rounded border border-border bg-surface px-2 text-sm text-content ${FOCUS_RING}`}
-        >
-          <option value="alive">{tight ? 'Alive' : 'Alive sessions'}</option>
-          <option value="all">{tight ? 'Alive + ended' : 'Alive and ended sessions'}</option>
-        </select>
-        <ViewOptionsControl mode={mode} options={options} onChange={onOptions} />
-        <DensityControl />
-        <ShortcutsHelp open={helpOpen} onOpenChange={onHelpOpenChange} />
+      {/* The actions sit in the library row (one gap for all of them, wrapping whole on a narrow screen); ml-auto pushes the row to the right edge. */}
+      <div className="ml-auto flex min-w-0 max-w-full justify-end">
+        <HorizontalStack gap="gap-2" justify="justify-end" wrap>
+          {mode === 'tree' && onNewGroup !== undefined ? <NewGroupControl onCreate={onNewGroup} iconOnly={tight} /> : null}
+          <ButtonAction variant="primary" icon={<Plus aria-hidden="true" className="h-3.5 w-3.5" />} label="New session" onClick={onNewSession} />
+          <CompactSelect
+            ariaLabel="Sessions to show"
+            value={show}
+            onChange={(next) => onShow(next === 'all' ? 'all' : 'alive')}
+            options={[
+              { value: 'alive', label: tight ? 'Alive' : 'Alive sessions' },
+              { value: 'all', label: tight ? 'Alive + ended' : 'Alive and ended sessions' },
+            ]}
+          />
+          <ViewOptionsControl mode={mode} options={options} onChange={onOptions} />
+          <DensityControl />
+          <ShortcutsHelp open={helpOpen} onOpenChange={onHelpOpenChange} />
+        </HorizontalStack>
       </div>
     </div>
   );

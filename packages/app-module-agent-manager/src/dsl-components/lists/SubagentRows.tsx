@@ -1,7 +1,7 @@
 import { SubagentRowNode } from './SubagentRowNode.js';
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { RefreshCw } from 'lucide-react';
 import { useSubagents } from '../data/useSubagents.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
 
 /** The sub-agents of an expanded session, loaded when the row opens. Their logs are not served: they are listed, not selectable. */
 export function SubagentRows({ sessionId }: { sessionId: string }) {
@@ -17,10 +17,7 @@ export function SubagentRows({ sessionId }: { sessionId: string }) {
     return (
       <div role="alert" className="flex items-start gap-2 py-1 pl-14 pr-3 text-xs text-danger-text">
         <span className="min-w-0 flex-1">{state.text}</span>
-        <button type="button" onClick={retry} className={`inline-flex shrink-0 items-center gap-1 rounded border border-danger px-1.5 py-0.5 ${FOCUS_RING}`}>
-          <RefreshCw aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          Retry
-        </button>
+<ButtonAction variant="secondary" size="sm" icon={<RefreshCw aria-hidden="true" className="h-3.5 w-3.5" />} label="Retry" onClick={retry} />
       </div>
     );
   }

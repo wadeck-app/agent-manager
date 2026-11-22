@@ -1,7 +1,8 @@
-import { Check, LoaderCircle, ShieldAlert, X } from 'lucide-react';
-import { useId, useState } from 'react';
+import { ButtonAction, FieldText } from '@wadeck-app/dsl-ui';
+import { Check, ShieldAlert, X } from 'lucide-react';
+import { useState } from 'react';
 import type { OwnedPermissionDto } from '../shared.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { PermissionInput } from './PermissionInput.js';
 import { inputBlocks } from './permissionBlocks.js';
 
@@ -14,7 +15,6 @@ export interface PermissionRequestProps {
 
 /** The request the user answers now: what the tool is, what it will do, and two buttons. The deny reason is optional and read by the agent. */
 export function PermissionRequest({ request, total, inFlight, onDecide }: PermissionRequestProps) {
-  const reasonId = useId();
   const [reason, setReason] = useState('');
   const title = request.displayName ?? request.toolName;
   const blocks = inputBlocks(request.input);
@@ -36,30 +36,11 @@ export function PermissionRequest({ request, total, inFlight, onDecide }: Permis
         <PermissionInput key={block.label} label={block.label} text={block.text} />
       ))}
       <div className="flex flex-wrap items-end gap-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <label htmlFor={reasonId} className="text-xs text-muted">
-            Reason for the agent if you deny (optional)
-          </label>
-          <input id={reasonId} type="text" value={reason} disabled={inFlight} onChange={(event) => setReason(event.target.value)} autoComplete="off" className={`w-full rounded border border-border bg-surface px-2 py-1.5 text-sm text-content disabled:opacity-60 ${FOCUS_RING}`} />
+        <div className="min-w-0 flex-1">
+          <FieldText label="Reason for the agent if you deny (optional)" value={reason} onChange={setReason} disabled={inFlight} autoComplete="off" />
         </div>
-        <button
-          type="button"
-          disabled={inFlight}
-          onClick={() => onDecide(request, 'deny', reason)}
-          className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-danger bg-danger-bg px-3 text-sm font-medium text-danger-text disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-        >
-          <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          Deny
-        </button>
-        <button
-          type="button"
-          disabled={inFlight}
-          onClick={() => onDecide(request, 'allow', '')}
-          className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-primary bg-primary-light px-3 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-        >
-          {inFlight ? <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" /> : <Check aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
-          Allow once
-        </button>
+        <ButtonAction variant="danger-outline" disabled={inFlight} onClick={() => onDecide(request, 'deny', reason)} icon={<X aria-hidden="true" className="h-4 w-4" />} label="Deny" />
+        <ButtonAction variant="primary" loading={inFlight} onClick={() => onDecide(request, 'allow', '')} icon={<Check aria-hidden="true" className="h-4 w-4" />} label="Allow once" />
       </div>
     </div>
   );

@@ -116,16 +116,17 @@ describe('the Thread action placement', () => {
 
   it('hover (default): in the DOM and focusable, hidden until the message is hovered or focused, shown without hover', () => {
     render(<ThreadButton anchor={anchor} onThread={vi.fn()} />);
-    const button = screen.getByRole('button', { name: 'Thread' });
-    expect(button.className).toContain('opacity-0');
-    expect(button.className).toContain('group-hover:opacity-100');
-    expect(button.className).toContain('focus-visible:opacity-100');
-    expect(button.className).toContain('[@media(hover:none)]:opacity-100');
+    // The wrapper of the base button carries the reveal.
+    const reveal = screen.getByRole('button', { name: 'Thread' }).parentElement!;
+    expect(reveal.className).toContain('opacity-0');
+    expect(reveal.className).toContain('group-hover:opacity-100');
+    expect(reveal.className).toContain('focus-within:opacity-100');
+    expect(reveal.className).toContain('[@media(hover:none)]:opacity-100');
   });
 
   it('always: no reveal classes', () => {
     render(withVariants({ threadPlacement: 'always' }, <ThreadButton anchor={anchor} onThread={vi.fn()} />));
-    expect(screen.getByRole('button', { name: 'Thread' }).className).not.toContain('opacity-0');
+    expect(screen.getByRole('button', { name: 'Thread' }).parentElement!.className).not.toContain('opacity-0');
   });
 
   it('labelled: shows the word Thread', () => {

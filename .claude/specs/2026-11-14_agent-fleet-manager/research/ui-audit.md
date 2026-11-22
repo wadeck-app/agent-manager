@@ -65,3 +65,28 @@ Limits: the thread hover state was verified by computed opacity (0 then 1), not 
 
 - `RowMarks` is shared by Groups and Inbox: only the wrapping fix applies there; the density/icon-only variants apply to the Tree only.
 - `docs/` or user notes that mention "(X1)" in the launch dialog no longer match.
+
+## Base components
+
+2026-11-22 (todos #75, #79, #70). Every button, field and select of the module is a `@wadeck-app/dsl-ui` component with default variants: `ButtonAction` (primary/secondary/danger/danger-outline, `size` sm in rows and banners, md in the toolbar and dialogs), `IconButton` (send, attach, close, pin, fork, popover triggers), `TabButton` (priority toggle, "Show commands"), `CompactSelect`, `FieldText`, `FieldSelect`, `FieldWrapper`, `Switch`, `Radio`, `Skeleton`, `DialogFooter`, `HorizontalStack` (toolbar spacing, `gap-2`, `wrap`). Deleted: `ui/IconButton`, `ui/ListSkeleton`, `launch/Field`, `DIALOG_FOOTER`. `FOCUS_RING` moved to `ui/focusRing.ts` for the custom rows below.
+
+Kept custom, with the reason:
+
+| Component | Reason |
+|---|---|
+| `ui/Modal`, `ui/ConfirmDialog` (built on base buttons and `DialogFooter`) | base `Dialog`: no max-height or scroll (buttons fall below the fold, audit D10), no way to block Escape/backdrop while a request runs, renders in a portal outside `.agents-scope`; base `ConfirmDialog` has no busy state, error line or rich children |
+| `ui/Tooltip` | base `Tooltip` is an absolutely positioned CSS hover span: clipped by scrolling lists, no flip/clamp at the viewport edge, no delay (the failure `placeTooltip` fixes) |
+| `ui/Banner` | no base alert/banner component |
+| Panels of `ShortcutsHelp`, `ViewOptionsControl`, `DensityControl`, `ActionsMenu` | not moved to base `Popover`: not verified that its Radix portal keeps `.agents-scope` utilities and the focus-on-open and Escape behavior the tests pin. Triggers are base `IconButton`. Follow-up |
+| `ModeToggle` | segmented radiogroup with arrow keys; no base segmented control (`Tabs` navigates, `RadioGroup` is a form list) |
+| Tree/group/inbox rows, sub-agent rows, log row headers, folder rows, `MoveToGroupDialog` options, group color swatches, disclosure toggles, inline text links | selectable rows, `aria-expanded` disclosures and links, not actions: no base equivalent with this semantics |
+| `TransportPicker` trigger, `TransportRow` info icon | text + icon popover trigger with `aria-expanded`; the base icon button is a fixed square. The info icon is a tooltip anchor |
+| Status chips (`chipSkin`, `stateLook`) | three A/B looks (soft, outline, dot) with state icons; base `Badge` has solid/subtle only |
+| `SearchBox`, folder inputs, composer textarea, `MoveToGroupDialog` / `NewGroupControl` inline inputs | icon + counter overlay, auto-growing, or an input beside a button: `FieldText` forces a visible label above and full width |
+
+Behavior changes from the base buttons:
+- Hints that were rich tooltips on Send and Attach are now the native `title` (base `IconButton` sets `title` to its label).
+- Move: base buttons take no `data-*`; `data-adopt-button`, `data-readiness`, `data-tone` and the title sit on a wrapper span. The amber "warning" tone is the base `danger-outline` variant (no base warning variant); the sr-only detail follows the button instead of being inside it.
+- Interrupt armed: Send turns base `danger` (was amber); the "Interrupt now" toggle turns `danger-outline`.
+- Disabled buttons with a reason keep a hidden inline base tooltip in the DOM: tests use `detail/status/liveTooltip.ts` to find the module tooltip.
+- Toolbar (#79): `HorizontalStack gap-2 wrap`; checked at 1440, 1024 and 390 px (`poc/results/ui-audit/toolbar-*.png`, throwaway).

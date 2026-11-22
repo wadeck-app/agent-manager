@@ -1,3 +1,4 @@
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { ArrowRightLeft, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { requestJson } from '../data/http.js';
@@ -7,7 +8,6 @@ import type { SwitchView } from '../logic/adoptSwitch.js';
 import type { OwnedSessionDto, OwnedSwitchResponse } from '../shared.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { ReasonList } from './ReasonList.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 
@@ -22,11 +22,6 @@ export interface SwitchActionProps {
   onError: (text: string) => void;
 }
 
-const BUTTON = `inline-flex h-am-hit shrink-0 items-center gap-1.5 whitespace-nowrap rounded border px-3 text-sm hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
-const TONE: Record<SwitchView['tone'], string> = {
-  neutral: 'border-primary bg-primary-light text-primary',
-  warning: 'border-warning bg-warning-bg text-warning-text',
-};
 
 function movedText(dto: OwnedSessionDto, target: SwitchView['target'], notes: readonly string[]): string {
   const where = target === 'hc' ? `as a Terminal session (herdr-core terminal ${dto.hcAddress ?? 'address unknown'})` : 'as a Web session';
@@ -102,20 +97,21 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError }: S
   const detail = view.label.slice(baseLabel.length).trim();
   const badgeText = view.readiness === 'busy' ? `${view.reasons.length} running` : 'state unknown';
   const separate = warn && readinessStyle !== 'button';
-  const tone = separate ? TONE.neutral : TONE[view.tone];
+  const tone: SwitchView['tone'] = separate ? 'neutral' : view.tone;
   return (
     <>
-      <button type="button" data-adopt-button="" data-readiness={view.readiness} disabled={disabled || sending} title={view.title} onClick={click} className={`${BUTTON} ${tone}`}>
-        <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        {separate ? (
-          <>
-            {baseLabel}
-            <span className="sr-only"> {detail}</span>
-          </>
-        ) : (
-          view.label
-        )}
-      </button>
+      {/* The base button takes no data attribute and no title: the wrapper carries them (the tests and the tooltip read them there). */}
+      <span data-adopt-button="" data-readiness={view.readiness} data-tone={tone} title={view.title} className="inline-flex shrink-0">
+        <ButtonAction
+          variant={tone === 'warning' ? 'danger-outline' : 'secondary'}
+          size="sm"
+          disabled={disabled || sending}
+          onClick={click}
+          icon={<Icon aria-hidden="true" className="h-3.5 w-3.5" />}
+          label={separate ? baseLabel : view.label}
+        />
+        {separate ? <span className="sr-only"> {detail}</span> : null}
+      </span>
       {separate && readinessStyle === 'badge' ? (
         <span data-adopt-badge="" aria-hidden="true" title={view.title} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning-bg px-2 py-0.5 text-xs text-warning-text">
           <TriangleAlert className="h-am-icon-sm w-am-icon-sm" />

@@ -1,6 +1,6 @@
 import { ChevronsUpDown } from 'lucide-react';
 import { useState } from 'react';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { isLarge } from './permissionBlocks.js';
 
 /** One block of the tool input, as text. A large one is folded (a few lines) behind a visible button that says how much is hidden; the whole text stays in the page. */

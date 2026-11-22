@@ -1,4 +1,4 @@
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 
 /** The scrolling box every picker draws its list in: a fixed height, so that switching variants (or opening a folder) never moves the rest of the dialog. */
 export const PICKER_PANEL = 'h-72 overflow-auto rounded border border-border bg-surface';

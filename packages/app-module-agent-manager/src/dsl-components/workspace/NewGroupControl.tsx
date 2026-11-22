@@ -1,7 +1,8 @@
+import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { FolderPlus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { checkGroupName } from '../shared.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 
 /**
  * The "New group" button of the toolbar. It turns into a name field in place: Enter creates, Escape (or the Cancel button) puts the button back. A bad name is
@@ -13,14 +14,15 @@ export function NewGroupControl({ onCreate, iconOnly = false }: { onCreate: (nam
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
+  // The base buttons take no ref: the focus goes back to the button through its wrapper.
+  const button = useRef<HTMLSpanElement>(null);
   const wasOpen = useRef(false);
 
   useEffect(() => {
     if (open) {
       input.current?.focus();
     } else if (wasOpen.current) {
-      button.current?.focus();
+      button.current?.querySelector('button')?.focus();
     }
     wasOpen.current = open;
   }, [open]);
@@ -49,15 +51,18 @@ export function NewGroupControl({ onCreate, iconOnly = false }: { onCreate: (nam
 
   if (!open) {
     return (
-      <button ref={button} type="button" onClick={() => setOpen(true)} title={iconOnly ? 'New group' : undefined} className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-border ${iconOnly ? 'px-2' : 'px-3'} text-sm font-medium text-content hover:bg-muted-bg ${FOCUS_RING}`}>
-        <FolderPlus aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        {iconOnly ? <span className="sr-only">New group</span> : 'New group'}
-      </button>
+      <span ref={button} className="inline-flex">
+        {iconOnly ? (
+          <IconButton variant="secondary" aria-label="New group" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} onClick={() => setOpen(true)} />
+        ) : (
+          <ButtonAction variant="secondary" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} label="New group" onClick={() => setOpen(true)} />
+        )}
+      </span>
     );
   }
   return (
     <form
-      className="flex items-center gap-1"
+      className="flex flex-wrap items-center gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
@@ -84,12 +89,8 @@ export function NewGroupControl({ onCreate, iconOnly = false }: { onCreate: (nam
         aria-describedby={problem === '' ? undefined : 'new-group-problem'}
         className={`h-am-hit w-44 rounded border border-border bg-surface px-2 text-sm text-content ${FOCUS_RING}`}
       />
-      <button type="submit" disabled={busy} className={`inline-flex h-am-hit items-center rounded border border-primary bg-primary-light px-3 text-sm font-medium text-primary disabled:opacity-60 ${FOCUS_RING}`}>
-        Create
-      </button>
-      <button type="button" onClick={close} className={`inline-flex h-am-hit items-center rounded border border-border px-3 text-sm text-content hover:bg-muted-bg ${FOCUS_RING}`}>
-        Cancel
-      </button>
+      <ButtonAction variant="primary" size="sm" type="submit" label="Create" loading={busy} />
+      <ButtonAction variant="secondary" size="sm" label="Cancel" onClick={close} />
       {problem !== '' ? (
         <span id="new-group-problem" role="alert" className="text-sm text-danger">
           {problem}

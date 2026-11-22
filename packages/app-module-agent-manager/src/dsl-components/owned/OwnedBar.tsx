@@ -1,3 +1,4 @@
+import { ButtonAction, CompactSelect, IconButton } from '@wadeck-app/dsl-ui';
 import { CircleStop, RotateCcw, Square, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
@@ -7,7 +8,7 @@ import { isBgOwned, isLiveBg, isLiveWeb, isOwned } from '../logic/owned.js';
 import type { OwnedForgetResponse, OwnedInterruptResponse, OwnedPermissionModeResponse, OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
-import { FOCUS_RING, IconButton } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { BgAttach } from './BgAttach.js';
 import { HostBadge } from './OwnedChips.js';
 import { OwnedStateChip } from './OwnedStateChip.js';
@@ -32,8 +33,6 @@ export const RESUME_TEXT = 'Resume restores the conversation: Claude Code reload
 export const BG_NO_INTERRUPT = 'A background session has no remote interrupt: claude has no stop-turn command, attach and press Esc in the terminal.';
 export const BG_NO_MODE = 'The permission mode of a background session cannot be changed remotely.';
 
-const MODE_SELECT = `h-am-hit rounded border border-border bg-surface px-2 text-sm text-content disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
-const ACTION = `inline-flex h-am-hit items-center gap-1.5 rounded border border-border px-3 text-sm text-content hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 
 /**
  * What the header adds for a session launched from agent-manager: its host and state, then the actions that fit its state (Interrupt a running turn, Stop a
@@ -193,53 +192,40 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
         <OwnedStateChip session={session} />
         {dto?.model !== undefined ? <span className="text-xs text-muted">{`launched with model ${dto.model}`}</span> : null}
         {liveWeb && session.ownedState === 'running' ? (
-          <button type="button" disabled={busy} onClick={() => void interrupt()} className={ACTION}>
-            <Square aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Interrupt
-          </button>
+          <ButtonAction variant="secondary" size="sm" disabled={busy} onClick={() => void interrupt()} icon={<Square aria-hidden="true" className="h-3.5 w-3.5" />} label="Interrupt" />
         ) : null}
         {liveBg ? (
-          <button type="button" disabled title={BG_NO_INTERRUPT} aria-describedby="bg-no-interrupt" className={ACTION}>
-            <Square aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Interrupt
-          </button>
+          <ButtonAction variant="secondary" size="sm" disabled disabledReason={BG_NO_INTERRUPT} icon={<Square aria-hidden="true" className="h-3.5 w-3.5" />} label="Interrupt" />
         ) : null}
         {live ? (
-          <button type="button" disabled={busy} onClick={() => setPending('stop')} className={ACTION}>
-            <CircleStop aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Stop
-          </button>
+          <ButtonAction variant="danger-outline" size="sm" disabled={busy} onClick={() => setPending('stop')} icon={<CircleStop aria-hidden="true" className="h-3.5 w-3.5" />} label="Stop" />
         ) : null}
         <SwitchAction session={session} disabled={busy} onChange={onChange} onNote={setNote} onError={setError} />
         {ended && resumable ? (
-          <button type="button" disabled={busy} onClick={() => (leftover === undefined ? void resume() : setPending('resume'))} className={`${ACTION} border-primary bg-primary-light text-primary`}>
-            <RotateCcw aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            {leftover === undefined ? (bg ? 'Resume (claude respawn)' : 'Resume') : 'Resume anyway'}
-          </button>
+          <ButtonAction
+            variant="primary"
+            size="sm"
+            disabled={busy}
+            onClick={() => (leftover === undefined ? void resume() : setPending('resume'))}
+            icon={<RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />}
+            label={leftover === undefined ? (bg ? 'Resume (claude respawn)' : 'Resume') : 'Resume anyway'}
+          />
         ) : null}
-        {ended ? <IconButton icon={Trash2} label="Forget" disabled={busy} onClick={() => setPending('forget')} /> : null}
+        {ended ? <IconButton icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />} aria-label="Forget" disabled={busy} onClick={() => setPending('forget')} /> : null}
         {liveWeb ? (
           <label className="flex items-center gap-1.5 text-sm text-muted">
             Mode
-            <select
-              aria-label="Permission mode"
+            <CompactSelect
+              ariaLabel="Permission mode"
               value={mode}
               disabled={busy || dto === undefined}
-              onChange={(event) => void setMode(event.target.value)}
-              className={MODE_SELECT}
-            >
-              {mode === '' ? (
-                <option value="" disabled>
-                  (not reported)
-                </option>
-              ) : null}
-              {unknownMode ? <option value={mode}>{mode}</option> : null}
-              {modeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onChange={(next) => void setMode(next)}
+              options={[
+                ...(mode === '' ? [{ value: '', label: '(not reported)' }] : []),
+                ...(unknownMode ? [{ value: mode, label: mode }] : []),
+                ...modeOptions.map((option) => ({ value: option.value, label: option.label })),
+              ]}
+            />
           </label>
         ) : null}
       </div>
@@ -252,9 +238,7 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
             <li id="bg-no-mode" data-bg-no-mode="">
               <label className="inline-flex items-center gap-1.5">
                 Mode
-                <select aria-label="Permission mode" disabled title={BG_NO_MODE} aria-describedby="bg-no-mode" value={dto?.permissionMode ?? ''} onChange={() => undefined} className={MODE_SELECT}>
-                  <option value={dto?.permissionMode ?? ''}>{dto?.permissionMode ?? '(set at launch)'}</option>
-                </select>
+<CompactSelect ariaLabel="Permission mode" disabled value={dto?.permissionMode ?? ''} onChange={() => undefined} options={[{ value: dto?.permissionMode ?? '', label: dto?.permissionMode ?? '(set at launch)' }]} />
               </label>{' '}
               {BG_NO_MODE}
             </li>
@@ -271,9 +255,7 @@ export function OwnedBar({ session, onChange, onForgotten }: OwnedBarProps) {
         <Banner
           tone="error"
           action={
-            <button type="button" onClick={() => setError('')} className={`shrink-0 rounded border border-danger px-2 py-0.5 text-xs ${FOCUS_RING}`}>
-              Dismiss
-            </button>
+            <ButtonAction variant="secondary" size="sm" label="Dismiss" onClick={() => setError('')} />
           }
         >
           {error}

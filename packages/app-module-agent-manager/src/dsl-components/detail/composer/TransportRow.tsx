@@ -1,3 +1,4 @@
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { CircleCheck, Info, Keyboard, LoaderCircle, TriangleAlert, Users } from 'lucide-react';
 import { FOCUS_RING, Tooltip } from '../deps.js';
 import type { TransportStatusDto } from '../deps.js';
@@ -18,7 +19,6 @@ export function typedWarning(transportId: string): string {
     : TYPED_WARNING;
 }
 
-const ACTION = `rounded border border-border px-2 py-0.5 text-xs text-content hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 
 export interface TransportRowProps {
   transport: TransportStatusDto;
@@ -65,12 +65,8 @@ export function TransportRow({ transport, busy, onSession, onDefault }: Transpor
         </p>
       )}
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" disabled={!available || busy || sessionOverride} onClick={() => onSession(transportId)} className={ACTION}>
-          Use for this session
-        </button>
-        <button type="button" disabled={!available || busy || isDefault} onClick={() => onDefault(transportId)} className={ACTION}>
-          Use as default
-        </button>
+        <ButtonAction variant="secondary" size="sm" disabled={!available || busy || sessionOverride} onClick={() => onSession(transportId)} label="Use for this session" />
+        <ButtonAction variant="secondary" size="sm" disabled={!available || busy || isDefault} onClick={() => onDefault(transportId)} label="Use as default" />
       </div>
     </li>
   );

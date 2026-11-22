@@ -5,7 +5,7 @@ import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { buildTree, flatByUrgency, quietFolders, type FolderNode } from '../logic/tree.js';
 import type { AgentRow } from '../data/types.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';

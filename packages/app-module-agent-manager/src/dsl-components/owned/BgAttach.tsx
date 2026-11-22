@@ -1,7 +1,7 @@
 import { getErrorMessage } from '../logic/errorText.js';
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
-import { FOCUS_RING } from '../ui/IconButton.js';
 
 export interface BgAttachProps {
   /** `claude attach <id>`, as the daemon gives it. Undefined while the daemon record is not read yet: the panel then says so. */
@@ -46,10 +46,7 @@ export function BgAttach({ command, waitingFor }: BgAttachProps) {
             <code data-bg-attach-command="" className="rounded bg-muted-bg px-2 py-1 font-mono text-am-mono text-content">
               {command}
             </code>
-            <button type="button" onClick={() => void copy()} className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-border bg-surface px-3 text-sm text-content hover:bg-muted-bg ${FOCUS_RING}`}>
-              {copied ? <Check aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <Copy aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
-              {copied ? 'Copied' : 'Copy command'}
-            </button>
+            <ButtonAction variant="secondary" size="sm" onClick={() => void copy()} icon={copied ? <Check aria-hidden="true" className="h-4 w-4" /> : <Copy aria-hidden="true" className="h-4 w-4" />} label={copied ? 'Copied' : 'Copy command'} />
           </>
         )}
       </div>

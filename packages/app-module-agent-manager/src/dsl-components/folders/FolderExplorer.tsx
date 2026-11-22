@@ -3,7 +3,8 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useFolderLists, useFolderRoots } from '../data/useFolders.js';
 import { folderName, pickOf, samePath, type FolderPick } from '../logic/folderPicker.js';
 import type { FolderEntryDto } from '../shared.js';
-import { FOCUS_RING, ICON_BUTTON_CLASS, IconButton } from '../ui/IconButton.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { BranchBadge } from './BranchBadge.js';
 import { EmptyLine } from './EmptyLine.js';
 import { FailedLine } from './FailedLine.js';
@@ -94,8 +95,8 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
       <RootsNote note={roots.state.status === 'ready' ? roots.state.value.note : ''} />
       <div className="flex items-center gap-1">
         <IconButton
-          icon={ArrowUp}
-          label="Up one folder"
+          icon={<ArrowUp aria-hidden="true" className="h-4 w-4" />}
+          aria-label="Up one folder"
           disabled={disabled || here === undefined || here.parent === null}
           disabledReason={here === undefined ? 'no folder is open' : 'this is a root: the list cannot go above it'}
           onClick={() => (here?.parent === null || here === undefined ? undefined : go(here.parent))}
@@ -172,9 +173,7 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
                   <BranchBadge branch={entry.branch} />
                 </button>
                 {/* Not a tab stop: with a few hundred folders it would be as many; the keyboard opens a row with Enter or Right. */}
-                <button type="button" tabIndex={-1} aria-label={`Open ${entry.name}`} title={`Open ${entry.name}`} disabled={disabled} onClick={() => enter(entry)} className={ICON_BUTTON_CLASS}>
-                  <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-                </button>
+                <IconButton size="icon-sm" tabIndex={-1} aria-label={`Open ${entry.name}`} disabled={disabled} onClick={() => enter(entry)} icon={<ChevronRight aria-hidden="true" className="h-4 w-4" />} />
               </li>
             ))}
           </ul>

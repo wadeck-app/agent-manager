@@ -1,3 +1,4 @@
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { Bot, PanelRightClose, PanelRightOpen, TriangleAlert, X } from 'lucide-react';
 import { AUTO_ML_FROM_PX, FOCUS_RING, Tooltip, useMinWidth } from '../deps.js';
 import { CountChips } from './CountChips.js';
@@ -14,7 +15,6 @@ export interface SubagentAsideProps extends SubagentsViewProps {
   onDismissProblem: () => void;
 }
 
-const TOGGLE = `inline-flex h-am-hit w-am-hit shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`;
 
 /** Under this width (the one where the text scale `auto` steps up from M) the open panel is narrower, so the log keeps its room: one constant for both. */
 export const ASIDE_WIDE_MIN_PX = AUTO_ML_FROM_PX;
@@ -52,11 +52,7 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
     const selectedName = selected === undefined ? '' : `Selected: ${selected.title}, ${look?.label.toLowerCase() ?? ''}, ${phaseWords(view.phase)}`;
     return (
       <aside aria-label="Sub-agents" className="flex min-h-0 w-am-hit shrink-0 flex-col items-center gap-2 border-l border-border py-1">
-        <Tooltip content="Show the sub-agents panel" side="left">
-          <button type="button" aria-label={`Show the sub-agents panel (${total})`} aria-expanded={false} onClick={() => onCollapsed(false)} className={TOGGLE}>
-            <PanelRightOpen aria-hidden="true" className="h-am-icon w-am-icon" />
-          </button>
-        </Tooltip>
+<IconButton aria-label={`Show the sub-agents panel (${total})`} title="Show the sub-agents panel" aria-expanded={false} onClick={() => onCollapsed(false)} icon={<PanelRightOpen aria-hidden="true" className="h-4 w-4" />} />
         <span aria-hidden="true" className="flex flex-col items-center gap-1 text-xs text-muted">
           <Bot className="h-am-icon-sm w-am-icon-sm" />
           <span className="tabular-nums text-content">{counts.total}</span>
@@ -79,18 +75,12 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
         <h3 className="min-w-0">
           <SubagentsTitle counts={counts} />
         </h3>
-        <Tooltip content="Collapse the sub-agents panel" side="left">
-          <button type="button" aria-label="Collapse the sub-agents panel" aria-expanded onClick={() => onCollapsed(true)} className={TOGGLE}>
-            <PanelRightClose aria-hidden="true" className="h-am-icon w-am-icon" />
-          </button>
-        </Tooltip>
+<IconButton aria-label="Collapse the sub-agents panel" aria-expanded onClick={() => onCollapsed(true)} icon={<PanelRightClose aria-hidden="true" className="h-4 w-4" />} />
       </div>
       {problem !== '' ? (
         <div role="alert" className="flex items-start gap-1.5 border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text">
           <p className="min-w-0 flex-1">{problem}</p>
-          <button type="button" aria-label="Dismiss the note about the panel settings" onClick={onDismissProblem} className={`shrink-0 rounded p-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
-            <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          </button>
+<IconButton size="icon-xs" aria-label="Dismiss the note about the panel settings" onClick={onDismissProblem} icon={<X aria-hidden="true" className="h-3 w-3" />} />
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">

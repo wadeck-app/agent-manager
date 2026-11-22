@@ -136,9 +136,9 @@ describe('the transport selector', () => {
     status = statusFixture();
     status.transports[0] = { ...status.transports[0]!, marker };
     render(<Composer session={session} />);
+    // The Send button is the base icon button: its hint is the native title.
     const send = await screen.findByRole('button', { name: 'Send' });
-    fireEvent.focus(send);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(expected);
+    expect(send.getAttribute('title')).toMatch(expected);
   });
 
   it('the Send tooltip claims nothing about a marker when the setting could not be read', async () => {
@@ -146,8 +146,7 @@ describe('the transport selector', () => {
     status.transports[0] = { ...status.transports[0]!, marker: null };
     render(<Composer session={session} />);
     const send = await screen.findByRole('button', { name: 'Send' });
-    fireEvent.focus(send);
-    expect(await screen.findByRole('tooltip')).not.toHaveTextContent(/marker/i);
+    expect(send.getAttribute('title')).not.toMatch(/marker/i);
   });
 
   it('no cue for a peer transport', async () => {

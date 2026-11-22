@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { groupReasons } from '../logic/adoptSwitch.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 
 /** How many reasons are listed before "Show N more": the first ones are the ones to read, the rest is one click away. */
 export const VISIBLE_REASONS = 3;

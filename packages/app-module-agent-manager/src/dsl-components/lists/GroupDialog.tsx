@@ -1,13 +1,13 @@
+import { ButtonAction, FieldText } from '@wadeck-app/dsl-ui';
 import { ArrowDown, ArrowUp, Check, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { checkGroupName, GROUP_COLORS, type CustomGroupDto, type GroupColor } from '../shared.js';
 import { stepGroupIds } from '../logic/customGroups.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
+import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
 import type { GroupsApi } from './common.js';
-
-const BUTTON = `inline-flex h-am-hit items-center gap-1.5 rounded border border-border px-3 text-sm text-content hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 
 /**
  * The actions of a group, all reachable with the keyboard: rename, color, move up or down among the groups, delete (two steps: it says what happens to the
@@ -48,25 +48,7 @@ export function GroupDialog({ group, memberCount, groups, onClose }: { group: Cu
           save();
         }}
       >
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="group-name" className="text-sm font-medium text-content">
-            Name
-          </label>
-          <input
-            id="group-name"
-            data-autofocus=""
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            aria-invalid={!checked.ok}
-            aria-describedby={checked.ok ? undefined : 'group-name-problem'}
-            className={`h-am-hit rounded border border-border bg-surface px-2 text-sm text-content ${FOCUS_RING}`}
-          />
-          {!checked.ok ? (
-            <p id="group-name-problem" role="alert" className="text-sm text-danger">
-              {checked.text}
-            </p>
-          ) : null}
-        </div>
+        <FieldText label="Name" data-autofocus="" value={name} onChange={setName} error={checked.ok ? undefined : checked.text} />
 
         <div className="flex flex-col gap-1.5">
           <span id="group-color-label" className="text-sm font-medium text-content">
@@ -92,14 +74,8 @@ export function GroupDialog({ group, memberCount, groups, onClose }: { group: Cu
             Position: {position + 1} of {groups.groups.length}
           </span>
           <div className="flex gap-2">
-            <button type="button" disabled={up === undefined} onClick={() => up !== undefined && groups.reorder(up)} className={BUTTON}>
-              <ArrowUp aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-              Move up
-            </button>
-            <button type="button" disabled={down === undefined} onClick={() => down !== undefined && groups.reorder(down)} className={BUTTON}>
-              <ArrowDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-              Move down
-            </button>
+            <ButtonAction variant="secondary" size="sm" disabled={up === undefined} onClick={() => up !== undefined && groups.reorder(up)} icon={<ArrowUp aria-hidden="true" className="h-4 w-4" />} label="Move up" />
+            <ButtonAction variant="secondary" size="sm" disabled={down === undefined} onClick={() => down !== undefined && groups.reorder(down)} icon={<ArrowDown aria-hidden="true" className="h-4 w-4" />} label="Move down" />
           </div>
         </div>
 
@@ -109,39 +85,27 @@ export function GroupDialog({ group, memberCount, groups, onClose }: { group: Cu
               {memberCount === 0 ? 'Delete this empty group?' : `Delete this group? Its ${memberCount} ${memberCount === 1 ? 'agent becomes' : 'agents become'} ungrouped; no agent is stopped.`}
             </p>
             <div className="flex gap-2">
-              <button
-                type="button"
+              <ButtonAction
+                variant="danger"
+                size="sm"
+                icon={<Trash2 aria-hidden="true" className="h-4 w-4" />}
+                label="Delete the group"
                 onClick={() => {
                   groups.remove(group.id);
                   onClose();
                 }}
-                className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-danger px-3 text-sm font-medium text-danger hover:bg-muted-bg ${FOCUS_RING}`}
-              >
-                <Trash2 aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-                Delete the group
-              </button>
-              <button type="button" onClick={() => setConfirming(false)} className={BUTTON}>
-                Keep it
-              </button>
+              />
+              <ButtonAction variant="secondary" size="sm" label="Keep it" onClick={() => setConfirming(false)} />
             </div>
           </div>
         ) : null}
 
-        <div className="flex items-center gap-2 border-t border-border pt-3">
-          {!confirming ? (
-            <button type="button" onClick={() => setConfirming(true)} className={`${BUTTON} text-danger`}>
-              <Trash2 aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-              Delete group
-            </button>
-          ) : null}
+        <DialogActions>
+          {!confirming ? <ButtonAction variant="danger-outline" icon={<Trash2 aria-hidden="true" className="h-4 w-4" />} label="Delete group" onClick={() => setConfirming(true)} /> : null}
           <span className="flex-1" />
-          <button type="button" onClick={onClose} className={BUTTON}>
-            Cancel
-          </button>
-          <button type="submit" disabled={!checked.ok} className={`inline-flex h-am-hit items-center rounded border border-primary bg-primary-light px-3 text-sm font-medium text-primary disabled:opacity-50 ${FOCUS_RING}`}>
-            Save
-          </button>
-        </div>
+          <ButtonAction variant="secondary" label="Cancel" onClick={onClose} />
+          <ButtonAction variant="primary" type="submit" label="Save" disabled={!checked.ok} />
+        </DialogActions>
       </form>
     </Modal>
   );

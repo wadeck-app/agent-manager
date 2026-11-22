@@ -1,5 +1,6 @@
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { LoaderCircle, MessageSquareShare } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
 import { MODEL_OPTIONS, MAX_NAME_CHARS, PERMISSION_MODE_OPTIONS, type ChoiceOption } from '../logic/launchForm.js';
@@ -9,11 +10,10 @@ import { useOwnedSession } from '../owned/useOwnedSession.js';
 import { threadNameOf } from '../shared.js';
 import type { OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
-import { DIALOG_FOOTER, Modal } from '../ui/Modal.js';
-import { Field } from './Field.js';
+import { ButtonAction, FieldSelect, FieldText } from '@wadeck-app/dsl-ui';
+import { DialogActions } from '../ui/DialogActions.js';
+import { Modal } from '../ui/Modal.js';
 
-const FIELD = `w-full rounded border border-border bg-surface px-2.5 py-1.5 text-base text-content placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS_RING}`;
 
 export interface ThreadDialogProps {
   /** The session the thread branches from (owned or discovered). */
@@ -43,7 +43,6 @@ function withValue(options: readonly ChoiceOption[], value: string): readonly Ch
  * Claude Code decides. The refusals of the daemon (unknown message, a fourth live thread) are shown with their fix and the dialog stays open.
  */
 export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDialogProps) {
-  const ids = { name: useId(), model: useId(), mode: useId() };
   const needsRecord = isOwned(session) && (session.host === 'stream-json' || session.host === 'bg');
   const { dto, error: readError } = useOwnedSession(session.sessionId, session.ownedState, needsRecord);
   const recordPending = needsRecord && dto === undefined;
@@ -91,33 +90,11 @@ export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDial
         <p className="text-sm text-content">{THREAD_MEANING}</p>
         {recordPending ? (readError !== '' ? <Banner tone="error">{`The daemon record of this session could not be read, so the thread stays off: its model and permission mode are not known. ${readError}`}</Banner> : <p role="status" className="text-sm text-muted">Reading the model and permission mode of this session...</p>) : null}
 
-        <Field
-          label="Name"
-          htmlFor={ids.name}
-          hint={nameText !== '' ? <span role="alert" className="text-danger-text">{nameText}</span> : THREAD_CAP_NOTE}
-        >
-          <input id={ids.name} type="text" value={name} onChange={(event) => setName(event.target.value)} disabled={starting} autoComplete="off" aria-invalid={nameText !== ''} className={`${FIELD} ${nameText !== '' ? 'border-danger' : ''}`} />
-        </Field>
+        <FieldText label="Name" value={name} onChange={setName} disabled={starting} autoComplete="off" error={nameText} description={THREAD_CAP_NOTE} />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Model" htmlFor={ids.model} hint={dto?.model !== undefined ? 'The model this session was launched with.' : 'Not known for this session: Claude Code decides unless you choose one.'}>
-            <select id={ids.model} value={model} disabled={starting} onChange={(event) => setChosenModel(event.target.value)} className={FIELD}>
-              {withValue(MODEL_OPTIONS, model).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Permission mode" htmlFor={ids.mode} hint={dto?.permissionMode !== undefined ? 'The mode this session was launched with (or the last one you set).' : 'Not known for this session: Claude Code decides unless you choose one.'}>
-            <select id={ids.mode} value={mode} disabled={starting} onChange={(event) => setChosenMode(event.target.value)} className={FIELD}>
-              {withValue(PERMISSION_MODE_OPTIONS, mode).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <FieldSelect label="Model" value={model} onChange={setChosenModel} options={[...withValue(MODEL_OPTIONS, model)]} disabled={starting} description={dto?.model !== undefined ? 'The model this session was launched with.' : 'Not known for this session: Claude Code decides unless you choose one.'} />
+          <FieldSelect label="Permission mode" value={mode} onChange={setChosenMode} options={[...withValue(PERMISSION_MODE_OPTIONS, mode)]} disabled={starting} description={dto?.permissionMode !== undefined ? 'The mode this session was launched with (or the last one you set).' : 'Not known for this session: Claude Code decides unless you choose one.'} />
         </div>
 
         <p className="text-xs text-muted">{`Folder: ${session.cwd}. It always starts as a Web session.`}</p>
@@ -129,19 +106,10 @@ export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDial
           </p>
         ) : null}
 
-        <div className={DIALOG_FOOTER}>
-          <button type="button" onClick={onClose} disabled={starting} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg disabled:opacity-50 ${FOCUS_RING}`}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={blocked}
-            className={`inline-flex items-center gap-1.5 rounded border border-primary bg-primary-light px-3 py-1.5 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-          >
-            <MessageSquareShare aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Start thread
-          </button>
-        </div>
+        <DialogActions>
+          <ButtonAction variant="secondary" label="Cancel" onClick={onClose} disabled={starting} />
+          <ButtonAction variant="primary" type="submit" icon={<MessageSquareShare aria-hidden="true" className="h-4 w-4" />} label="Start thread" disabled={blocked} />
+        </DialogActions>
       </form>
     </Modal>
   );

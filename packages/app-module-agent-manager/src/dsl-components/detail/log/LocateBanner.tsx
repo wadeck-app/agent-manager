@@ -1,9 +1,8 @@
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { LoaderCircle, Target, X } from 'lucide-react';
-import { Banner, FOCUS_RING } from '../deps.js';
+import { Banner } from '../deps.js';
 import { CopyButton } from './CopyButton.js';
 import type { LocateFeed } from './useLocateCall.js';
-
-const BUTTON = `inline-flex shrink-0 items-center gap-1 rounded border px-2 py-0.5 text-xs ${FOCUS_RING}`;
 
 /**
  * What the click on a sub-agent did, above the log where the eye is: the search in progress (with a progress bar and Cancel), the call being shown (a slim
@@ -23,9 +22,7 @@ export function LocateBanner({ feed }: { feed: LocateFeed }) {
             <span className="min-w-0 flex-1 truncate">
               Looking for the call that started "{state.label}"...{state.page > 0 ? ` (${state.page} ${state.page === 1 ? 'page' : 'pages'} of older entries loaded)` : ''}
             </span>
-            <button type="button" onClick={feed.cancel} className={`${BUTTON} border-border text-content hover:bg-muted-bg`}>
-              Cancel
-            </button>
+<ButtonAction variant="secondary" size="sm" label="Cancel" onClick={feed.cancel} />
           </div>
           <div role="progressbar" aria-label="Search for the call" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(state.progress * 100)} className="h-1.5 w-full overflow-hidden rounded-full bg-surface">
             <span className="block h-full bg-primary-solid" style={{ width: `${Math.max(4, Math.round(state.progress * 100))}%` }} />
@@ -37,10 +34,7 @@ export function LocateBanner({ feed }: { feed: LocateFeed }) {
         <div role="status" className="flex shrink-0 items-center gap-2 border-b border-border bg-primary-light px-3 py-1.5 text-sm text-content">
           <Target aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-primary" />
           <span className="min-w-0 flex-1 truncate">Showing the call that started "{state.label}"</span>
-          <button type="button" onClick={feed.clear} className={`${BUTTON} border-border text-content hover:bg-surface`}>
-            <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Clear
-          </button>
+<ButtonAction variant="secondary" size="sm" icon={<X aria-hidden="true" className="h-3.5 w-3.5" />} label="Clear" onClick={feed.clear} />
         </div>
       );
     case 'missing':
@@ -51,14 +45,10 @@ export function LocateBanner({ feed }: { feed: LocateFeed }) {
             action={
               <span className="flex shrink-0 items-center gap-1.5">
                 {state.canSearchAgain ? (
-                  <button type="button" onClick={feed.retry} className={`${BUTTON} border-warning text-warning-text hover:bg-surface`}>
-                    Search older entries
-                  </button>
+<ButtonAction variant="secondary" size="sm" label="Search older entries" onClick={feed.retry} />
                 ) : null}
                 {state.toolUseId !== undefined ? <CopyButton text={state.toolUseId} label="Copy the call id (to look it up in the transcript)" /> : null}
-                <button type="button" onClick={feed.clear} className={`${BUTTON} border-warning text-warning-text hover:bg-surface`}>
-                  Dismiss
-                </button>
+<ButtonAction variant="secondary" size="sm" label="Dismiss" onClick={feed.clear} />
               </span>
             }
           >
@@ -74,12 +64,8 @@ export function LocateBanner({ feed }: { feed: LocateFeed }) {
             tone="error"
             action={
               <span className="flex shrink-0 items-center gap-1.5">
-                <button type="button" onClick={feed.retry} className={`${BUTTON} border-danger text-danger-text hover:bg-surface`}>
-                  Try again
-                </button>
-                <button type="button" onClick={feed.clear} className={`${BUTTON} border-danger text-danger-text hover:bg-surface`}>
-                  Dismiss
-                </button>
+<ButtonAction variant="secondary" size="sm" label="Try again" onClick={feed.retry} />
+<ButtonAction variant="secondary" size="sm" label="Dismiss" onClick={feed.clear} />
               </span>
             }
           >

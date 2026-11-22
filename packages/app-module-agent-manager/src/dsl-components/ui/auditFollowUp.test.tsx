@@ -7,7 +7,6 @@ import { row } from '../logic/fixtures.js';
 import { ReasonList, VISIBLE_REASONS } from '../owned/ReasonList.js';
 import { stubFetch } from '../owned/testFetch.js';
 import { ConfirmDialog } from './ConfirmDialog.js';
-import { DIALOG_FOOTER } from './Modal.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -60,7 +59,6 @@ describe('the reasons of a Move that is not free', () => {
 
 describe('the dialog button row', () => {
   it('sticks to the bottom of the scrolling body, with Cancel first and a red confirm for a destructive action', () => {
-    expect(DIALOG_FOOTER).toContain('sticky bottom-0');
     render(
       <ConfirmDialog title="Move?" confirmLabel="Move anyway" danger onConfirm={vi.fn()} onCancel={vi.fn()}>
         <p>text</p>
@@ -69,8 +67,8 @@ describe('the dialog button row', () => {
     const dialog = screen.getByRole('dialog', { name: 'Move?' });
     const buttons = within(dialog).getAllByRole('button').filter((button) => ['Cancel', 'Move anyway'].includes(button.textContent ?? ''));
     expect(buttons.map((button) => button.textContent)).toEqual(['Cancel', 'Move anyway']);
-    expect(buttons[0]?.parentElement?.className).toContain('sticky');
-    expect(buttons[1]?.className).toContain('border-danger');
+    expect(buttons[0]?.closest('[class*="sticky"]')).not.toBeNull();
+    expect(buttons[1]?.className).toContain('bg-danger');
     expect(buttons[0]).toHaveFocus();
   });
 });

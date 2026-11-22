@@ -1,3 +1,4 @@
+import { liveTooltip } from './liveTooltip.js';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionStatusDto } from '../deps.js';
@@ -55,7 +56,7 @@ describe('the status info row', () => {
     // The context is an estimate: "~", the window and the note are in the tooltip.
     const context = within(info).getByRole('img', { name: 'Context used ~37%, plenty of room' });
     fireEvent.focus(context);
-    expect(screen.getByRole('tooltip')).toHaveTextContent(/Estimated context used: 37% of a 1.0M window.*1000k window assumed/);
+    expect(liveTooltip()).toHaveTextContent(/Estimated context used: 37% of a 1.0M window.*1000k window assumed/);
     expect(within(info).getByLabelText('Tokens: 367,800 tokens in the prompt of the last call, 816 tokens in its answer (grows while it streams)')).toHaveTextContent('367.8k816');
     expect(within(info).getByLabelText('Running for 2h22m')).toBeInTheDocument();
     expect(within(info).getByLabelText('Role autonomous-worker')).toBeInTheDocument();
@@ -93,7 +94,7 @@ describe('the status info row', () => {
     const chip = screen.getByLabelText('Model, unrecognised id claude-mystery-9');
     expect(chip).toHaveTextContent('claude-mystery-9');
     fireEvent.focus(chip);
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Unrecognised model id: claude-mystery-9');
+    expect(liveTooltip()).toHaveTextContent('Unrecognised model id: claude-mystery-9');
   });
 
   it('shows a context at 90 % as nearly full, and an exact basis without the "~"', () => {
@@ -104,7 +105,7 @@ describe('the status info row', () => {
   it('shows the earlier models in the tooltip of the model chip', () => {
     show(FULL);
     fireEvent.focus(screen.getByLabelText('Model Sonnet 5.5'));
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Before: Opus 5.5');
+    expect(liveTooltip()).toHaveTextContent('Before: Opus 5.5');
   });
 
   it('a broken role file is an error with its cause, never shown as a role', () => {
@@ -126,7 +127,7 @@ describe('the status info row', () => {
     show({ bypasses: [{ category: 'git-commit-push', label: 'c&p', left: '2x' }] });
     const chip = screen.getByLabelText('Bypass c&p, 2x left');
     fireEvent.focus(chip);
-    expect(screen.getByRole('tooltip')).toHaveTextContent('counted in uses (no expiry time)');
+    expect(liveTooltip()).toHaveTextContent('counted in uses (no expiry time)');
   });
 
   it('uses the fields of the session row until the log has answered, then the live status of the log (one source at a time)', () => {

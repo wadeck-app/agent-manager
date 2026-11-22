@@ -7,7 +7,7 @@ export type { AgentRow } from '../data/types.js';
 export { row } from '../logic/fixtures.js';
 export { getErrorMessage } from '../logic/errorText.js';
 export { Banner } from '../ui/Banner.js';
-export { FOCUS_RING, ICON_BUTTON_CLASS, IconButton } from '../ui/IconButton.js';
+export { FOCUS_RING } from '../ui/focusRing.js';
 export { useMinWidth, useNow, WIDE_SCREEN_PX } from '../ui/hooks.js';
 export { AUTO_ML_FROM_PX } from '../ui/density.js';
 export { Tooltip } from '../ui/Tooltip.js';

@@ -2,7 +2,7 @@ import { useAbTest, useRegisterAbTests } from '@wadeck-app/dsl-ui';
 import type { ReactNode } from 'react';
 import { DEFAULT_FOLDER_PICKER, FOLDER_PICKER_VARIANTS, type FolderPickerVariant } from '../logic/folderVariants.js';
 import type { FolderPick } from '../logic/folderPicker.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { FolderColumns } from './FolderColumns.js';
 import { FolderExplorer } from './FolderExplorer.js';
 import { FolderPalette } from './FolderPalette.js';

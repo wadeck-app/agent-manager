@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
 import type { GroupSection } from '../logic/customGroups.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';

@@ -1,7 +1,7 @@
 import { Keyboard } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
 import { SHORTCUTS } from '../logic/shortcuts.js';
-import { ICON_BUTTON_CLASS } from './IconButton.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { Tooltip } from './Tooltip.js';
 
 export interface ShortcutsHelpProps {
@@ -47,11 +47,7 @@ export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
 
   return (
     <div ref={box} className="relative">
-      <Tooltip content="Keyboard shortcuts">
-        <button type="button" aria-label="Keyboard shortcuts" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)} className={`${ICON_BUTTON_CLASS} ${open ? 'bg-muted-bg text-content' : ''}`}>
-          <Keyboard aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        </button>
-      </Tooltip>
+      <IconButton variant={open ? 'neutral' : 'ghost'} aria-label="Keyboard shortcuts" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)} icon={<Keyboard aria-hidden="true" className="h-4 w-4" />} />
       {open ? (
         <div id={panelId} role="dialog" aria-label="Keyboard shortcuts" className="absolute right-0 top-full z-30 mt-1 w-80 rounded-lg border border-border bg-surface p-3 shadow-lg">
           <p className="mb-2 text-sm font-medium text-content">Keyboard shortcuts</p>

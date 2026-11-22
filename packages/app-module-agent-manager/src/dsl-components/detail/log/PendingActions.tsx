@@ -1,10 +1,9 @@
 import { RotateCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { retryPending } from '../composer/retryPending.js';
-import { FOCUS_RING, Tooltip } from '../deps.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { canRetry, dismissPending, type PendingMessage } from '../pending.js';
 
-const BUTTON = `inline-flex items-center rounded p-0.5 text-muted hover:bg-muted-bg hover:text-content disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`;
 
 /**
  * What can be done with a message that failed or was never confirmed: send it again as a NEW message (same text, priority and images) or dismiss it (it is then
@@ -26,17 +25,9 @@ export function PendingActions({ message }: { message: PendingMessage }) {
   return (
     <span className="flex items-center gap-0.5">
       {retry ? (
-        <Tooltip content="Send it again as a new message (same text, priority and images)">
-          <button type="button" aria-label="Send again as a new message" disabled={busy} onClick={() => void send()} className={BUTTON}>
-            <RotateCw aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          </button>
-        </Tooltip>
+<IconButton size="icon-sm" aria-label="Send again as a new message" title="Send it again as a new message (same text, priority and images)" disabled={busy} onClick={() => void send()} icon={<RotateCw aria-hidden="true" className="h-3.5 w-3.5" />} />
       ) : null}
-      <Tooltip content="Dismiss this message: it is forgotten here, nothing is sent">
-        <button type="button" aria-label="Dismiss this message" onClick={() => dismissPending(message.sessionId, message.messageId)} className={BUTTON}>
-          <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-        </button>
-      </Tooltip>
+<IconButton size="icon-sm" aria-label="Dismiss this message" title="Dismiss this message: it is forgotten here, nothing is sent" onClick={() => dismissPending(message.sessionId, message.messageId)} icon={<X aria-hidden="true" className="h-3.5 w-3.5" />} />
       {problem !== '' ? <span role="alert" className="sr-only">{problem}</span> : null}
     </span>
   );

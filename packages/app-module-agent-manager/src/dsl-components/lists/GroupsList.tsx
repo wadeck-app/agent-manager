@@ -3,7 +3,7 @@ import { flatten, groupSessions } from '../logic/grouping.js';
 import { agentId } from '../logic/states.js';
 import { groupText } from '../ui/stateLook.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { useCollapsed } from '../ui/useCollapsed.js';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
 import { detailLine, type ListProps } from './common.js';

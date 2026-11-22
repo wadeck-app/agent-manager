@@ -8,7 +8,7 @@ import { threadChipText } from '../logic/threadForm.js';
 import type { OwnedSessionDto } from '../shared.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
 import { ChipDot, chipSkin } from '../ui/chipSkin.js';
-import { IconButton } from '../ui/IconButton.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { useMediaQuery } from '../ui/hooks.js';
 import { STATE_LOOK } from '../ui/stateLook.js';
@@ -87,7 +87,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
   return (
     <header className="flex max-h-[50vh] shrink-0 items-start gap-2 overflow-y-auto border-b border-border px-4 py-3">
       <span className="lg:hidden">
-        <IconButton icon={ArrowLeft} label="Back to the list" onClick={onBack} />
+        <IconButton icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />} aria-label="Back to the list" onClick={onBack} />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -137,7 +137,13 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
         {session.state === 'needs-you' && session.reason !== '' && !(session.host === 'stream-json' && session.pendingPermissions > 0) ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null}
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
-        <IconButton icon={detailsOpen ? ChevronsDownUp : ChevronsUpDown} label={detailsOpen ? 'Hide details' : 'Show details'} pressed={detailsOpen} onClick={() => setDetailsOpen(!detailsOpen)} />
+        <IconButton
+          variant={detailsOpen ? 'neutral' : 'ghost'}
+          icon={detailsOpen ? <ChevronsDownUp aria-hidden="true" className="h-4 w-4" /> : <ChevronsUpDown aria-hidden="true" className="h-4 w-4" />}
+          aria-label={detailsOpen ? 'Hide details' : 'Show details'}
+          aria-pressed={detailsOpen}
+          onClick={() => setDetailsOpen(!detailsOpen)}
+        />
         <HeaderActions busy={busy} onFork={() => setForkFor(forkId)} forkBlocked={forkBlocked} forkMeaning={FORK_MEANING} pinned={session.pinned} onTogglePin={() => onTogglePin(!session.pinned)} canMarkSeen={canMarkSeen} onMarkSeen={onMarkSeen} />
       </div>
       {forkFor === forkId ? <ForkDialog key={forkId} session={session} onClose={() => setForkFor(undefined)} onForked={onForked} /> : null}

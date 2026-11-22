@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { FOCUS_RING } from '../deps.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { Tooltip } from '../deps.js';
 import { formatBytes } from './limits.js';
 import { Thumb } from './Thumb.js';
@@ -19,15 +19,9 @@ export function ImageThumbs({ images, onRemove, disabled }: { images: readonly A
               <Thumb image={image} />
             </span>
           </Tooltip>
-          <button
-            type="button"
-            aria-label={`Remove ${image.name}`}
-            disabled={disabled}
-            onClick={() => onRemove(image.id)}
-            className={`absolute -right-1.5 -top-1.5 inline-flex h-am-icon w-am-icon items-center justify-center rounded-full border border-border bg-surface text-muted hover:text-content disabled:opacity-50 ${FOCUS_RING}`}
-          >
-            <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          </button>
+          <span className="absolute -right-1.5 -top-1.5">
+            <IconButton variant="secondary" size="icon-xs" className="rounded-full" aria-label={`Remove ${image.name}`} disabled={disabled} onClick={() => onRemove(image.id)} icon={<X aria-hidden="true" className="h-3 w-3" />} />
+          </span>
           <div className="mt-0.5 truncate text-xs tabular-nums text-muted">
             {formatBytes(image.bytes)}
             {image.note === undefined ? '' : ' (shrunk)'}

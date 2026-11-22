@@ -2,7 +2,7 @@ import { History, Lock, LockOpen, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { DenialRow } from './DenialRow.js';
 import { Banner } from '../ui/Banner.js';
-import { IconButton } from '../ui/IconButton.js';
+import { CompactSelect, IconButton, TabButton } from '@wadeck-app/dsl-ui';
 import { Empty } from './Empty.js';
 import { FIELD, MONO, TH } from './parts.js';
 import { Section } from './Section.js';
@@ -32,41 +32,33 @@ export function DenialsSection() {
       count={value?.denials.length}
       actions={
         <>
-          <button
-            type="button"
+<TabButton
+            size="sm"
+            variant={wantCommands && loaded.commandsError === '' ? 'danger-outline' : 'ghost'}
+            active={wantCommands && loaded.commandsError === ''}
             aria-pressed={wantCommands && loaded.commandsError === ''}
             onClick={() => setWantCommands((previous) => !previous)}
-            className={`inline-flex h-am-hit items-center gap-1 rounded px-2 text-sm hover:bg-muted-bg ${wantCommands && loaded.commandsError === '' ? 'bg-warning-bg text-warning-text' : 'text-muted hover:text-content'}`}
           >
-            {wantCommands && loaded.commandsError === '' ? <LockOpen aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <Lock aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+            {wantCommands && loaded.commandsError === '' ? <LockOpen aria-hidden="true" className="h-3.5 w-3.5" /> : <Lock aria-hidden="true" className="h-3.5 w-3.5" />}
             Show commands (PIN)
-          </button>
-          <IconButton icon={RefreshCw} label="Refresh the timeline" onClick={loaded.reload} disabled={loaded.loading} disabledReason="loading" />
+          </TabButton>
+          <IconButton icon={<RefreshCw aria-hidden="true" className="h-4 w-4" />} aria-label="Refresh the timeline" onClick={loaded.reload} disabled={loaded.loading} disabledReason={loaded.loading ? 'loading' : undefined} />
         </>
       }
     >
       <div className="flex flex-wrap items-end gap-3 border-b border-border px-3 py-2">
         <label className="flex flex-col gap-0.5 text-xs text-muted">
           Day
-          <select aria-label="Day" value={filter.day} onChange={(event) => set({ day: event.target.value })} className={FIELD}>
-            <option value="">Newest days</option>
-            {dayChoices.map((day) => (
-              <option key={day} value={day}>
-                {day}
-              </option>
-            ))}
-          </select>
+<CompactSelect ariaLabel="Day" value={filter.day} onChange={(day) => set({ day })} options={[{ value: '', label: 'Newest days' }, ...dayChoices.map((day) => ({ value: day, label: day }))]} />
         </label>
         <label className="flex flex-col gap-0.5 text-xs text-muted">
           Category
-          <select aria-label="Category" value={filter.category} onChange={(event) => set({ category: event.target.value })} className={FIELD}>
-            <option value="">All categories</option>
-            {[...new Set([...(value?.categories ?? []), ...(filter.category === '' ? [] : [filter.category])])].sort().map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
+<CompactSelect
+            ariaLabel="Category"
+            value={filter.category}
+            onChange={(category) => set({ category })}
+            options={[{ value: '', label: 'All categories' }, ...[...new Set([...(value?.categories ?? []), ...(filter.category === '' ? [] : [filter.category])])].sort().map((category) => ({ value: category, label: category }))]}
+          />
         </label>
         <label className="flex flex-col gap-0.5 text-xs text-muted">
           Session (first characters of its id)
@@ -83,13 +75,7 @@ export function DenialsSection() {
         </label>
         <label className="flex flex-col gap-0.5 text-xs text-muted">
           Show
-          <select aria-label="Number of denials" value={filter.limit} onChange={(event) => set({ limit: Number(event.target.value) })} className={FIELD}>
-            {LIMITS.map((limit) => (
-              <option key={limit} value={limit}>
-                {limit} newest
-              </option>
-            ))}
-          </select>
+<CompactSelect ariaLabel="Number of denials" value={String(filter.limit)} onChange={(limit) => set({ limit: Number(limit) })} options={LIMITS.map((limit) => ({ value: String(limit), label: `${limit} newest` }))} />
         </label>
       </div>
       <div className="flex flex-col gap-2 px-3 pt-3">

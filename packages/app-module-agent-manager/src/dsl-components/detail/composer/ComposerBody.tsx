@@ -1,7 +1,8 @@
-import { Keyboard, LoaderCircle, Paperclip, SendHorizontal, Zap } from 'lucide-react';
+import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
+import { Keyboard, Paperclip, SendHorizontal, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { Banner } from '../deps.js';
-import { FOCUS_RING, ICON_BUTTON_CLASS } from '../deps.js';
+import { FOCUS_RING } from '../deps.js';
 import { Tooltip } from '../deps.js';
 import { getPending } from '../pending.js';
 import { composerBlock } from './composerBlock.js';
@@ -186,9 +187,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           tone={block.kind === 'checking' ? 'info' : 'warning'}
           action={
             block.kind === 'blocked' && status === undefined ? (
-              <button type="button" onClick={live.refresh} className={`shrink-0 rounded border border-warning px-2 py-0.5 text-xs ${FOCUS_RING}`}>
-                Retry
-              </button>
+<ButtonAction variant="secondary" size="sm" label="Retry" onClick={live.refresh} />
             ) : undefined
           }
         >
@@ -227,16 +226,24 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             event.target.value = '';
           }}
         />
-        <Tooltip content={attachTip}>
-          <button type="button" aria-label={attachName} disabled={inactive || sending} onClick={() => picker.current?.click()} className={`${ICON_BUTTON_CLASS} relative`}>
-            <Paperclip aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            {images.length > 0 && limits !== undefined ? (
-              <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 rounded-full bg-primary-light px-1 text-xs tabular-nums leading-none text-content">
-                {images.length}/{limits.maxImages}
-              </span>
-            ) : null}
-          </button>
-        </Tooltip>
+        <IconButton
+          variant="ghost"
+          className="relative"
+          aria-label={attachName}
+          title={attachTip}
+          disabled={inactive || sending}
+          onClick={() => picker.current?.click()}
+          icon={
+            <>
+              <Paperclip aria-hidden="true" className="h-4 w-4" />
+              {images.length > 0 && limits !== undefined ? (
+                <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 rounded-full bg-primary-light px-1 text-xs tabular-nums leading-none text-content">
+                  {images.length}/{limits.maxImages}
+                </span>
+              ) : null}
+            </>
+          }
+        />
         <textarea
           ref={field}
           data-agent-composer
@@ -258,18 +265,16 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             </span>
           </Tooltip>
         ) : null}
-        <Tooltip content={`${priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter.'}${markerTip === '' ? '' : ` ${markerTip}`}`}>
-          <button
-            type="button"
-            aria-label={sendLabel}
-            disabled={inactive || sending || attaching > 0}
-            title={attaching > 0 ? 'Waiting for the image to be prepared' : undefined}
-            onClick={requestSend}
-            className={`inline-flex h-am-hit w-am-hit shrink-0 items-center justify-center rounded border disabled:cursor-not-allowed disabled:opacity-50 ${priority === 'now' ? 'border-warning bg-warning-bg text-warning-text' : 'border-primary bg-primary-light text-primary'} ${FOCUS_RING}`}
-          >
-            {sending ? <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" /> : priority === 'now' ? <Zap aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <SendHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
-          </button>
-        </Tooltip>
+        {/* The base primary icon button, like every other primary button of the shell (danger while the interrupt is armed). */}
+        <IconButton
+          variant={priority === 'now' ? 'danger' : 'primary'}
+          aria-label={sendLabel}
+          title={attaching > 0 ? 'Waiting for the image to be prepared' : `${priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter.'}${markerTip === '' ? '' : ` ${markerTip}`}`}
+          disabled={inactive || sending || attaching > 0}
+          loading={sending}
+          onClick={requestSend}
+          icon={priority === 'now' ? <Zap aria-hidden="true" className="h-4 w-4" /> : <SendHorizontal aria-hidden="true" className="h-4 w-4" />}
+        />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <PriorityControl priority={priority} onChange={setPriority} disabled={inactive || sending} />

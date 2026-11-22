@@ -1,7 +1,7 @@
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { ICON_BUTTON_CLASS } from './IconButton.js';
 import { Scope } from './Scope.js';
 
 export interface ModalProps {
@@ -14,9 +14,6 @@ export interface ModalProps {
   size?: 'narrow' | 'wide';
   children: ReactNode;
 }
-
-/** The button row of a dialog: it sticks to the bottom of the scrolling body, so the buttons never fall below the fold (audit D10). */
-export const DIALOG_FOOTER = 'sticky bottom-0 z-10 -mx-4 -mb-4 flex items-center justify-end gap-2 border-t border-border bg-surface px-4 py-3';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -34,7 +31,9 @@ export function Modal({ title, onClose, dismissible = true, size = 'wide', child
 
   useEffect(() => {
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-    const first = panel.current?.querySelector<HTMLElement>('[data-autofocus]') ?? panel.current?.querySelector<HTMLElement>(FOCUSABLE);
+    // data-autofocus marks the element to focus, or a wrapper of it (the base buttons take no data attribute).
+    const marked = panel.current?.querySelector<HTMLElement>('[data-autofocus]');
+    const first = marked === null || marked === undefined ? panel.current?.querySelector<HTMLElement>(FOCUSABLE) : marked.matches(FOCUSABLE) ? marked : marked.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
@@ -90,9 +89,7 @@ export function Modal({ title, onClose, dismissible = true, size = 'wide', child
             <h2 id={titleId} className="min-w-0 flex-1 text-base font-semibold">
               {title}
             </h2>
-            <button type="button" aria-label="Close" disabled={!dismissible} onClick={onClose} className={ICON_BUTTON_CLASS}>
-              <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            </button>
+            <IconButton size="icon-sm" aria-label="Close" disabled={!dismissible} onClick={onClose} icon={<X aria-hidden="true" className="h-4 w-4" />} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
         </div>

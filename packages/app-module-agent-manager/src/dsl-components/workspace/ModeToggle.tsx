@@ -1,7 +1,7 @@
 import { Inbox, LayoutList, ListTree, type LucideIcon } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { MODE_LABEL, MODES, type ModeId } from '../shared.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 
 const MODE_ICON: Record<ModeId, LucideIcon> = { tree: ListTree, groups: LayoutList, inbox: Inbox };
 

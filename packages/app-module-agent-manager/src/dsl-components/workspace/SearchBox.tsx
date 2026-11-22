@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import { useId, type KeyboardEvent } from 'react';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
+import { FOCUS_RING } from '../ui/focusRing.js';
 
 export interface SearchBoxProps {
   text: string;
@@ -61,9 +62,7 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
           <span role="status" className="text-xs tabular-nums text-muted">
             {shown} of {total}
           </span>
-          <button type="button" aria-label="Clear the search box" onClick={() => onText('')} className={`rounded p-0.5 text-muted hover:text-content ${FOCUS_RING}`}>
-            <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          </button>
+<IconButton size="icon-xs" aria-label="Clear the search box" onClick={() => onText('')} icon={<X aria-hidden="true" className="h-3 w-3" />} />
         </span>
       ) : null}
       {problems.length > 0 ? (

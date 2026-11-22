@@ -1,3 +1,4 @@
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { Check, Copy, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { FOCUS_RING } from '../deps.js';
@@ -31,15 +32,6 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
   const Icon = state === 'copied' ? Check : state === 'failed' ? TriangleAlert : Copy;
   const name = state === 'copied' ? 'Copied' : state === 'failed' ? `Copy failed: ${reason}` : label;
   return (
-    <Tooltip content={name}>
-      <button
-        type="button"
-        aria-label={name}
-        onClick={copy}
-        className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
-      >
-        <Icon aria-hidden="true" className={`${LOG_ICON_SM} ${state === 'failed' ? 'text-danger-text' : ''}`} />
-      </button>
-    </Tooltip>
+<IconButton size="icon-sm" aria-label={name} onClick={copy} icon={<Icon aria-hidden="true" className={`h-3.5 w-3.5 ${state === 'failed' ? 'text-danger-text' : ''}`} />} />
   );
 }

@@ -4,7 +4,7 @@ import { useFolderLists, useFolderRoots } from '../data/useFolders.js';
 import { fuzzyScore } from '../logic/fuzzy.js';
 import { pickOf, samePath, type FolderPick } from '../logic/folderPicker.js';
 import type { FolderEntryDto } from '../shared.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { BranchBadge } from './BranchBadge.js';
 import { EmptyLine } from './EmptyLine.js';
 import { FailedLine } from './FailedLine.js';

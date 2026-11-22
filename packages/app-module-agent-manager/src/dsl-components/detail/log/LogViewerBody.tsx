@@ -1,3 +1,4 @@
+import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { ArrowDown, ChevronUp, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Banner, ThreadDialog } from '../deps.js';
@@ -226,10 +227,7 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
 
   const unseen = Math.max(0, state.appended - seenMark);
   const retryButton = (
-    <button type="button" onClick={retry} className={`inline-flex shrink-0 items-center gap-1 rounded border border-danger px-2 py-0.5 ${LOG_META} ${FOCUS_RING}`}>
-      <RefreshCw aria-hidden="true" className={LOG_ICON} />
-      Retry
-    </button>
+<ButtonAction variant="secondary" size="sm" icon={<RefreshCw aria-hidden="true" className="h-3.5 w-3.5" />} label="Retry" onClick={retry} />
   );
   const cut = state.truncated;
   const showAside = items.length > 0;
@@ -269,10 +267,9 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
         <div className="relative min-h-0 flex-1">
           <div ref={scroller} onScroll={onScroll} role="log" aria-label={`Log of ${session.displayName}`} aria-live="off" tabIndex={0} className={`absolute inset-0 flex flex-col overflow-y-auto px-4 py-3 ${FOCUS_RING}`}>
             {state.olderCursor !== null ? (
-              <button type="button" onClick={requestOlder} disabled={loadingOlder} className={`mb-2 inline-flex shrink-0 items-center justify-center gap-1.5 self-center rounded border border-border px-3 py-1 ${LOG_META} text-muted hover:bg-muted-bg hover:text-content disabled:cursor-wait ${FOCUS_RING}`}>
-                {loadingOlder ? <LoaderCircle aria-hidden="true" className={`${LOG_ICON} animate-spin motion-reduce:animate-none`} /> : <ChevronUp aria-hidden="true" className={LOG_ICON} />}
-                {loadingOlder ? 'Loading older entries' : 'Load older entries'}
-              </button>
+              <span className="mb-2 flex shrink-0 justify-center">
+                <ButtonAction variant="secondary" size="sm" loading={loadingOlder} icon={<ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />} label={loadingOlder ? 'Loading older entries' : 'Load older entries'} onClick={requestOlder} />
+              </span>
             ) : state.loaded && state.entries.length > 0 ? (
               <p className={`mb-2 text-center ${LOG_META} text-muted`}>Start of the transcript</p>
             ) : null}
@@ -327,14 +324,9 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
             ) : null}
           </div>
           {unseen > 0 ? (
-            <button
-              type="button"
-              onClick={toBottom}
-              className={`absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-primary-solid px-3 py-1.5 ${LOG_META} text-bg shadow-lg ${FOCUS_RING}`}
-            >
-              <ArrowDown aria-hidden="true" className={LOG_ICON} />
-              {unseen} new {unseen === 1 ? 'entry' : 'entries'}
-            </button>
+            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 shadow-lg">
+              <ButtonAction variant="primary" size="sm" icon={<ArrowDown aria-hidden="true" className="h-3.5 w-3.5" />} label={`${unseen} new ${unseen === 1 ? 'entry' : 'entries'}`} onClick={toBottom} />
+            </span>
           ) : null}
         </div>
       </div>

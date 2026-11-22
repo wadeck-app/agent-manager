@@ -1,5 +1,6 @@
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { GitFork, LoaderCircle } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { failureText, requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
 import { FORK_MEANING, forkBody, forkBusyWarning, forkNameDefault, modelAliasOf } from '../logic/forkForm.js';
@@ -8,11 +9,10 @@ import { isOwned } from '../logic/owned.js';
 import { useOwnedSession } from '../owned/useOwnedSession.js';
 import type { OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
-import { DIALOG_FOOTER, Modal } from '../ui/Modal.js';
-import { Field } from './Field.js';
+import { ButtonAction, FieldSelect, FieldText } from '@wadeck-app/dsl-ui';
+import { DialogActions } from '../ui/DialogActions.js';
+import { Modal } from '../ui/Modal.js';
 
-const FIELD = `w-full rounded border border-border bg-surface px-2.5 py-1.5 text-base text-content placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS_RING}`;
 
 export interface ForkDialogProps {
   /** The session to fork (owned or discovered). */
@@ -34,7 +34,6 @@ function withValue(options: readonly ChoiceOption[], value: string): readonly Ch
  * the fork starts from the transcript as written so far.
  */
 export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
-  const ids = { name: useId(), model: useId(), mode: useId() };
   // The record of an owned session (model, mode at launch); a discovered session has none.
   const needsRecord = isOwned(session) && (session.host === 'stream-json' || session.host === 'bg');
   const { dto, error: readError } = useOwnedSession(session.sessionId, session.ownedState, needsRecord);
@@ -87,45 +86,11 @@ export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
         {recordPending ? (readError !== '' ? <Banner tone="error">{`The daemon record of this session could not be read, so Fork stays off: its model and permission mode are not known. ${readError}`}</Banner> : <p role="status" className="text-sm text-muted">Reading the model and permission mode of this session...</p>) : null}
         {busyWarning !== undefined ? <Banner tone="warning">{busyWarning}</Banner> : null}
 
-        <Field
-          label="Name"
-          htmlFor={ids.name}
-          hint={
-            nameText !== '' ? (
-              <span role="alert" className="text-danger-text">
-                {nameText}
-              </span>
-            ) : (
-              'Shown in the list; the new session also shows that it was forked from this one.'
-            )
-          }
-        >
-          <input id={ids.name} type="text" value={name} onChange={(event) => setName(event.target.value)} disabled={forking} autoComplete="off" aria-invalid={nameText !== ''} className={`${FIELD} ${nameText !== '' ? 'border-danger' : ''}`} />
-        </Field>
+        <FieldText label="Name" value={name} onChange={setName} disabled={forking} autoComplete="off" error={nameText} description={'Shown in the list; the new session also shows that it was forked from this one.'} />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field
-            label="Model"
-            htmlFor={ids.model}
-            hint={modelKnown ? 'The model this session was launched with.' : chosenModel !== undefined && chosenModel !== '' ? 'The alias is the latest model of its family.' : rowFamily !== '' ? `Claude Code decides. This session shows ${session.model?.displayName ?? rowFamily}: pick ${rowFamily} to stay in that family (an alias is the latest model of it).` : 'Not known for this session: Claude Code decides.'}
-          >
-            <select id={ids.model} value={model} disabled={forking} onChange={(event) => setChosenModel(event.target.value)} className={FIELD}>
-              {withValue(MODEL_OPTIONS, model).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Permission mode" htmlFor={ids.mode} hint={dto?.permissionMode !== undefined ? 'The mode this session was launched with (or the last one you set).' : 'Not known for this session: Claude Code decides unless you choose one.'}>
-            <select id={ids.mode} value={mode} disabled={forking} onChange={(event) => setChosenMode(event.target.value)} className={FIELD}>
-              {withValue(PERMISSION_MODE_OPTIONS, mode).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <FieldSelect label="Model" value={model} onChange={setChosenModel} options={[...withValue(MODEL_OPTIONS, model)]} disabled={forking} description={modelKnown ? 'The model this session was launched with.' : chosenModel !== undefined && chosenModel !== '' ? 'The alias is the latest model of its family.' : rowFamily !== '' ? `Claude Code decides. This session shows ${session.model?.displayName ?? rowFamily}: pick ${rowFamily} to stay in that family (an alias is the latest model of it).` : 'Not known for this session: Claude Code decides.'} />
+          <FieldSelect label="Permission mode" value={mode} onChange={setChosenMode} options={[...withValue(PERMISSION_MODE_OPTIONS, mode)]} disabled={forking} description={dto?.permissionMode !== undefined ? 'The mode this session was launched with (or the last one you set).' : 'Not known for this session: Claude Code decides unless you choose one.'} />
         </div>
 
         <p className="text-xs text-muted">{`Folder: ${session.cwd}. It always starts as a Web session, whatever hosts the original.`}</p>
@@ -137,19 +102,10 @@ export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
           </p>
         ) : null}
 
-        <div className={DIALOG_FOOTER}>
-          <button type="button" onClick={onClose} disabled={forking} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg disabled:opacity-50 ${FOCUS_RING}`}>
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={blocked}
-            className={`inline-flex items-center gap-1.5 rounded border border-primary bg-primary-light px-3 py-1.5 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-          >
-            <GitFork aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Fork
-          </button>
-        </div>
+        <DialogActions>
+          <ButtonAction variant="secondary" label="Cancel" onClick={onClose} disabled={forking} />
+          <ButtonAction variant="primary" type="submit" icon={<GitFork aria-hidden="true" className="h-4 w-4" />} label="Fork" disabled={blocked} />
+        </DialogActions>
       </form>
     </Modal>
   );

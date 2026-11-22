@@ -1,6 +1,6 @@
-import { Check, Keyboard, LoaderCircle, ShieldAlert, X } from 'lucide-react';
+import { ButtonAction } from '@wadeck-app/dsl-ui';
+import { Check, Keyboard, ShieldAlert, X } from 'lucide-react';
 import type { HcPermissionPromptDto } from '../shared.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
 import { PermissionInput } from './PermissionInput.js';
 
 /** The dialog the terminal shows: what it asks, the command in full (folded when large), the warning that a click types a key, and the two buttons. */
@@ -24,24 +24,8 @@ export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcP
       {prompt.body !== '' ? <PermissionInput label={prompt.header} text={prompt.body} /> : <p className="text-sm text-muted">The dialog shows no command or change.</p>}
       <p className="text-xs text-muted">{`The terminal asks: ${prompt.question}`}</p>
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          type="button"
-          disabled={inFlight}
-          onClick={() => onDecide('deny')}
-          className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-danger bg-danger-bg px-3 text-sm font-medium text-danger-text disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-        >
-          <X aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          Deny
-        </button>
-        <button
-          type="button"
-          disabled={inFlight}
-          onClick={() => onDecide('allow')}
-          className={`inline-flex h-am-hit items-center gap-1.5 rounded border border-primary bg-primary-light px-3 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}
-        >
-          {inFlight ? <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" /> : <Check aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
-          Allow once
-        </button>
+        <ButtonAction variant="danger-outline" disabled={inFlight} onClick={() => onDecide('deny')} icon={<X aria-hidden="true" className="h-4 w-4" />} label="Deny" />
+        <ButtonAction variant="primary" loading={inFlight} onClick={() => onDecide('allow')} icon={<Check aria-hidden="true" className="h-4 w-4" />} label="Allow once" />
       </div>
     </div>
   );

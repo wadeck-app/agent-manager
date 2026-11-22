@@ -27,8 +27,16 @@ function bar(overrides: Partial<SessionRowDto>) {
   return { onChange };
 }
 
-const button = (): HTMLElement => {
+const wrapper = (): HTMLElement => {
   const found = document.querySelector<HTMLElement>('[data-adopt-button]');
+  if (found === null) {
+    throw new Error('no Move button on the page');
+  }
+  return found;
+};
+
+const button = (): HTMLElement => {
+  const found = document.querySelector<HTMLElement>('[data-adopt-button] button');
   if (found === null) {
     throw new Error('no Move button on the page');
   }
@@ -40,9 +48,9 @@ describe('the Move button: free', () => {
     const { calls } = stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     const { onChange } = bar({ adoptReadiness: FREE });
     await screen.findByLabelText('Permission mode');
-    expect(button()).toHaveTextContent('Move to Terminal');
-    expect(button()).toHaveAttribute('data-readiness', 'free');
-    expect(button().className).not.toMatch(/warning/);
+    expect(wrapper()).toHaveTextContent('Move to Terminal');
+    expect(wrapper()).toHaveAttribute('data-readiness', 'free');
+    expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
     await userEvent.click(button());
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: expect.objectContaining({ id: ID, hostKind: 'hc' }) }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -66,10 +74,10 @@ describe('the Move button: busy', () => {
     const { calls } = stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     bar({ adoptReadiness: BUSY });
     await screen.findByLabelText('Permission mode');
-    expect(button()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
-    expect(button()).toHaveAttribute('data-readiness', 'busy');
+    expect(wrapper()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
+    expect(wrapper()).toHaveAttribute('data-readiness', 'busy');
     // The default look (badge): a neutral button, and the warning is a badge that says how many things run (the button keeps the full words for a screen reader).
-    expect(button().className).not.toMatch(/warning/);
+    expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
     const badge = document.querySelector('[data-adopt-badge]');
     expect(badge).toHaveTextContent('2 running');
     expect(badge?.className).toMatch(/warning/);
@@ -116,8 +124,8 @@ describe('the Move button: unknown', () => {
     stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     bar({ adoptReadiness: UNKNOWN });
     await screen.findByLabelText('Permission mode');
-    expect(button()).toHaveTextContent('Move to Terminal (cannot tell what runs)');
-    expect(button()).toHaveAttribute('data-readiness', 'unknown');
+    expect(wrapper()).toHaveTextContent('Move to Terminal (cannot tell what runs)');
+    expect(wrapper()).toHaveAttribute('data-readiness', 'unknown');
     expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('state unknown');
     await userEvent.click(button());
     const dialog = screen.getByRole('dialog', { name: 'Move to Terminal without knowing what runs?' });
@@ -166,7 +174,7 @@ describe('the Move button on a terminal session', () => {
   it('moves it to Web', async () => {
     const { calls } = stubFetch({ [SWITCH]: switched('stream-json') });
     const { onChange } = bar({ host: 'hc', ownedState: 'unobserved', alive: true, adoptReadiness: FREE });
-    expect(button()).toHaveTextContent('Move to Web');
+    expect(wrapper()).toHaveTextContent('Move to Web');
     await userEvent.click(button());
     await waitFor(() => expect(onChange).toHaveBeenCalled());
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ target: 'stream-json', force: false });
@@ -189,7 +197,7 @@ describe('the Start button after a failed move', () => {
   it('a stopped hc record shows the failure and a "Start on Web" button that sends the same switch route, without force', async () => {
     const { calls } = stubFetch({ [SWITCH]: switched('stream-json') });
     const { onChange } = bar({ host: 'hc', ownedState: 'unobserved', alive: false, switchFailure: { ...FAILURE, target: 'stream-json' } });
-    expect(button()).toHaveTextContent('Start on Web');
+    expect(wrapper()).toHaveTextContent('Start on Web');
     expect(screen.getByText(/The last move to Web failed/)).toBeInTheDocument();
     expect(screen.getByText(/hc run refused \(busy\)/)).toBeInTheDocument();
     await userEvent.click(button());
@@ -241,8 +249,8 @@ describe('the Move readiness looks of the A/B test', () => {
     stubFetch({ ...LIST });
     barWith('button');
     await screen.findByLabelText('Permission mode');
-    expect(button()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
-    expect(button().className).toMatch(/warning/);
+    expect(wrapper()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
+    expect(wrapper()).toHaveAttribute('data-tone', 'warning');
     expect(document.querySelector('[data-adopt-badge]')).toBeNull();
   });
 
@@ -250,7 +258,7 @@ describe('the Move readiness looks of the A/B test', () => {
     stubFetch({ ...LIST });
     barWith('banner');
     await screen.findByLabelText('Permission mode');
-    expect(button().className).not.toMatch(/warning/);
+    expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
     expect(document.querySelector('[data-adopt-banner]')).toHaveTextContent('Moving interrupts 2 running items: Tool Bash');
     await userEvent.click(button());
     expect(screen.getByRole('dialog', { name: 'Move to Terminal while something runs?' })).toBeInTheDocument();

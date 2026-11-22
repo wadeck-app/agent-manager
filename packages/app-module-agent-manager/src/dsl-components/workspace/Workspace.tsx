@@ -1,4 +1,4 @@
-import { useUrlParam } from '@wadeck-app/dsl-ui';
+import { ButtonAction, Skeleton, useUrlParam } from '@wadeck-app/dsl-ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { requestJson } from '../data/http.js';
 import { AgentDetail } from '../detail/AgentDetail.js';
@@ -17,10 +17,8 @@ import { agentId } from '../logic/states.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
 import { MODE_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
 import { focusComposer, useNow } from '../ui/hooks.js';
 import { useFillContentArea } from '../ui/useFillContentArea.js';
-import { ListSkeleton } from '../ui/ListSkeleton.js';
 import { SplitPane } from '../ui/SplitPane.js';
 import { Toolbar } from './Toolbar.js';
 import { useInFlight } from './useInFlight.js';
@@ -263,16 +261,18 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   };
   let listColumn: ReactNode;
   if (loading) {
-    listColumn = <ListSkeleton />;
+    listColumn = (
+      <div role="status" aria-label="Loading the sessions" aria-busy="true" className="p-3">
+        <Skeleton decorative count={6} height="1.5rem" />
+      </div>
+    );
   } else if (searching && shownRows.length === 0 && rows.length > 0) {
     listColumn = (
       <EmptyNote
         title={`No agent matches '${searchText.trim()}'`}
         hint={query.problems.length > 0 ? query.problems.join('. ') : 'Check the spelling, or remove a state: or project: filter.'}
         action={
-          <button type="button" onClick={() => setSearchText('')} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg ${FOCUS_RING}`}>
-            Clear the search
-          </button>
+          <ButtonAction variant="secondary" label="Clear the search" onClick={() => setSearchText('')} />
         }
       />
     );
@@ -287,9 +287,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         key="mode"
         tone="warning"
         action={
-          <button type="button" onClick={() => setModeParam('')} className={`shrink-0 rounded border border-warning px-2 py-0.5 text-xs ${FOCUS_RING}`}>
-            Remove it from the address
-          </button>
+          <ButtonAction variant="secondary" size="sm" label="Remove it from the address" onClick={() => setModeParam('')} />
         }
       >
         {resolvedMode.note}
@@ -302,9 +300,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         key="search"
         tone="warning"
         action={
-          <button type="button" onClick={() => setSearchNote('')} className={`shrink-0 rounded border border-warning px-2 py-0.5 text-xs ${FOCUS_RING}`}>
-            Dismiss
-          </button>
+          <ButtonAction variant="secondary" size="sm" label="Dismiss" onClick={() => setSearchNote('')} />
         }
       >
         {searchNote}
@@ -352,9 +348,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         key="action"
         tone="error"
         action={
-          <button type="button" onClick={() => setActionError('')} className={`shrink-0 rounded border border-danger px-2 py-0.5 text-xs ${FOCUS_RING}`}>
-            Dismiss
-          </button>
+          <ButtonAction variant="secondary" size="sm" label="Dismiss" onClick={() => setActionError('')} />
         }
       >
         {actionError}
@@ -374,9 +368,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     detail = (
       <div className="flex flex-1 flex-col items-start gap-3 p-4">
         <Banner tone="warning">The session {selectedId} is not in the list: it may have ended, or the filter above hides the ended sessions.</Banner>
-        <button type="button" onClick={() => setSessionParam('')} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg ${FOCUS_RING}`}>
-          Close this session
-        </button>
+        <ButtonAction variant="secondary" label="Close this session" onClick={() => setSessionParam('')} />
       </div>
     );
   } else {

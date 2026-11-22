@@ -249,10 +249,8 @@ describe('Composer limits', () => {
   it('says them in the tooltip of the attach button, on keyboard focus too', async () => {
     await ready();
     const attach = screen.getByRole('button', { name: 'Attach images' });
-    fireEvent.focus(attach);
-    const tip = await screen.findByRole('tooltip');
-    expect(tip).toHaveTextContent(/Up to 2 images of .* each, .* in all\./);
-    expect(attach.getAttribute('aria-describedby')).toContain(tip.id);
+    // The attach button is the base icon button: the limits are its native title.
+    expect(attach.getAttribute('title')).toMatch(/Up to 2 images of .* each, .* in all\./);
   });
 
   it('shows a counter on the attach button once an image is attached, and names it', async () => {
@@ -290,7 +288,7 @@ describe('Composer interrupt now', () => {
     await user.click(screen.getByRole('button', { name: /Interrupt now/ }));
     expect(screen.getByRole('button', { name: /Interrupt now/ })).toHaveAttribute('aria-pressed', 'true');
     const send = screen.getByRole('button', { name: 'Send and interrupt now' });
-    expect(send.className).toMatch(/bg-warning-bg/);
+    expect(send.className).toMatch(/bg-danger/);
     expect(box).toHaveAttribute('placeholder', expect.stringContaining('Interrupt now is armed'));
   });
 

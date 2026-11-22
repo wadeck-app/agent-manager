@@ -1,6 +1,7 @@
 import { CheckCheck, ChevronDown, Ellipsis, GitFork, Pin, PinOff } from 'lucide-react';
 import { ActionsMenu, type MenuItem } from './ActionsMenu.js';
-import { FOCUS_RING, IconButton, Tooltip, useUiVariant } from './deps.js';
+import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
+import { useUiVariant } from './deps.js';
 
 export interface HeaderActionsProps {
   /** An action of the header is running: the buttons wait. */
@@ -30,22 +31,17 @@ export function HeaderActions(props: HeaderActionsProps) {
   }
   if (variant === 'split') {
     return (
-      <div className="flex shrink-0 items-center">
-        <Tooltip content={fork.disabled && fork.reason !== undefined ? `Fork: ${fork.reason}` : forkMeaning}>
-          <button type="button" disabled={fork.disabled} onClick={fork.run} className={`inline-flex h-am-hit items-center gap-1.5 rounded-l border border-border px-2.5 text-sm text-content hover:bg-muted-bg disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS_RING}`}>
-            <GitFork aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Fork
-          </button>
-        </Tooltip>
+      <div className="flex shrink-0 items-center gap-1">
+<ButtonAction variant="secondary" size="sm" disabled={fork.disabled} disabledReason={fork.disabled ? fork.reason : undefined} onClick={fork.run} icon={<GitFork aria-hidden="true" className="h-4 w-4" />} label="Fork" />
         <ActionsMenu label="More actions" trigger={<ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} items={[pin, seen]} split />
       </div>
     );
   }
   return (
     <div className="flex shrink-0 items-center gap-0.5">
-      <IconButton icon={fork.icon} label={fork.label} disabled={fork.disabled} disabledReason={fork.reason} onClick={fork.run} />
-      <IconButton icon={pin.icon} label={pin.label} disabled={pin.disabled} onClick={pin.run} />
-      <IconButton icon={seen.icon} label={seen.label} disabled={seen.disabled} disabledReason={seen.reason} onClick={seen.run} />
+      <IconButton icon={<fork.icon aria-hidden="true" className="h-4 w-4" />} aria-label={fork.label} disabled={fork.disabled} disabledReason={fork.disabled ? fork.reason : undefined} onClick={fork.run} />
+      <IconButton icon={<pin.icon aria-hidden="true" className="h-4 w-4" />} aria-label={pin.label} disabled={pin.disabled} onClick={pin.run} />
+      <IconButton icon={<seen.icon aria-hidden="true" className="h-4 w-4" />} aria-label={seen.label} disabled={seen.disabled} disabledReason={seen.disabled ? seen.reason : undefined} onClick={seen.run} />
     </div>
   );
 }

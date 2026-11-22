@@ -1,8 +1,9 @@
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { Check, FolderPlus, FolderX } from 'lucide-react';
 import { useState } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { checkGroupName } from '../shared.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { Modal } from '../ui/Modal.js';
 import type { GroupsApi } from './common.js';
 import { GroupDot } from './GroupDot.js';
@@ -94,10 +95,7 @@ export function MoveToGroupDialog({ session, groups, onClose }: { session: Agent
               aria-describedby={problem === '' ? undefined : 'move-new-group-problem'}
               className={`h-am-hit min-w-0 flex-1 rounded border border-border bg-surface px-2 text-sm text-content ${FOCUS_RING}`}
             />
-            <button type="submit" disabled={busy} className={`inline-flex h-am-hit shrink-0 items-center gap-1.5 rounded border border-primary bg-primary-light px-3 text-sm font-medium text-primary disabled:opacity-60 ${FOCUS_RING}`}>
-              <FolderPlus aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-              Create and move
-            </button>
+            <ButtonAction variant="primary" type="submit" loading={busy} icon={<FolderPlus aria-hidden="true" className="h-4 w-4" />} label="Create and move" />
           </div>
           {problem !== '' ? (
             <p id="move-new-group-problem" role="alert" className="text-sm text-danger">

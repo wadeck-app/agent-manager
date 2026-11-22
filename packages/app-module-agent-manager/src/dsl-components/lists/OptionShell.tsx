@@ -1,7 +1,7 @@
 import type { HTMLAttributes, KeyboardEvent, ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { agentId } from '../logic/states.js';
-import { FOCUS_RING } from '../ui/IconButton.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 
 export interface OptionShellProps {
   session: AgentRow;

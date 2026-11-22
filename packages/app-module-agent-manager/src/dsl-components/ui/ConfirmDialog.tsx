@@ -1,7 +1,7 @@
-import { LoaderCircle } from 'lucide-react';
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import type { ReactNode } from 'react';
-import { FOCUS_RING } from './IconButton.js';
-import { DIALOG_FOOTER, Modal } from './Modal.js';
+import { DialogActions } from './DialogActions.js';
+import { Modal } from './Modal.js';
 
 export interface ConfirmDialogProps {
   title: string;
@@ -29,20 +29,13 @@ export function ConfirmDialog({ title, children, confirmLabel, danger = false, b
             {error}
           </p>
         ) : null}
-        <div className={DIALOG_FOOTER}>
-          <button type="button" data-autofocus="" disabled={busy} onClick={onCancel} className={`rounded border border-border px-3 py-1.5 text-sm text-content hover:bg-muted-bg disabled:opacity-50 ${FOCUS_RING}`}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onConfirm}
-            className={`inline-flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${danger ? 'border-danger bg-danger-bg text-danger-text' : 'border-primary bg-primary-light text-primary'} ${FOCUS_RING}`}
-          >
-            {busy ? <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm animate-spin motion-reduce:animate-none" /> : null}
-            {confirmLabel}
-          </button>
-        </div>
+        <DialogActions>
+          {/* The focus starts on Cancel (Modal reads data-autofocus on a wrapper). */}
+          <span data-autofocus="" className="inline-flex">
+            <ButtonAction variant="secondary" label="Cancel" disabled={busy} onClick={onCancel} />
+          </span>
+          <ButtonAction variant={danger ? 'danger' : 'primary'} label={confirmLabel} loading={busy} onClick={onConfirm} />
+        </DialogActions>
       </div>
     </Modal>
   );
