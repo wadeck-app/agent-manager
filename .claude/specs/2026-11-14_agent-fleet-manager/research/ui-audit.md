@@ -34,7 +34,7 @@ Second pass (surfaces not reviewed in the first):
 | D17 | Page notices | Unreadable registry file and unreadable guardrails counters were DSL pills above the workspace (pushed the page down, no fix given) | Med | FIXED: banners inside the workspace; the text now says where the folder is and what to do |
 | D18 | hc approval card | A "cannot be answered from here" note sat on the red alert background | Low | FIXED: neutral background unless there is a dialog to answer |
 | D19 | Daemon down | Previously owned sessions silently become plain rows (no Stop/Resume/Move) and nothing says why; only the New session dialog and sends explain | Med | OPEN, your decision: a permanent banner would nag people who never run the daemon. Option: show it only when `owned-sessions.json` lists sessions |
-| D20 | A/B dock | The fold state (`ab.collapsed`) was lost on every load: the shell mounts the dock before the tests are enabled and it reads storage only at mount (dsl-ui `usePersistentChoice`) | Med | WORKED AROUND in `ui/UiVariants.tsx` (re-announces the stored state); the real fix belongs to dsl-ui |
+| D20 | A/B dock | The fold state (`ab.collapsed`) was lost on every load: the shell mounts the dock before the tests are enabled and it reads storage only at mount (dsl-ui `usePersistentChoice`) | Med | FIXED by dsl-ui 2026.11.22-369 (workaround removed) (re-announces the stored state); the real fix belongs to dsl-ui |
 | D21 | A/B dock | Even folded, its pill sits bottom centre and can touch the left of "Interrupt now" | Low | OPEN (library placement) |
 | D22 | Loading skeleton | Could not be caught: the local page answers in under one frame | - | NOT VERIFIED |
 

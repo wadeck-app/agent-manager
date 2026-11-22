@@ -1,4 +1,4 @@
-import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
+import { AbExperiments, UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +14,7 @@ import { OwnedStateChip } from '../owned/OwnedStateChip.js';
 import { stubFetch } from '../owned/testFetch.js';
 import { Toolbar } from '../workspace/Toolbar.js';
 import { chipSkin } from './chipSkin.js';
-import { UiVariantsContext } from './UiVariants.js';
+import { UiVariants, UiVariantsContext } from './UiVariants.js';
 
 afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => window.localStorage.clear());
@@ -42,6 +42,24 @@ describe('the design questions of the A/B dock', () => {
     const ids = Object.values(UI_QUESTIONS).map((question) => question.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.every((id) => id.startsWith('ui-'))).toBe(true);
+  });
+});
+
+describe('the folded state of the dock', () => {
+  it('is restored when the experiments are switched on after the page mounted (the shell learns the setting late)', () => {
+    window.localStorage.setItem('ab.collapsed', 'collapsed');
+    const page = (enabled: boolean) => (
+      <AbExperiments enabled={enabled}>
+        <UiVariants>
+          <span>page</span>
+        </UiVariants>
+      </AbExperiments>
+    );
+    const { rerender } = render(page(false));
+    expect(screen.queryByTestId('ab-dock')).toBeNull();
+    rerender(page(true));
+    expect(screen.getByRole('button', { name: `Show the A/B tests (${Object.keys(UI_QUESTIONS).length})` })).toBeInTheDocument();
+    expect(screen.getByTestId('ab-dock')).not.toBeVisible();
   });
 });
 
