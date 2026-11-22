@@ -136,6 +136,8 @@ export function rowFromOwned(dto: OwnedSessionDto, now: number): SessionRowDto {
     pinOrder: -1,
     customGroupId: null,
     customGroupOrder: -1,
+    flagged: false,
+    unread: false,
     seen: true,
     reason: dto.state === 'requires_action' ? 'permission prompt' : '',
     lastActivity: '',

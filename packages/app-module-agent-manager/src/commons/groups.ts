@@ -54,3 +54,21 @@ export function placeMember(members: readonly string[], id: string, beforeId: st
   }
   return [...rest.slice(0, at), id, ...rest.slice(at)];
 }
+
+/** How the agents of a group are ordered (the Custom mode): by hand (drag and drop), most urgent first, by name, or by the latest change. */
+export const GROUP_SORTS = ['manual', 'urgency', 'name', 'recent'] as const;
+export type GroupSort = (typeof GROUP_SORTS)[number];
+
+export function isGroupSort(value: unknown): value is GroupSort {
+  return typeof value === 'string' && (GROUP_SORTS as readonly string[]).includes(value);
+}
+
+/** The groups the one-click Herdr preset creates, in this order (the groups of the user's Herdr panel). */
+export const HERDR_GROUP_NAMES = ['Focus', 'Regular', 'Secondary', 'Meta', 'Icebox'] as const;
+
+/** The marks of a session in the Custom mode: a flag (kept until removed) and "unread" (cleared when the agent is selected). `at`: epoch ms of the last change, the clock of the absence prune. */
+export interface SessionMarks {
+  flag: boolean;
+  unread: boolean;
+  at: number;
+}

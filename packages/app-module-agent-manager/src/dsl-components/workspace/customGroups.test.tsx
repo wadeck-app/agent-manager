@@ -8,6 +8,7 @@ import { row } from '../logic/fixtures.js';
 import { stubFetch } from '../owned/testFetch.js';
 import type { CustomGroupDto, SessionRowDto } from '../shared.js';
 import { useCustomGroups, type SendGroupRequest } from './useCustomGroups.js';
+import { expectNoticeDetails } from '../ui/noticeTestKit.js';
 import { Workspace } from './Workspace.js';
 
 beforeEach(() => {
@@ -16,7 +17,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-const group = (id: string, order: number): CustomGroupDto => ({ id, name: `Group ${id}`, color: null, collapsed: false, order });
+const group = (id: string, order: number): CustomGroupDto => ({ id, name: `Group ${id}`, color: null, collapsed: false, order, sort: 'manual', bodyColor: null });
 
 function Page({ sessions, customGroups, mode = '' }: { sessions: SessionRowDto[]; customGroups: CustomGroupDto[]; mode?: string }) {
   const [params, setParams] = useState<Record<string, string>>({ mode });
@@ -61,7 +62,7 @@ describe('the custom groups in the workspace', () => {
     render(<Page sessions={[one]} customGroups={[]} />);
     await userEvent.click(screen.getByRole('button', { name: 'New group' }));
     await userEvent.type(screen.getByLabelText('Name of the new group'), 'Reviews{Enter}');
-    await waitFor(() => expect(screen.getByText(/Could not create the group: Too many groups \(limit 50\)\. Delete a group you no longer use\./)).toBeInTheDocument());
+    await expectNoticeDetails(/Could not create the group: Too many groups \(limit 50\)\. Delete a group you no longer use\./);
     expect(screen.getByLabelText('Name of the new group')).toBeInTheDocument();
   });
 
@@ -84,7 +85,7 @@ describe('the custom groups in the workspace', () => {
     const { container } = render(<Page sessions={[one, two]} customGroups={[group('a', 0)]} />);
     fireEvent.keyDown(container.querySelector<HTMLElement>(`[data-session-id="${one.sessionId}"]`)!, { key: 'm' });
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Group a/ }));
-    await waitFor(() => expect(screen.getByText(/Could not move the agent: No group a/)).toBeInTheDocument());
+    await expectNoticeDetails(/Could not move the agent: No group a/);
     await waitFor(() => expect(container.querySelector<HTMLElement>('[data-group-id="a"]')).toHaveTextContent('0'));
     expect(within(container.querySelector<HTMLElement>('[data-ungrouped]')!).getByText('shop-agent')).toBeInTheDocument();
   });
@@ -103,7 +104,7 @@ describe('a refused drop in the workspace', () => {
       fireEvent.keyDown(container.querySelector<HTMLElement>(`[data-session-id="${session.sessionId}"]`)!, { key: 'm' });
       fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Group a/ }));
     }
-    await waitFor(() => expect(screen.getByText(/Could not move the agent: No group a\. It may have been deleted/)).toBeInTheDocument());
+    await expectNoticeDetails(/Could not move the agent: No group a. It may have been deleted/);
     const inGroup = container.querySelector<HTMLElement>('[data-custom-group="a"]')!;
     expect(within(inGroup).queryByText('shop-agent')).toBeNull();
     expect(within(inGroup).getByText('docs-agent')).toBeInTheDocument();

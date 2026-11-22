@@ -6,6 +6,7 @@ import { DetailHeader } from '../detail/DetailHeader.js';
 import { NewSessionDialog } from '../launch/NewSessionDialog.js';
 import type { ListProps } from '../lists/common.js';
 import { EmptyNote } from '../lists/EmptyNote.js';
+import { CustomList } from '../lists/CustomList.js';
 import { GroupsList } from '../lists/GroupsList.js';
 import { InboxList } from '../lists/InboxList.js';
 import { TreeList } from '../lists/TreeList.js';
@@ -17,6 +18,8 @@ import { agentId } from '../logic/states.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
 import { MODE_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
+import { useNotices } from '../ui/Notices.js';
+import { actionSummary, workspaceNotices, type NoticeItem } from '../logic/notices.js';
 import { focusComposer, useNow } from '../ui/hooks.js';
 import { useFillContentArea } from '../ui/useFillContentArea.js';
 import { SplitPane } from '../ui/SplitPane.js';
@@ -33,6 +36,7 @@ const LISTS: Record<ModeId, (props: ListProps) => ReactNode> = {
   tree: TreeList,
   groups: GroupsList,
   inbox: InboxList,
+  custom: CustomList,
 };
 
 /** How long a Done session stays open before it counts as seen (decision 45: opening it marks it seen). */
@@ -82,6 +86,10 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   );
   const grouped = useCustomGroups(ownedRows.rows, customGroups, sendGroupRequest);
   const rows = grouped.rows;
+  // The selection handler is defined before the marks request exists: it reads them through refs.
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const setMarksRef = useRef<(sessionId: string, marks: { flag?: boolean; unread?: boolean }) => void>(() => undefined);
   const loading = sessions === undefined;
   const [showParam, setShowParam] = useUrlParam('show');
   const show = showParam === 'all' ? 'all' : 'alive';
@@ -142,10 +150,15 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
       setAnchorFocus(undefined);
     }
   }, [anchorFocus, selectedId]);
+  // Selecting an agent marked unread reads it (the Herdr behavior); marking the OPEN agent unread keeps the mark, because only a selection clears it.
   const select = useCallback(
     (id: string) => {
       setAnchorFocus(undefined);
       setSessionParam(id);
+      const row = rowsRef.current.find((candidate) => agentId(candidate) === id);
+      if (row?.unread === true) {
+        setMarksRef.current(row.sessionId, { unread: false });
+      }
     },
     [setSessionParam],
   );
@@ -175,6 +188,16 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
       setActionError(`${failure}: ${result.text}`);
     }
   }, [track]);
+
+  const setMarks = useCallback(
+    (sessionId: string, marks: { flag?: boolean; unread?: boolean }) => {
+      optimistic.patch(sessionId, { kind: 'marks', ...marks });
+      void act(`/sessions/${sessionId}/marks`, marks, marks.flag === undefined ? 'Could not change the unread mark' : 'Could not change the flag', () => optimistic.revert(sessionId));
+    },
+    [act, optimistic],
+  );
+  setMarksRef.current = setMarks;
+  const marksApi = useMemo(() => ({ setMarks }), [setMarks]);
 
   const pin = useCallback(
     (session: SessionRowDto, pinned: boolean) => {
@@ -249,7 +272,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
 
   const List = LISTS[mode];
   // The order comes from the data the list is drawn from, not from the DOM: a closed folder or tab would hide its matches from the keyboard.
-  const orderedIds = (): string[] => orderedSessionIds(mode, shownRows, options, tabParam, grouped.api.groups.map((group) => group.id));
+  const orderedIds = (): string[] => orderedSessionIds(mode, shownRows, options, tabParam, grouped.api.groups.map((group) => group.id), grouped.api.groups);
   const moveBy = (step: 1 | -1): void => {
     setSearchNote('');
     const target = navTarget(step === 1 ? 'ArrowDown' : 'ArrowUp', orderedIds(), selectedId);
@@ -290,84 +313,17 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
       />
     );
   } else {
-    listColumn = <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} groups={mode === 'tree' ? grouped.api : undefined} />;
+    listColumn = <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} groups={mode === 'tree' || mode === 'custom' ? grouped.api : undefined} {...(mode === 'custom' ? { marks: marksApi } : {})} />;
   }
 
-  const notices: ReactNode[] = [];
-  if (resolvedMode.note !== '') {
-    notices.push(
-      <Banner
-        key="mode"
-        tone="warning"
-        action={
-          <ButtonAction variant="secondary" size="sm" label="Remove it from the address" onClick={() => setModeParam('')} />
-        }
-      >
-        {resolvedMode.note}
-      </Banner>,
-    );
-  }
-  if (searchNote !== '') {
-    notices.push(
-      <Banner
-        key="search"
-        tone="warning"
-        action={
-          <ButtonAction variant="secondary" size="sm" label="Dismiss" onClick={() => setSearchNote('')} />
-        }
-      >
-        {searchNote}
-      </Banner>,
-    );
-  }
-  if (ownedDownText !== '') {
-    notices.push(
-      <Banner key="owned-down" tone="warning">
-        {ownedDownText}
-      </Banner>,
-    );
-  }
-  if (ownedStateErrorText !== '') {
-    notices.push(
-      <Banner key="owned-state" tone="warning">
-        {ownedStateErrorText}
-      </Banner>,
-    );
-  }
-  if (unreadableText !== '') {
-    notices.push(
-      <Banner key="unreadable" tone="warning">
-        {unreadableText}
-      </Banner>,
-    );
-  }
-  if (guardrailsErrorText !== '') {
-    notices.push(
-      <Banner key="guardrails" tone="warning">
-        {guardrailsErrorText}
-      </Banner>,
-    );
-  }
-  if (userStateError !== '') {
-    notices.push(
-      <Banner key="user" tone="warning">
-        {userStateError}
-      </Banner>,
-    );
-  }
-  if (actionError !== '') {
-    notices.push(
-      <Banner
-        key="action"
-        tone="error"
-        action={
-          <ButtonAction variant="secondary" size="sm" label="Dismiss" onClick={() => setActionError('')} />
-        }
-      >
-        {actionError}
-      </Banner>,
-    );
-  }
+  // The problems of the page, each one a short sentence on ONE line (details, copy fix and dismiss behind it): see ui/Notices.tsx.
+  const noticeItems: NoticeItem[] = [
+    ...(resolvedMode.note === '' ? [] : [{ key: 'mode', tone: 'warning' as const, summary: 'Unknown mode in the address', details: resolvedMode.note, action: { label: 'Remove it from the address', run: () => setModeParam('') } }]),
+    ...(searchNote === '' ? [] : [{ key: 'search', tone: 'warning' as const, summary: 'The search could not open an agent', details: searchNote, onDismiss: () => setSearchNote('') }]),
+    ...workspaceNotices({ ownedDownText, ownedStateErrorText, unreadableText, guardrailsErrorText, userStateError }),
+    ...(actionError === '' ? [] : [{ key: 'action', tone: 'error' as const, summary: actionSummary(actionError), details: actionError, onDismiss: () => setActionError('') }]),
+  ];
+  const notices = useNotices(noticeItems);
 
   let detail: ReactNode;
   if (selected !== undefined) {
@@ -412,9 +368,10 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         onNewSession={() => setLaunchOpen(true)}
         detailOpen={selectedId !== undefined}
         onNewGroup={async (name) => (await grouped.api.create(name)) !== undefined}
+        noticeBadge={notices.badge}
       />
       {launchOpen ? <NewSessionDialog ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
-      {notices.length > 0 ? <div className="flex flex-col gap-1.5 border-b border-border p-2">{notices}</div> : null}
+      {notices.line !== null ? <div className="border-b border-border px-2 py-1">{notices.line}</div> : null}
       <div className="min-h-0 flex-1">
         <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />
       </div>

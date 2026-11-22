@@ -13,7 +13,7 @@ import { TreeList } from './TreeList.js';
 
 const NOW = 2_000_000;
 
-const group = (id: string, order: number, overrides: Partial<CustomGroupDto> = {}): CustomGroupDto => ({ id, name: `Group ${id}`, color: null, collapsed: false, order, ...overrides });
+const group = (id: string, order: number, overrides: Partial<CustomGroupDto> = {}): CustomGroupDto => ({ id, name: `Group ${id}`, color: null, collapsed: false, order, sort: 'manual', bodyColor: null, ...overrides });
 
 interface FakeApi extends GroupsApi {
   move: ReturnType<typeof vi.fn<GroupsApi['move']>>;
@@ -27,8 +27,9 @@ function fakeApi(groups: CustomGroupDto[]): FakeApi {
   return {
     groups,
     move: vi.fn<GroupsApi['move']>(),
-    create: vi.fn<GroupsApi['create']>((name) => Promise.resolve({ id: 'new', name, color: null, collapsed: false, order: groups.length })),
+    create: vi.fn<GroupsApi['create']>((name) => Promise.resolve({ id: 'new', name, color: null, collapsed: false, order: groups.length, sort: 'manual', bodyColor: null })),
     update: vi.fn<GroupsApi['update']>(),
+    seedHerdr: vi.fn<GroupsApi['seedHerdr']>(() => Promise.resolve(true)),
     remove: vi.fn<GroupsApi['remove']>(),
     reorder: vi.fn<GroupsApi['reorder']>(),
   };

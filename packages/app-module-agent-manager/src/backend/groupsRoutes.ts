@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { checkGroupName, GROUP_COLORS, isGroupColor, MAX_GROUPS, placeMember, type GroupColor } from '../commons/groups.js';
+import { checkGroupName, GROUP_COLORS, GROUP_SORTS, HERDR_GROUP_NAMES, isGroupColor, isGroupSort, MAX_GROUPS, placeMember, type GroupColor, type GroupSort } from '../commons/groups.js';
 import type { CustomGroupDto } from '../commons/api.js';
 import { RequestError, ok, type RouteKit } from './routeKit.js';
 import { guarded, parseSessionId, SESSION_ID_PATTERN, updateUserState, type UserGroup, type UserState } from './userState.js';
 
 /** What GET /sessions and the group routes send for a group (the members are the `customGroupId` of the rows). */
 export function groupDto(group: UserGroup): CustomGroupDto {
-  return { id: group.id, name: group.name, color: group.color, collapsed: group.collapsed, order: group.order };
+  return { id: group.id, name: group.name, color: group.color, collapsed: group.collapsed, order: group.order, sort: group.sort, bodyColor: group.bodyColor };
 }
 
 function bodyObject(body: unknown, allowed: readonly string[], example: string): Record<string, unknown> {
@@ -45,6 +45,13 @@ function parseColor(value: unknown): GroupColor | null {
   return value;
 }
 
+function parseSort(value: unknown): GroupSort {
+  if (!isGroupSort(value)) {
+    throw new RequestError(400, `'sort' must be one of ${GROUP_SORTS.join(', ')}, got ${JSON.stringify(value)}`, 'manual keeps the order of the drag and drop; the others sort the agents of the group by themselves.');
+  }
+  return value;
+}
+
 function findGroup(state: UserState, id: string): UserGroup {
   const group = state.groups.find((candidate) => candidate.id === id);
   if (group === undefined) {
@@ -79,7 +86,7 @@ export function registerGroupsRoutes(kit: RouteKit): void {
         if (current.groups.length >= MAX_GROUPS) {
           throw new RequestError(409, `Too many groups (limit ${MAX_GROUPS})`, 'Delete a group you no longer use.');
         }
-        created = { id: randomUUID(), name, color, collapsed: false, order: current.groups.length, members: [], seenAt: {} };
+        created = { id: randomUUID(), name, color, collapsed: false, order: current.groups.length, sort: 'manual', bodyColor: null, members: [], seenAt: {} };
         return { ...current, groups: [...current.groups, created] };
       }),
     );
@@ -107,14 +114,35 @@ export function registerGroupsRoutes(kit: RouteKit): void {
     return ok({ ok: true, ids: wanted });
   });
 
+  // Registered before '/groups/:id' (a static segment first): 'preset' is never a group id (those are UUIDs). The one-click Herdr preset: only into an empty list, never merged.
+  kit.route('POST', '/groups/preset', async (req) => {
+    const fields = bodyObject(req.body, ['preset'], '{"preset": "herdr"}');
+    if (fields['preset'] !== 'herdr') {
+      throw new RequestError(400, `'preset' must be "herdr", got ${JSON.stringify(fields['preset'])}`, 'The only preset is "herdr": Focus, Regular, Secondary, Meta, Icebox.');
+    }
+    let created: UserGroup[] = [];
+    await guarded(() =>
+      updateUserState(kit.dataDir, (current) => {
+        if (current.groups.length > 0) {
+          throw new RequestError(409, `The page already has groups (${current.groups.length}): the preset is only created into an empty list`, 'Create the groups you miss one by one, or delete the existing ones first.');
+        }
+        created = HERDR_GROUP_NAMES.map((name, order): UserGroup => ({ id: randomUUID(), name, color: null, collapsed: false, order, sort: 'manual', bodyColor: null, members: [], seenAt: {} }));
+        return { ...current, groups: created };
+      }),
+    );
+    return ok({ ok: true, groups: created.map(groupDto) });
+  });
+
   kit.route('POST', '/groups/:id', async (req) => {
     const id = parseGroupId(req.params?.['id']);
-    const fields = bodyObject(req.body, ['name', 'color', 'collapsed'], '{"name": "New name"}, {"color": "teal"} or {"collapsed": true}');
+    const fields = bodyObject(req.body, ['name', 'color', 'collapsed', 'sort', 'bodyColor'], '{"name": "New name"}, {"color": "teal"}, {"collapsed": true}, {"sort": "urgency"} or {"bodyColor": "blue"}');
     if (Object.keys(fields).length === 0) {
-      throw new RequestError(400, 'The body has no field to change', 'Send name, color (or null) and/or collapsed.');
+      throw new RequestError(400, 'The body has no field to change', 'Send name, color (or null), collapsed, sort and/or bodyColor (or null).');
     }
     const name = fields['name'] === undefined ? undefined : parseName(fields['name']);
     const color = fields['color'] === undefined ? undefined : parseColor(fields['color']);
+    const sort = fields['sort'] === undefined ? undefined : parseSort(fields['sort']);
+    const bodyColor = fields['bodyColor'] === undefined ? undefined : parseColor(fields['bodyColor']);
     const collapsed: unknown = fields['collapsed'];
     if (collapsed !== undefined && typeof collapsed !== 'boolean') {
       throw new RequestError(400, `'collapsed' must be true or false, got ${JSON.stringify(collapsed)}`);
@@ -123,9 +151,9 @@ export function registerGroupsRoutes(kit: RouteKit): void {
     await guarded(() =>
       updateUserState(kit.dataDir, (current) => {
         const group = findGroup(current, id);
-        const next: UserGroup = { ...group, ...(name === undefined ? {} : { name }), ...(color === undefined ? {} : { color }), ...(collapsed === undefined ? {} : { collapsed }) };
+        const next: UserGroup = { ...group, ...(name === undefined ? {} : { name }), ...(color === undefined ? {} : { color }), ...(collapsed === undefined ? {} : { collapsed }), ...(sort === undefined ? {} : { sort }), ...(bodyColor === undefined ? {} : { bodyColor }) };
         result = next;
-        return next.name === group.name && next.color === group.color && next.collapsed === group.collapsed ? current : { ...current, groups: current.groups.map((candidate) => (candidate.id === id ? next : candidate)) };
+        return next.name === group.name && next.color === group.color && next.collapsed === group.collapsed && next.sort === group.sort && next.bodyColor === group.bodyColor ? current : { ...current, groups: current.groups.map((candidate) => (candidate.id === id ? next : candidate)) };
       }),
     );
     return ok({ ok: true, group: groupDto(result as UserGroup) });
@@ -189,5 +217,39 @@ export function registerGroupsRoutes(kit: RouteKit): void {
       }),
     );
     return ok({ ok: true, sessionId, groupId, beforeSessionId: before });
+  });
+}
+
+/**
+ * POST /sessions/:sessionId/marks {flag?, unread?}: the flag and the unread mark of the Custom mode (at least one field; a field left out keeps its value).
+ * A session with both marks off has no entry. Not PIN-sensitive (routeClasses.ts): a module-local marker, like the pin and the seen marker.
+ */
+export function registerMarksRoutes(kit: RouteKit): void {
+  kit.route('POST', '/sessions/:sessionId/marks', async (req) => {
+    const sessionId = parseSessionId(req.params?.['sessionId']);
+    const fields = bodyObject(req.body, ['flag', 'unread'], '{"flag": true} or {"unread": false}');
+    if (Object.keys(fields).length === 0) {
+      throw new RequestError(400, 'The body has no mark to change', 'Send flag and/or unread (true or false).');
+    }
+    for (const name of ['flag', 'unread']) {
+      if (fields[name] !== undefined && typeof fields[name] !== 'boolean') {
+        throw new RequestError(400, `'${name}' must be true or false, got ${JSON.stringify(fields[name])}`, 'Send true to set the mark and false to remove it.');
+      }
+    }
+    let result = { flag: false, unread: false };
+    await guarded(() =>
+      updateUserState(kit.dataDir, (current) => {
+        const before = current.marks[sessionId];
+        const flag = typeof fields['flag'] === 'boolean' ? fields['flag'] : (before?.flag ?? false);
+        const unread = typeof fields['unread'] === 'boolean' ? fields['unread'] : (before?.unread ?? false);
+        result = { flag, unread };
+        if (before === undefined ? !flag && !unread : before.flag === flag && before.unread === unread) {
+          return current;
+        }
+        const { [sessionId]: _old, ...rest } = current.marks;
+        return { ...current, marks: flag || unread ? { ...rest, [sessionId]: { flag, unread, at: Date.now() } } : rest };
+      }),
+    );
+    return ok({ ok: true, sessionId, ...result });
   });
 }

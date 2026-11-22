@@ -12,7 +12,7 @@
 // Type-only: erased at build time, so the UI bundle gets nothing from the core package.
 import type { ReplyMarkerMode } from '@wadeck-app/agent-manager-core/reply';
 import type { GuardrailBlocksDto } from './guardrails.js';
-import type { GroupColor } from './groups.js';
+import type { GroupColor, GroupSort } from './groups.js';
 
 /** A user-defined group of agents (POST /groups...). The members are the rows whose `customGroupId` is its id, ordered by `customGroupOrder`. */
 export interface CustomGroupDto {
@@ -24,6 +24,10 @@ export interface CustomGroupDto {
   collapsed: boolean;
   /** Position among the groups, 0 first. */
   order: number;
+  /** How the agents of the group are ordered in the Custom mode. */
+  sort: GroupSort;
+  /** The background color of the agents of the group in the Custom mode; null: none. (The header color is `color`.) */
+  bodyColor: GroupColor | null;
 }
 
 /** The error object of the log and reply routes. */
@@ -83,6 +87,10 @@ export interface SessionRowDto extends SessionStatusDto {
   customGroupId: string | null;
   /** Position of the session inside its custom group, 0 first; -1 when ungrouped. */
   customGroupOrder: number;
+  /** The user flagged this session (Custom mode). */
+  flagged: boolean;
+  /** The user marked this session unread (Custom mode): shown as finished and unseen until it is selected. */
+  unread: boolean;
   /** The user has seen the latest status of the session: false while `state` is 'done' (finished work not looked at yet). */
   seen: boolean;
   /** What a waiting session waits for ("permission prompt"); empty when it does not wait or the registry does not say. */

@@ -32,7 +32,7 @@ describe('AgentWorkspace and the custom groups', () => {
     expect(seen.length).toBeGreaterThanOrEqual(3);
     expect(new Set(seen).size).toBe(1);
     // Groups given by the page are passed as they are
-    const groups: CustomGroupDto[] = [{ id: 'g', name: 'G', color: null, collapsed: false, order: 0 }];
+    const groups: CustomGroupDto[] = [{ id: 'g', name: 'G', color: null, collapsed: false, order: 0, sort: 'manual', bodyColor: null }];
     seen.length = 0;
     const withGroups = (): React.ReactElement => (
       <UrlParamContext.Provider value={service}>

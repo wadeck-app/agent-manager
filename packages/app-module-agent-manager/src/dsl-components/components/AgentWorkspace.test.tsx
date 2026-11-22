@@ -9,6 +9,7 @@ import { MODE_STORAGE_KEY } from '../logic/mode.js';
 import { VIEW_OPTIONS_STORAGE_KEY } from '../logic/viewOptions.js';
 import { clampWidth, DEFAULT_LIST_WIDTH, MAX_LIST_WIDTH, MIN_LIST_WIDTH, SplitPane } from '../ui/SplitPane.js';
 import { tabbableId } from '../ui/hooks.js';
+import { expectNoticeDetails } from '../ui/noticeTestKit.js';
 import { AgentWorkspace } from './AgentWorkspace.js';
 
 /** The page: the URL parameters are state. The tests of the lists run in the Groups mode (the default of the page is Tree): pass `mode: ''` to get the default. */
@@ -144,7 +145,7 @@ describe('AgentWorkspace', () => {
       </Page>,
     );
     fireEvent.click(await screen.findByRole('button', { name: 'Pin' }));
-    expect(await screen.findByText(/Could not pin the session: state file is not valid JSON. Fix or delete it./)).toBeInTheDocument();
+    await expectNoticeDetails(/Could not pin the session: state file is not valid JSON. Fix or delete it./);
     const post = mock.mock.calls.find((call) => (call[1] as RequestInit | undefined)?.method === 'POST');
     expect(post?.[0]).toBe(`/api/modules/agent-manager/sessions/${SHOP.sessionId}/pin`);
     expect(JSON.parse((post?.[1] as RequestInit).body as string)).toEqual({ pinned: true });
@@ -166,14 +167,15 @@ describe('AgentWorkspace', () => {
     expect(await screen.findByRole('button', { name: 'Pin' })).toBeInTheDocument();
   });
 
-  it('shows the pins error of the page answer', () => {
+  it('shows the pins error of the page answer', async () => {
     stubFetch();
     render(
       <Page>
         <AgentWorkspace sessions={[SHOP]} userStateError="agents-user-state.json is not valid JSON. Fix or delete it." />
       </Page>,
     );
-    expect(screen.getByText('agents-user-state.json is not valid JSON. Fix or delete it.')).toBeInTheDocument();
+    expect(screen.getByText('Pins and seen markers unavailable')).toBeInTheDocument();
+    await expectNoticeDetails(/agents-user-state.json is not valid JSON. Fix or delete it./);
   });
 
   it('says so when the selected session is not in the list, and can close it', async () => {
@@ -386,8 +388,8 @@ describe('the listing mode', () => {
       </Page>,
     );
     const group = screen.getByRole('radiogroup', { name: 'Listing mode' });
-    expect(within(group).getAllByRole('radio')).toHaveLength(3);
-    expect(group.querySelectorAll('svg').length).toBe(3);
+    expect(within(group).getAllByRole('radio')).toHaveLength(4);
+    expect(group.querySelectorAll('svg').length).toBe(4);
     fireEvent.keyDown(screen.getByRole('radio', { name: 'Tree' }), { key: 'ArrowRight' });
     expect(screen.getByTestId('mode').textContent).toBe('groups');
   });
@@ -403,7 +405,7 @@ describe('the listing mode', () => {
     expect(screen.getByRole('radio', { name: 'Inbox' })).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('says so when the address names a mode that does not exist, shows Tree, and can remove it from the address', () => {
+  it('says so when the address names a mode that does not exist, shows Tree, and can remove it from the address', async () => {
     stubFetch();
     window.localStorage.setItem(MODE_STORAGE_KEY, 'inbox');
     render(
@@ -411,7 +413,7 @@ describe('the listing mode', () => {
         <AgentWorkspace sessions={[SHOP]} />
       </Page>,
     );
-    expect(screen.getByText(/asks for the mode 'cards', which does not exist. Showing Tree/)).toBeInTheDocument();
+    await expectNoticeDetails(/asks for the mode 'cards', which does not exist. Showing Tree/);
     expect(screen.getByRole('radio', { name: 'Tree' })).toHaveAttribute('aria-checked', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Remove it from the address' }));
     expect(screen.getByTestId('mode').textContent).toBe('');
@@ -636,10 +638,10 @@ describe('the search box walks the data, not the DOM', () => {
     const box = screen.getByRole('textbox', { name: 'Search agents' });
     fireEvent.change(box, { target: { value: 'shop' } });
     fireEvent.keyDown(box, { key: 'Enter' });
-    expect(await screen.findByText(/cannot take the focus because the session cannot receive messages/, undefined, { timeout: 3000 })).toBeInTheDocument();
+    await expectNoticeDetails(/cannot take the focus because the session cannot receive messages/);
   });
 
-  it('inbox: matches that are all in another tab are said, Enter never does nothing silently', () => {
+  it('inbox: matches that are all in another tab are said, Enter never does nothing silently', async () => {
     stubFetch();
     render(
       <Page initial={{ mode: 'inbox', tab: 'needs-you' }}>
@@ -649,9 +651,9 @@ describe('the search box walks the data, not the DOM', () => {
     const box = screen.getByRole('textbox', { name: 'Search agents' });
     fireEvent.change(box, { target: { value: 'README' } });
     fireEvent.keyDown(box, { key: 'Enter' });
-    expect(screen.getByText(/2 agents match, none in the list you are looking at/)).toBeInTheDocument();
+    await expectNoticeDetails(/2 agents match, none in the list you are looking at/);
     expect(screen.getByTestId('url').textContent).toBe('');
-    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Dismiss/ }));
     expect(screen.queryByText(/none in the list you are looking at/)).toBeNull();
   });
 });

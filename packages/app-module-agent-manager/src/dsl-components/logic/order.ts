@@ -1,10 +1,11 @@
 import { partitionByGroup } from './customGroups.js';
+import { customSections } from './customMode.js';
 import { flatten, groupSessions } from './grouping.js';
 import { firstNonEmptyTab, parseTab, tabCounts, tabSessions } from './inbox.js';
 import { agentId } from './states.js';
 import type { SessionRowDto } from './states.js';
 import { buildTree, flatByUrgency } from './tree.js';
-import type { ModeId } from '../shared.js';
+import type { CustomGroupDto, ModeId } from '../shared.js';
 import type { ViewOptions } from './viewOptions.js';
 
 /**
@@ -14,11 +15,11 @@ import type { ViewOptions } from './viewOptions.js';
  *
  * `tabParam` is the `?tab=` of the Inbox (an unknown one gives the first tab that holds something, as the Inbox does).
  */
-export function orderedSessionIds(mode: ModeId, sessions: readonly SessionRowDto[], options: ViewOptions, tabParam: string | null, customGroupIds: readonly string[] = []): string[] {
+export function orderedSessionIds(mode: ModeId, sessions: readonly SessionRowDto[], options: ViewOptions, tabParam: string | null, customGroupIds: readonly string[] = [], customGroups: readonly CustomGroupDto[] = []): string[] {
   switch (mode) {
     case 'tree': {
       // The custom groups first, in their order (the Tree draws them above the automatic tree), then what no group claims.
-      const known = customGroupIds.map((id) => ({ id, name: '', color: null, collapsed: false, order: 0 }));
+      const known = customGroupIds.map((id) => ({ id, name: '', color: null, collapsed: false, order: 0, sort: 'manual' as const, bodyColor: null }));
       const { sections, ungrouped } = partitionByGroup(sessions, known.map((group, order) => ({ ...group, order })), true);
       const grouped = sections.flatMap((section) => section.sessions.map(agentId));
       return [...grouped, ...(options.tree.grouping === 'none' ? flatByUrgency(ungrouped).map(agentId) : buildTree(ungrouped).flatMap((node) => node.sessions.map(agentId)))];
@@ -27,5 +28,8 @@ export function orderedSessionIds(mode: ModeId, sessions: readonly SessionRowDto
       return flatten(groupSessions(sessions)).map(agentId);
     case 'inbox':
       return tabSessions(sessions, parseTab(tabParam) ?? firstNonEmptyTab(tabCounts(sessions))).map(agentId);
+    case 'custom':
+      // The groups with their own order setting: the walk follows what the list shows.
+      return customSections(sessions, customGroups).flatMap((section) => section.sessions.map(agentId));
   }
 }

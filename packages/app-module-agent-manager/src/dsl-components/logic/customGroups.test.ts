@@ -5,7 +5,7 @@ import { row } from './fixtures.js';
 import { DEFAULT_VIEW_OPTIONS } from './viewOptions.js';
 import { orderedSessionIds } from './order.js';
 
-const group = (id: string, order: number, overrides: Partial<CustomGroupDto> = {}): CustomGroupDto => ({ id, name: id, color: null, collapsed: false, order, ...overrides });
+const group = (id: string, order: number, overrides: Partial<CustomGroupDto> = {}): CustomGroupDto => ({ id, name: id, color: null, collapsed: false, order, sort: 'manual', bodyColor: null, ...overrides });
 const A = group('a', 0);
 const B = group('b', 1);
 const C = group('c', 2);

@@ -5,6 +5,7 @@ import { coerceProp, renderChildren, resolveExpressionValue } from '@wadeck-app/
 import type { ComponentRegistryEntry, RegistryRenderProps } from '@wadeck-app/dsl-renderer'
 import { AgentWorkspace } from '../components/AgentWorkspace.js'
 import { GuardrailsPage } from '../components/GuardrailsPage.js'
+import { PageNotices } from '../components/PageNotices.js'
 declare const process: { env: { NODE_ENV?: string } }
 
 export const AgentWorkspaceEntry: ComponentRegistryEntry = {
@@ -33,14 +34,26 @@ export const GuardrailsPageEntry: ComponentRegistryEntry = {
 		return <GuardrailsPage overview={overview} />
 	},
 }
+
+export const PageNoticesEntry: ComponentRegistryEntry = {
+	name: 'PageNotices', category: 'atomic', tags: ["notices","errors","sessions"],
+	nodeSchema: null as never,
+	render: ({ node, ctx }: RegistryRenderProps) => {
+		const errorText = coerceProp(resolveExpressionValue(node['errorText'], ctx), 'PageNotices.errorText', 'string', false) as import('../components/PageNotices.js').PageNoticesProps['errorText']
+		const unreadableText = coerceProp(resolveExpressionValue(node['unreadableText'], ctx), 'PageNotices.unreadableText', 'string', false) as import('../components/PageNotices.js').PageNoticesProps['unreadableText']
+		return <PageNotices errorText={errorText} unreadableText={unreadableText} />
+	},
+}
 // ─── All entries ──────────────────────────────────────────────────────────────
 
 export const allEntries: ComponentRegistryEntry[] = [
 	AgentWorkspaceEntry,
 	GuardrailsPageEntry,
+	PageNoticesEntry,
 ]
 
 // ─── Auto-detected metadata (allowedChildren, providesContext, requiresContext) ─
 // Generated from @slot JSDoc tags and createContext/useContext calls in component sources.
 AgentWorkspaceEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["customGroups","guardrailsErrorText","hiddenDead","ownedDownText","ownedError","ownedErrorText","ownedStateErrorText","sessions","unreadableText","userStateError"] : [];
 GuardrailsPageEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["overview"] : [];
+PageNoticesEntry.knownKeys = process.env.NODE_ENV !== 'production' ? ["errorText","unreadableText"] : [];

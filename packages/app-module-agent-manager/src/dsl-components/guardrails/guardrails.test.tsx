@@ -146,8 +146,9 @@ describe('GuardrailsPage', () => {
       configs: [{ ...OVERVIEW.configs[0]!, state: 'malformed' as const, categories: [], warnings: [], errorText: 'is not valid JSON: Unexpected end. Fix it by hand.' }],
     };
     render(<GuardrailsPage overview={broken} />);
-    expect(await screen.findByText(/has an unknown shape/)).toBeInTheDocument();
-    expect(screen.getByText(/Update this module\./)).toBeInTheDocument();
+    expect(await screen.findByText('state.json: has an unknown shape')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+    expect(screen.getByText('/work/shop/.claude/w-guardrails/state.json has an unknown shape. Update this module.')).toBeInTheDocument();
     expect(screen.getByText(/The plugin IGNORES this file/)).toBeInTheDocument();
     expect(screen.getByText(/is not valid JSON: Unexpected end/)).toBeInTheDocument();
   });

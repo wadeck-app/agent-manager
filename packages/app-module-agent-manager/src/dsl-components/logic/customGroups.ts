@@ -34,7 +34,7 @@ export function layoutsEqual(a: GroupLayout, b: GroupLayout): boolean {
       const other = b.groups[index];
       const left = a.members[group.id] ?? [];
       const right = other === undefined ? [] : (b.members[other.id] ?? []);
-      return other !== undefined && group.id === other.id && group.name === other.name && group.color === other.color && group.collapsed === other.collapsed && left.length === right.length && left.every((id, position) => id === right[position]);
+      return other !== undefined && group.id === other.id && group.name === other.name && group.color === other.color && group.collapsed === other.collapsed && group.sort === other.sort && group.bodyColor === other.bodyColor && left.length === right.length && left.every((id, position) => id === right[position]);
     })
   );
 }

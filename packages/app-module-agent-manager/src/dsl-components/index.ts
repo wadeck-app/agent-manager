@@ -2,6 +2,6 @@
 // "agent-manager:<name>" (so the views say `$type: agent-manager:AgentWorkspace`).
 import { createRegistry } from '@wadeck-app/dsl-renderer';
 import type { ComponentRegistryEntry } from '@wadeck-app/dsl-renderer';
-import { AgentWorkspaceEntry, GuardrailsPageEntry } from './generated/entries.js';
+import { AgentWorkspaceEntry, GuardrailsPageEntry, PageNoticesEntry } from './generated/entries.js';
 
-export default Object.values(createRegistry([AgentWorkspaceEntry, GuardrailsPageEntry])) satisfies ComponentRegistryEntry[];
+export default Object.values(createRegistry([AgentWorkspaceEntry, GuardrailsPageEntry, PageNoticesEntry])) satisfies ComponentRegistryEntry[];

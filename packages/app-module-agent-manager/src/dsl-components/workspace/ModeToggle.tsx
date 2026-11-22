@@ -1,14 +1,15 @@
-import { Inbox, LayoutList, ListTree, type LucideIcon } from 'lucide-react';
+import { FolderKanban, Inbox, LayoutList, ListTree, type LucideIcon } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
 import { MODE_LABEL, MODES, type ModeId } from '../shared.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 
-const MODE_ICON: Record<ModeId, LucideIcon> = { tree: ListTree, groups: LayoutList, inbox: Inbox };
+const MODE_ICON: Record<ModeId, LucideIcon> = { tree: ListTree, groups: LayoutList, inbox: Inbox, custom: FolderKanban };
 
 const MODE_HINT: Record<ModeId, string> = {
   tree: 'Agents under their working directory, sub-agents nested',
   groups: 'Agents by state: Needs you, Done, Working, Idle',
   inbox: 'What needs you first, in tabs',
+  custom: 'Every agent inside your own groups (Herdr style), ungrouped ones last',
 };
 
 /**

@@ -11,14 +11,10 @@ $sources:
 $type: PageContent
 maxWidth: full
 sections:
-  - $type: Badge
-    $if: $sources.sessions.errorText
-    label: $sources.sessions.errorText
-    variant: danger
-  - $type: Badge
-    $if: $sources.sessions.unreadableText
-    label: $sources.sessions.unreadableText
-    variant: warning
+  # One compact notice line (short sentence, Details, dismiss), not full-width badges with the whole texts.
+  - $type: agent-manager:PageNotices
+    errorText: $sources.sessions.errorText
+    unreadableText: $sources.sessions.unreadableText
   - $type: Badge
     $if: $sources.sessions.emptyText
     label: $sources.sessions.emptyText

@@ -1,0 +1,232 @@
+import { ButtonAction } from '@wadeck-app/dsl-ui';
+import { FolderPlus } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import type { AgentRow } from '../data/types.js';
+import { customSections, UNGROUPED_ID, type DropContext } from '../logic/customMode.js';
+import { stepGroupIds } from '../logic/customGroups.js';
+import { herdrTint, isHerdrDensity, type HerdrDensity } from '../logic/herdrRow.js';
+import { isTypingTarget } from '../logic/nav.js';
+import { agentId } from '../logic/states.js';
+import { HERDR_GROUP_NAMES } from '../shared.js';
+import { tabbableId, useListKeys } from '../ui/hooks.js';
+import { BODY_LOOK } from '../ui/groupLook.js';
+import { useUiVariant } from '../ui/UiVariants.js';
+import type { ListProps } from './common.js';
+import { CustomGroupBlock } from './CustomGroupBlock.js';
+import { DropBar } from './DropBar.js';
+import { EmptyNote } from './EmptyNote.js';
+import { GroupConfigPanel } from './GroupConfigPanel.js';
+import { GroupDialog } from './GroupDialog.js';
+import { HerdrRowBody } from './HerdrRowBody.js';
+import { ListScroll } from './ListScroll.js';
+import { MoveToGroupDialog } from './MoveToGroupDialog.js';
+import { OptionShell } from './OptionShell.js';
+import { RowMenu } from './RowMenu.js';
+import { SubagentRows } from './SubagentRows.js';
+import { useCustomDnd } from './useCustomDnd.js';
+
+type Anchor = { x: number; y: number };
+
+/**
+ * The Custom mode: ALL the live agents inside the user's custom groups (the ones no group claims in a last "Ungrouped" bucket), as the Herdr panel shows them.
+ * Rows are the Herdr rows of the A/B question `ui-tree-density` (tinted by default here: a compact choice reads as tinted in this mode); each group has its own
+ * order, header color and body color (the folder-cog button). Drag and drop, M (the Move dialog) and Alt+Up / Alt+Down arrange the agents and the groups;
+ * a right-click (or the kebab button) flags an agent or marks it unread. Nothing is created for you: with no group the list offers the Herdr preset.
+ */
+export function CustomList({ sessions: shown, selectedId, onSelect, now, query, searching, groups, marks }: ListProps) {
+  const sections = useMemo(() => customSections(shown, groups?.groups ?? []), [shown, groups]);
+  const rowsById = useMemo(() => new Map(sections.flatMap((section) => section.sessions).map((row) => [agentId(row), row])), [sections]);
+  const hasGroups = (groups?.groups.length ?? 0) > 0;
+  const variant = useUiVariant('treeDensity');
+  // Herdr rows in this mode: the compact Tree choice reads as the tinted Herdr row.
+  const density: HerdrDensity = isHerdrDensity(variant) ? variant : 'herdr-tinted';
+  const context = useMemo<DropContext>(
+    () => ({ groups: sections.flatMap((section) => (section.group === null ? [] : [{ id: section.group.id, sort: section.group.sort }])), membersOf: (id) => (sections.find((section) => section.id === (id ?? UNGROUPED_ID))?.sessions ?? []).map(agentId) }),
+    [sections],
+  );
+  const dnd = useCustomDnd(groups, context);
+  const [moving, setMoving] = useState<string | undefined>(undefined);
+  const [dialogFor, setDialogFor] = useState<string | undefined>(undefined);
+  const [config, setConfig] = useState<{ id: string; anchor: Anchor } | undefined>(undefined);
+  const [menu, setMenu] = useState<{ id: string; anchor: Anchor } | undefined>(undefined);
+  const refocus = useRef<{ attribute: 'data-session-id' | 'data-group-id'; value: string } | undefined>(undefined);
+  // Sections the user opened or closed on this page (the server's collapsed flag decides otherwise; Ungrouped is local).
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  // Agents whose sub-agents the user opened (closed by default: the Custom list is about the agents).
+  const [openAgents, setOpenAgents] = useState<Record<string, boolean>>({});
+  const isOpen = (id: string): boolean => {
+    const section = sections.find((candidate) => candidate.id === id);
+    return searching || (overrides[id] ?? (section?.group === null || section === undefined ? true : !section.group.collapsed));
+  };
+  const toggle = (id: string, open: boolean): void => {
+    setOverrides((current) => ({ ...current, [id]: open }));
+    const section = sections.find((candidate) => candidate.id === id);
+    if (section?.group != null) {
+      groups?.update(id, { collapsed: !open });
+    }
+  };
+  // The group of the selected agent opens (a selection by URL or by search must be visible), once per selection.
+  useEffect(() => {
+    const owner = sections.find((section) => section.sessions.some((row) => agentId(row) === selectedId));
+    if (owner !== undefined) {
+      setOverrides((current) => (current[owner.id] === undefined ? { ...current, [owner.id]: true } : current));
+    }
+  }, [selectedId, sections]);
+  useEffect(() => {
+    const target = refocus.current;
+    if (target !== undefined) {
+      const element = document.querySelector<HTMLElement>(`[${target.attribute}="${CSS.escape(target.value)}"]`);
+      if (element !== null) {
+        element.focus();
+        refocus.current = undefined;
+      }
+    }
+  });
+  // Folded groups and (while searching) empty ones are not in the tab order; the Ungrouped bucket only shows when it holds something or a drag may drop there.
+  const visibleSections = sections.filter((section) => (searching ? section.sessions.length > 0 : section.id !== UNGROUPED_ID || section.sessions.length > 0 || dnd.dragging?.kind === 'agent'));
+  const visibleIds = visibleSections.flatMap((section) => (isOpen(section.id) ? section.sessions.map(agentId) : []));
+  const tabbable = tabbableId(visibleIds, selectedId);
+  const listKeys = useListKeys({ onSelect });
+
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
+    const rowElement = (event.target as HTMLElement).closest<HTMLElement>('[data-session-id]');
+    const id = rowElement?.dataset['sessionId'];
+    const session = id === undefined ? undefined : rowsById.get(id);
+    if (groups !== undefined && !isTypingTarget(event.target) && !event.ctrlKey && !event.metaKey) {
+      if (!event.altKey && event.key === 'm' && session !== undefined && id !== undefined) {
+        event.preventDefault();
+        setMoving(id);
+        return;
+      }
+      if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+        const step = event.key === 'ArrowUp' ? -1 : 1;
+        const header = (event.target as HTMLElement).closest<HTMLElement>('[data-group-id]');
+        if (header?.dataset['groupId'] !== undefined && event.target === header) {
+          event.preventDefault();
+          const ids = stepGroupIds(groups.groups, header.dataset['groupId'], step);
+          if (ids !== undefined) {
+            refocus.current = { attribute: 'data-group-id', value: header.dataset['groupId'] };
+            groups.reorder(ids);
+          }
+          return;
+        }
+        const section = session === undefined ? undefined : sections.find((candidate) => candidate.group !== null && candidate.id === session.customGroupId);
+        if (id !== undefined && section?.group != null) {
+          event.preventDefault();
+          if (section.sort !== 'manual') {
+            dnd.notify(`This group is ordered ${section.sort === 'urgency' ? 'by urgency' : section.sort === 'name' ? 'by name' : 'by latest change'}: set its order to Manual in the group settings to move agents by hand.`);
+            return;
+          }
+          const members = section.sessions.map(agentId);
+          const at = members.indexOf(id);
+          const to = at + step;
+          if (at >= 0 && to >= 0 && to < members.length) {
+            refocus.current = { attribute: 'data-session-id', value: id };
+            groups.move(id, section.id, step === -1 ? (members[to] ?? null) : (members[to + 1] ?? null));
+          }
+          return;
+        }
+      }
+    }
+    listKeys(event);
+  };
+
+  const openMenu = (row: AgentRow, anchor: Anchor): void => setMenu({ id: agentId(row), anchor });
+  const renderRow = (session: AgentRow, groupId: string | null, bodyClass: string) => {
+    const id = agentId(session);
+    const selected = id === selectedId;
+    const tint = herdrTint(density, session.state, selected);
+    const over = dnd.over?.target.kind === 'row' && dnd.over.target.id === id && dnd.over.outcome.kind === 'move' ? dnd.over.outcome : undefined;
+    // Before the target when the drop lands before it; after it when the dragged one comes from above and takes its place.
+    const edge = over === undefined ? undefined : over.beforeId === id ? 'before' : 'after';
+    const dragged = dnd.dragging?.kind === 'agent' && dnd.dragging.id === id;
+    const open = openAgents[id] === true;
+    // The background of an agent: its open look, its state tint, the flag, then the body color of its group.
+    const base = tint ?? (session.flagged ? 'bg-hue-orange-bg' : bodyClass);
+    const onContextMenu = (event: MouseEvent<HTMLDivElement>): void => {
+      event.preventDefault();
+      // The context-menu key reports no pointer: the menu opens under the row.
+      const box = event.currentTarget.getBoundingClientRect();
+      openMenu(session, event.clientX === 0 && event.clientY === 0 ? { x: box.left + 24, y: box.bottom } : { x: event.clientX, y: event.clientY });
+    };
+    return (
+      <Fragment key={id}>
+        <div role="none" onContextMenu={onContextMenu}>
+          <OptionShell
+            role="treeitem"
+            level={2}
+            session={session}
+            selected={selected}
+            tabbable={id === tabbable}
+            onSelect={onSelect}
+            look={{ selected: `border-l-2 border-transparent ${tint ?? 'bg-primary-light'}`, idle: `border-l-2 border-transparent ${base === '' ? 'hover:bg-muted-bg' : `${base} hover:brightness-95`}` }}
+            className={`group relative h-[31px] py-0 pl-5 pr-2 ${dragged ? 'opacity-50' : ''}`}
+            expanded={session.subagentCount > 0 ? open : undefined}
+            rowProps={dnd.row(id, groupId)}
+          >
+            <DropBar edge={edge} />
+            <HerdrRowBody session={session} density={density} now={now} terms={query.terms} subagents={session.subagentCount > 0 ? { open, toggle: () => setOpenAgents((current) => ({ ...current, [id]: !open })) } : undefined} onMove={groups === undefined ? undefined : () => setMoving(id)} {...(marks === undefined ? {} : { onMenu: (anchor: Anchor) => openMenu(session, anchor) })} />
+          </OptionShell>
+        </div>
+        {open ? <SubagentRows sessionId={session.sessionId} /> : null}
+      </Fragment>
+    );
+  };
+
+  if (shown.length === 0) {
+    return <EmptyNote title="No session to show" hint="Start Claude Code in a terminal and it appears here within 5 seconds." />;
+  }
+  const movingSession = moving === undefined ? undefined : rowsById.get(moving);
+  const configGroup = config === undefined ? undefined : groups?.groups.find((group) => group.id === config.id);
+  const dialogGroup = dialogFor === undefined ? undefined : groups?.groups.find((group) => group.id === dialogFor);
+  const menuSession = menu === undefined ? undefined : rowsById.get(menu.id);
+  return (
+    <>
+      {dnd.hint !== '' ? (
+        <p role="status" data-drop-hint="" className="border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text">
+          {dnd.hint}
+        </p>
+      ) : null}
+      <ListScroll label="Agents by custom group" role="tree" onKeyDown={onKeyDown}>
+        {!hasGroups && groups !== undefined ? (
+          <div className="flex flex-col items-start gap-2 border-b border-border px-3 py-3 text-sm">
+            <p className="font-medium text-content">No custom group yet</p>
+            <p className="text-muted">All the agents are below, ungrouped. Create the groups of your Herdr panel in one click ({HERDR_GROUP_NAMES.join(', ')}), or use New group in the toolbar. Nothing is created until you click.</p>
+            <ButtonAction variant="primary" size="sm" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} label="Create the Herdr groups" onClick={() => void groups.seedHerdr()} />
+          </div>
+        ) : null}
+        {visibleSections.map((section, index) => (
+          <CustomGroupBlock
+            key={section.id}
+            section={section}
+            open={isOpen(section.id)}
+            tabbable={visibleIds.length === 0 && index === 0}
+            dnd={dnd}
+            onToggle={(open) => toggle(section.id, open)}
+            onConfig={section.group === null || groups === undefined ? undefined : (anchor) => setConfig({ id: section.id, anchor })}
+            renderRow={(session) => renderRow(session, section.group?.id ?? null, section.group?.bodyColor == null ? '' : BODY_LOOK[section.group.bodyColor])}
+          />
+        ))}
+      </ListScroll>
+      {groups !== undefined && movingSession !== undefined ? <MoveToGroupDialog session={movingSession} groups={groups} onClose={() => setMoving(undefined)} /> : null}
+      {groups !== undefined && dialogGroup !== undefined ? <GroupDialog group={dialogGroup} memberCount={shown.filter((row) => row.customGroupId === dialogGroup.id).length} groups={groups} onClose={() => setDialogFor(undefined)} /> : null}
+      {groups !== undefined && config !== undefined && configGroup !== undefined ? (
+        <GroupConfigPanel
+          key={configGroup.id}
+          group={configGroup}
+          anchor={config.anchor}
+          groups={groups}
+          onClose={() => setConfig(undefined)}
+          onMore={() => {
+            setDialogFor(configGroup.id);
+            setConfig(undefined);
+          }}
+        />
+      ) : null}
+      {marks !== undefined && menu !== undefined && menuSession !== undefined ? (
+        <RowMenu session={menuSession} anchor={menu.anchor} onClose={() => setMenu(undefined)} onFlag={(flag) => marks.setMarks(menu.id, { flag })} onUnread={(unread) => marks.setMarks(menu.id, { unread })} onMove={() => setMoving(menu.id)} />
+      ) : null}
+    </>
+  );
+}
+

@@ -12,3 +12,18 @@ export const GROUP_LOOK: Record<GroupColor | 'none', { label: string; dot: strin
   gray: { label: 'Gray', dot: 'bg-muted', text: 'text-muted', edge: 'border-muted' },
   none: { label: 'No color', dot: 'bg-border', text: 'text-muted', edge: 'border-muted' },
 };
+
+/**
+ * The background of the agents of a group (the "body color" of the Custom mode): the soft hue backgrounds of the theme, `gray` the muted one. A row that needs
+ * you, or that finished unseen, keeps its state tint over it. Classes written in full.
+ */
+export const BODY_LOOK: Record<GroupColor, string> = {
+  blue: 'bg-hue-blue-bg',
+  green: 'bg-hue-green-bg',
+  yellow: 'bg-hue-yellow-bg',
+  orange: 'bg-hue-orange-bg',
+  red: 'bg-hue-red-bg',
+  purple: 'bg-hue-purple-bg',
+  cyan: 'bg-hue-cyan-bg',
+  gray: 'bg-muted-bg',
+};

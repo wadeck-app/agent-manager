@@ -1,4 +1,4 @@
-import { Bot, ChevronDown, ChevronRight, FolderInput, Pin } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, Flag, FolderInput, MoreHorizontal, Pin } from 'lucide-react';
 import type { AgentRow } from '../data/types.js';
 import { herdrRowShape, type HerdrDensity } from '../logic/herdrRow.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
@@ -21,13 +21,15 @@ export interface HerdrRowBodyProps {
   subagents: { open: boolean; toggle: () => void } | undefined;
   /** Opens the Move to a group dialog; undefined when there are no custom groups API. */
   onMove: (() => void) | undefined;
+  /** Opens the menu of the row (flag, unread, move): the kebab button; undefined when the list has none. */
+  onMenu?: (anchor: { x: number; y: number }) => void;
 }
 
 /**
  * The content of an agent row in the Herdr variants of the A/B question `ui-tree-density`: program icon, bold name, muted middle dot and folder, the marks
  * (host, pin, sub-agents) then the age and the state light on the right. 31 px high, one line, like the Herdr panel. The row click and keyboard are the Tree's.
  */
-export function HerdrRowBody({ session, density, now, terms, subagents, onMove }: HerdrRowBodyProps) {
+export function HerdrRowBody({ session, density, now, terms, subagents, onMove, onMenu }: HerdrRowBodyProps) {
   const showFolder = herdrRowShape(density).folder && session.folder !== session.displayName;
   return (
     <div className="flex h-full items-center gap-2">
@@ -57,6 +59,12 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove }
           </span>
         ) : null}
       </span>
+      {session.flagged ? (
+        <span className="inline-flex shrink-0 text-hue-orange">
+          <Flag aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+          <span className="sr-only">Flagged</span>
+        </span>
+      ) : null}
       {/* Only what the row cannot say otherwise: the host is in the tooltip of the program icon, the waiting state is the light. */}
       <GuardrailChip blocks={session.guardrailBlocks} />
       {session.pinned ? (
@@ -84,6 +92,24 @@ export function HerdrRowBody({ session, density, now, terms, subagents, onMove }
             className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
           >
             <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+          </button>
+        </Tooltip>
+      ) : null}
+      {onMenu !== undefined ? (
+        <Tooltip content="Flag, mark as unread, move (right-click)" side="left">
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={`Actions of ${session.displayName}`}
+            aria-haspopup="menu"
+            onClick={(event) => {
+              event.stopPropagation();
+              const box = event.currentTarget.getBoundingClientRect();
+              onMenu({ x: box.left, y: box.bottom + 2 });
+            }}
+            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
+          >
+            <MoreHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           </button>
         </Tooltip>
       ) : null}

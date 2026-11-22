@@ -1,5 +1,6 @@
 import { ButtonAction, CompactSelect, HorizontalStack } from '@wadeck-app/dsl-ui';
 import { Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useMediaQuery } from '../ui/hooks.js';
 import type { ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
@@ -30,13 +31,15 @@ export interface ToolbarProps {
   onNewGroup?: (name: string) => Promise<boolean>;
   /** A session is open: below the lg breakpoint the detail replaces the list, so the toolbar (which acts on the list) gives its room back to the detail. */
   detailOpen?: boolean;
+  /** The small button of the dismissed notices (null when none is dismissed): a notice is never hidden for good. */
+  noticeBadge?: ReactNode;
 }
 
 /**
  * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the toggle between the listing modes, the search, which
  * sessions to show, then the icon buttons (view options of the mode, text size, shortcut help).
  */
-export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession, onNewGroup, detailOpen = false }: ToolbarProps) {
+export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewSession, onNewGroup, detailOpen = false, noticeBadge = null }: ToolbarProps) {
   // Under 1280 px (the shell menu takes 240 px of it) the toolbar keeps one row: icons for the modes and for New group, a number for the count, short labels.
   const countText = `${count} ${count === 1 ? 'session' : 'sessions'}${show === 'alive' && hiddenDead > 0 ? `, ${hiddenDead} ended hidden` : ''}`;
   const tight = useMediaQuery('(max-width: 1279px)');
@@ -58,7 +61,8 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
       {/* The actions sit in the library row (one gap for all of them, wrapping whole on a narrow screen); ml-auto pushes the row to the right edge. */}
       <div className="ml-auto flex min-w-0 max-w-full justify-end">
         <HorizontalStack gap="gap-2" justify="justify-end" wrap>
-          {mode === 'tree' && onNewGroup !== undefined ? <NewGroupControl onCreate={onNewGroup} iconOnly={tight} /> : null}
+          {(mode === 'tree' || mode === 'custom') && onNewGroup !== undefined ? <NewGroupControl onCreate={onNewGroup} iconOnly={tight} /> : null}
+          {noticeBadge}
           <ButtonAction variant="primary" icon={<Plus aria-hidden="true" className="h-3.5 w-3.5" />} label="New session" onClick={onNewSession} />
           <CompactSelect
             ariaLabel="Sessions to show"

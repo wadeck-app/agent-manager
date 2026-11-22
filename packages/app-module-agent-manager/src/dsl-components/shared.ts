@@ -7,5 +7,5 @@ export type { ModeId } from '../commons/variants.js';
 export { CSRF_HEADER, CSRF_PATH } from '../commons/csrf.js';
 export { isSensitiveRequest } from '../commons/routeClasses.js';
 export { FORK_NAME_MAX, forkNameOf, threadNameOf } from '../commons/forkName.js';
-export { checkGroupName, GROUP_COLORS, GROUP_NAME_MAX, placeMember } from '../commons/groups.js';
-export type { GroupColor } from '../commons/groups.js';
+export { checkGroupName, GROUP_COLORS, GROUP_NAME_MAX, GROUP_SORTS, HERDR_GROUP_NAMES, placeMember } from '../commons/groups.js';
+export type { GroupColor, GroupSort } from '../commons/groups.js';

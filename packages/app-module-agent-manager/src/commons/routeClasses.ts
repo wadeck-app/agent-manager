@@ -17,7 +17,7 @@
  * | POST /sessions/:sessionId/hc-permission | sensitive     | types the answer of a permission dialog          |
  * | POST /sessions/:sessionId/pin           | not sensitive | module-local preference                          |
  * | POST /sessions/:sessionId/seen          | not sensitive | module-local marker                              |
- * | POST /groups, /groups/order, /groups/:id, /groups/:id/delete, POST /sessions/:sessionId/group | not sensitive | custom groups: module-local organization of the view |
+ * | POST /groups, /groups/order, /groups/preset, /groups/:id, /groups/:id/delete, POST /sessions/:sessionId/group, POST /sessions/:sessionId/marks | not sensitive | custom groups, the Herdr preset, flag and unread marks: module-local organization of the view |
  * | PUT /sessions/:sessionId/reply/transport | not sensitive | preference; the message itself is gated          |
  * | PUT /reply/transport/default            | not sensitive | preference; the message itself is gated          |
  * | GET /folders/roots, /list, /search, /recent | not sensitive (read) | names of folders inside the browsable roots only, see below |
@@ -51,11 +51,13 @@ export const NOT_SENSITIVE_ROUTES: readonly string[] = [
   // The custom groups only organize the user's view: names and session ids in the module state file (threat-model T-16). The CSRF guard still applies.
   'POST /groups',
   'POST /groups/order',
+  'POST /groups/preset',
   'POST /groups/:id',
   'POST /groups/:id/delete',
   'POST /sessions/:sessionId/group',
   'POST /sessions/:sessionId/pin',
   'POST /sessions/:sessionId/seen',
+  'POST /sessions/:sessionId/marks',
   'PUT /sessions/:sessionId/reply/transport',
   'PUT /reply/transport/default',
 ];

@@ -29,6 +29,10 @@ const fakeShell = {
 
 // Every test starts with the write token already "fetched": the tests of the token itself (data/http.test.ts) reset it.
 beforeEach(() => {
+  // A dismissed notice is remembered for the browser session: every test starts with none dismissed.
+  if (typeof window !== 'undefined') {
+    window.sessionStorage.clear();
+  }
   seedCsrfToken('test-token');
   Reflect.set(globalThis, '__APP_CORE_SHELL__', fakeShell);
 });

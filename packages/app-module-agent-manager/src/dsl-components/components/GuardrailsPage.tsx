@@ -4,7 +4,7 @@ import { Scope } from '../ui/Scope.js';
 
 export interface GuardrailsPageProps {
   /** `$sources.overview`: the answer of GET /guardrails/overview (the page owns the poll). Absent while loading; an answer with `ok: false` is shown by the page, not here. */
-  overview?: GuardrailsOverviewDto;
+  overview?: GuardrailsOverviewDto | { ok: false; errorText: string };
 }
 
 /**
@@ -17,7 +17,7 @@ export interface GuardrailsPageProps {
 export function GuardrailsPage({ overview }: GuardrailsPageProps) {
   return (
     <Scope>
-      <Body overview={overview !== undefined && overview.ok ? overview : undefined} failed={overview !== undefined && !overview.ok} />
+      <Body overview={overview !== undefined && overview.ok ? overview : undefined} failed={overview !== undefined && !overview.ok} errorText={overview !== undefined && !overview.ok ? overview.errorText : ''} />
     </Scope>
   );
 }

@@ -178,7 +178,7 @@ describe('custom groups: routes', () => {
     const g = await create(call, 'Mine', 'green');
     await move(call, process.pid, { groupId: g });
     const page = (await call('GET', '/sessions')).body;
-    expect(page.customGroups).toEqual([{ id: g, name: 'Mine', color: 'green', collapsed: false, order: 0 }]);
+    expect(page.customGroups).toEqual([{ id: g, name: 'Mine', color: 'green', collapsed: false, order: 0, sort: 'manual', bodyColor: null }]);
     expect(page.sessions[0]).toMatchObject({ customGroupId: g, customGroupOrder: 0 });
   });
 

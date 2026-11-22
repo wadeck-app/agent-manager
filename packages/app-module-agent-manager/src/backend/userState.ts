@@ -1,7 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
-import { checkGroupName, isGroupColor, MAX_GROUPS, type GroupColor } from '../commons/groups.js';
+import { checkGroupName, isGroupColor, isGroupSort, MAX_GROUPS, type GroupColor, type GroupSort, type SessionMarks } from '../commons/groups.js';
 import { RequestError } from './routeKit.js';
 
 /** Strict form of a Claude Code session id: the 8-4-4-4-12 hexadecimal groups, lower or upper case, nothing around it. */
@@ -20,6 +20,10 @@ export interface UserGroup {
   collapsed: boolean;
   order: number;
   members: string[];
+  /** How the agents are ordered in the Custom mode (absent in a file of before: manual). */
+  sort: GroupSort;
+  /** The background color of the agents of the group in the Custom mode (absent in a file of before: none). The header color is `color`. */
+  bodyColor: GroupColor | null;
   /** Per member, the last time (epoch ms) its session was seen in the registry, or when it was placed here; the clock of the absence prune. A member without an entry has no clock yet (a file of before): the next prune pass starts it. */
   seenAt: Record<string, number>;
 }
@@ -32,10 +36,12 @@ export interface UserState {
   pinned: string[];
   seen: Record<string, number>;
   groups: UserGroup[];
+  /** The flag and unread marks of the Custom mode, by session id (absent in a file of before: none). An entry with both off is never kept. */
+  marks: Record<string, SessionMarks>;
 }
 
 export function emptyUserState(): UserState {
-  return { pinned: [], seen: {}, groups: [] };
+  return { pinned: [], seen: {}, groups: [], marks: {} };
 }
 
 export class UserStateError extends Error {
@@ -115,7 +121,28 @@ function parseState(text: string, file: string): UserState {
   if (version !== undefined && (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > STATE_VERSION)) {
     return fail(`"version" is ${JSON.stringify(version)}, this module reads up to ${STATE_VERSION} (a newer agent-manager wrote it: update this module, do not delete the file)`);
   }
-  return { pinned: [...new Set(pinned as string[])], seen: seenMap, groups: parseGroups(Reflect.get(raw, 'groups'), fail) };
+  return { pinned: [...new Set(pinned as string[])], seen: seenMap, groups: parseGroups(Reflect.get(raw, 'groups'), fail), marks: parseMarks(Reflect.get(raw, 'marks'), fail) };
+}
+
+/** The "marks" of the file (absent in a file written before the Custom mode existed): every entry is checked, a half valid map is never used. */
+function parseMarks(value: unknown, fail: (what: string) => never): Record<string, SessionMarks> {
+  if (value === undefined) {
+    return {};
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return fail('"marks" must be an object');
+  }
+  const marks: Record<string, SessionMarks> = {};
+  for (const [id, mark] of Object.entries(value)) {
+    const flag: unknown = mark !== null && typeof mark === 'object' ? Reflect.get(mark, 'flag') : undefined;
+    const unread: unknown = mark !== null && typeof mark === 'object' ? Reflect.get(mark, 'unread') : undefined;
+    const at: unknown = mark !== null && typeof mark === 'object' ? Reflect.get(mark, 'at') : undefined;
+    if (!SESSION_ID_PATTERN.test(id) || typeof flag !== 'boolean' || typeof unread !== 'boolean' || typeof at !== 'number' || !Number.isFinite(at)) {
+      return fail('"marks" must map session ids to { flag: boolean, unread: boolean, at: epoch milliseconds }');
+    }
+    marks[id.toLowerCase()] = { flag, unread, at };
+  }
+  return marks;
 }
 
 /** The "groups" of the file (absent in a file written before the groups existed): every rule is checked, a half valid list is never used. */
@@ -155,6 +182,14 @@ function parseGroups(value: unknown, fail: (what: string) => never): UserGroup[]
     if (!Array.isArray(members) || !members.every((member) => typeof member === 'string' && SESSION_ID_PATTERN.test(member))) {
       return fail(`${at}.members must be an array of session ids`);
     }
+    const sort: unknown = Reflect.get(item, 'sort');
+    if (sort !== undefined && !isGroupSort(sort)) {
+      return fail(`${at}.sort ${JSON.stringify(sort)} is not a known order`);
+    }
+    const bodyColor: unknown = Reflect.get(item, 'bodyColor');
+    if (bodyColor !== undefined && bodyColor !== null && !isGroupColor(bodyColor)) {
+      return fail(`${at}.bodyColor ${JSON.stringify(bodyColor)} is not a known color`);
+    }
     const seenAtRaw: unknown = Reflect.get(item, 'seenAt');
     if (seenAtRaw !== undefined && (seenAtRaw === null || typeof seenAtRaw !== 'object' || Array.isArray(seenAtRaw) || !Object.entries(seenAtRaw).every(([key, at]) => SESSION_ID_PATTERN.test(key) && typeof at === 'number' && Number.isFinite(at)))) {
       return fail(`${at}.seenAt must map session ids to epoch milliseconds`);
@@ -165,7 +200,7 @@ function parseGroups(value: unknown, fail: (what: string) => never): UserGroup[]
       }
       owner.set(member, id);
     }
-    return { id, name: name.name, color: color ?? null, collapsed, order, members: members as string[], seenAt: Object.fromEntries(Object.entries((seenAtRaw ?? {}) as Record<string, number>).filter(([key]) => (members as string[]).includes(key))) };
+    return { id, name: name.name, color: color ?? null, collapsed, order, sort: sort ?? 'manual', bodyColor: bodyColor ?? null, members: members as string[], seenAt: Object.fromEntries(Object.entries((seenAtRaw ?? {}) as Record<string, number>).filter(([key]) => (members as string[]).includes(key))) };
   });
   return groups.sort((a, b) => a.order - b.order);
 }
@@ -215,6 +250,9 @@ export function updateUserState(dataDir: string, change: (state: UserState) => U
     }
     if (next.groups.length > MAX_GROUPS || next.groups.reduce((total, group) => total + group.members.length, 0) > MAX_ENTRIES) {
       throw new RequestError(409, `Too many groups or grouped sessions (limits ${MAX_GROUPS} groups, ${MAX_ENTRIES} sessions)`, 'Delete a group you no longer use.');
+    }
+    if (Object.keys(next.marks).length > MAX_ENTRIES) {
+      throw new RequestError(409, `Too many flagged or unread sessions (limit ${MAX_ENTRIES})`, 'Remove the flag or the unread mark of some sessions.');
     }
     await writeUserState(dataDir, next);
     return next;

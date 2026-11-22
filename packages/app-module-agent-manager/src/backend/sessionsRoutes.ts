@@ -6,7 +6,7 @@ import { adoptReadinessOf } from './adoptReadiness.js';
 import { digestOf, pruneDigestCache } from './transcriptDigest.js';
 import { statusOf } from './sessionStatus.js';
 import { emptyUserState, guarded, parsePinBody, parseSessionId, readUserState, requireNoBody, updateUserState, UserStateError, type UserGroup, type UserState } from './userState.js';
-import { groupDto, registerGroupsRoutes } from './groupsRoutes.js';
+import { groupDto, registerGroupsRoutes, registerMarksRoutes } from './groupsRoutes.js';
 import { GROUP_ABSENT_PRUNE_MS } from '../commons/groups.js';
 import { sessionColumns } from './columns.js';
 import { emptyText, hiddenDeadText, latestVersion, presentSession, summarize, unreadableText, type SessionRow } from './present.js';
@@ -59,6 +59,12 @@ export function groupsAfterPass(groups: readonly UserGroup[], present: ReadonlyS
   return changed ? next : (groups as UserGroup[]);
 }
 
+/** The marks after the hourly pass: the mark of a session absent from the registry is dropped once it is older than GROUP_ABSENT_PRUNE_MS. The same object when nothing changed. */
+export function marksAfterPass(marks: UserState['marks'], present: ReadonlySet<string>, now: number): UserState['marks'] {
+  const kept = Object.entries(marks).filter(([id, mark]) => present.has(id) || now - mark.at <= GROUP_ABSENT_PRUNE_MS);
+  return kept.length === Object.keys(marks).length ? marks : Object.fromEntries(kept);
+}
+
 /** Entries of the seen map whose session left the registry are dropped at most this often. */
 const PRUNE_EVERY_MS = 60 * 60 * 1000;
 
@@ -103,7 +109,8 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
       // The members of the groups: user-curated, so never dropped for one missing read (Claude Code restarting, a file being rewritten). Each member carries the
       // last time its session was in the registry; the hourly pass refreshes it, and drops only the members absent for more than 14 days.
       const groupsNext = pruneDue ? groupsAfterPass(user.groups, ids, now) : user.groups;
-      if (missing.length > 0 || stale.length > 0 || groupsNext !== user.groups) {
+      const marksNext = pruneDue ? marksAfterPass(user.marks, ids, now) : user.marks;
+      if (missing.length > 0 || stale.length > 0 || groupsNext !== user.groups || marksNext !== user.marks) {
         try {
           user = await updateUserState(kit.dataDir, (current) => {
             const seen = Object.fromEntries(Object.entries(current.seen).filter(([id]) => !stale.includes(id)));
@@ -111,13 +118,15 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
             // Computed again on the state read inside the update (a route may have written since the first read).
             const groups = pruneDue ? groupsAfterPass(current.groups, ids, now) : current.groups;
             changed ||= groups !== current.groups;
+            const marks = pruneDue ? marksAfterPass(current.marks, ids, now) : current.marks;
+            changed ||= marks !== current.marks;
             for (const id of missing) {
               if (seen[id] === undefined) {
                 seen[id] = now;
                 changed = true;
               }
             }
-            return changed ? { ...current, seen, groups } : current;
+            return changed ? { ...current, seen, groups, marks } : current;
           });
           if (pruneDue) {
             lastPruneAt = now;
@@ -150,6 +159,8 @@ function registerSessions(kit: RouteKit, source: OwnedSource): void {
         pinOrder: user.pinned.indexOf(row.sessionId.toLowerCase()),
         customGroupId: groupOf.get(row.sessionId.toLowerCase())?.id ?? null,
         customGroupOrder: groupOf.get(row.sessionId.toLowerCase())?.position ?? -1,
+        flagged: user.marks[row.sessionId.toLowerCase()]?.flag ?? false,
+        unread: user.marks[row.sessionId.toLowerCase()]?.unread ?? false,
         seen: seenAt === undefined || row.statusUpdatedAt === undefined || row.statusUpdatedAt <= seenAt,
         reason: row.waitingFor ?? '',
         lastActivity: digest.lastActivity,
@@ -277,6 +288,7 @@ export function registerSessionsRoutes(kit: RouteKit, options: ModuleOptions = {
   registerCsrf(kit);
   registerUserState(kit, source);
   registerGroupsRoutes(kit);
+  registerMarksRoutes(kit);
   registerSessions(kit, source);
   registerSummary(kit, source);
   registerHealth(kit);

@@ -172,3 +172,35 @@ Marks: [D] documented, [M] measured on the 40 newest local transcripts (`poc/scr
 - Counts are over the loaded entries only; the bar shows `N hidden` (tooltip by category), not one marker per run: hooks come twice per tool call, inline markers would split every group. Everything hidden says so in the log area. The call of the selected sub-agent is never hidden.
 - Stored per browser in `agent-manager.log-filters.v1`; an unreadable value gives the defaults and a dismissible sentence.
 - Not done: the "N new entries" button still counts hidden entries.
+
+## Compact notices (2026-11-22, todo #90)
+
+- One line per page, whatever the count: icon, sentence <= 70 characters, Copy fix (command between backticks of the message), Details (full text, file, why), Dismiss. Several notices: "N notices" + Show list + Dismiss all. Code: `ui/Notices.tsx`, `logic/notices.ts`.
+- Dismissal is per message text in `sessionStorage` (`agent-manager.dismissedNotices`): a changed text shows again. A dismissed notice leaves a "N notices dismissed" button (toolbar; under the line on pages without one) that restores them. A storage that throws dismisses nothing.
+- Transient page messages (refused action, search note, unknown mode) use the same line; their dismiss clears the page state instead.
+- Table, Agents (registry error) and Guardrails pages use the registered component `agent-manager:PageNotices` (Guardrails problems go through `GuardrailsPage`). The kill-switch-ON alert stays a large red block on purpose. Dialog banners (launch, fork, thread, owned bar) are untouched.
+- Found, not fixed: `ownedStateErrorText` repeats the "Fix: ..." sentence twice (`backend/daemon/ownedDown.ts`, the error message already holds the fix).
+
+## Custom mode, port of WAgents (2026-11-22, todo #91)
+
+4th list mode (`?mode=custom`): every live agent inside the user's custom groups, the rest in a last Ungrouped bucket. Source: the Herdr mod `~/.config/herdr-app/mods/my-agents` (read only). The user's Herdr groups: Focus 5, Regular 6, Secondary 3, Meta 6, Icebox 2, all manual, no colors, 3 flagged agents.
+
+| WAgents | Here |
+|---|---|
+| groups, order, groupcfg, marks in `shared.json` | the existing custom groups of `agents-user-state.json` plus additive fields: group `sort` (manual, urgency, name, recent), group `bodyColor`, top-level `marks` `{flag, unread, at}` per session. Version stays 1 (absent fields read as manual / none / {}); an older module rewriting the file drops the new fields |
+| header color | the existing group `color` |
+| body color, header palette (hex) | the 8 named colors of the groups (theme hues) |
+| `doDrop`, `accepts`, `dropLine` | `resolveDrop` (pure, tested): the held item is a parameter, so nothing is cleared before the target is validated. Hook `useCustomDnd` |
+| drop rules | row of another group = join before it; header or strip under the last agent = end; same group = takes the target's place; non-manual group = ignored with a visible hint; header on header = reorder; Ungrouped = leave the group |
+| `groupCfgMenu` | folder-cog popover (rename, order, header and body color; button to the existing group dialog). One design only, no A/B |
+| `rowMenu` | right-click, context-menu key, kebab: Flag, Mark as unread, Move to a group |
+| unread cleared on focus | cleared when the agent is selected through the list, keys or search (not by an address on load; marking the open agent keeps the mark) |
+| `RANK` urgency, "Needs you" first | `ATTENTION` of `logic/states.ts` (needs-you, other, done, working, idle, ended), newest change first |
+| `track` (done and idle are one state) | not needed: `statusUpdatedAt` comes from the registry and does not change when a finished agent is seen |
+| `ROW_LAYOUTS`, `FOCUS_BGS`, settings menu, state colors | not ported. Rows are the Herdr rows of the `ui-tree-density` question (tinted by default in this mode); the open row is the gold outline of the tinted variant |
+| sort modes priority, space, agent, machine | not ported (Tree, Groups and Inbox exist) |
+| one-click groups | `POST /groups/preset {preset:"herdr"}`: Focus, Regular, Secondary, Meta, Icebox, only into an empty list (409 otherwise), never automatic |
+
+- Routes `POST /groups/preset`, `POST /sessions/:sessionId/marks`, and the new fields of `POST /groups/:id` are not PIN-gated (`routeClasses.ts`). Marks of sessions absent for 14 days are pruned with the hourly pass.
+- Follow-up, not built: import of the Herdr groups. Mapping: herdr terminal -> `hc get` foreground pid -> registry pid -> session id, then `agents.groups` / `agents.order` / `agents.marks`.
+- Not built: the Tree's attention expansion of sub-agents; the Shortcuts help does not list M / Alt+arrows for this mode.

@@ -4,7 +4,7 @@ import type { SessionRowDto } from '../shared.js';
 /** How long a local change is trusted before the server data wins whatever it says (a failed poll must not freeze a stale pin forever). */
 export const PATCH_TTL_MS = 20_000;
 
-export type RowPatch = { kind: 'pin'; pinned: boolean; pinOrder: number } | { kind: 'seen' };
+export type RowPatch = { kind: 'pin'; pinned: boolean; pinOrder: number } | { kind: 'seen' } | { kind: 'marks'; flag?: boolean; unread?: boolean };
 
 interface Stamped {
   patch: RowPatch;
@@ -16,11 +16,17 @@ export function applyPatch(row: SessionRowDto, patch: RowPatch): SessionRowDto {
   if (patch.kind === 'pin') {
     return { ...row, pinned: patch.pinned, pinOrder: patch.pinned ? patch.pinOrder : -1 };
   }
+  if (patch.kind === 'marks') {
+    return { ...row, flagged: patch.flag ?? row.flagged, unread: patch.unread ?? row.unread };
+  }
   return row.state === 'done' ? { ...row, state: 'idle', seen: true } : { ...row, seen: true };
 }
 
 /** True when the server's row already shows what the patch did. */
 export function reflected(row: SessionRowDto, patch: RowPatch): boolean {
+  if (patch.kind === 'marks') {
+    return (patch.flag === undefined || row.flagged === patch.flag) && (patch.unread === undefined || row.unread === patch.unread);
+  }
   return patch.kind === 'pin' ? row.pinned === patch.pinned : row.state !== 'done';
 }
 
@@ -38,9 +44,9 @@ export interface OptimisticRows {
  * A change is dropped when the next poll shows it, when the request failed (`revert`), or after PATCH_TTL_MS.
  */
 export function useOptimisticRows(rows: readonly SessionRowDto[]): OptimisticRows {
-  const [patches, setPatches] = useState<Record<string, Stamped>>({});
+  const [patches, setPatches] = useState<Record<string, Stamped[]>>({});
 
-  const patch = useCallback((sessionId: string, change: RowPatch) => setPatches((current) => ({ ...current, [sessionId.toLowerCase()]: { patch: change, at: Date.now() } })), []);
+  const patch = useCallback((sessionId: string, change: RowPatch) => setPatches((current) => ({ ...current, [sessionId.toLowerCase()]: [...(current[sessionId.toLowerCase()] ?? []).filter((stamped) => stamped.patch.kind !== change.kind), { patch: change, at: Date.now() }] })), []);
   const revert = useCallback(
     (sessionId: string) =>
       setPatches((current) => {
@@ -55,11 +61,13 @@ export function useOptimisticRows(rows: readonly SessionRowDto[]): OptimisticRow
   useEffect(() => {
     setPatches((current) => {
       const now = Date.now();
-      const kept = Object.entries(current).filter(([id, stamped]) => {
+      const entries = Object.entries(current).map(([id, list]) => {
         const row = rows.find((candidate) => candidate.sessionId.toLowerCase() === id);
-        return row !== undefined && !reflected(row, stamped.patch) && now - stamped.at < PATCH_TTL_MS;
+        return [id, row === undefined ? [] : list.filter((stamped) => !reflected(row, stamped.patch) && now - stamped.at < PATCH_TTL_MS)] as const;
       });
-      return kept.length === Object.keys(current).length ? current : Object.fromEntries(kept);
+      const kept = entries.filter(([, list]) => list.length > 0);
+      const unchanged = kept.length === Object.keys(current).length && kept.every(([id, list]) => list.length === current[id]?.length);
+      return unchanged ? current : Object.fromEntries(kept);
     });
   }, [rows]);
 
@@ -69,7 +77,7 @@ export function useOptimisticRows(rows: readonly SessionRowDto[]): OptimisticRow
         ? [...rows]
         : rows.map((row) => {
             const stamped = patches[row.sessionId.toLowerCase()];
-            return stamped === undefined ? row : applyPatch(row, stamped.patch);
+            return stamped === undefined ? row : stamped.reduce((current, item) => applyPatch(current, item.patch), row);
           }),
     [rows, patches],
   );

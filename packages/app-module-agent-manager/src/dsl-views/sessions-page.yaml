@@ -19,10 +19,9 @@ $type: PageContent
 maxWidth: full
 sections:
   # What went wrong, in boxes of their own: nothing is hidden behind an empty list.
-  - $type: Badge
-    $if: $sources.sessions.errorText
-    label: $sources.sessions.errorText
-    variant: danger
+  # One compact notice line (short sentence, Details, dismiss), not a full-width badge with the whole text.
+  - $type: agent-manager:PageNotices
+    errorText: $sources.sessions.errorText
   # The unreadable registry files and the unreadable w-guardrails counters are warnings of the workspace itself (props below): a pill above it pushed the whole page down.
   - $type: Badge
     $if: $sources.sessions.emptyText

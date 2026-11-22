@@ -1,5 +1,6 @@
 import { ShieldOff } from 'lucide-react';
-import { Banner } from '../ui/Banner.js';
+import { guardrailsNotices } from '../logic/notices.js';
+import { NoticeStrip } from '../ui/Notices.js';
 import { useNow } from '../ui/hooks.js';
 import { BlockedSessionsSection } from './BlockedSessionsSection.js';
 import { DenialsSection } from './DenialsSection.js';
@@ -13,7 +14,7 @@ import type { GuardrailsOverviewDto } from '../shared.js';
  * Everything is read from the plugin's files; nothing here can change them. A file it cannot read or whose shape it does not know is a banner naming the
  * file and what to do, never an empty section.
  */
-export function GuardrailsPage({ overview, failed = false }: { overview: GuardrailsOverviewDto | undefined; /** The page source answered an error (the page shows it): do not claim to be loading. */ failed?: boolean }) {
+export function GuardrailsPage({ overview, failed = false, errorText = '' }: { overview: GuardrailsOverviewDto | undefined; /** The page source answered an error (the page shows it): do not claim to be loading. */ failed?: boolean; /** The error of the failed answer (the notice line says it). */ errorText?: string }) {
   const now = useNow(1000);
   const data = overview;
   return (
@@ -35,12 +36,7 @@ export function GuardrailsPage({ overview, failed = false }: { overview: Guardra
           </div>
         </div>
       ) : null}
-      {data !== undefined && data.killSwitch.errorText !== '' ? <Banner tone="error">{data.killSwitch.errorText}</Banner> : null}
-      {data?.problems.map((item) => (
-        <Banner key={`${item.file}|${item.message}`} tone="warning">
-          <span className="break-all font-mono text-am-mono">{item.file}</span> {item.message}. {item.hint}
-        </Banner>
-      ))}
+      <NoticeStrip items={guardrailsNotices({ errorText, killSwitchError: data?.killSwitch.errorText ?? '', problems: data?.problems ?? [] })} />
       {data !== undefined ? (
         <div className="grid grid-cols-1 gap-3 2xl:grid-cols-2">
           <GrantsSection grants={data.grants} hiddenEntries={data.hiddenEntries} now={now} scanned={data.projects.length} />

@@ -19,7 +19,7 @@ function transferOf(event: DragEvent): DataTransfer | null {
   return (event as { dataTransfer: DataTransfer | null }).dataTransfer;
 }
 
-function startDrag(event: DragEvent, id: string): void {
+export function startDrag(event: DragEvent, id: string): void {
   const transfer = transferOf(event);
   if (transfer !== null) {
     transfer.effectAllowed = 'move';
@@ -29,7 +29,7 @@ function startDrag(event: DragEvent, id: string): void {
   }
 }
 
-function acceptDrop(event: DragEvent): void {
+export function acceptDrop(event: DragEvent): void {
   event.preventDefault();
   const transfer = transferOf(event);
   if (transfer !== null) {
