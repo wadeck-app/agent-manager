@@ -331,7 +331,8 @@ function wordScore(word: string, name: string, path: string): number {
   if (path.includes(word)) {
     return 20;
   }
-  return isSubsequence(word, path) ? 10 : 0;
+  // A scattered match only looks at the parent folder and the name: the folders above a root (the temp or home folder, 40 characters of machine-specific noise) must not match anything.
+  return isSubsequence(word, path.split(/[\\/]+/).slice(-2).join('/')) ? 10 : 0;
 }
 
 /** The score of a folder for a query (every word must match), 0 when it does not match. Exported for the tests. */

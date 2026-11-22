@@ -388,6 +388,8 @@ describe('gitInfo and searchScore', () => {
     expect(score('sp', '/w/shop')).toBeGreaterThan(score('w', '/w/shop') - 1);
     expect(score('shop zzz', '/w/shop')).toBe(0);
     expect(score('shop', '/w/blog')).toBe(0);
+    // A scattered match never reaches the folders above the parent (a long temp or home folder would match anything).
+    expect(score('agmgr', '/a/g/m/g/r/work/blog')).toBe(0);
     expect(score('', '/w/shop')).toBe(0);
     expect(searchScore('shop', '/w/shop', { isRecent: true, hasGit: true })).toBeGreaterThan(score('shop', '/w/shop'));
   });

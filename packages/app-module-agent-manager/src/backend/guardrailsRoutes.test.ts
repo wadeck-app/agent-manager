@@ -197,9 +197,11 @@ describe('GET /guardrails/denials and /denials/commands', () => {
 describe('localProject', () => {
   it('accepts a local absolute path and refuses network, relative and odd ones', () => {
     expect(localProject(home.project('ok'))).toBeDefined();
-    for (const bad of ['\\\\host\\share', '//host/share', 'relative', '', '  ', 'C:', 'a\0b', 42, undefined, 'x'.repeat(2000)]) {
+    for (const bad of ['\\\\host\\share', 'relative', '', '  ', 'C:', 'a\0b', 42, undefined, 'x'.repeat(2000)]) {
       expect(localProject(bad), String(bad)).toBeUndefined();
     }
+    // '//host/share' is a UNC name on Windows (refused) but an ordinary absolute path on POSIX, where it is normalized to '/host/share'.
+    expect(localProject('//host/share')).toBe(process.platform === 'win32' ? undefined : '/host/share');
   });
 });
 
