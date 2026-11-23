@@ -19,24 +19,28 @@ const INSET_LEFT = 'var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px))'
 const DOCK_FRAME = '[data-testid="ab-dock-frame"]';
 const DOCK_OPEN = '[data-testid="ab-dock"]:not([hidden])';
 
-/** Distance from the window bottom to the popup: above the dock (open or folded) when there is one, the floor otherwise. */
-function measureBottom(): number {
+/** Distance from the window bottom to the popup (above the dock, open or folded, when there is one, the floor otherwise), and whether the dock is folded. */
+function measureBottom(): { bottom: number; folded: boolean } {
   const frame = document.querySelector(DOCK_FRAME);
   if (frame === null) {
-    return FLOOR;
+    return { bottom: FLOOR, folded: false };
   }
-  const tab = frame.querySelector(DOCK_OPEN) === null ? 0 : DOCK_TAB;
-  return Math.max(FLOOR, Math.round(window.innerHeight - frame.getBoundingClientRect().top + tab + DOCK_GAP));
+  const folded = frame.querySelector(DOCK_OPEN) === null;
+  const tab = folded ? 0 : DOCK_TAB;
+  return { bottom: Math.max(FLOOR, Math.round(window.innerHeight - frame.getBoundingClientRect().top + tab + DOCK_GAP)), folded };
 }
 
 /** Follows the dock: re-measured when it resizes (rows added, folded) and when the window resizes. */
-function useBottom(active: boolean): number {
-  const [bottom, setBottom] = useState(FLOOR);
+function useBottom(active: boolean): { bottom: number; folded: boolean } {
+  const [bottom, setBottom] = useState({ bottom: FLOOR, folded: false });
   useLayoutEffect(() => {
     if (!active) {
       return;
     }
-    const update = (): void => setBottom(measureBottom());
+    const update = (): void => {
+      const next = measureBottom();
+      setBottom((previous) => (previous.bottom === next.bottom && previous.folded === next.folded ? previous : next));
+    };
     update();
     window.addEventListener('resize', update);
     const frame = document.querySelector(DOCK_FRAME);
@@ -67,15 +71,17 @@ export interface BatchPopupProps {
  */
 export function BatchPopup({ count, onClear, children }: BatchPopupProps) {
   const active = count > 0;
-  const bottom = useBottom(active);
+  const { bottom, folded } = useBottom(active);
+  // Room below the popup that the page must clear: the floor, or (folded dock, a pill that does not hide the reply box) the folded dock height as well.
+  const below = folded ? bottom : FLOOR;
   const bar = useRef<HTMLDivElement>(null);
-  // The footprint is measured from the window bottom WITHOUT the dock (a dev tool that already hides the reply box when open): floor + height + gap.
+  // The footprint is measured from the window bottom: an open dock is ignored (it already hides the reply box), a folded one counts: below + height + gap.
   useLayoutEffect(() => {
     if (!active) {
       return;
     }
     const element = bar.current;
-    const apply = (): void => document.documentElement.style.setProperty(RESERVE_VAR, `${FLOOR + Math.ceil(element?.getBoundingClientRect().height ?? 0) + DOCK_GAP}px`);
+    const apply = (): void => document.documentElement.style.setProperty(RESERVE_VAR, `${below + Math.ceil(element?.getBoundingClientRect().height ?? 0) + DOCK_GAP}px`);
     apply();
     // The actions wrap on a narrow window: the room follows the height.
     const observer = element !== null && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(apply) : undefined;
@@ -86,7 +92,7 @@ export function BatchPopup({ count, onClear, children }: BatchPopupProps) {
       observer?.disconnect();
       document.documentElement.style.removeProperty(RESERVE_VAR);
     };
-  }, [active]);
+  }, [active, below]);
   const [shown, setShown] = useState(false);
   useEffect(() => {
     if (!active) {

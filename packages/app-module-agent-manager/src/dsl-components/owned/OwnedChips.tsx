@@ -1,12 +1,10 @@
 import { Globe, ServerCog, SquareTerminal, type LucideIcon } from 'lucide-react';
 import { HOST_LABEL, HOST_MEANING } from '../logic/owned.js';
 import type { OwnedHostKind, SessionRowDto } from '../shared.js';
+import { Chip } from '../ui/Chip.js';
 import { Tooltip } from '../ui/Tooltip.js';
 
 const HOST_ICON: Record<OwnedHostKind, LucideIcon> = { 'stream-json': Globe, hc: SquareTerminal, bg: ServerCog };
-
-/** The shape shared by the chips of an owned session. */
-export const CHIP = 'inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-xs';
 
 /** The host of an owned session: 'Web' or 'Terminal', with its icon. Nothing for a discovered session (its rows stay as quiet as before). */
 export function HostBadge({ session, iconOnly = false }: { session: Pick<SessionRowDto, 'launchedBy' | 'host'>; iconOnly?: boolean }) {
@@ -16,10 +14,9 @@ export function HostBadge({ session, iconOnly = false }: { session: Pick<Session
   const Icon = HOST_ICON[session.host];
   return (
     <Tooltip content={iconOnly ? `${HOST_LABEL[session.host]}: ${HOST_MEANING[session.host]}` : HOST_MEANING[session.host]}>
-      <span data-host-badge={session.host} className={`${CHIP} border border-border text-muted-tint`}>
-        <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+      <Chip data-host-badge={session.host} variant="neutral" icon={<Icon className="h-am-icon-sm w-am-icon-sm" />}>
         {iconOnly ? <span className="sr-only">{HOST_LABEL[session.host]}</span> : HOST_LABEL[session.host]}
-      </span>
+      </Chip>
     </Tooltip>
   );
 }

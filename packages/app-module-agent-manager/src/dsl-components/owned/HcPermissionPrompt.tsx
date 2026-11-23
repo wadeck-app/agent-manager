@@ -1,20 +1,21 @@
 import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { Check, Keyboard, ShieldAlert, X } from 'lucide-react';
 import type { HcPermissionPromptDto } from '../shared.js';
+import { Chip } from '../ui/Chip.js';
 import { PermissionInput } from './PermissionInput.js';
 
 /** The dialog the terminal shows: what it asks, the command in full (folded when large), the warning that a click types a key, and the two buttons. */
 export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcPermissionPromptDto; inFlight: boolean; onDecide: (decision: 'allow' | 'deny') => void }) {
   const title = prompt.tool === undefined ? prompt.header : `${prompt.tool}: ${prompt.header}`;
   return (
-    <div data-hc-permission={prompt.promptId} className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div data-hc-permission={prompt.promptId} className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <ShieldAlert aria-hidden="true" className="h-am-icon w-am-icon shrink-0 text-hue-red" />
-        <h3 className="text-base font-semibold text-content">{`Permission request: ${title}`}</h3>
-        <span className="rounded-full bg-surface px-2 text-xs text-muted-tint">{`terminal ${prompt.terminal}`}</span>
+        <h3 className="text-sm font-semibold text-content">{`Permission request: ${title}`}</h3>
+        <Chip variant="neutral">{`terminal ${prompt.terminal}`}</Chip>
       </div>
       {/* The warning of the header: what a click does is a key typed into a real terminal. */}
-      <p data-hc-warning="" className="flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-sm text-warning-text">
+      <p data-hc-warning="" className="flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text">
         <Keyboard aria-hidden="true" className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0" />
         <span>
           This answers the dialog in the terminal by typing the key there: <strong>Allow once</strong> types Enter (option 1, Yes), <strong>Deny</strong> types Esc (cancel). The terminal is not checked again after the key, only before it. &quot;Always allow&quot; is never selected from this page.

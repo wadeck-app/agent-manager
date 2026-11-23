@@ -75,17 +75,22 @@ describe('the batch bar', () => {
     tick('billing-owner', 'docs-writer');
     const bar = screen.getByRole('toolbar', { name: 'Actions on the selected sessions' });
     expect(within(bar).getByText('2 selected')).toBeInTheDocument();
-    for (const name of ['Send a message...', 'Mark as seen', 'Pin', 'Move to group', 'Add / remove bypass']) {
+    for (const name of ['Send a message...', 'Mark as seen', 'Pin', 'Move to group', 'Add bypass', 'Remove bypass']) {
       expect(within(bar).getByRole('button', { name })).toBeInTheDocument();
     }
   });
 
-  it('Add / remove bypass for a selection is not built: it is off and says where to add one session at a time', () => {
-    render(<Harness rows={[billing]} />);
-    tick('billing-owner');
-    const button = screen.getByRole('button', { name: 'Add / remove bypass' });
-    expect(button).toBeDisabled();
-    expect(button.closest('span[title]')).toHaveAttribute('title', 'Not available for a selection yet. Open one session and use Add bypass in its Permissions tab.');
+  it('Add bypass and Remove bypass open their own dialog for the selection, each button with its own name', () => {
+    render(<Harness rows={[billing, docs]} />);
+    tick('billing-owner', 'docs-writer');
+    expect(screen.getByRole('button', { name: 'Add bypass' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Remove bypass' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Add bypass' }));
+    expect(screen.getByRole('dialog', { name: 'Add a bypass to 2 sessions' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove bypass' }));
+    expect(screen.getByRole('dialog', { name: 'Remove bypasses from 2 sessions' })).toBeInTheDocument();
   });
 
   it('Mark as seen acts on the finished sessions only, and is off with the reason when none is', () => {

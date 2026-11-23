@@ -138,3 +138,14 @@ describe('tool meta chips in the log', () => {
     expect(document.querySelector('[data-meta-chips]')).toBeNull();
   });
 });
+
+describe('log filter bar: one row that scrolls', () => {
+  it('never wraps onto the rail: one row, scrolls sideways, chips keep their size', async () => {
+    render(<LogViewer session={session} />);
+    await screen.findByText('run the tests');
+    const group = screen.getByRole('group', { name: 'Show in the log' });
+    expect(group).toHaveClass('flex-nowrap', 'overflow-x-auto');
+    expect(group).not.toHaveClass('flex-wrap');
+    expect(group.className).toContain('[&>*]:shrink-0');
+  });
+});

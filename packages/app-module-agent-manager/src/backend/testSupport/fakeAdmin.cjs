@@ -9,11 +9,19 @@
 //   grant-wrong-category (answers another category) | grant-slow (answers after 600 ms) | grant-no-origin (the list entries it writes have no origin field)
 // FAKE_ADMIN_RULES_FILE: a JSON array of categories for "rules" (default: a short list with rm, git-push and two not bypassable ones).
 // FAKE_ADMIN_RULES_CONFIG_ERROR: the text of config.error in the rules answer.
+// Batch scenarios (tests of POST /guardrails/batch/*):
+//   FAKE_ADMIN_UNIQUE_IDS=1: every grant gets its own id (c0ffee00 + its rank), so a revoke can name it.
+//   FAKE_ADMIN_COUNTER_FILE + FAKE_ADMIN_ELEVATE_AFTER=n: the n first grants work, the next ones fail with elevation-required (the PIN token expired mid-batch).
+//   FAKE_ADMIN_SPAM_SESSIONS=<id>,<id>: a grant for these sessions fails with the spam lock.
+//   FAKE_ADMIN_GRANT_DELAY_MS=<ms> + FAKE_ADMIN_CONCURRENCY_FILE: a grant takes that long and writes "+" at its start and "-" at its end in the file (the test reads the peak).
+//   FAKE_ADMIN_RULES_BY_CWD: a JSON file {"<basename of the cwd>": [categories]} for "rules"; a folder it does not list gets the default list.
 // FAKE_ADMIN_LOG: when set, one JSON line per call is appended there: the argv, the text read on stdin (grant only) and whether the token is in any environment value.
 
 const fs = require('fs');
 
 const argv = process.argv.slice(2);
+const sub = argv[1];
+const cwd = argv.indexOf('--cwd') === -1 ? undefined : argv[argv.indexOf('--cwd') + 1];
 const scenario = process.env.FAKE_ADMIN_SCENARIO || 'ok';
 
 let stdinText = '';
@@ -53,13 +61,40 @@ const DEFAULT_RULES = [
   { name: 'secrets-leak', decision: 'deny', source: 'hardcoded', bypassable: false, hardcoded: true },
 ];
 
+function withLock(run) {
+  const lock = (process.env.FAKE_ADMIN_GRANTS_FILE || 'fake-admin') + '.lock';
+  for (let i = 0; i < 2000; i += 1) {
+    try {
+      fs.mkdirSync(lock);
+      break;
+    } catch (e) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+    }
+  }
+  try {
+    return run();
+  } finally {
+    try {
+      fs.rmdirSync(lock);
+    } catch (e) {
+      // already gone
+    }
+  }
+}
+
 function rulesOf() {
+  const byCwd = process.env.FAKE_ADMIN_RULES_BY_CWD;
+  if (byCwd && cwd) {
+    const table = JSON.parse(fs.readFileSync(byCwd, 'utf8'));
+    const key = require('path').basename(cwd);
+    if (table[key]) {
+      return table[key];
+    }
+  }
   const file = process.env.FAKE_ADMIN_RULES_FILE;
   return file ? JSON.parse(fs.readFileSync(file, 'utf8')) : DEFAULT_RULES;
 }
 
-const sub = argv[1];
-const cwd = flag('cwd');
 
 function grant() {
   const token = stdinText.trim();
@@ -86,13 +121,29 @@ function grant() {
   if (scenario === 'grant-echo-token') {
     return error(`Verification failed: the token ${token} was rejected.`);
   }
+  if (process.env.FAKE_ADMIN_ELEVATE_AFTER !== undefined && process.env.FAKE_ADMIN_COUNTER_FILE) {
+    fs.appendFileSync(process.env.FAKE_ADMIN_COUNTER_FILE, 'x');
+    if (fs.statSync(process.env.FAKE_ADMIN_COUNTER_FILE).size > Number(process.env.FAKE_ADMIN_ELEVATE_AFTER)) {
+      return error('Verification failed: elevation-required. The PIN access token is older than 10 minutes or the PIN is locked.');
+    }
+  }
+  if ((process.env.FAKE_ADMIN_SPAM_SESSIONS || '').split(',').includes(session)) {
+    return error('Spam lock active: too many bypass requests for this session. Try again in 60 s.');
+  }
   if (token === '') {
     return error('No PIN access token on stdin. Pass the Bearer value on stdin.');
   }
   if (!category || !session || !rationale || !['once', '10m', '30m', '4h'].includes(mode)) {
     return error('Bad grant arguments.');
   }
+  const concurrency = process.env.FAKE_ADMIN_CONCURRENCY_FILE;
+  if (concurrency) {
+    fs.appendFileSync(concurrency, '+');
+  }
   const run = () => {
+    if (concurrency) {
+      fs.appendFileSync(concurrency, '-');
+    }
     const entry = {
       id: 'c0ffee01',
       category,
@@ -107,12 +158,18 @@ function grant() {
       entry.origin = 'ui';
     }
     if (process.env.FAKE_ADMIN_GRANTS_FILE) {
-      fs.writeFileSync(process.env.FAKE_ADMIN_GRANTS_FILE, JSON.stringify([...grantsOf(), entry]));
+      withLock(() => {
+        const known = grantsOf();
+        if (process.env.FAKE_ADMIN_UNIQUE_IDS) {
+          entry.id = (0xc0ffee00 + known.length + 1).toString(16);
+        }
+        fs.writeFileSync(process.env.FAKE_ADMIN_GRANTS_FILE, JSON.stringify([...known, entry]));
+      });
     }
     out({ schema: 'w-guardrails.bypass-grant/1', granted: true, id: entry.id, category: scenario === 'grant-wrong-category' ? 'kill' : category, mode, session_id: session, expires: entry.expires, origin: 'ui' }, 0);
   };
-  if (scenario === 'grant-slow') {
-    setTimeout(run, 600);
+  if (scenario === 'grant-slow' || process.env.FAKE_ADMIN_GRANT_DELAY_MS) {
+    setTimeout(run, scenario === 'grant-slow' ? 600 : Number(process.env.FAKE_ADMIN_GRANT_DELAY_MS));
   } else {
     run();
   }
@@ -174,7 +231,7 @@ if (scenario === 'hang') {
   } else if (!found) {
     out({ schema: 'w-guardrails.error/1', error: `No grant with id "${id}". Run "bypass list" to see current ids.` }, 1);
   } else {
-    fs.writeFileSync(process.env.FAKE_ADMIN_GRANTS_FILE, JSON.stringify(all.filter((g) => g.id !== id)));
+    withLock(() => fs.writeFileSync(process.env.FAKE_ADMIN_GRANTS_FILE, JSON.stringify(grantsOf().filter((g) => g.id !== id))));
     out({ schema: 'w-guardrails.bypass-revoke/1', revoked: true, id: scenario === 'revoke-mismatch' ? 'ffffffff' : id, category: found.category, session_id: found.session_id }, 0);
   }
 } else {

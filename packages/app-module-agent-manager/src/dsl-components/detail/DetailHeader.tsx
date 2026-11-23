@@ -10,7 +10,8 @@ import { describeTimeInState, timeInState } from '../logic/time.js';
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { useMediaQuery } from '../ui/hooks.js';
-import { STATE_LOOK } from '../ui/stateLook.js';
+import { Chip } from '../ui/Chip.js';
+import { STATE_LOOK, STATE_VARIANT } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { GuardrailBlocks } from '../guardrails/GuardrailBlocks.js';
@@ -159,10 +160,9 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
             {session.displayName}
           </h2>
           <Tooltip content={STATE_MEANING[session.state]}>
-            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs ${look.bg} ${look.text}`}>
-              <StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />
-              {look.label}
-            </span>
+            <Chip variant={STATE_VARIANT[session.state]} icon={<StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />}>
+                            {look.label}
+            </Chip>
           </Tooltip>
           {since !== '' ? (
             <Tooltip content={describeTimeInState(session.statusUpdatedAt, now)}>

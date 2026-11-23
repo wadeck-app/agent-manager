@@ -13,6 +13,7 @@ import { DropBar } from './DropBar.js';
 import { GroupDot } from './GroupDot.js';
 import { GroupSelectBox } from './GroupSelectBox.js';
 import type { GroupDnd } from './useGroupDnd.js';
+import { RowIconButton } from './RowIconButton.js';
 
 export interface CustomGroupSectionProps {
   section: GroupSection;
@@ -80,18 +81,7 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
         <GroupHeaderName variant={headerStyle} text={group.name} textClass={look.text} />
         <span className="ml-auto flex shrink-0 items-center gap-2">
           <Tooltip content="Edit the group: name, color, order, delete (E)" side="left">
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={`Edit the group ${group.name}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onEdit();
-              }}
-              className={`inline-flex h-6 w-6 items-center justify-center rounded text-muted opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
-            >
-              <Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            </button>
+            <RowIconButton label={`Edit the group ${group.name}`} onClick={() => onEdit()} className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100" icon={<Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
           </Tooltip>
           <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={group.name} />
           <span className={`text-xs tabular-nums text-muted ${groupHeaderCount(headerStyle)}`}>{sessions.length}</span>

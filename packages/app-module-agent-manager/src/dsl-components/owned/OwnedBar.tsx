@@ -11,8 +11,9 @@ import { isBgOwned, isLiveBg, isLiveWeb, isOwned } from '../logic/owned.js';
 import type { OwnedForgetResponse, OwnedInterruptResponse, OwnedPermissionModeResponse, OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
+import { useMediaQuery } from '../ui/hooks.js';
 import { BgAttach } from './BgAttach.js';
+import { BG_NO_INTERRUPT, BG_NO_MODE, BgLimits } from './BgLimits.js';
 import { HostBadge } from './OwnedChips.js';
 import { OwnedStateChip } from './OwnedStateChip.js';
 import { DAEMON_DOWN_REASON, useDaemonDown } from './DaemonState.js';
@@ -35,9 +36,8 @@ type Pending = 'stop' | 'resume' | 'forget';
 /** The honest text of a resume: what comes back and what does not. */
 export const RESUME_TEXT = 'Resume restores the conversation: Claude Code reloads the transcript. The turn that was running when the daemon ended is NOT replayed: send your message again if you still want it.';
 
-/** Why a background session has no Interrupt: claude has no stop-turn command (checked in `claude --help` and the documented commands), only the terminal. */
-export const BG_NO_INTERRUPT = 'A background session has no remote interrupt: claude has no stop-turn command, attach and press Esc in the terminal.';
-export const BG_NO_MODE = 'The permission mode of a background session cannot be changed remotely.';
+// The texts live with the panel that shows them (BgAttach).
+export { BG_NO_INTERRUPT, BG_NO_MODE };
 
 
 /**
@@ -55,6 +55,8 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
   const [note, setNote] = useState('');
   // The daemon is known to be down: Stop, Resume, Interrupt and Forget are off with the reason and the fix, instead of a click that fails.
   const daemonDown = useDaemonDown();
+  // A phone: the attach card and the explanations of a background session become one row with a details toggle.
+  const narrow = useMediaQuery('(max-width: 639px)');
   if (!owned) {
     return null;
   }
@@ -223,7 +225,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       {readError !== '' && (session.host === 'stream-json' || bg) ? <Banner tone="warning">{`The daemon record of this session could not be read, so some actions may be missing. ${readError}`}</Banner> : null}
 
       {bg && dto?.observeError !== undefined ? <Banner tone="warning">{`The daemon could not read the state of background sessions (claude agents --json), so the state shown may be stale: ${dto.observeError}`}</Banner> : null}
-      {liveBg ? <BgAttach command={dto?.attachCommand} waitingFor={session.ownedState === 'requires_action' ? (dto?.waitingFor ?? 'prompt') : undefined} /> : null}
+      {liveBg ? <BgAttach command={dto?.attachCommand} waitingFor={session.ownedState === 'requires_action' ? (dto?.waitingFor ?? 'prompt') : undefined} permissionMode={dto?.permissionMode} compact={narrow} /> : null}
 
       {inline === undefined ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -267,21 +269,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
         </p>
       ) : null}
 
-      {liveBg ? (
-        <details data-bg-limits="" className="text-xs text-muted">
-          <summary className={`cursor-pointer rounded ${FOCUS_RING}`}>Why are Interrupt and Permission mode not available?</summary>
-          <ul className="mt-1 list-none">
-            <li id="bg-no-interrupt">{BG_NO_INTERRUPT}</li>
-            <li id="bg-no-mode" data-bg-no-mode="">
-              <label className="inline-flex items-center gap-1.5">
-                Mode
-<CompactSelect ariaLabel="Permission mode" disabled value={dto?.permissionMode ?? ''} onChange={() => undefined} options={[{ value: dto?.permissionMode ?? '', label: dto?.permissionMode ?? '(set at launch)' }]} />
-              </label>{' '}
-              {BG_NO_MODE}
-            </li>
-          </ul>
-        </details>
-      ) : null}
+      {liveBg && !narrow ? <BgLimits permissionMode={dto?.permissionMode} /> : null}
 
       {note !== '' ? (
         <p role="status" className="text-sm text-muted">

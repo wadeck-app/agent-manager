@@ -8,7 +8,8 @@ import { STATE_MEANING } from '../logic/states.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
 import { MoveBadgeView } from '../owned/MoveBadgeView.js';
 import { useDaemonDown } from '../owned/DaemonState.js';
-import { STATE_LOOK } from '../ui/stateLook.js';
+import { Chip } from '../ui/Chip.js';
+import { STATE_LOOK, STATE_VARIANT } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { BypassChips } from './status/BypassChips.js';
 import { CHIP } from './status/chipStyle.js';
@@ -116,10 +117,9 @@ ${move.unavailable}`;
         {session.displayName}
       </h2>
       <Tooltip content={STATE_MEANING[session.state]}>
-        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs ${look.bg} ${look.text}`}>
-          <StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />
-          {tight ? <span className="sr-only">{look.label}</span> : look.label}
-        </span>
+        <Chip variant={STATE_VARIANT[session.state]} icon={<StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />}>
+                    {tight ? <span className="sr-only">{look.label}</span> : look.label}
+        </Chip>
       </Tooltip>
       {since === '' ? null : (
         <Tooltip content={describeTimeInState(session.statusUpdatedAt, now)}>

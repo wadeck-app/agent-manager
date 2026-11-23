@@ -11,14 +11,14 @@ describe('SessionsTable', () => {
     expect(headers).toEqual(['Session', 'Folder', 'Status', 'Detail', 'Status since', 'PID', 'Harness', 'Alive']);
   });
 
-  it('writes the state with the vocabulary and the colours of the Agents page, not busy / idle / other', () => {
+  it('writes the state with the vocabulary and the shared chip variants of the Agents page (the two warm states share the warning one), not busy / idle / other', () => {
     const states = [
       ['needs-you', 'Needs you', 'text-hue-red'],
       ['done', 'Done', 'text-hue-blue'],
-      ['working', 'Working', 'text-hue-yellow'],
-      ['idle', 'Idle', 'text-muted'],
-      ['other', 'Other', 'text-hue-orange'],
-      ['ended', 'Ended', 'text-muted'],
+      ['working', 'Working', 'text-warning-text'],
+      ['idle', 'Idle', 'text-muted-tint'],
+      ['other', 'Other', 'text-warning-text'],
+      ['ended', 'Ended', 'text-muted-tint'],
     ] as const;
     render(<SessionsTable rows={states.map(([state]) => row({ state, displayName: `s-${state}` }))} />);
     for (const [state, label, colour] of states) {

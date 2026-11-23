@@ -29,7 +29,7 @@ const plain = row({ folder: 'shop', cwd: '/a/shop', displayName: 'plain', state:
 // With the option on, EVERY agent row holds a chevron slot (Herdr rows), a chevron or a same-size placeholder (compact Tree rows): same left offset for all.
 function rowsWithoutLeadingSlot(container: HTMLElement): string[] {
   return Array.from(container.querySelectorAll<HTMLElement>('[data-session-id]'))
-    .filter((item) => item.querySelector('[data-row-chevron-slot], span.h-6.w-6, button[aria-label*="sub-agents"]') === null)
+    .filter((item) => item.querySelector('[data-row-chevron-slot], span.h-7.w-7, button[aria-label*="sub-agents"]') === null)
     .map((item) => item.dataset['sessionId'] ?? '');
 }
 
@@ -65,7 +65,7 @@ describe.each([
     expect(rows).toHaveLength(2);
     // The only expandable items are folders (Tree): never an agent row.
     expect(rows.every((item) => !item.hasAttribute('aria-expanded'))).toBe(true);
-    expect(container.querySelector('[data-row-chevron-slot], span.h-6.w-6')).toBeNull();
+    expect(container.querySelector('[data-row-chevron-slot], span.h-7.w-7')).toBeNull();
     // The count chip costs no vertical room and is kept.
     expect(screen.getByLabelText('3 sub-agents')).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();

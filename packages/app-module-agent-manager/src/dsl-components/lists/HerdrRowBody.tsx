@@ -1,13 +1,13 @@
 import { Bot, ChevronDown, ChevronRight, Flag, FolderInput, MoreHorizontal, Pin } from 'lucide-react';
 import type { AgentRow } from '../data/types.js';
 import { herdrRowShape, type HerdrDensity } from '../logic/herdrRow.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { Highlight } from './Highlight.js';
 import { HerdrLightView } from './HerdrLightView.js';
 import { HerdrProgramIcon } from './HerdrProgramIcon.js';
 import { GuardrailChip } from '../guardrails/GuardrailChip.js';
 import { TimeInState } from './TimeInState.js';
+import { RowIconButton } from './RowIconButton.js';
 
 /** The separator between the name and the folder (U+00B7), built from its code so that the source stays ASCII. */
 const MIDDLE_DOT = String.fromCharCode(0xb7);
@@ -37,20 +37,13 @@ export function HerdrRowBody({ session, density, now, terms, showSlot, subagents
     <div className="flex h-full items-center gap-2">
       {/* The slot is on every row of a list that shows sub-agents, with or without any: the state icon and the name start at the same x on every row. A list that does not show them has no slot on any row. */}
       {showSlot ? (
-      <span data-row-chevron-slot="" className="-ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center">
+      <span data-row-chevron-slot="" className="-ml-2 -mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center">
       {subagents !== undefined ? (
-        <button
-          type="button"
-          tabIndex={-1}
-          aria-label={subagents.open ? `Hide the ${session.subagentCount} sub-agents` : `Show the ${session.subagentCount} sub-agents`}
-          onClick={(event) => {
-            event.stopPropagation();
-            subagents.toggle();
-          }}
-          className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
-        >
-          {subagents.open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
-        </button>
+        <RowIconButton
+          label={subagents.open ? `Hide the ${session.subagentCount} sub-agents` : `Show the ${session.subagentCount} sub-agents`}
+          onClick={() => subagents.toggle()}
+          icon={subagents.open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+        />
       ) : null}
       </span>
       ) : null}
@@ -92,36 +85,20 @@ export function HerdrRowBody({ session, density, now, terms, showSlot, subagents
         <span data-herdr-actions="" className="absolute right-7 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded bg-surface px-0.5 shadow-sm ring-1 ring-border group-focus-within:flex group-hover:flex">
         {onMove !== undefined ? (
           <Tooltip content="Move to a group (M)" side="left">
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={`Move ${session.displayName} to a group`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onMove();
-              }}
-              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
-            >
-              <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            </button>
+            <RowIconButton label={`Move ${session.displayName} to a group`} onClick={() => onMove()} icon={<FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
           </Tooltip>
         ) : null}
         {onMenu !== undefined ? (
           <Tooltip content="Flag, mark as unread, move (right-click)" side="left">
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={`Actions of ${session.displayName}`}
+            <RowIconButton
+              label={`Actions of ${session.displayName}`}
               aria-haspopup="menu"
               onClick={(event) => {
-                event.stopPropagation();
                 const box = event.currentTarget.getBoundingClientRect();
                 onMenu({ x: box.left, y: box.bottom + 2 });
               }}
-              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
-            >
-              <MoreHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            </button>
+              icon={<MoreHorizontal aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+            />
           </Tooltip>
         ) : null}
         </span>

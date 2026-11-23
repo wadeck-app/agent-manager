@@ -1,4 +1,5 @@
-import { STATE_LOOK } from './stateLook.js';
+import { Chip } from './Chip.js';
+import { STATE_LOOK, STATE_VARIANT } from './stateLook.js';
 import type { AgentState } from '../logic/states.js';
 
 /**
@@ -9,9 +10,8 @@ export function StateChip({ state }: { state: AgentState }) {
   const look = STATE_LOOK[state];
   const Icon = look.icon;
   return (
-    <span data-state-chip={state} className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs ${look.bg} ${look.text}`}>
-      <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${look.iconClass}`} />
+    <Chip data-state-chip={state} variant={STATE_VARIANT[state]} icon={<Icon className={`h-am-icon-sm w-am-icon-sm ${look.iconClass}`} />}>
       {look.label}
-    </span>
+    </Chip>
   );
 }

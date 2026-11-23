@@ -29,6 +29,7 @@ import type { BatchRecipientResult, BatchRecipientState, BatchReplyOk, DeliveryS
 import { BATCH_CONCURRENCY, MAX_BATCH_RECIPIENTS } from '../commons/batch.js';
 import { SESSION_ID_PATTERN } from './userState.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
+import { mapLimit } from './mapLimit.js';
 import type { DaemonApi } from './daemon/daemonApi.js';
 import { ownedDeliveryStatus } from './daemon/ownedDelivery.js';
 import { sessionFromOwned } from './daemon/ownedJoin.js';
@@ -210,21 +211,6 @@ export function parseBatchBody(body: unknown): BatchRequest {
     request.requestId = requestId as string;
   }
   return request;
-}
-
-/** Runs `run` over `items` with at most `limit` in flight; the results keep the order of the items. `run` must not throw. */
-async function mapLimit<T, R>(items: readonly T[], limit: number, run: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < items.length) {
-      const index = next;
-      next += 1;
-      results[index] = await run(items[index] as T);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-  return results;
 }
 
 /** The codes the reply service itself audits as "refused" (nothing was sent), whatever their HTTP status. */

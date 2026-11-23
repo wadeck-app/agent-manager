@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { herdrLight } from '../logic/herdrRow.js';
 import { STATE_MEANING } from '../logic/states.js';
+import { Chip } from '../ui/Chip.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
 
@@ -16,7 +17,7 @@ export function HerdrLightView({ session }: { session: AgentRow }) {
   } else if (light.kind === 'spinner') {
     node = <StatusIcon state="working" sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />;
   } else if (light.kind === 'pill') {
-    node = <span className="rounded-full bg-hue-red-bg px-2 text-xs font-medium leading-5 text-hue-red">{light.label}</span>;
+    node = <Chip variant="danger">{light.label}</Chip>;
   } else {
     node = <StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />;
   }

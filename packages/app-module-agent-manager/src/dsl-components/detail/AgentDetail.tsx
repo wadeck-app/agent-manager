@@ -1,4 +1,5 @@
 import type { AgentRow } from '../data/types.js';
+import { CardsDock } from './CardsDock.js';
 import { Composer } from './composer/Composer.js';
 import { HcPermissionCard } from '../owned/HcPermissionCard.js';
 import { PermissionCard } from '../owned/PermissionCard.js';
@@ -20,9 +21,14 @@ export interface AgentDetailProps {
 export function AgentDetail({ session, onThreadStarted, focusMessageId }: AgentDetailProps) {
   return (
     <div data-agent-detail="" className="flex min-h-0 flex-1 flex-col">
-      <LogViewer session={session} {...(onThreadStarted === undefined ? {} : { onThreadStarted })} {...(focusMessageId === undefined ? {} : { focusMessageId })} />
-      <PermissionCard key={session.sessionId.toLowerCase()} session={session} />
-      <HcPermissionCard key={`hc-${session.sessionId.toLowerCase()}`} session={session} />
+      {/* The log keeps a usable minimum height (7rem) whatever the cards below take. */}
+      <div data-detail-log="" className="flex min-h-[7rem] flex-1 flex-col">
+        <LogViewer session={session} {...(onThreadStarted === undefined ? {} : { onThreadStarted })} {...(focusMessageId === undefined ? {} : { focusMessageId })} />
+      </div>
+      <CardsDock>
+        <PermissionCard key={session.sessionId.toLowerCase()} session={session} />
+        <HcPermissionCard key={`hc-${session.sessionId.toLowerCase()}`} session={session} />
+      </CardsDock>
       <Composer session={session} />
     </div>
   );

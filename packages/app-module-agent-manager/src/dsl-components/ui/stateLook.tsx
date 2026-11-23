@@ -1,4 +1,5 @@
 import { Circle, CircleAlert, CircleDot, CircleHelp, CircleOff, LoaderCircle, Pin, type LucideIcon } from 'lucide-react';
+import type { ChipVariant } from './Chip.js';
 import { STATE_LABEL, type AgentState, type GroupId } from '../logic/states.js';
 
 /**
@@ -25,6 +26,9 @@ export const STATE_LOOK: Record<AgentState, StateLook> = {
   other: { label: STATE_LABEL.other, icon: CircleHelp, text: 'text-hue-orange', bg: 'bg-hue-orange-bg', iconClass: '' },
   ended: { label: STATE_LABEL.ended, icon: CircleOff, text: 'text-muted-tint', bg: 'bg-muted-bg', iconClass: '' },
 };
+
+/** The chip variant of each state: the shared chip has five looks, so the two warm states (working, other) share the warning one (the icon and the word differ). */
+export const STATE_VARIANT: Record<AgentState, ChipVariant> = { 'needs-you': 'danger', done: 'info', working: 'warning', idle: 'neutral', other: 'warning', ended: 'neutral' };
 
 /** The heading colour of a group: the state colour, neutral for Pinned. */
 export function groupText(id: GroupId): string {

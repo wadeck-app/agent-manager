@@ -72,7 +72,7 @@ export function HcPermissionCard({ session }: { session: AgentRow }) {
     return null;
   }
   return (
-    <section aria-label="Permission request in the terminal" data-hc-permission-card="" className={`flex shrink-0 flex-col gap-2 border-t px-4 py-3 ${prompt === undefined ? 'border-border bg-surface' : 'border-hue-red bg-hue-red-bg'}`}>
+    <section aria-label="Permission request in the terminal" data-hc-permission-card="" className={`flex shrink-0 flex-col gap-1.5 border-t px-4 py-2 ${prompt === undefined ? 'border-border bg-surface' : 'border-hue-red bg-hue-red-bg'}`}>
       {error !== '' ? (
         <Banner tone={errorCode === 'request-failed' ? 'error' : 'info'}>
           {`This session waits for a permission, and it cannot be answered from this page: ${error}`}

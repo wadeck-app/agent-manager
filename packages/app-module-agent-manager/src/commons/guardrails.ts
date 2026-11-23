@@ -273,3 +273,63 @@ export interface GrantAddedDto {
   /** '' when the audit line was written; else why it was not (the grant IS made). */
   auditError: string;
 }
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+// Add and revoke bypasses for a selection of sessions (threat-model T-24)
+// ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** The most distinct sessions of one batch grant or revoke (the cap of the batch reply). */
+export const MAX_BATCH_GRANT_SESSIONS = 20;
+/** The most grants of one batch revoke: a session may hold several (one per category and mode). */
+export const MAX_BATCH_REVOKE_ITEMS = 60;
+
+/** granted: the plugin made it. refused: nothing was asked of the plugin (or it refused). failed: the plugin or the call failed. not-attempted: skipped after the PIN token expired. */
+export type BatchGrantStatus = 'granted' | 'refused' | 'failed' | 'not-attempted';
+
+export interface BatchGrantResult {
+  sessionId: string;
+  /** The registry name of the session, its folder name when it has none, the id when it is unknown. */
+  name: string;
+  status: BatchGrantStatus;
+  /** '' when granted, else the machine code (pin-expired, not-bypassable, duplicate-request, ...). */
+  code: string;
+  /** What happened, in words, with the fix for a refusal. */
+  text: string;
+  /** The id of the new bypass, only when granted. */
+  id?: string;
+  /** The folder the plugin was asked about, when it was known. */
+  cwd?: string;
+}
+
+/** POST /guardrails/batch/grants, success (even when some sessions were refused: read `results`). `replayed` is true when the answer is the one of an earlier request with the same requestId. */
+export interface BatchGrantsOk {
+  ok: true;
+  requestId: string;
+  category: string;
+  mode: GrantModeDto;
+  replayed: boolean;
+  results: BatchGrantResult[];
+  counts: Record<BatchGrantStatus, number>;
+}
+
+export type BatchRevokeStatus = 'revoked' | 'refused' | 'failed';
+
+export interface BatchRevokeResult {
+  sessionId: string;
+  name: string;
+  grantId: string;
+  /** The category of the revoked grant, '' when none was found. */
+  category: string;
+  status: BatchRevokeStatus;
+  code: string;
+  text: string;
+}
+
+/** POST /guardrails/batch/revoke, success. */
+export interface BatchRevokeOk {
+  ok: true;
+  requestId: string;
+  replayed: boolean;
+  results: BatchRevokeResult[];
+  counts: Record<BatchRevokeStatus, number>;
+}

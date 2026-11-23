@@ -63,7 +63,7 @@ export function PermissionCard({ session }: { session: AgentRow }) {
     return null;
   }
   return (
-    <section aria-label="Permission requests" data-permission-card="" className="flex shrink-0 flex-col gap-2 border-t border-hue-red bg-hue-red-bg px-4 py-3">
+    <section aria-label="Permission requests" data-permission-card="" className="flex shrink-0 flex-col gap-1.5 border-t border-hue-red bg-hue-red-bg px-4 py-2">
       {pollError !== '' ? <Banner tone="error">{`The permission requests of this session could not be read, so a request may be waiting that you cannot see. ${pollError}`}</Banner> : null}
       {failure !== '' ? <Banner tone="error">{failure}</Banner> : null}
       {feedback !== '' ? (

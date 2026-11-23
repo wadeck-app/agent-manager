@@ -143,6 +143,26 @@ describe('the room the page keeps for the popup', () => {
     expect(reserve()).toBe('');
   });
 
+  it('folded dock: the room follows the folded dock height (frame top), so the reply box lifts above the popup with a gap of 8 px', () => {
+    // A folded dock: pill of 30 px, frame top 746 in a window of 800, so the popup bottom is 800 - 746 + 8 = 62.
+    addDock({ value: 746 }, false);
+    render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
+    expect(bottomOf()).toBe('62px');
+    // Popup height 0 in jsdom: reserve = popup bottom (62) + height (0) + gap (8).
+    expect(reserve()).toBe('70px');
+  });
+
+  it('folded dock: the room is recomputed when the dock changes its height', () => {
+    const top = { value: 746 };
+    addDock(top, false);
+    render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
+    expect(reserve()).toBe('70px');
+    top.value = 700;
+    act(() => observers.forEach((entry) => entry.cb()));
+    expect(bottomOf()).toBe('108px');
+    expect(reserve()).toBe('116px');
+  });
+
   it('does not follow the dock: with the dock open the room stays the one above the window bottom', () => {
     addDock({ value: 400 }, true);
     render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);

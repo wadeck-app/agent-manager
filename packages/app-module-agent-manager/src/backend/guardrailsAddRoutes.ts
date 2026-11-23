@@ -1,4 +1,4 @@
-import { defaultConfigDir, getErrorMessage } from '@wadeck-app/agent-manager-core';
+import { defaultConfigDir, getErrorMessage, type Session } from '@wadeck-app/agent-manager-core';
 import { GRANT_MODES, MAX_RATIONALE_CHARS, type GrantAddedDto, type GrantModeDto, type RuleCategoryDto, type SessionRulesDto } from '../commons/guardrails.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import type { OwnedSource } from './daemon/ownedSource.js';
@@ -23,7 +23,7 @@ const CATEGORY = /^[a-z0-9][a-z0-9-]{0,63}$/;
 /** After a grant the same request is refused for this long (a double click arrives after the first answer, too). */
 const DUPLICATE_WINDOW_MS = 3000;
 
-function bearerOf(req: RouteRequest): string {
+export function bearerOf(req: RouteRequest): string {
   const header = req.headers?.['authorization'];
   const value = typeof header === 'string' ? BEARER.exec(header)?.[1] : undefined;
   if (value === undefined) {
@@ -43,21 +43,14 @@ function isControl(char: string): boolean {
   return code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029;
 }
 
-interface AddBody {
+export interface AddBody {
   category: string;
   mode: GrantModeDto;
   rationale: string;
 }
 
-function parseAddBody(body: unknown): AddBody {
-  const example = '{"category": "rm", "mode": "once", "rationale": "why"}';
-  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-    throw new CodedRequestError(400, 'bad-request', 'The body must be a JSON object', `Send ${example} with Content-Type: application/json.`);
-  }
-  const extra = Object.keys(body).filter((key) => !['category', 'mode', 'rationale'].includes(key));
-  if (extra.length > 0) {
-    throw new CodedRequestError(400, 'bad-request', `Unknown field(s) in the body: ${extra.map((key) => `'${key.slice(0, 40)}'`).join(', ')}`, `The fields are category, mode and rationale, e.g. ${example}. The folder and the session come from the URL, never from the body.`);
-  }
+/** The category, mode and rationale of a body (the one of the single route and of the batch): the same checks, the same words. */
+export function parseGrantFields(body: object): AddBody {
   const category: unknown = Reflect.get(body, 'category');
   const mode: unknown = Reflect.get(body, 'mode');
   const rationale: unknown = Reflect.get(body, 'rationale');
@@ -77,6 +70,18 @@ function parseAddBody(body: unknown): AddBody {
     throw new CodedRequestError(400, 'bad-request', "'rationale' must be plain text on one line: it has a line break or a control character", 'Remove the line breaks and control characters.');
   }
   return { category, mode: mode as GrantModeDto, rationale: rationale.trim() };
+}
+
+function parseAddBody(body: unknown): AddBody {
+  const example = '{"category": "rm", "mode": "once", "rationale": "why"}';
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    throw new CodedRequestError(400, 'bad-request', 'The body must be a JSON object', `Send ${example} with Content-Type: application/json.`);
+  }
+  const extra = Object.keys(body).filter((key) => !['category', 'mode', 'rationale'].includes(key));
+  if (extra.length > 0) {
+    throw new CodedRequestError(400, 'bad-request', `Unknown field(s) in the body: ${extra.map((key) => `'${key.slice(0, 40)}'`).join(', ')}`, `The fields are category, mode and rationale, e.g. ${example}. The folder and the session come from the URL, never from the body.`);
+  }
+  return parseGrantFields(body);
 }
 
 interface Explained {
@@ -117,11 +122,94 @@ function notBypassableText(rule: RuleCategoryDto): string {
   return `'${rule.name}' cannot be bypassed: ${why}`;
 }
 
-export function registerAddRoutes(kit: RouteKit, options: GrantsOptions, owned: OwnedSource): void {
+/** Why one grant was not made: the HTTP status the single route answers with, and the machine code, message and fix of every route. */
+export interface GrantRefusal {
+  ok: false;
+  status: number;
+  code: string;
+  message: string;
+  hint: string;
+}
+
+export type GrantOutcome = { ok: true; added: GrantAddedDto } | GrantRefusal;
+
+/** The grant of ONE session, shared by POST /guardrails/sessions/:sessionId/grants and the batch route. It holds the double-submit protection. */
+export interface GrantCore {
+  /**
+   * The whole logic of one grant: the folder of the session, the duplicate guard, the rules of THAT folder (the category must be bypassable there), the plugin's CLI with
+   * the token on its stdin, one audit line. Never throws for a refusal or a failure of the plugin (they are the outcome). `auditExtra` adds plain fields to the audit line.
+   */
+  grantOne: (session: Session, body: AddBody, token: string, auditExtra?: Record<string, unknown>) => Promise<GrantOutcome>;
+  /** The audit line of a session the batch did not attempt (its outcome starts with "not-attempted"). Returns why it could not be written, '' when written. */
+  auditSkipped: (session: Session, body: AddBody, outcome: string, auditExtra?: Record<string, unknown>) => Promise<string>;
+}
+
+const refusal = (status: number, code: string, message: string, hint: string): GrantRefusal => ({ ok: false, status, code, message, hint });
+
+export function createGrantCore(options: GrantsOptions): GrantCore {
   const configDirOf = (): string => options.configDir ?? defaultConfigDir(process.env);
   // Double-submit protection: a request for the same session and category while one runs (or just succeeded) is refused. A failure frees the key at once.
   const running = new Set<string>();
   const granted = new Map<string, number>();
+
+  async function grantOne(session: Session, body: AddBody, token: string, auditExtra: Record<string, unknown> = {}): Promise<GrantOutcome> {
+    const folder = await folderOf(session);
+    if (folder.cwd === '') {
+      return refusal(409, 'no-cwd', `The folder of session ${session.sessionId} is unknown, so nothing was granted`, 'Send a message in the session so that Claude Code reports its folder, then retry.');
+    }
+    const key = `${session.sessionId}|${body.category}`;
+    const recent = granted.get(key);
+    if (running.has(key) || (recent !== undefined && Date.now() - recent < DUPLICATE_WINDOW_MS)) {
+      return refusal(409, 'duplicate-request', `A ${body.category} bypass for this session is already being made or was made a moment ago`, 'Refresh the list of bypasses: the first request is the one that counts.');
+    }
+    running.add(key);
+    let made = false;
+    const audit = async (id: string, outcome: string): Promise<string> =>
+      writeAudit(configDirOf(), { ...auditExtra, time: Date.now(), kind: 'bypass-grant', sessionId: session.sessionId, id, category: body.category, cwd: folder.cwd, outcome, mode: body.mode, rationale: body.rationale }, 'The bypass state is as the plugin left it');
+    try {
+      const rules: AdminRulesResult = await listRules({ ...adminCallOf(options), cwd: folder.cwd });
+      const rule = rules.categories.find((candidate) => candidate.name === body.category);
+      if (rule === undefined) {
+        const message = `The plugin has no category '${body.category}' for ${folder.cwd}`;
+        const problem = await audit('', `refused: unknown-category: ${message}`);
+        const names = rules.categories.filter((candidate) => candidate.bypassable).map((candidate) => candidate.name);
+        return refusal(400, 'unknown-category', message, withAuditProblem(`Bypassable categories: ${names.slice(0, 20).join(', ')}${names.length > 20 ? `, and ${names.length - 20} more` : ''}.`, problem));
+      }
+      if (!rule.bypassable) {
+        const message = notBypassableText(rule);
+        const problem = await audit('', `refused: not-bypassable: ${message}`);
+        return refusal(409, 'not-bypassable', message, withAuditProblem('No bypass can lift it; only a person can change it in the plugin configuration.', problem));
+      }
+      const result = await grantBypass({ ...adminCallOf(options), cwd: folder.cwd, sessionId: session.sessionId, category: body.category, mode: body.mode, rationale: body.rationale, token });
+      granted.set(key, Date.now());
+      made = true;
+      const auditError = await audit(result.id, 'granted');
+      return { ok: true, added: { ok: true, id: result.id, category: result.category, mode: body.mode, sessionId: session.sessionId, cwd: folder.cwd, expiresAt: Date.parse(result.expires), origin: result.origin, auditError } };
+    } catch (error) {
+      if (error instanceof GuardrailsAdminError) {
+        const explained = explain(error);
+        // Not installed: nothing ran, so there is nothing to audit. The audit line holds the code and the (token-free) message, cut.
+        const problem = error.code === 'not-installed' ? '' : await audit('', `failed: ${explained.code}: ${getErrorMessage(error)}`.slice(0, 500));
+        return refusal(explained.status, explained.code, explained.message, withAuditProblem(explained.hint, problem));
+      }
+      throw error;
+    } finally {
+      running.delete(key);
+      if (!made) {
+        granted.delete(key);
+      }
+    }
+  }
+
+  async function auditSkipped(session: Session, body: AddBody, outcome: string, auditExtra: Record<string, unknown> = {}): Promise<string> {
+    const folder = await folderOf(session);
+    return writeAudit(configDirOf(), { ...auditExtra, time: Date.now(), kind: 'bypass-grant', sessionId: session.sessionId, id: '', category: body.category, cwd: folder.cwd, outcome, mode: body.mode, rationale: body.rationale }, 'Nothing was granted');
+  }
+
+  return { grantOne, auditSkipped };
+}
+
+export function registerAddRoutes(kit: RouteKit, options: GrantsOptions, owned: OwnedSource, core: GrantCore = createGrantCore(options)): void {
 
   kit.route('GET', '/guardrails/sessions/:sessionId/rules', async (req) => {
     queryValue(req.query, 'inlineErrors');
@@ -169,52 +257,8 @@ export function registerAddRoutes(kit: RouteKit, options: GrantsOptions, owned: 
         return fail(409, 'registry-unreadable', `The session registry cannot be read: ${found.registryError.message}`, found.registryError.hint);
       }
       const { session } = found;
-      const folder = await folderOf(session);
-      if (folder.cwd === '') {
-        return fail(409, 'no-cwd', `The folder of session ${session.sessionId} is unknown, so nothing was granted`, 'Send a message in the session so that Claude Code reports its folder, then retry.');
-      }
-      const key = `${session.sessionId}|${body.category}`;
-      const recent = granted.get(key);
-      if (running.has(key) || (recent !== undefined && Date.now() - recent < DUPLICATE_WINDOW_MS)) {
-        return fail(409, 'duplicate-request', `A ${body.category} bypass for this session is already being made or was made a moment ago`, 'Refresh the list of bypasses: the first request is the one that counts.');
-      }
-      running.add(key);
-      let made = false;
-      const audit = async (id: string, outcome: string): Promise<string> =>
-        writeAudit(configDirOf(), { time: Date.now(), kind: 'bypass-grant', sessionId: session.sessionId, id, category: body.category, cwd: folder.cwd, outcome, mode: body.mode, rationale: body.rationale }, 'The bypass state is as the plugin left it');
-      try {
-        const rules: AdminRulesResult = await listRules({ ...adminCallOf(options), cwd: folder.cwd });
-        const rule = rules.categories.find((candidate) => candidate.name === body.category);
-        if (rule === undefined) {
-          const message = `The plugin has no category '${body.category}' for ${folder.cwd}`;
-          const problem = await audit('', `refused: unknown-category: ${message}`);
-          const names = rules.categories.filter((candidate) => candidate.bypassable).map((candidate) => candidate.name);
-          return fail(400, 'unknown-category', message, withAuditProblem(`Bypassable categories: ${names.slice(0, 20).join(', ')}${names.length > 20 ? `, and ${names.length - 20} more` : ''}.`, problem));
-        }
-        if (!rule.bypassable) {
-          const message = notBypassableText(rule);
-          const problem = await audit('', `refused: not-bypassable: ${message}`);
-          return fail(409, 'not-bypassable', message, withAuditProblem('No bypass can lift it; only a person can change it in the plugin configuration.', problem));
-        }
-        const result = await grantBypass({ ...adminCallOf(options), cwd: folder.cwd, sessionId: session.sessionId, category: body.category, mode: body.mode, rationale: body.rationale, token });
-        granted.set(key, Date.now());
-        made = true;
-        const auditError = await audit(result.id, 'granted');
-        return ok({ ok: true, id: result.id, category: result.category, mode: body.mode, sessionId: session.sessionId, cwd: folder.cwd, expiresAt: Date.parse(result.expires), origin: result.origin, auditError } satisfies GrantAddedDto);
-      } catch (error) {
-        if (error instanceof GuardrailsAdminError) {
-          const explained = explain(error);
-          // Not installed: nothing ran, so there is nothing to audit. The audit line holds the code and the (token-free) message, cut.
-          const problem = error.code === 'not-installed' ? '' : await audit('', `failed: ${explained.code}: ${getErrorMessage(error)}`.slice(0, 500));
-          return fail(explained.status, explained.code, explained.message, withAuditProblem(explained.hint, problem));
-        }
-        throw error;
-      } finally {
-        running.delete(key);
-        if (!made) {
-          granted.delete(key);
-        }
-      }
+      const outcome = await core.grantOne(session, body, token);
+      return outcome.ok ? ok(outcome.added) : fail(outcome.status, outcome.code, outcome.message, outcome.hint);
     }),
     { sensitive: true },
   );

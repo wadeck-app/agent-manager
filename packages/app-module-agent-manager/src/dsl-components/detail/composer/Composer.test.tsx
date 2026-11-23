@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { row } from '../deps.js';
@@ -388,5 +388,16 @@ describe('Composer for a Background session', () => {
   it('says nothing of the kind for another session', async () => {
     await ready();
     expect(screen.queryByText(/peer message \(a background session/)).toBeNull();
+  });
+});
+
+describe('Composer placeholder on a phone', () => {
+  it('is short enough for one line on a narrow screen, and complete on a wide one', async () => {
+    const wide = await ready();
+    expect(wide).toHaveAttribute('placeholder', 'Message the agent (Enter sends, Shift+Enter adds a line)');
+    cleanup();
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    const narrow = await ready();
+    expect(narrow).toHaveAttribute('placeholder', 'Message the agent');
   });
 });

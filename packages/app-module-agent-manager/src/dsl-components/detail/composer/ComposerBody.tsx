@@ -1,7 +1,7 @@
 import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { Keyboard, Paperclip, SendHorizontal, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
-import { Banner } from '../deps.js';
+import { Banner, CountBadge, useMediaQuery } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
 import { Tooltip } from '../deps.js';
 import { getPending } from '../pending.js';
@@ -39,6 +39,8 @@ function markerSentence(marker: ReplyMarkerMode | null | undefined): string {
 
 export function ComposerBody({ session, reencode }: ComposerProps) {
   const sessionId = session.sessionId;
+  // A phone: the hint of the keys would wrap to a second line of the one-line box and be cut.
+  const narrow = useMediaQuery('(max-width: 639px)');
   const [text, setText] = useState(() => getDraft(sessionId).text);
   const [images, setImages] = useState<AttachedImage[]>(() => getDraft(sessionId).images);
   const [priority, setPriority] = useState<'next' | 'now'>('next');
@@ -237,9 +239,9 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             <>
               <Paperclip aria-hidden="true" className="h-4 w-4" />
               {images.length > 0 && limits !== undefined ? (
-                <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 rounded-full bg-primary-light px-1 text-xs tabular-nums leading-none text-content">
+                <CountBadge aria-hidden="true" className="absolute -right-0.5 -top-0.5">
                   {images.length}/{limits.maxImages}
-                </span>
+                </CountBadge>
               ) : null}
             </>
           }
@@ -252,7 +254,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           readOnly={sending}
           disabled={inactive}
           aria-label={`Message to ${session.displayName}`}
-          placeholder={inactive ? 'Sending is not possible, see the message above' : priority === 'now' ? 'Interrupt now is armed: Enter sends and aborts the running tool call' : 'Message the agent (Enter sends, Shift+Enter adds a line)'}
+          placeholder={inactive ? 'Sending is not possible, see the message above' : priority === 'now' ? 'Interrupt now is armed: Enter sends and aborts the running tool call' : narrow ? 'Message the agent' : 'Message the agent (Enter sends, Shift+Enter adds a line)'}
           onChange={(event) => change(event.target.value, current.current.images)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}

@@ -4,6 +4,7 @@ import { MONO, TD, TH } from '../guardrails/parts.js';
 import { clockText } from '../logic/guardrails.js';
 import type { SessionRowDto } from '../shared.js';
 import { STATE_MEANING } from '../logic/states.js';
+import { Chip } from '../ui/Chip.js';
 import { Scope } from '../ui/Scope.js';
 import { ScrollTable } from '../ui/ScrollTable.js';
 import { StateChip } from '../ui/StateChip.js';
@@ -80,9 +81,9 @@ export function SessionsTable({ rows, hiddenText, emptyText }: SessionsTableProp
                       </td>
                       <td className={`${TD} whitespace-nowrap ${MONO}`}>{row.pid}</td>
                       <td className={`${TD} whitespace-nowrap`}>
-                        <span data-harness-chip="" className="inline-flex whitespace-nowrap rounded-full bg-muted-bg px-2 py-0.5 text-xs text-muted-tint">
+                        <Chip data-harness-chip="" variant="neutral">
                           {row.harness}
-                        </span>
+                        </Chip>
                       </td>
                       <td className={`${TD} whitespace-nowrap`}>
                         <Badge label={row.alive ? 'alive' : 'dead'} variant={row.alive ? 'success' : 'danger'} tone="subtle" />

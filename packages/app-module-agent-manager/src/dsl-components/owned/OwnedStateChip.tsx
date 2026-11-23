@@ -2,15 +2,10 @@ import { CircleAlert, CircleX, LoaderCircle, OctagonAlert, type LucideIcon } fro
 import { ownedStateChip, type ChipTone } from '../logic/owned.js';
 import type { SessionRowDto } from '../shared.js';
 import { Tooltip } from '../ui/Tooltip.js';
-import { CHIP } from './OwnedChips.js';
+import { Chip, type ChipVariant } from '../ui/Chip.js';
 
-/** Classes are written in full: a class built at run time generates no CSS rule. */
-const TONE: Record<ChipTone, { bg: string; text: string }> = {
-  attention: { bg: 'bg-hue-red-bg', text: 'text-hue-red' },
-  working: { bg: 'bg-hue-yellow-bg', text: 'text-hue-yellow' },
-  warning: { bg: 'bg-warning-bg', text: 'text-warning-text' },
-  muted: { bg: 'bg-muted-bg', text: 'text-muted-tint' },
-};
+/** The shared chip variant of each tone of the owned state. */
+const TONE: Record<ChipTone, ChipVariant> = { attention: 'danger', working: 'warning', warning: 'warning', muted: 'neutral' };
 
 const TONE_ICON: Record<ChipTone, LucideIcon> = { attention: CircleAlert, working: LoaderCircle, warning: OctagonAlert, muted: CircleX };
 
@@ -25,13 +20,11 @@ export function OwnedStateChip({ session, compact = false, iconOnly = false }: {
     return null;
   }
   const Icon = TONE_ICON[chip.tone];
-  const tone = TONE[chip.tone];
   return (
     <Tooltip content={iconOnly ? `${chip.label}: ${chip.meaning}` : chip.meaning}>
-      <span data-owned-state={session.ownedState} className={`${CHIP} ${tone.bg} ${tone.text}`}>
-        <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${chip.tone === 'working' ? 'animate-spin motion-reduce:animate-none' : ''}`} />
+      <Chip data-owned-state={session.ownedState} variant={TONE[chip.tone]} icon={<Icon className={`h-am-icon-sm w-am-icon-sm ${chip.tone === 'working' ? 'animate-spin motion-reduce:animate-none' : ''}`} />}>
         {iconOnly ? <span className="sr-only">{chip.label}</span> : chip.label}
-      </span>
+      </Chip>
     </Tooltip>
   );
 }

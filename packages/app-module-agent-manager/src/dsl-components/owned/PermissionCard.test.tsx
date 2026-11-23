@@ -51,10 +51,10 @@ describe('PermissionCard: what is shown', () => {
     const block = document.querySelector('[data-permission-input] pre') as HTMLElement;
     // The whole text is in the page, folded by the display only.
     expect(block.textContent).toBe(big);
-    expect(block.className).toContain('max-h-40');
+    expect(block.className).toContain('line-clamp-3');
     await userEvent.click(toggle);
     expect(screen.getByRole('button', { name: 'Fold it' })).toHaveAttribute('aria-expanded', 'true');
-    expect(block.className).not.toContain('max-h-40');
+    expect(block.className).not.toContain('line-clamp-3');
   });
 
   it('renders nothing for a session that is not a live Web session, and does not ask', async () => {

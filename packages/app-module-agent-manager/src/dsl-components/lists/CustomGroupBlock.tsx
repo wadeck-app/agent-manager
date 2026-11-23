@@ -10,6 +10,7 @@ import { Tooltip } from '../ui/Tooltip.js';
 import { DropBar } from './DropBar.js';
 import { GroupSelectBox } from './GroupSelectBox.js';
 import type { CustomDnd } from './useCustomDnd.js';
+import { RowIconButton } from './RowIconButton.js';
 
 export interface CustomGroupBlockProps {
   section: CustomSection;
@@ -100,20 +101,16 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
         {onConfig !== undefined ? (
           <span className="ml-auto flex shrink-0 items-center">
             <Tooltip content="Group settings: name, order, colors (E)" side="left">
-              <button
-                type="button"
-                tabIndex={-1}
-                aria-label={`Settings of the group ${name}`}
+              <RowIconButton
+                label={`Settings of the group ${name}`}
                 aria-haspopup="dialog"
                 onClick={(event) => {
-                  event.stopPropagation();
                   const box = event.currentTarget.getBoundingClientRect();
                   onConfig({ x: box.right - 280, y: box.bottom + 2 });
                 }}
-                className={`inline-flex h-6 w-6 items-center justify-center rounded text-muted opacity-60 hover:bg-muted-bg hover:text-content hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
-              >
-                <FolderCog aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-              </button>
+                className="opacity-60 hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
+                icon={<FolderCog aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+              />
             </Tooltip>
           </span>
         ) : null}

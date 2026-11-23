@@ -1,4 +1,5 @@
 import { ShieldCheck } from 'lucide-react';
+import { CountBadge } from '../deps.js';
 
 /** The shield with the number of active bypasses as a badge, nothing drawn for zero (the label says it). */
 export function ShieldWithBadge({ count }: { count: number | undefined }) {
@@ -6,9 +7,9 @@ export function ShieldWithBadge({ count }: { count: number | undefined }) {
     <>
       <ShieldCheck aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
       {count !== undefined && count > 0 ? (
-        <span data-permissions-badge="" aria-hidden="true" className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-medium leading-4 text-white tabular-nums">
+        <CountBadge data-permissions-badge="" aria-hidden="true" tone="primary" className="absolute -right-0.5 -top-0.5">
           {count}
-        </span>
+        </CountBadge>
       ) : null}
     </>
   );

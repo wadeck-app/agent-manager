@@ -1,16 +1,15 @@
 import { ButtonAction } from '@wadeck-app/dsl-ui';
-import { Eye, FolderInput, MessageSquarePlus, Pin, PinOff, ShieldPlus } from 'lucide-react';
+import { Eye, FolderInput, MessageSquarePlus, Pin, PinOff, ShieldOff, ShieldPlus } from 'lucide-react';
 import { useState } from 'react';
 import type { AgentRow } from '../data/types.js';
 import type { GroupsApi } from '../lists/common.js';
 import { useSelection } from '../lists/selection.js';
 import { BatchAct } from './BatchAct.js';
+import { BatchAddBypassDialog } from './BatchAddBypassDialog.js';
 import { BatchMoveDialog } from './BatchMoveDialog.js';
 import { BatchPopup } from './BatchPopup.js';
+import { BatchRemoveBypassDialog } from './BatchRemoveBypassDialog.js';
 import { BatchSendDialog } from './BatchSendDialog.js';
-
-/** Adding or removing a bypass for a whole selection is a separate piece of work (not built): the button says so and where one session can be done. */
-const BATCH_BYPASS_OFF = 'Not available for a selection yet. Open one session and use Add bypass in its Permissions tab.';
 
 export interface BatchBarProps {
   /** The selected sessions that the page still has, in the order of the list. */
@@ -23,12 +22,11 @@ export interface BatchBarProps {
 
 /**
  * The floating popup (BatchPopup: bottom centre of the content area, above the A/B dock) that appears while at least one session is selected: how many, and what can be done to all of them.
- * Sending a message and moving open a dialog (rendered beside the popup, never inside its toolbar); pinning and marking as seen act at once.
- * Add / remove bypass is drawn off with the reason (the batch version is not built; one session has Add bypass in its Permissions tab).
+ * Sending a message, moving, and adding or removing bypasses (PIN-gated, threat-model T-24) open a dialog (rendered beside the popup, never inside its toolbar); pinning and marking as seen act at once.
  */
 export function BatchBar({ rows, groups, onPin, onSeen }: BatchBarProps) {
   const selection = useSelection();
-  const [dialog, setDialog] = useState<'send' | 'move' | undefined>(undefined);
+  const [dialog, setDialog] = useState<'send' | 'move' | 'add-bypass' | 'remove-bypass' | undefined>(undefined);
   if (selection === null || selection.count === 0) {
     return null;
   }
@@ -47,10 +45,13 @@ export function BatchBar({ rows, groups, onPin, onSeen }: BatchBarProps) {
             onClick={() => onPin(allPinned ? rows : rows.filter((row) => !row.pinned), !allPinned)}
           />
           <BatchAct label="Move to group" icon={<FolderInput aria-hidden="true" className={icon} />} {...(groups === undefined ? { off: 'The groups are not available on this page: reload it.' } : { onClick: () => setDialog('move') })} />
-          <BatchAct label="Add / remove bypass" icon={<ShieldPlus aria-hidden="true" className={icon} />} off={BATCH_BYPASS_OFF} />
+          <BatchAct label="Add bypass" icon={<ShieldPlus aria-hidden="true" className={icon} />} onClick={() => setDialog('add-bypass')} />
+          <BatchAct label="Remove bypass" icon={<ShieldOff aria-hidden="true" className={icon} />} onClick={() => setDialog('remove-bypass')} />
         </span>
       </BatchPopup>
       {dialog === 'send' ? <BatchSendDialog rows={rows} onClose={() => setDialog(undefined)} /> : null}
+      {dialog === 'add-bypass' ? <BatchAddBypassDialog rows={rows} onClose={() => setDialog(undefined)} /> : null}
+      {dialog === 'remove-bypass' ? <BatchRemoveBypassDialog rows={rows} onClose={() => setDialog(undefined)} /> : null}
       {dialog === 'move' && groups !== undefined ? <BatchMoveDialog rows={rows} groups={groups} onClose={() => setDialog(undefined)} onMoved={selection.clear} /> : null}
     </>
   );

@@ -23,7 +23,7 @@ export function hiddenSentence(hidden: Filtered['hidden']): string {
 export function LogFilterBar({ feed, filtered }: { feed: LogFiltersFeed; filtered: Filtered }) {
   return (
     <div className="flex flex-col">
-      <div role="group" aria-label="Show in the log" className="flex flex-wrap items-center gap-1 border-b border-border px-3 py-1">
+      <div role="group" aria-label="Show in the log" className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-border px-3 py-1 [&>*]:shrink-0">
         {LOG_CATEGORIES.map((category) => {
           const on = feed.prefs[category];
           const count = filtered.counts[category];

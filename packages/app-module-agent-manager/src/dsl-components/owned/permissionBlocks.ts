@@ -8,9 +8,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** A block this long (in lines or characters) is folded to a few lines, with a visible button to open all of it. Nothing is cut: folding is a display state. */
-export const FOLD_LINES = 12;
-export const FOLD_CHARS = 1200;
+/** A block longer than this (in lines or characters) is folded to 3 lines, with a visible button to open all of it. Nothing is cut: folding is a display state. */
+export const FOLD_LINES = 3;
+export const FOLD_CHARS = 240;
 
 export function isLarge(text: string): boolean {
   return text.length > FOLD_CHARS || text.split('\n').length > FOLD_LINES;

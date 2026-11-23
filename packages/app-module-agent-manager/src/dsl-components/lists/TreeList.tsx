@@ -31,6 +31,7 @@ import { StateIconTip } from './StateIconTip.js';
 import { SubagentRows } from './SubagentRows.js';
 import { TimeInState } from './TimeInState.js';
 import { useGroupDnd } from './useGroupDnd.js';
+import { RowIconButton } from './RowIconButton.js';
 
 /** The agents that want you: the ones whose sub-agents open by themselves in the `attention` expansion. */
 function wantsYou(session: AgentRow): boolean {
@@ -223,20 +224,13 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
           ) : (
             <div className="flex items-center gap-2">
               {hasChildren ? (
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-label={open ? `Hide the ${session.subagentCount} sub-agents` : `Show the ${session.subagentCount} sub-agents`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleAgents(id, !open);
-                  }}
-                  className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
-                >
-                  {open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
-                </button>
+                <RowIconButton
+                  label={open ? `Hide the ${session.subagentCount} sub-agents` : `Show the ${session.subagentCount} sub-agents`}
+                  onClick={() => toggleAgents(id, !open)}
+                  icon={open ? <ChevronDown aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+                />
               ) : showSubagents ? (
-                <span aria-hidden="true" className="h-6 w-6 shrink-0" />
+                <span aria-hidden="true" className="h-7 w-7 shrink-0" />
               ) : null}
               <StateIconTip session={session} />
               <span className="min-w-0 flex-1">
@@ -247,18 +241,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
               </span>
               {groups !== undefined ? (
                 <Tooltip content="Move to a group (M)" side="left">
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    aria-label={`Move ${session.displayName} to a group`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setMoving(id);
-                    }}
-                    className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-tint opacity-0 hover:bg-muted-bg hover:text-content focus-visible:opacity-100 group-hover:opacity-100 ${FOCUS_RING}`}
-                  >
-                    <FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-                  </button>
+                  <RowIconButton label={`Move ${session.displayName} to a group`} onClick={() => setMoving(id)} className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100" icon={<FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
                 </Tooltip>
               ) : null}
               <TimeInState session={session} now={now} />
