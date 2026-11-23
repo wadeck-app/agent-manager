@@ -127,12 +127,52 @@ describe('the one-line header: everything the three rows said', () => {
     expect(folder.getAttribute('title')).toBe(cwd);
   });
 
-  it('puts what does not fit into a +N chip, least important first, and lists it in the tooltip', () => {
-    // jsdom has no layout: fake an overflow while the pid is drawn.
-    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
-      return this.hasAttribute('data-header-line') && (this.textContent ?? '').includes('pid') ? 500 : 100;
+  // jsdom has no layout: fake it. The line is `lineWidth` wide, the name, state and age are 50 px each, every chip `chip` px unless listed in `wide`.
+  function fakeLayout(lineWidth: number, chip: number, wide: Record<string, number> = {}): void {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute('data-header-line') ? lineWidth : 0;
     });
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const key = this.getAttribute('data-line-item');
+      const width = key === null ? (this.hasAttribute('data-line-more') ? 36 : 50) : (wide[key] ?? chip);
+      return { width, height: 20, top: 0, left: 0, right: width, bottom: 20, x: 0, y: 0, toJSON: () => ({}) };
+    });
+  }
+
+  it('keeps the context percentage next to the name when the wide folder cannot fit (the old fit dropped every chip behind the folder)', () => {
+    // 90 px free for the chips: the folder (200) cannot fit; the context (10) can, next to the +N chip.
+    fakeLayout(240, 10, { folder: 200 });
+    const session = row({ cwd: '/work/agent-manager', pid: 4242 });
+    publishLogStatus(session.sessionId, FULL);
+    const { container } = header(session);
+    const line = container.querySelector('[data-header-line]') as HTMLElement;
+    expect(line.querySelector('[data-line-item="folder"]')).toBeNull();
+    expect(within(line).getByRole('img', { name: /^Context 38%/ })).toBeInTheDocument();
+    const more = line.querySelector('[data-line-more]') as HTMLElement;
+    expect(more.getAttribute('aria-label')).toContain('folder /work/agent-manager');
+  });
+
+  it('every entry of the +N tooltip carries a value: never "context used" alone', () => {
+    fakeLayout(150, 10);
+    const session = row({ pid: 4242, cwd: '/work/agent-manager' });
+    publishLogStatus(session.sessionId, FULL);
+    const { container } = header(session);
+    const more = container.querySelector('[data-line-more]') as HTMLElement;
+    fireEvent.focus(more);
+    const tip = liveTooltip()?.textContent ?? '';
+    expect(tip).toContain('context 38% of the way to auto-compact');
+    expect(tip).not.toMatch(/context used/);
+    const entries = tip.replace(/^Not enough room for: /, '').replace(/\.$/, '').split('; ');
+    expect(entries.length).toBeGreaterThan(1);
+    // Each entry is "label value": at least two words.
+    for (const entry of entries) {
+      expect(entry.trim().split(/\s+/).length, entry).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('puts what does not fit into a +N chip, lowest priority first, and lists it with its value in the tooltip', () => {
+    // Chips of 10 px except the pid (400 px): only the pid cannot fit.
+    fakeLayout(400, 10, { pid: 400 });
     const session = row({ pid: 4242 });
     publishLogStatus(session.sessionId, FULL);
     const { container } = header(session);

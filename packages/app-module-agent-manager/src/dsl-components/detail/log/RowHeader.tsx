@@ -14,11 +14,12 @@ export function RowHeader({ model, expandable, open, onToggle }: { model: RowMod
       {expandable ? <Chevron aria-hidden="true" className={`${LOG_ICON} text-muted`} /> : null}
       <Icon aria-hidden="true" className={`${LOG_ICON} ${model.iconClass}`} />
       <span className={`shrink-0 text-sm font-medium ${TONE_TEXT[model.tone]}`}>{model.label}</span>
-      {open ? <span className="flex-1" /> : <span className={`min-w-0 flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>}
-      {model.trailing}
+      {open ? <span className="flex-1" /> : <span className={`min-w-[5rem] flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>}
+      {model.trailing === undefined ? null : <span className="ml-auto inline-flex shrink-0 items-center whitespace-nowrap">{model.trailing}</span>}
     </>
   );
-  const row = 'flex w-full min-w-0 items-center gap-2 text-left';
+  // Wraps: on a narrow pane the chips and the duration drop to their own line under the title (right aligned), never over the title or the age.
+  const row = 'flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-left';
   return expandable ? (
     <button type="button" aria-expanded={open} onClick={onToggle} title={model.tooltip} className={`${row} rounded px-1 py-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
       {content}

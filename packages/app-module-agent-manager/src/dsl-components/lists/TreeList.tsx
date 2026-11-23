@@ -240,9 +240,12 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                 </span>
               </span>
               {groups !== undefined ? (
-                <Tooltip content="Move to a group (M)" side="left">
-                  <RowIconButton label={`Move ${session.displayName} to a group`} onClick={() => setMoving(id)} className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100" icon={<FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
-                </Tooltip>
+                // Floats over the age on hover and focus: a hidden button that kept its 28 px slot took the width of the name (cut to "docs..." with room left).
+                <span data-row-actions="" className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center rounded bg-surface px-0.5 shadow-sm ring-1 ring-border group-focus-within:flex group-hover:flex">
+                  <Tooltip content="Move to a group (M)" side="left">
+                    <RowIconButton label={`Move ${session.displayName} to a group`} onClick={() => setMoving(id)} icon={<FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
+                  </Tooltip>
+                </span>
               ) : null}
               <TimeInState session={session} now={now} />
             </div>

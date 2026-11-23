@@ -1,4 +1,5 @@
 import { StyledCheckbox } from '../ui/StyledCheckbox.js';
+import { visibleSessionIds } from '../workspace/usePageShortcuts.js';
 import { useSelection } from './selection.js';
 
 /**
@@ -18,7 +19,15 @@ export function RowCheckbox({ id, name }: { id: string; name: string }) {
         tabIndex={-1}
         aria-label={`Select ${name}`}
         checked={checked}
-        onChange={() => selection.toggle(id)}
+        // A shift click extends the range from the last ticked row, like a shift click on the row; others toggle. React fires onChange even when the click
+        // was cancelled, so the shift key is read here, from the click that caused the change, and nothing else may toggle.
+        onChange={(event) => {
+          if ((event.nativeEvent as MouseEvent).shiftKey === true) {
+            selection.selectRange(id, visibleSessionIds());
+          } else {
+            selection.toggle(id);
+          }
+        }}
       />
     </span>
   );

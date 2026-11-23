@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { SelectAllBox } from '../batch/SelectAllBox.js';
 import { useMediaQuery } from '../ui/hooks.js';
-import type { ModeId } from '../shared.js';
+import { SHOW_ALIVE_LABEL, SHOW_ALL_LABEL, type ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
 import { DensityControl } from '../ui/DensityControl.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
@@ -76,8 +76,8 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
             value={show}
             onChange={(next) => onShow(next === 'all' ? 'all' : 'alive')}
             options={[
-              { value: 'alive', label: tight ? 'Alive' : 'Alive sessions' },
-              { value: 'all', label: tight ? 'Alive + ended' : 'Alive and ended sessions' },
+              { value: 'alive', label: tight ? 'Alive' : SHOW_ALIVE_LABEL },
+              { value: 'all', label: tight ? 'Alive + ended' : SHOW_ALL_LABEL },
             ]}
           />
           <ViewOptionsControl mode={mode} options={options} onChange={onOptions} />

@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
+import { SHOW_ALIVE_LABEL, SHOW_ALL_LABEL } from '../commons/showLabels.js';
 import { presentSession } from './present.js';
 import { makeModule } from './testKit.js';
 
@@ -46,6 +47,20 @@ function collect(node: unknown, key: string, found: unknown[] = []): unknown[] {
       }
       collect(child, key, found);
     }
+  }
+  return found;
+}
+
+/** Every object whose `$type` is `type`, at any depth. */
+function collectNodes(node: unknown, type: string, found: Record<string, unknown>[] = []): Record<string, unknown>[] {
+  if (Array.isArray(node)) {
+    node.forEach((child) => collectNodes(child, type, found));
+  } else if (node !== null && typeof node === 'object') {
+    const record: Record<string, unknown> = Object.fromEntries(Object.entries(node));
+    if (record['$type'] === type) {
+      found.push(record);
+    }
+    Object.values(record).forEach((child) => collectNodes(child, type, found));
   }
   return found;
 }
@@ -236,10 +251,23 @@ describe('the Agents table page', () => {
   const table = (): Record<string, unknown> => parseView('sessions-table.yaml');
   const sections = (): Record<string, unknown>[] => (table()['sections'] as Record<string, unknown>[]) ?? [];
 
-  it('says on the page itself what feeds it today: registry plus daemon-owned sessions, hooks not built, SSE not used by the table', () => {
+  it('says on the page itself what feeds it today, short and true: registry plus daemon-owned sessions, no word about hooks (dropped by decision)', () => {
     const note = sections().flatMap((s) => collect(s, 'text'));
-    expect(note).toContain('Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page. Hooks are not built yet; the daemon host API and its live updates (SSE) exist but this table does not use them.');
-    expect(note.join(' ')).not.toMatch(/M1b|planned/);
+    expect(note).toContain('Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page.');
+    expect(note.join(' ')).not.toMatch(/M1b|planned|[Hh]ooks|not built|SSE/);
+  });
+
+  it('words the Sessions-to-show filter like the Agents toolbar (one shared constant)', () => {
+    const select = collectNodes(table(), 'CompactSelect').find((node) => node['urlParam'] === 'show');
+    expect(select?.['placeholder']).toBe(SHOW_ALIVE_LABEL);
+    expect(select?.['options']).toEqual([{ value: 'all', label: SHOW_ALL_LABEL }]);
+  });
+
+  it('the Guardrails subtitle says what the page does today, not "read-only for now"', () => {
+    const title = ((parseView('guardrails-page.yaml')['sections'] as Record<string, unknown>[]) ?? []).find((s) => s['$type'] === 'agent-manager:PageTitle');
+    const subtitle = String(title?.['subtitle']);
+    expect(subtitle).not.toMatch(/for now|still granted/);
+    expect(subtitle).toContain('Permissions tab');
   });
 
   it('holds the table of the sessions and the dead-session filter, with no button back (the side menu is the way)', () => {

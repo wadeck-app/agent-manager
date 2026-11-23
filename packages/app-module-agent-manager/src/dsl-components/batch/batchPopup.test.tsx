@@ -169,3 +169,40 @@ describe('the room the page keeps for the popup', () => {
     expect(reserve()).toBe('32px');
   });
 });
+
+describe('the batch popup next to the list column', () => {
+  afterEach(() => {
+    document.querySelectorAll('[data-pane="list"]').forEach((pane) => pane.remove());
+    vi.restoreAllMocks();
+  });
+
+  function addList(right: number): void {
+    const pane = document.createElement('div');
+    pane.setAttribute('data-pane', 'list');
+    pane.getBoundingClientRect = () => ({ top: 182, bottom: 726, height: 544, left: 240, right, width: right - 240, x: 240, y: 182, toJSON: () => ({}) });
+    document.body.appendChild(pane);
+  }
+
+  function fakeWidths(innerWidth: number, barWidth: number): void {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: innerWidth });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const width = this.hasAttribute('data-batch-bar') ? barWidth : 0;
+      return { top: 0, bottom: 40, height: 40, left: 0, right: width, width, x: 0, y: 0, toJSON: () => ({}) };
+    });
+  }
+
+  it('starts at the right edge of the list column when the pill fits to the right of it, so it never covers the list', () => {
+    addList(540);
+    fakeWidths(1280, 466);
+    render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
+    expect(screen.getByTestId('batch-popup-strip').style.left).toBe('max(var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px)), 540px)');
+  });
+
+  it('keeps the whole content area when there is no room to the right of the list (a narrow window), and with no list at all', () => {
+    addList(540);
+    fakeWidths(800, 466);
+    const { unmount } = render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
+    expect(screen.getByTestId('batch-popup-strip').style.left).toBe('var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px))');
+    unmount();
+  });
+});

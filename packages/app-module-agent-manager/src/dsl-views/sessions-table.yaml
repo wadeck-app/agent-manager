@@ -20,7 +20,7 @@ sections:
     unreadableText: $sources.sessions.unreadableText
   # In the module body size (the base Markdown reads 14 px next to the 15 px of the table).
   - $type: agent-manager:PageNote
-    text: 'Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page. Hooks are not built yet; the daemon host API and its live updates (SSE) exist but this table does not use them.'
+    text: 'Sessions from the Claude Code registry (pid-only liveness) and the sessions owned by the agent-manager daemon, refreshed every 5 seconds. The log, the replies and the launch actions are on the Agents page.'
   - $type: HorizontalStack
     gap: gap-3
     align: items-center
@@ -32,7 +32,7 @@ sections:
         # As in the queue module: the placeholder is the entry for the unset parameter (the default, alive sessions); the options hold only the other values, so no label appears twice.
         placeholder: Alive sessions
         options:
-          - { value: all, label: Alive and dead sessions }
+          - { value: all, label: Alive and ended sessions }
   # The table, its loading and empty states, the sentence about the hidden dead sessions: one component (state chips of the Agents page, neutral harness chip, scroll region with a cue).
   - $type: agent-manager:SessionsTable
     rows: $sources.sessions.sessions

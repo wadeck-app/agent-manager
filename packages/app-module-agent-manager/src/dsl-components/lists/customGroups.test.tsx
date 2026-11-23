@@ -513,3 +513,17 @@ describe('NewGroupControl', () => {
     expect(screen.getByLabelText('Name of the new group')).toBeInTheDocument();
   });
 });
+
+describe('the width of a compact Tree row', () => {
+  it('the Move to a group button floats over the age instead of holding an empty slot beside the name (the name was cut to "docs..." with room left)', () => {
+    const one = row({ folder: 'shop', displayName: 'docs-writer', state: 'idle', statusUpdatedAt: 100 });
+    const { container } = render(<Tree sessions={[one]} api={fakeApi([group('a', 0)])} />);
+    const button = within(rowOf(container, one)).getByRole('button', { name: /Move docs-writer to a group/ });
+    const actions = button.closest<HTMLElement>('[data-row-actions]');
+    expect(actions).not.toBeNull();
+    expect(actions?.className).toContain('absolute');
+    expect(actions?.className).toContain('hidden');
+    expect(actions?.className).toContain('group-hover:flex');
+    expect(actions?.className).toContain('group-focus-within:flex');
+  });
+});

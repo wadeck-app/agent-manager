@@ -11,3 +11,4 @@ export { isSensitiveRequest } from '../commons/routeClasses.js';
 export { FORK_NAME_MAX, forkNameOf, threadNameOf } from '../commons/forkName.js';
 export { checkGroupName, GROUP_COLORS, GROUP_NAME_MAX, GROUP_SORTS, placeMember } from '../commons/groups.js';
 export type { GroupColor, GroupSort } from '../commons/groups.js';
+export { SHOW_ALIVE_LABEL, SHOW_ALL_LABEL } from '../commons/showLabels.js';

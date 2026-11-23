@@ -1,5 +1,6 @@
 import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { SelectionKeys } from '../batch/SelectionKeys.js';
@@ -125,6 +126,57 @@ describe('selecting sessions in the list', () => {
     dialog.remove();
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(selectedIds()).toBe('');
+  });
+
+  it('Escape clears the selection when the focus sits on a row checkbox just clicked with the mouse', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Page sessions={[a, b]} />);
+    await user.click(within(rowOf(container, a)).getByRole('checkbox', { name: 'Select a-one' }));
+    expect(selectedIds()).toBe(ids(a));
+    expect(document.activeElement?.tagName).toBe('INPUT');
+    await user.keyboard('{Escape}');
+    expect(selectedIds()).toBe('');
+  });
+
+  it('Escape keeps its own meaning in a text field and while a menu is open', async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <>
+        <Page sessions={[a, b]} />
+        <input aria-label="search" />
+      </>,
+    );
+    fireEvent.click(rowOf(container, a), { ctrlKey: true });
+    await user.click(screen.getByLabelText('search'));
+    await user.keyboard('{Escape}');
+    expect(selectedIds()).toBe(ids(a));
+    (document.activeElement as HTMLElement).blur();
+    const menu = document.createElement('div');
+    menu.setAttribute('role', 'menu');
+    document.body.appendChild(menu);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(selectedIds()).toBe(ids(a));
+    menu.remove();
+  });
+
+  it('a real shift click on a row checkbox extends the range from the last ticked row', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Page sessions={[a, b, c, d]} />);
+    await user.click(within(rowOf(container, a)).getByRole('checkbox', { name: 'Select a-one' }));
+    await user.keyboard('{Shift>}');
+    await user.click(within(rowOf(container, c)).getByRole('checkbox', { name: 'Select c-three' }));
+    await user.keyboard('{/Shift}');
+    expect(selectedIds()).toBe(ids(a, b, c));
+  });
+
+  it('a real ctrl click on a row checkbox toggles that row only', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<Page sessions={[a, b, c]} />);
+    await user.click(within(rowOf(container, a)).getByRole('checkbox'));
+    await user.keyboard('{Control>}');
+    await user.click(within(rowOf(container, c)).getByRole('checkbox'));
+    await user.keyboard('{/Control}');
+    expect(selectedIds()).toBe(ids(a, c));
   });
 
   it('a session that disappears is dropped from the selection', () => {

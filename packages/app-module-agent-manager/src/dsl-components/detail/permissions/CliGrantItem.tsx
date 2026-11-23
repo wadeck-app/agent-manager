@@ -1,4 +1,4 @@
-import { ButtonAction } from '@wadeck-app/dsl-ui';
+import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { clockText, GUARDRAILS_REVOKE_ENABLED, remainingText, type CliGrantDto } from '../deps.js';
@@ -14,31 +14,32 @@ export function CliGrantItem({ grant, now, busy, onRevoke }: { grant: CliGrantDt
   const uses = grant.usesLeft === null ? 'no use limit' : `${grant.usesLeft} use${grant.usesLeft === 1 ? '' : 's'} left`;
   return (
     <li data-cli-grant={grant.id} className="flex flex-col gap-1 border-t border-border px-3 py-2 first:border-t-0">
-      <div className="flex items-start gap-1">
-        <div className="min-w-0 flex-1 text-xs">
-          <p className="flex flex-wrap items-center gap-x-1.5">
-            <span className="font-medium text-content">{grant.category}</span>
-            <span className="text-muted">{grant.mode === 'once' ? 'once' : 'time-boxed'}</span>
-            {grant.origin === null ? null : (
-              <span data-origin={grant.origin} title={grant.origin === 'ui' ? 'Created from this page, with your PIN' : `The plugin reports the origin "${grant.origin}"`} className="text-muted">
-                {grant.origin === 'ui' ? 'added from this page' : `origin: ${grant.origin}`}
-              </span>
-            )}
-            <span data-full-session="" title={`Matched on the full session id ${grant.sessionId}`} className="inline-flex items-center gap-0.5 text-muted">
-              <KeyRound aria-hidden="true" className="h-3 w-3" />
-              full id
+      <div data-grant-text="" className="w-full min-w-0 text-xs">
+        <p className="flex flex-wrap items-center gap-x-1.5">
+          <span className="font-medium text-content">{grant.category}</span>
+          <span className="text-muted">{grant.mode === 'once' ? 'once' : 'time-boxed'}</span>
+          {grant.origin === null ? null : (
+            <span data-origin={grant.origin} title={grant.origin === 'ui' ? 'Created from this page, with your PIN' : `The plugin reports the origin "${grant.origin}"`} className="text-muted">
+              {grant.origin === 'ui' ? 'added from this page' : `origin: ${grant.origin}`}
             </span>
-          </p>
-          <p className="tabular-nums text-muted">
-            <span title={`Expires at ${clockText(grant.expiresAt)}`}>{expired ? 'expired' : `${remainingText(left)} left`}</span>
-            {`, ${uses}`}
-          </p>
-          <p className="break-words text-muted">{grant.reason === '' ? 'No reason given' : grant.reason}</p>
-        </div>
-        {GUARDRAILS_REVOKE_ENABLED && !confirming ? (
-          <ButtonAction variant="secondary" size="sm" disabled={expired || busy} icon={<Trash2 aria-hidden="true" className="h-3.5 w-3.5" />} label={`Revoke the ${grant.category} bypass`} onClick={() => setConfirming(true)} />
-        ) : null}
+          )}
+          <span data-full-session="" title={`Matched on the full session id ${grant.sessionId}`} className="inline-flex items-center gap-0.5 text-muted">
+            <KeyRound aria-hidden="true" className="h-3 w-3" />
+            full id
+          </span>
+        </p>
+        <p className="tabular-nums text-muted">
+          <span title={`Expires at ${clockText(grant.expiresAt)}`}>{expired ? 'expired' : `${remainingText(left)} left`}</span>
+          {`, ${uses}`}
+        </p>
+        <p className="break-words text-muted">{grant.reason === '' ? 'No reason given' : grant.reason}</p>
       </div>
+      {/* The rail is narrow: the action sits under the text, never beside it (the text would wrap one word per line), and is an icon (a long label such as "Revoke the git-commit-push bypass" overflowed the rail). */}
+      {GUARDRAILS_REVOKE_ENABLED && !confirming ? (
+        <div data-grant-actions="" className="flex gap-1.5">
+          <IconButton size="icon-sm" disabled={expired || busy} icon={<Trash2 aria-hidden="true" className="h-4 w-4" />} aria-label={`Revoke the ${grant.category} bypass`} onClick={() => setConfirming(true)} />
+        </div>
+      ) : null}
       {confirming ? (
         <div className="flex flex-col gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-text">
           <p>{`Revoke the ${grant.category} bypass (${remainingText(left)} left)? The guardrail applies again to this session at once.`}</p>

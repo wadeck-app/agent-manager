@@ -1,5 +1,5 @@
 # Guardrails (nav "Guardrails", path /guardrails: a sibling of /agents and /table, not nested under either, because the shell highlights every menu entry whose path is a prefix of the URL).
-# Phase 1 of the w-guardrails management is READ-ONLY: grants, counters, rules files and the denial timeline are read from the plugin's own files and nothing here changes them.
+# This page is READ-ONLY: grants, counters, rules files and the denial timeline are read from the plugin's own files and nothing here changes them (Add bypass, Revoke and the batch actions are on the Agents page).
 # The overview is polled every 5 s by this page, errors answered as data (inlineErrors: errorText). The denial timeline is fetched by the component itself (on demand, filters, and the PIN for command texts).
 $sources:
   overview:
@@ -13,7 +13,7 @@ maxWidth: full
 sections:
   - $type: agent-manager:PageTitle
     title: Guardrails
-    subtitle: 'What the w-guardrails plugin granted, blocked and is set to do on this machine. Read-only for now: bypasses are still granted in the session itself.'
+    subtitle: 'What the w-guardrails plugin granted, blocked and is set to do on this machine. This page only reads; add or revoke a bypass from the Permissions tab of an agent on the Agents page.'
     # The problems of the plugin files (and a failed overview) are behind the notices button at the right end of this line.
     guardrails: $sources.overview
   - $type: agent-manager:GuardrailsPage

@@ -1,5 +1,5 @@
 # Agents (nav /agents): the Claude Code sessions of this machine, read from the Claude Code session registry (~/.claude/sessions/<pid>.json).
-# Registry-fed (pid-only liveness) plus the sessions owned by the daemon; no hooks yet.
+# Registry-fed (pid-only liveness) plus the sessions owned by the daemon.
 # The dead sessions (process gone, registry file left) are hidden unless the filter says otherwise; the filter is the URL parameter ?show=all.
 # The list is polled every 5 s, once, by this page. A failing source would blank the whole page, so the route answers errors as data (inlineErrors: errorText).
 # The page is the master-detail workspace of the dsl-lib component agent-manager:AgentWorkspace: a toggle between three listing modes (Tree, Groups, Inbox;
