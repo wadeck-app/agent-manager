@@ -224,14 +224,18 @@ if (scenario === 'hang') {
   out({ schema: 'w-guardrails.rules/1', cwd, config: { path: cwd + '/.claude/guardrails.json', present: Boolean(configError), error: configError || null }, categories: rulesOf() }, 0);
 } else if (sub === 'revoke') {
   const id = flag('id');
-  const all = grantsOf();
-  const found = all.find((g) => g.id === id);
+  // the lookup and the rewrite share one lock: reading outside it while another revoke truncated the file made a known grant look unknown
+  const found = scenario === 'revoke-fails' ? undefined : withLock(() => {
+    const all = grantsOf();
+    const hit = all.find((g) => g.id === id);
+    if (hit) fs.writeFileSync(process.env.FAKE_ADMIN_GRANTS_FILE, JSON.stringify(all.filter((g) => g.id !== id)));
+    return hit;
+  });
   if (scenario === 'revoke-fails') {
     out({ schema: 'w-guardrails.error/1', error: 'Could not acquire the lock: another process is writing grants. Retry in a few seconds.' }, 1);
   } else if (!found) {
     out({ schema: 'w-guardrails.error/1', error: `No grant with id "${id}". Run "bypass list" to see current ids.` }, 1);
   } else {
-    withLock(() => fs.writeFileSync(process.env.FAKE_ADMIN_GRANTS_FILE, JSON.stringify(grantsOf().filter((g) => g.id !== id))));
     out({ schema: 'w-guardrails.bypass-revoke/1', revoked: true, id: scenario === 'revoke-mismatch' ? 'ffffffff' : id, category: found.category, session_id: found.session_id }, 0);
   }
 } else {
