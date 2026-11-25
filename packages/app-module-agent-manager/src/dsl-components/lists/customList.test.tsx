@@ -320,3 +320,35 @@ describe('CustomList', () => {
     expect(api.reorder).toHaveBeenCalledWith(['b', 'a', 'c']);
   });
 });
+
+describe('CustomList: one vertical axis for the row lights and the header icons (Herdr WAgents)', () => {
+  const a1 = row({ folder: 'shop', displayName: 'a-one', customGroupId: 'a', customGroupOrder: 0, state: 'idle', statusUpdatedAt: 100 });
+  const a2 = row({ folder: 'shop', displayName: 'a-two', customGroupId: 'a', customGroupOrder: 1, state: 'working', statusUpdatedAt: 50 });
+  const a3 = row({ folder: 'shop', displayName: 'a-three', customGroupId: 'a', customGroupOrder: 2, state: 'done', statusUpdatedAt: 50 });
+
+  it('every row light and the settings icon of the group sit in the same 28 px centred column, with the same right padding', () => {
+    const { container } = render(<Custom sessions={[a1, a2, a3]} api={fakeApi([group('a', 0)])} />);
+    const columns = Array.from(container.querySelectorAll<HTMLElement>('[data-status-column]'));
+    // Three rows, the group settings column and the empty column of the Ungrouped header.
+    expect(columns.length).toBeGreaterThanOrEqual(4);
+    for (const column of columns) {
+      expect(column.className).toContain('w-7');
+      expect(column.className).toContain('justify-center');
+    }
+    const header = headerOf(container, 'a');
+    expect(header.querySelector('[data-status-column] [data-row-icon-button]')).not.toBeNull();
+    expect(header.className).toContain('pr-2.5');
+    // The row ends 8 px (mx-2) plus 2 px (pr-0.5) from the list edge, the header 10 px: the same axis.
+    expect(rowOf(container, a1).className).toContain('mx-2');
+    expect(rowOf(container, a1).className).toContain('pr-0.5');
+  });
+
+  it('the open row has the gradient and the gold outline, the other rows do not', () => {
+    const { container } = render(<Custom sessions={[a1, a2, a3]} api={fakeApi([group('a', 0)])} />);
+    expect(rowOf(container, a2).className).not.toContain('--am-herdr-active-bg');
+    fireEvent.click(rowOf(container, a2));
+    expect(rowOf(container, a2).className).toContain('bg-[image:var(--am-herdr-active-bg)]');
+    expect(rowOf(container, a2).className).toContain('--am-herdr-active-edge');
+    expect(rowOf(container, a1).className).not.toContain('--am-herdr-active-bg');
+  });
+});

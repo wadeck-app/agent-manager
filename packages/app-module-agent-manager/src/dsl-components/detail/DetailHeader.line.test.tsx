@@ -63,10 +63,43 @@ describe('the one-line header (the default)', () => {
     expect(await screen.findByLabelText('Permission mode')).toBeInTheDocument();
   });
 
-  it('the Move icon is amber (danger outline) when something runs, and says so in its name', async () => {
-    const { container } = header(ownedRow({ sessionId: ID, adoptReadiness: { state: 'busy', reasons: ['A turn is running'] } }));
-    const move = await within(container as HTMLElement).findByRole('button', { name: 'Move to Terminal (interrupts 1 running item)' });
+  const BUSY = { state: 'busy' as const, reasons: ['A turn is running'] };
+  const MOVE_NAME = 'Move to Terminal (interrupts 1 running item)';
+
+  it('readiness look A (default): the Move icon is plain grey and says what runs in its name, the amber badge is in the line', async () => {
+    const { container } = header(ownedRow({ sessionId: ID, adoptReadiness: BUSY }));
+    const move = await within(container as HTMLElement).findByRole('button', { name: MOVE_NAME });
+    expect(move.closest('[data-adopt-button]')).toHaveAttribute('data-tone', 'neutral');
+    expect(move.textContent).toBe('');
+    expect(container.querySelector('[data-readiness-dot="busy"]')?.className).toContain('bg-warning');
+    expect(container.querySelector('[data-line-item="move"] [data-adopt-badge="busy"]')).toHaveTextContent('Busy: 1 running');
+    expect(container.querySelector('[data-adopt-banner]')).toBeNull();
+  });
+
+  it('readiness look B: a coloured pill with words (amber busy, green free), no badge in the line', async () => {
+    const busy = header(ownedRow({ sessionId: ID, adoptReadiness: BUSY }), { switchReadiness: 'button' });
+    const move = await within(busy.container as HTMLElement).findByRole('button', { name: MOVE_NAME });
+    expect(move).toHaveTextContent('Move: 1 running');
+    expect(move.className).toContain('bg-warning-bg');
     expect(move.closest('[data-adopt-button]')).toHaveAttribute('data-tone', 'warning');
+    expect(busy.container.querySelector('[data-line-item="move"]')).toBeNull();
+    busy.unmount();
+    const free = header(ownedRow({ sessionId: ID, adoptReadiness: { state: 'free', reasons: [] } }), { switchReadiness: 'button' });
+    const freeMove = await within(free.container as HTMLElement).findByRole('button', { name: 'Move to Terminal' });
+    expect(freeMove).toHaveTextContent('Move: free');
+    expect(freeMove.className).toContain('bg-hue-green-bg');
+  });
+
+  it('readiness look C: a plain grey icon, no badge, and a full-width row under the line that says what moving does (amber busy, green free)', async () => {
+    const busy = header(ownedRow({ sessionId: ID, adoptReadiness: BUSY }), { switchReadiness: 'banner' });
+    const move = await within(busy.container as HTMLElement).findByRole('button', { name: MOVE_NAME });
+    expect(move.textContent).toBe('');
+    expect(busy.container.querySelector('[data-line-item="move"]')).toBeNull();
+    expect(busy.container.querySelector('[data-adopt-banner="busy"]')).toHaveTextContent('Moving interrupts 1 running item: A turn is running');
+    busy.unmount();
+    const free = header(ownedRow({ sessionId: ID, adoptReadiness: { state: 'free', reasons: [] } }), { switchReadiness: 'banner' });
+    await within(free.container as HTMLElement).findByRole('button', { name: 'Move to Terminal' });
+    expect(free.container.querySelector('[data-adopt-banner="free"]')).toHaveTextContent('Nothing runs: moving keeps the whole conversation.');
   });
 
   it('with the daemon down the owned icons are off and the line says why Move is unavailable', async () => {
@@ -78,12 +111,17 @@ describe('the one-line header (the default)', () => {
   });
 });
 
-describe('the detailed header (kept to compare)', () => {
-  it('keeps the previous three rows, with the readiness line for an agent that cannot move', () => {
+describe('the detailed look (the same one line, the detail in a floating panel)', () => {
+  it('draws the one-line header, with the folder, chips and readiness line only in the Details panel', () => {
     const { container } = header(row({ displayName: 'one', pid: 12 }), { headerActions: 'detailed' });
-    expect(container.querySelector('[data-header-layout="line"]')).toBeNull();
-    expect(container.querySelector('[data-status-info]')).not.toBeNull();
-    expect(container.querySelector('[data-move-status]')).toHaveTextContent('Not launched by agent-manager: moving needs adoption (not built yet)');
+    expect(container.querySelector('[data-header-layout="line"]')).not.toBeNull();
+    expect(document.querySelector('[data-status-info]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    const panel = screen.getByRole('dialog', { name: 'Details' });
+    expect(panel.querySelector('[data-status-info]')).not.toBeNull();
+    expect(panel).toHaveTextContent('Not launched by agent-manager: moving needs adoption (not built yet)');
+    // Outside the header: the panel takes no room in it.
+    expect(container.contains(panel)).toBe(false);
   });
 });
 

@@ -6,9 +6,12 @@ import type { AgentRow } from '../data/types.js';
 import { MOVE_DAEMON_DOWN, moveStatusOf, switchViewOf } from '../logic/adoptSwitch.js';
 import type { SwitchView } from '../logic/adoptSwitch.js';
 import type { OwnedSessionDto, OwnedSwitchResponse } from '../shared.js';
+import { chipClass } from '../ui/Chip.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
 import { useDaemonDown } from './DaemonState.js';
 import { MoveBadgeView } from './MoveBadgeView.js';
+import { MoveBanner } from './MoveBanner.js';
 import { ReasonList } from './ReasonList.js';
 
 import { useUiVariant } from '../ui/UiVariants.js';
@@ -122,10 +125,25 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
     </ConfirmDialog>
   ) : null;
   if (compact) {
+    // The three looks of the A/B question in the one-line header: badge (a grey icon, the badge is in the line), button (a coloured pill with words: green free, amber busy or unknown), banner (a grey icon, a row under the header: MoveBanner).
+    const coloured = readinessStyle === 'button';
+    const count = view.reasons.length;
+    const words = view.readiness === 'free' ? 'Move: free' : view.readiness === 'busy' ? `Move: ${count} running` : 'Move: unknown';
+    const title = daemonDown ? DAEMON_DOWN_TITLE : `${view.label}. ${view.title}`;
+    const off = disabled || sending || daemonDown;
     return (
       <>
-        <span data-adopt-button="" data-readiness={view.readiness} data-tone={view.tone} className="inline-flex shrink-0">
-          <IconButton variant={view.tone === 'warning' ? 'danger-outline' : 'ghost'} aria-label={view.label} title={daemonDown ? DAEMON_DOWN_TITLE : `${view.label}. ${view.title}`} disabled={disabled || sending || daemonDown} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
+        <span data-adopt-button="" data-readiness={view.readiness} data-tone={coloured ? view.tone : 'neutral'} className="relative inline-flex shrink-0">
+          {coloured ? (
+            <button type="button" aria-label={view.label} title={title} disabled={off} onClick={click} className={`${chipClass(view.tone === 'warning' ? 'warning' : 'success')} cursor-pointer hover:brightness-95 ${FOCUS_RING}${off ? ' cursor-not-allowed opacity-50' : ''}`}>
+              <Icon aria-hidden="true" className="h-3.5 w-3.5" />
+              {words}
+            </button>
+          ) : (
+            <IconButton variant="ghost" aria-label={view.label} title={title} disabled={off} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
+          )}
+          {/* Look A: a dot on the icon (green free, amber busy or unknown) so the readiness shows even when the badge of the line has no room (the words are the accessible name). */}
+          {readinessStyle === 'badge' ? <span aria-hidden="true" data-readiness-dot={view.readiness} className={`pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-surface ${view.readiness === 'free' ? 'bg-hue-green' : 'bg-warning'}`} /> : null}
         </span>
         {dialog}
       </>
@@ -147,12 +165,7 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
       </span>
       {/* The badge of the A/B question ui-switch-readiness (the default look): every state, free included, in words. */}
       {readinessStyle === 'badge' && !view.recovery && status.badge !== undefined ? <MoveBadgeView badge={status.badge} /> : null}
-      {separate && readinessStyle === 'banner' ? (
-        <p data-adopt-banner="" aria-hidden="true" className="flex basis-full items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text">
-          <TriangleAlert className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0" />
-          <span>{view.readiness === 'busy' ? `Moving interrupts ${view.reasons.length} running item${view.reasons.length === 1 ? '' : 's'}: ${view.reasons[0] ?? ''}` : `agent-manager cannot tell what runs: ${view.reasons[0] ?? ''}`}</span>
-        </p>
-      ) : null}
+      {readinessStyle === 'banner' ? <MoveBanner session={session} /> : null}
       {daemonDown ? (
         <p data-move-unavailable="" className="basis-full text-xs text-muted">
           {MOVE_DAEMON_DOWN}

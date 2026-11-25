@@ -1,21 +1,20 @@
 import { ChevronDown, ChevronRight, Folder, FolderInput, FolderOpen } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { partitionByGroup, stepGroupIds } from '../logic/customGroups.js';
-import { herdrTint, isHerdrDensity } from '../logic/herdrRow.js';
+import { HERDR_ROW_BOX, herdrTint, isHerdrDensity } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { buildTree, flatByUrgency, quietFolders, type FolderNode } from '../logic/tree.js';
 import type { AgentRow } from '../data/types.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
-import { STATE_LOOK } from '../ui/stateLook.js';
-import { GroupHeaderName, groupHeaderBar, groupHeaderCount } from '../ui/groupHeaderLook.js';
+import { GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
-import { StatusIcon } from '../ui/StatusIcon.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { detailLine, type ListProps } from './common.js';
 import { EmptyNote } from './EmptyNote.js';
+import { RollupLight } from './RollupLight.js';
 import { HerdrRowBody } from './HerdrRowBody.js';
 import { Highlight } from './Highlight.js';
 import { CustomGroupSection } from './CustomGroupSection.js';
@@ -189,6 +188,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     const herdr = isHerdrDensity(density);
     const selected = id === selectedId;
     const tint = herdrTint(density, session.state, selected, session.flagged, session.unread);
+    const idleTint = herdrTint(density, session.state, false, session.flagged, session.unread);
     const nameLine = showFolder ? (
       <ProjectLabel session={session} terms={query.terms} />
     ) : (
@@ -205,8 +205,8 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
           selected={selected}
           tabbable={id === tabbable}
           onSelect={onSelect}
-          {...(herdr && density === 'herdr-tinted' ? { look: { selected: `border-l-2 border-transparent ${tint ?? ''}`, idle: `border-l-2 border-transparent ${tint ?? 'hover:bg-muted-bg'}` } } : {})}
-          className={`group relative ${herdr ? 'h-[31px] py-0 pr-2' : 'min-h-am-hit py-1 pr-3'} ${level === 2 ? 'pl-5' : 'pl-3'} ${dragged ? 'opacity-50' : ''}`}
+          {...(herdr ? { look: { selected: tint ?? '', idle: idleTint === undefined ? 'hover:bg-muted-bg' : `${idleTint} hover:brightness-95` } } : {})}
+          className={`group relative ${herdr ? HERDR_ROW_BOX : `min-h-am-hit py-1 pr-3 ${level === 2 ? 'pl-5' : 'pl-3'}`} ${dragged ? 'opacity-50' : ''}`}
           expanded={hasChildren ? open : undefined}
           rowProps={dnd.row(id, session.customGroupId, members)}
         >
@@ -215,6 +215,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
             <HerdrRowBody
               session={session}
               density={density}
+              selected={selected}
               now={now}
               terms={query.terms}
               showSlot={showSubagents}
@@ -289,24 +290,20 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                 tabIndex={visibleIds.length === 0 && sections.length === 0 && node === nodes[0] ? 0 : -1}
                 onClick={() => toggle(node, !open)}
                 onKeyDown={(event) => onFolderKey(event, node)}
-                className={`group flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${groupHeaderBar(headerStyle, GROUP_LOOK.none.edge)} ${FOCUS_RING} focus-visible:ring-inset`}
+                className={`group flex cursor-pointer items-center gap-1.5 hover:bg-muted-bg ${groupHeaderBox(headerStyle, GROUP_LOOK.none.edge)} ${FOCUS_RING} focus-visible:ring-inset`}
               >
-                <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
-                <FolderIcon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
+                <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
+                <FolderIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
                 <GroupHeaderName variant={headerStyle} text={node.folder} textClass={GROUP_LOOK.none.text} title={node.cwd} />
+                <span className={groupHeaderCount(headerStyle)}>{node.sessions.length}</span>
                 {node.disambiguation !== '' ? (
                   <span className="truncate text-xs text-muted" title={node.disambiguation}>
                     {node.disambiguation}
                   </span>
                 ) : null}
-                <span className="ml-auto flex shrink-0 items-center gap-2">
+                <span className="ml-auto flex shrink-0 items-center gap-1">
                   <GroupSelectBox ids={node.sessions.map(agentId)} name={node.folder} />
-                  <span className={`text-xs tabular-nums text-muted ${groupHeaderCount(headerStyle)}`}>{node.sessions.length}</span>
-                  <Tooltip content={`${STATE_LOOK[node.rollup].label}: the most urgent state in this folder`} side="left">
-                    <span className="inline-flex">
-                      <StatusIcon state={node.rollup} />
-                    </span>
-                  </Tooltip>
+                  <RollupLight state={node.rollup} subject="folder" />
                 </span>
               </div>
               {open ? <div role="group">{node.sessions.map((session) => agentRow(session, 2, false))}</div> : null}

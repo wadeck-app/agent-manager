@@ -14,7 +14,7 @@ export function HerdrProgramIcon({ session }: { session: AgentRow }) {
   return (
     <Tooltip content={full} side="left">
       <span className="inline-flex shrink-0">
-        <Icon aria-hidden="true" className={`h-am-icon w-am-icon ${claude ? 'text-hue-orange' : 'text-muted'}`} />
+        <Icon aria-hidden="true" className={`h-4 w-4 ${claude ? 'text-hue-orange' : 'text-muted'}`} />
         <span className="sr-only">{full}</span>
       </span>
     </Tooltip>

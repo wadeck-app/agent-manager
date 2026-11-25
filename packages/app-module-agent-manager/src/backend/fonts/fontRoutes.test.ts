@@ -56,12 +56,12 @@ describe('the font routes', () => {
 });
 
 describe('the stylesheet', () => {
-  it('loads exactly the files the route serves, scoped by data-font, with a swap and a fallback stack', () => {
+  it('loads exactly the files the route serves (Geist only), on the scope wrapper, with a swap and a fallback stack', () => {
     const css = fs.readFileSync(path.join(import.meta.dirname, '..', '..', 'dsl-components', 'styles', 'agents.css'), 'utf8');
     const urls = [...css.matchAll(/url\('\/api\/modules\/agent-manager\/fonts\/([^']+)'\)/g)].map((m) => m[1]);
     expect(urls.sort()).toEqual(Object.keys(FONT_FILES).sort());
-    expect(css.match(/font-display: swap;/g)).toHaveLength(2);
-    expect(css).toMatch(/\.agents-scope\[data-font='geist'\][^{]*\{\s*font-family: 'AM Geist', ui-sans-serif/);
-    expect(css).toMatch(/\.agents-scope\[data-font='geist-mono'\] \.font-mono \{\s*font-family: 'AM Geist Mono', ui-monospace/);
+    expect(css.match(/font-display: swap;/g)).toHaveLength(1);
+    expect(css).toMatch(/\.agents-scope \{\s*font-family: 'AM Geist', ui-sans-serif/);
+    expect(css).not.toContain('Geist Mono');
   });
 });

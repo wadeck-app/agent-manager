@@ -9,6 +9,7 @@ import { describeTimeInState, timeInState } from '../logic/time.js';
 import { MoveBadgeView } from '../owned/MoveBadgeView.js';
 import { useDaemonDown } from '../owned/DaemonState.js';
 import { Chip } from '../ui/Chip.js';
+import { useUiVariant } from '../ui/UiVariants.js';
 import { STATE_LOOK, STATE_VARIANT } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { BypassChips } from './status/BypassChips.js';
@@ -44,6 +45,8 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
   const since = timeInState(session.statusUpdatedAt, now);
   const daemonDown = useDaemonDown();
   const move = moveStatusOf(session, daemonDown);
+  // The badge is the look A of the A/B question ui-switch-readiness; the other looks say it on the button or in a row, except for an agent that cannot move (nothing else says why).
+  const readinessStyle = useUiVariant('switchReadiness');
   const droppable: Droppable[] = [];
   droppable.push({
     key: 'folder',
@@ -77,7 +80,7 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
   if (status.contextUsedPct !== undefined) {
     droppable.push({ key: 'context', node: <ContextMeter context={status.contextUsedPct} />, entries: [{ label: 'context', value: `${status.contextUsedPct.value}% of the way to auto-compact` }] });
   }
-  if (move.badge !== undefined) {
+  if (move.badge !== undefined && (readinessStyle === 'badge' || move.unavailable !== undefined)) {
     const title = move.unavailable === undefined ? move.badge.title : `${move.badge.title}
 ${move.unavailable}`;
     droppable.push({ key: 'move', node: <MoveBadgeView badge={{ ...move.badge, title }} />, entries: [{ label: 'activity', value: move.unavailable === undefined ? move.badge.label : `${move.badge.label} (${move.unavailable})` }] });

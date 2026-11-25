@@ -44,7 +44,7 @@ describe('RowIconButton', () => {
 
 describe('the Herdr row uses it', () => {
   it('its hover buttons are row icon buttons of 28 px', () => {
-    const { container } = render(<HerdrRowBody session={row({ folder: 'shop', displayName: 'billing-owner' })} density="herdr-line" now={2_000_000} terms={undefined} showSlot subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} />);
+    const { container } = render(<HerdrRowBody session={row({ folder: 'shop', displayName: 'billing-owner' })} density="herdr-tinted" now={2_000_000} terms={undefined} showSlot subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} />);
     const buttons = container.querySelectorAll('[data-herdr-actions] button');
     expect(buttons).toHaveLength(2);
     for (const button of Array.from(buttons)) {

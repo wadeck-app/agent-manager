@@ -26,7 +26,7 @@ type Droppable = { key: string; node: ReactNode; text: string };
  * available is simply not drawn (no empty slot); the reason it is not available (`statusNote`), a branch that could not be read or a broken bypass file is
  * shown as a warning, never swallowed.
  */
-export function StatusInfo({ session, status, collapsed = false }: { session: AgentRow; status: SessionStatusDto; collapsed?: boolean }) {
+export function StatusInfo({ session, status, collapsed = false, wrapAll = false }: { session: AgentRow; status: SessionStatusDto; collapsed?: boolean; wrapAll?: boolean }) {
   const hasTokens = status.tokensIn !== undefined || status.tokensOut !== undefined;
   // Most important first: the LAST ones leave the row first.
   const droppable: Droppable[] = [];
@@ -45,8 +45,9 @@ export function StatusInfo({ session, status, collapsed = false }: { session: Ag
     droppable.push({ key: 'pid', node: <span className="tabular-nums">pid {session.pid}</span>, text: `pid ${session.pid}` });
   }
   const { ref, dropped, wrap } = useChipFit(droppable.length, droppable.map((item) => item.key + item.text).join('\n'));
-  const shown = droppable.slice(0, droppable.length - dropped);
-  const gone = droppable.slice(droppable.length - dropped);
+  // wrapAll (the Details panel, which has the room to grow): nothing leaves, the chips wrap onto more lines.
+  const shown = wrapAll ? droppable : droppable.slice(0, droppable.length - dropped);
+  const gone = wrapAll ? [] : droppable.slice(droppable.length - dropped);
   return (
     <div data-status-info="" className="mt-0.5 flex flex-col gap-1 text-xs text-muted">
       <CwdBranch cwd={session.cwd} branch={status.gitBranch} branchError={status.gitBranchError} />
@@ -57,7 +58,7 @@ export function StatusInfo({ session, status, collapsed = false }: { session: Ag
         </div>
       ) : null}
       {/* Collapsed (short screens, or by the user): the folder line stays, the chips go; the warnings below always stay. */}
-      <div ref={ref} data-status-chips="" className={`${collapsed ? 'hidden' : 'flex'} items-center gap-x-2 gap-y-1 ${wrap ? 'flex-wrap' : 'flex-nowrap overflow-x-clip whitespace-nowrap'}`}>
+      <div ref={ref} data-status-chips="" className={`${collapsed ? 'hidden' : 'flex'} items-center gap-x-2 gap-y-1 ${wrap || wrapAll ? 'flex-wrap' : 'flex-nowrap overflow-x-clip whitespace-nowrap'}`}>
         {status.model === undefined ? null : <ModelChip model={status.model} previous={status.previousModels} />}
         {status.contextUsedPct === undefined ? null : <ContextMeter context={status.contextUsedPct} />}
         {status.role === undefined ? null : <RoleChip role={status.role} />}

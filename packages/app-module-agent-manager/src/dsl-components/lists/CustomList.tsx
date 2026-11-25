@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, typ
 import type { AgentRow } from '../data/types.js';
 import { customSections, UNGROUPED_ID, type DropContext } from '../logic/customMode.js';
 import { stepGroupIds } from '../logic/customGroups.js';
-import { herdrTint, isHerdrDensity, type HerdrDensity } from '../logic/herdrRow.js';
+import { HERDR_ROW_BOX, herdrTint, isHerdrDensity, type HerdrDensity, stateTint } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
@@ -142,7 +142,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
     const hasChildren = showSubagents && session.subagentCount > 0;
     const open = hasChildren && openAgents[id] === true;
     // The background of an agent: its open look, its state tint (needs you, unseen, flagged), then the body color of its group.
-    const base = tint ?? bodyClass;
+    const base = herdrTint(density, session.state, false, session.flagged, session.unread) ?? bodyClass;
     const onContextMenu = (event: MouseEvent<HTMLDivElement>): void => {
       event.preventDefault();
       // The context-menu key reports no pointer: the menu opens under the row.
@@ -159,13 +159,13 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
             selected={selected}
             tabbable={id === tabbable}
             onSelect={onSelect}
-            look={{ selected: `border-l-2 border-transparent ${tint ?? 'bg-primary-light'}`, idle: `border-l-2 border-transparent ${base === '' ? 'hover:bg-muted-bg' : `${base} hover:brightness-95`}` }}
-            className={`group relative h-[31px] py-0 pl-5 pr-2 ${dragged ? 'opacity-50' : ''}`}
+            look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread) === undefined ? bodyClass : ''}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} hover:brightness-95` }}
+            className={`group relative ${HERDR_ROW_BOX} ${dragged ? 'opacity-50' : ''}`}
             expanded={hasChildren ? open : undefined}
             rowProps={dnd.row(id, groupId)}
           >
             <DropBar edge={edge} />
-            <HerdrRowBody session={session} density={density} now={now} terms={query.terms} showSlot={showSubagents} subagents={hasChildren ? { open, toggle: () => setOpenAgents((current) => ({ ...current, [id]: !open })) } : undefined} onMove={groups === undefined ? undefined : () => setMoving(id)} {...(marks === undefined ? {} : { onMenu: (anchor: Anchor) => openMenu(session, anchor) })} />
+            <HerdrRowBody session={session} density={density} selected={selected} now={now} terms={query.terms} showSlot={showSubagents} subagents={hasChildren ? { open, toggle: () => setOpenAgents((current) => ({ ...current, [id]: !open })) } : undefined} onMove={groups === undefined ? undefined : () => setMoving(id)} {...(marks === undefined ? {} : { onMenu: (anchor: Anchor) => openMenu(session, anchor) })} />
           </OptionShell>
         </div>
         {open ? <SubagentRows sessionId={session.sessionId} /> : null}

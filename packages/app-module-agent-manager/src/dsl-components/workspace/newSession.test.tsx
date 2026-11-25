@@ -4,6 +4,8 @@ import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, row } from '../logic/fixtures.js';
+import { DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
+import { UiVariantsContext } from '../ui/UiVariants.js';
 import { stubFetch } from '../owned/testFetch.js';
 import { Workspace } from './Workspace.js';
 
@@ -16,11 +18,14 @@ function Page({ ownedError = null }: { ownedError?: { code: string; message: str
   const [params, setParams] = useState<Record<string, string>>({});
   const service: UrlParamService = { get: (key) => params[key] ?? null, set: (key, value) => setParams((current) => ({ ...current, [key]: value })) };
   return (
+    // The compact row of the A/B question ui-tree-density: it writes the host and the Starting chip (the Herdr row keeps the host in a tooltip).
+    <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, treeDensity: 'compact' }}>
     <UrlParamContext.Provider value={service}>
       {/* violations-suppress: shared/no-out-of-repo-path a Windows path as the user types it, never read from disk */}
       <Workspace sessions={[row({ folder: 'shop', cwd: 'C:\\Projects\\shop' })]} userStateError="" hiddenDead={0} ownedError={ownedError} ownedErrorText={ownedError === null ? '' : `${ownedError.message}. ${ownedError.hint}`} />
       <div data-testid="session-param">{params['session'] ?? ''}</div>
     </UrlParamContext.Provider>
+    </UiVariantsContext.Provider>
   );
 }
 

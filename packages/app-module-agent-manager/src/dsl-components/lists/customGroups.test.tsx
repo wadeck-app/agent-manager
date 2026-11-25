@@ -5,7 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AgentRow } from '../data/types.js';
 import { row } from '../logic/fixtures.js';
 import { parseQuery } from '../logic/fuzzy.js';
+import { DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
 import { DEFAULT_VIEW_OPTIONS, type ViewOptions } from '../logic/viewOptions.js';
+import { UiVariantsContext } from '../ui/UiVariants.js';
 import type { CustomGroupDto } from '../shared.js';
 import { NewGroupControl } from '../workspace/NewGroupControl.js';
 import type { GroupsApi } from './common.js';
@@ -514,12 +516,19 @@ describe('NewGroupControl', () => {
   });
 });
 
-describe('the width of a compact Tree row', () => {
-  it('the Move to a group button floats over the age instead of holding an empty slot beside the name (the name was cut to "docs..." with room left)', () => {
+describe('the width of a Tree row', () => {
+  it.each([
+    ['herdr-tinted', '[data-herdr-actions]'],
+    ['compact', '[data-row-actions]'],
+  ] as const)('%s: the Move to a group button floats over the age instead of holding an empty slot beside the name (the name was cut to "docs..." with room left)', (look, selector) => {
     const one = row({ folder: 'shop', displayName: 'docs-writer', state: 'idle', statusUpdatedAt: 100 });
-    const { container } = render(<Tree sessions={[one]} api={fakeApi([group('a', 0)])} />);
+    const { container } = render(
+      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, treeDensity: look }}>
+        <Tree sessions={[one]} api={fakeApi([group('a', 0)])} />
+      </UiVariantsContext.Provider>,
+    );
     const button = within(rowOf(container, one)).getByRole('button', { name: /Move docs-writer to a group/ });
-    const actions = button.closest<HTMLElement>('[data-row-actions]');
+    const actions = button.closest<HTMLElement>(selector);
     expect(actions).not.toBeNull();
     expect(actions?.className).toContain('absolute');
     expect(actions?.className).toContain('hidden');

@@ -5,7 +5,7 @@ import { FONT_DATA, FONT_SOURCE } from './fontFiles.generated.js';
 /** The files the stylesheet (styles/agents.css) loads from `/api/modules/agent-manager/fonts/<file>`. The name carries the font version, so the answer never changes. */
 export const FONT_FILES: Record<string, keyof typeof FONT_DATA> = {
   [`geist-${FONT_SOURCE.version}.woff2`]: 'geist',
-  [`geist-mono-${FONT_SOURCE.version}.woff2`]: 'geist-mono',
+  // Geist Mono stays embedded in fontFiles.generated.ts but nothing loads it since the font question was settled on Geist (2026-11-25): it is not served.
 };
 
 interface FontReply {

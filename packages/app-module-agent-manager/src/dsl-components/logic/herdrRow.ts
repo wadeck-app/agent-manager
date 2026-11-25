@@ -7,11 +7,14 @@ import type { TreeDensityVariant } from './uiVariants.js';
  * the program.
  */
 
-export type HerdrDensity = Extract<TreeDensityVariant, 'herdr-line' | 'herdr-tinted' | 'herdr-name'>;
+export type HerdrDensity = Extract<TreeDensityVariant, 'herdr-tinted' | 'herdr-name'>;
 
 export function isHerdrDensity(density: TreeDensityVariant): density is HerdrDensity {
-  return density === 'herdr-line' || density === 'herdr-tinted' || density === 'herdr-name';
+  return density === 'herdr-tinted' || density === 'herdr-name';
 }
+
+/** The classes of every Herdr row box (research/ui-audit.md, "Herdr values"): 30 px, 8 px rounded, the list's 8 px side padding as a margin, 8 px inside on the left and 2 px on the right (the state column is 26 px wide). */
+export const HERDR_ROW_BOX = 'mx-2 h-[30px] rounded-lg py-0 pl-2 pr-0.5';
 
 export interface HerdrLight {
   /** dot: a filled dot. spinner: a turning arc. pill: a coloured pill with words. ring: an empty ring. icon: the page's own icon (a state Herdr has no light for). */
@@ -58,15 +61,16 @@ export function stateTint(state: AgentState, flagged: boolean, unread = false): 
 }
 
 /**
- * The background classes of a row of the Herdr rows (undefined: none): the open row of the tinted variant is a gold outline and gradient, any other row has
- * the tint of its state (every density: the row shape does not decide whether an agent that needs you shows it). The other variants give the open row their
- * own look.
+ * The background classes of a row of the Herdr rows (undefined: none): the open row of a Herdr density is a gold outline and a gold gradient (strong on the
+ * left, fading to the right, the state tint stays visible under it, as in the Herdr WAgents mod); any other row has the tint of its state (every density: the
+ * row shape does not decide whether an agent that needs you shows it). The compact row gives the open row its own look.
  */
 export function herdrTint(density: TreeDensityVariant, state: AgentState, selected: boolean, flagged = false, unread = false): string | undefined {
+  const tint = stateTint(state, flagged, unread);
   if (selected) {
-    return density === 'herdr-tinted' ? 'ring-1 ring-inset ring-[color:var(--am-herdr-active-edge)] bg-[image:var(--am-herdr-active-bg)]' : undefined;
+    return isHerdrDensity(density) ? `${tint ?? ''} ring-1 ring-inset ring-[color:var(--am-herdr-active-edge)] bg-[image:var(--am-herdr-active-bg)]`.trim() : undefined;
   }
-  return stateTint(state, flagged, unread);
+  return tint;
 }
 
 /** What the row writes besides the name: the grey folder text, except in the name-only variant. */

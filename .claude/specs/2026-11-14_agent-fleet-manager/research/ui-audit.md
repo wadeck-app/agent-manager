@@ -302,3 +302,33 @@ Isolated app-core 48796 (`C:\Users\Wadeck\AppData\Local\Temp\am-qafix`, fake adm
 - D5 header line: root cause `useChipFit` dropped chips from the END until the row stopped overflowing; the folder (196 px) is first and wider than the 87 px free at 1280 with the list open, so all 9 chips went into `+9` while a 39 px context chip would have fitted. Now `useItemFit` draws every chip once, measures each, and `fitItems` keeps the best-priority ones that fit next to the `+N` chip (priority `LINE_PRIORITY`: folder, context, what runs, model, role, program, tokens, duration, session id, pid; a chip that does not fit never blocks a narrower one). Re-measures when the width, the fonts (`document.fonts.ready`) or the content change. The `+N` tooltip lists `label value` and omits an entry without a value ("context 38% of the way to auto-compact"). `useChipFit` stays for `StatusInfo`. Measured at 1280 list open: name, state, age, context 3 %, +8 (was +9).
 - D8 batch popup: with the list column on the left the centred pill started 13 px inside it (527 vs 540). The strip now starts at the right edge of the list column when the pill fits to the right of it (`clearListLeft`), else the whole content area. Measured 1280, 1440, 768, dock open and folded: popup left 677 / 757 / 271, list right 540 / 540 / none.
 - D9 names: not `HerdrRowBody` but the default compact Tree row: its Move button was `opacity-0` but kept a 28 px slot (the bug of #95 in another row). It floats over the age on hover and focus now. `docs-writer` 50 px (cut) to 86 px (whole) at 1280 with sub-agents on. A name next to the host chip and the sub-agent count can still be cut.
+
+## Herdr WAgents values and the Herdr-style pass (2026-11-25)
+
+Source: `~/.config/herdr-app/mods/my-agents/main.js` (`row`, `status`, `header`, `focusGradient`, `ROW_LAYOUTS`, `DEFAULT_COLORS`). Reference screenshots: user's Herdr list. Values in px; colours are the mod's, ours are the theme tokens with the same alpha.
+
+| Element | Herdr value | Used here |
+|---|---|---|
+| List padding | 8 | rows `mx-2`, headers `pl-4 pr-2.5` (8 + 8 and 8 + 2) |
+| Row (standard) | height 30, px 8, radius 8, gap 9, text 13 | `HERDR_ROW_BOX` (30, `pl-2 pr-0.5`, `rounded-lg`), `gap-[9px]`, `text-[13px]` |
+| Program icon | 16 | `h-4 w-4` |
+| Name | white, semibold only when open; grey when idle and not unread; detail `· folder` dim, 13 | same; folder `text-muted-tint` (contrast) |
+| Age | 11 dim | `text-[11px]` |
+| Status column | none fixed: dot 7 + mx 3, spinner 12 + mx 1, "Needs you" chip in flow; header button 26 with icon 14, pr 2 | one 28 px column, icon centred (`ui/StatusColumn.tsx`); dot 7 (ring border 1.5), spinner 12, pill right aligned |
+| Needs you chip | h 18, px 6, radius 5, bg red 15 %, text 10.5 semibold | same, `bg-hue-red-bg` |
+| Tints | needs red `#e5484d` 20 %, flagged orange `#f0883e` 15 %, unread blue `#58a6ff` 12 % (first that applies wins) | `--am-herdr-needs-bg` 20 %, `bg-hue-orange-bg`, `--am-herdr-unseen-bg` 12 % |
+| Open row | gradient of the accent, 16 slices from 30 % to 2 % (left to right), radius 8; optional bar (3 wide) and 1 px outline; fill 18 % | gold outline 1 px + gradient 30 % to 2 % (`--am-herdr-active-*`), the state tint stays under it |
+| Group header | h 34 (8 above), pl 8, pr 2, gap 6, text 11 medium, title dim or state colour, count dim 11 after it, folder-cog button 26 radius 6 icon 14, folded: state + chevron 11 | `groupHeaderBox('herdr')`, name and count 11, cog in the 28 px column |
+| Sub-agent row | h 26, text 12.5, pl 39 | unchanged (own component) |
+| Font | Geist | Geist, default and only (below) |
+
+Note: 11 px (age, group title and count) is under the 12 px floor of the density scale; the Herdr rows use fixed px on purpose (user request), the density table is untouched.
+
+Changes and decisions:
+- ui-tree-density: B (Herdr line) and C (tinted) differed only by the open-row gradient; merged into A Herdr (default, `herdr-tinted`). Options now: A Herdr, B Compact (previous), C Herdr name only. The Custom list always shows a Herdr row.
+- ui-font settled on Geist: question removed, `data-font` removed, family set on `.agents-scope` with the fallback stack. The Geist Mono file is still embedded and served by `backend/fonts` (no longer used by the CSS; removing it needs a regenerated `fontFiles.generated.ts`).
+- ui-group-header: the Custom list ignored the question (no visible change there). All lists now use `groupHeaderBox/Count/Name`: A Herdr (11 px grey, no background), B Bar (tinted bar, 14 px bold, count pill), C Pill (outlined name). Plain merged into A.
+- ui-switch-readiness: root cause of "no difference": the default one-line header used an icon that ignored the question and always showed the badge. Now A grey icon with a green or amber dot plus the badge in the line; B a coloured pill with words (`Move: free`, `Move: N running`, `Move: unknown`), no badge; C grey icon plus a full-width coloured row under the header (`MoveBanner`).
+- Gotcha: `npm run css` is not re-run by the dev server's watch; after adding a Tailwind class, run `tsx src/dsl-components/build/build-css.ts` or the class has no rule.
+
+Screenshots (throwaway): `poc/results/ab-tree/`, script `poc/scripts/ab-tree-shoot.sh`.

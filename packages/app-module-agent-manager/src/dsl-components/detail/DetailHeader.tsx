@@ -1,19 +1,12 @@
-import { ArrowLeft, ChevronsDownUp, ChevronsUpDown, GitFork, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, GitFork, TriangleAlert } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { ForkDialog } from '../launch/ForkDialog.js';
 import { FORK_MEANING, forkBlockedReason } from '../logic/forkForm.js';
-import { STATE_MEANING } from '../logic/states.js';
 import { threadChipText } from '../logic/threadForm.js';
 import type { OwnedSessionDto } from '../shared.js';
-import { describeTimeInState, timeInState } from '../logic/time.js';
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { useUiVariant } from '../ui/UiVariants.js';
-import { useMediaQuery } from '../ui/hooks.js';
-import { Chip } from '../ui/Chip.js';
-import { STATE_LOOK, STATE_VARIANT } from '../ui/stateLook.js';
-import { StatusIcon } from '../ui/StatusIcon.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { GuardrailBlocks } from '../guardrails/GuardrailBlocks.js';
 import { MoveStatusLine } from '../owned/MoveStatus.js';
 import { OwnedBar } from '../owned/OwnedBar.js';
@@ -22,33 +15,6 @@ import { HeaderActions } from './HeaderActions.js';
 import { HeaderLine } from './HeaderLine.js';
 import { StatusInfo } from './status/StatusInfo.js';
 import { useSessionStatus } from './status/useSessionStatus.js';
-
-const DETAILS_KEY = 'agent-manager.header-details.v1';
-
-/** Whether the status chips of the header are open: the user's choice (kept), else open except on a short or narrow window, where the log needs the room more. */
-function useDetailsOpen(): [boolean, (open: boolean) => void] {
-  // Short or narrow (a phone): the chips wrap one per line there and would take half of the screen.
-  const lowScreen = useMediaQuery('(max-height: 799px)');
-  const phone = useMediaQuery('(max-width: 599px)');
-  const short = lowScreen || phone;
-  const [chosen, setChosen] = useState<boolean | undefined>(() => {
-    try {
-      const saved = window.localStorage.getItem(DETAILS_KEY);
-      return saved === 'open' ? true : saved === 'closed' ? false : undefined;
-    } catch {
-      return undefined;
-    }
-  });
-  const choose = (open: boolean): void => {
-    setChosen(open);
-    try {
-      window.localStorage.setItem(DETAILS_KEY, open ? 'open' : 'closed');
-    } catch {
-      // Not kept: the choice resets on reload. Nothing the user could fix.
-    }
-  };
-  return [chosen ?? !short, choose];
-}
 
 export interface DetailHeaderProps {
   session: AgentRow;
@@ -73,8 +39,6 @@ export interface DetailHeaderProps {
 
 /** Name, folder, state, harness, pid and the two actions of the selected session. The back button only exists on a narrow screen (stacked panes). */
 export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSeen, onOwnedChange, onForgotten, onForked, forkedFrom, onOpenSource, onLocateAnchor }: DetailHeaderProps) {
-  const look = STATE_LOOK[session.state];
-  const since = timeInState(session.statusUpdatedAt, now);
   const canMarkSeen = session.state === 'done';
   // The status line data: the live one of the log poll, else the one of the session row (one source at a time).
   const status = useSessionStatus(session);
@@ -84,12 +48,19 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
   // Leaving the session forgets the dialog (coming back does not reopen it).
   useEffect(() => setForkFor(undefined), [forkId]);
   const forkBlocked = forkBlockedReason(session);
-  const [detailsOpen, setDetailsOpen] = useDetailsOpen();
   // The element of the header line the controls of an owned session are drawn into (the one-line looks).
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  // The A/B question ui-header-actions: the one-line header (line, line-menu) or the previous three rows (detailed).
+  // The A/B question ui-header-actions: the three looks share this one-line header (so the same height); only the actions differ. The detailed look adds a Details button
+  // whose floating panel holds the folder, the chips and the readiness line that the previous three-row header drew in the flow.
   const actionsLook = useUiVariant('headerActions');
-  const actions = <HeaderActions busy={busy} onFork={() => setForkFor(forkId)} forkBlocked={forkBlocked} forkMeaning={FORK_MEANING} pinned={session.pinned} onTogglePin={() => onTogglePin(!session.pinned)} canMarkSeen={canMarkSeen} onMarkSeen={onMarkSeen} />;
+  const details =
+    actionsLook === 'detailed' ? (
+      <>
+        <StatusInfo session={session} status={status} wrapAll />
+        <MoveStatusLine session={session} />
+      </>
+    ) : undefined;
+  const actions = <HeaderActions details={details} busy={busy} onFork={() => setForkFor(forkId)} forkBlocked={forkBlocked} forkMeaning={FORK_MEANING} pinned={session.pinned} onTogglePin={() => onTogglePin(!session.pinned)} canMarkSeen={canMarkSeen} onMarkSeen={onMarkSeen} />;
   // A permission request of a Web session is already shown by its card under the log: the reason would say the same a third time.
   const reasonLine =
     session.state === 'needs-you' && session.reason !== '' && !(session.host === 'stream-json' && session.pendingPermissions > 0) ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null;
@@ -120,73 +91,30 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
         );
   // The key differs from the one of OwnedBar below (the lower-cased session id): two siblings with one key make React duplicate one of them in the DOM.
   const forkDialog = forkFor === forkId ? <ForkDialog key={`fork-${forkId}`}session={session} onClose={() => setForkFor(undefined)} onForked={onForked} /> : null;
-  if (actionsLook !== 'detailed') {
-    // The one-line header: everything on one line, the actions at its right; only what has something to say gets a line under it (a fork or thread origin, a warning, a reason).
-    return (
-      <header data-header-layout="line" className="flex max-h-[50vh] shrink-0 flex-col gap-1 overflow-y-auto border-b border-border px-4 py-2">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="lg:hidden">
-            <IconButton icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />} aria-label="Back to the list" onClick={onBack} />
-          </span>
-          <HeaderLine session={session} status={status} now={now} />
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            {/* The controls of an owned session are drawn here by its bar (a portal), as icons. */}
-            <span ref={setSlot} className="contents" />
-            {actions}
-          </div>
-        </div>
-        {originLine}
-        {status.statusNote === undefined || status.statusNote === '' ? null : (
-          <p role="status" className="inline-flex items-center gap-1 text-xs text-warning-text">
-            <TriangleAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
-            {status.statusNote}
-          </p>
-        )}
-        <GuardrailBlocks blocks={session.guardrailBlocks} />
-        <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} inline={{ slot }} />
-        {reasonLine}
-        {forkDialog}
-      </header>
-    );
-  }
+  // The one-line header: everything on one line, the actions at its right; only what has something to say gets a line under it (a fork or thread origin, a warning, a reason).
   return (
-    <header className="flex max-h-[50vh] shrink-0 items-start gap-2 overflow-y-auto border-b border-border px-4 py-3">
-      <span className="lg:hidden">
-        <IconButton icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />} aria-label="Back to the list" onClick={onBack} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <h2 className="min-w-0 truncate text-base font-semibold text-content" title={session.displayName}>
-            {session.displayName}
-          </h2>
-          <Tooltip content={STATE_MEANING[session.state]}>
-            <Chip variant={STATE_VARIANT[session.state]} icon={<StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />}>
-                            {look.label}
-            </Chip>
-          </Tooltip>
-          {since !== '' ? (
-            <Tooltip content={describeTimeInState(session.statusUpdatedAt, now)}>
-              <span className="text-xs tabular-nums text-muted">{since}</span>
-            </Tooltip>
-          ) : null}
+    <header data-header-layout="line" className="flex max-h-[50vh] shrink-0 flex-col gap-1 overflow-x-hidden overflow-y-auto border-b border-border px-4 py-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="lg:hidden">
+          <IconButton icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />} aria-label="Back to the list" onClick={onBack} />
+        </span>
+        <HeaderLine session={session} status={status} now={now} />
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {/* The controls of an owned session are drawn here by its bar (a portal), as icons. */}
+          <span ref={setSlot} className="contents" />
+          {actions}
         </div>
-        {originLine}
-        <StatusInfo session={session} status={status} collapsed={!detailsOpen} />
-        <GuardrailBlocks blocks={session.guardrailBlocks} />
-        <MoveStatusLine session={session} />
-        <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} />
-        {reasonLine}
       </div>
-      <div className="flex shrink-0 items-center gap-1">
-        <IconButton
-          variant={detailsOpen ? 'neutral' : 'ghost'}
-          icon={detailsOpen ? <ChevronsDownUp aria-hidden="true" className="h-4 w-4" /> : <ChevronsUpDown aria-hidden="true" className="h-4 w-4" />}
-          aria-label={detailsOpen ? 'Hide details' : 'Show details'}
-          aria-pressed={detailsOpen}
-          onClick={() => setDetailsOpen(!detailsOpen)}
-        />
-        {actions}
-      </div>
+      {originLine}
+      {status.statusNote === undefined || status.statusNote === '' ? null : (
+        <p role="status" className="inline-flex items-center gap-1 text-xs text-warning-text">
+          <TriangleAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
+          {status.statusNote}
+        </p>
+      )}
+      <GuardrailBlocks blocks={session.guardrailBlocks} />
+      <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} inline={{ slot }} />
+      {reasonLine}
       {forkDialog}
     </header>
   );

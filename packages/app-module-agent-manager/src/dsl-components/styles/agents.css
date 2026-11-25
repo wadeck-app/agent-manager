@@ -8,12 +8,12 @@
   display: contents;
 }
 
-/* The colours of the rows (logic/herdrRow.ts): the tint of a row that needs you and of one that finished unseen (every list mode), and the open row of the tinted variant of the A/B question ui-tree-density (gold outline and gradient). A flagged row uses the hue-orange token. Change them here. */
+/* The colours of the rows (logic/herdrRow.ts): the tint of a row that needs you and of one that finished unseen (every list mode), and the open row of the Herdr rows of the A/B question ui-tree-density (gold outline and gradient, the Herdr values: tint 20 % red, 12 % blue; gradient 30 % fading to 2 %). A flagged row uses the hue-orange token. Change them here. */
 .agents-scope {
-  --am-herdr-needs-bg: color-mix(in srgb, var(--color-hue-red-text, #b91c1c) 16%, transparent);
-  --am-herdr-unseen-bg: color-mix(in srgb, var(--color-primary, #2563eb) 14%, transparent);
+  --am-herdr-needs-bg: color-mix(in srgb, var(--color-hue-red-text, #b91c1c) 20%, transparent);
+  --am-herdr-unseen-bg: color-mix(in srgb, var(--color-primary, #2563eb) 12%, transparent);
   --am-herdr-active-edge: #d4a017;
-  --am-herdr-active-bg: linear-gradient(90deg, rgb(212 160 23 / 0.24), rgb(212 160 23 / 0.06));
+  --am-herdr-active-bg: linear-gradient(90deg, rgb(212 160 23 / 0.30), rgb(212 160 23 / 0.02));
 }
 
 /* Muted text ON a tinted surface (a chip on bg-muted-bg, a selected row, a red card): the plain muted token is 4.34:1 on the light grey chip and 4.0:1 on the dark ones, under the 4.5:1 of WCAG AA. A mix of the two existing tokens (muted toward content), so it follows the theme. Class: text-muted-tint. */
@@ -100,9 +100,9 @@
   --am-log-max: 1260px;
 }
 
-/* The Font A/B question (logic/uiVariants.ts, ui/Scope.tsx sets `data-font`). The files are served by the backend (backend/fonts/fontRoutes.ts: the CSP allows only same-origin fonts and `package` ships no asset folder),
-   from the geist package 1.9.2 (SIL OFL 1.1, src/backend/fonts/THIRD_PARTY_NOTICES.md). @font-face cannot be scoped by a selector: the family names are prefixed `AM` so no other module meets them, and
-   only the `data-font` rules below use them. `font-display: swap` shows the fallback at once; a font that fails to load leaves the fallback stack, never invisible text. Bump the version in the file names with the package. */
+/* The font of the page is Geist, the font of the Herdr panel (the A/B question of the font was settled on 2026-11-25: Geist). The file is served by the backend (backend/fonts/fontRoutes.ts: the CSP allows only same-origin fonts and `package` ships no asset folder),
+   from the geist package 1.9.2 (SIL OFL 1.1, src/backend/fonts/THIRD_PARTY_NOTICES.md). @font-face cannot be scoped by a selector: the family name is prefixed `AM` so no other module meets it. `font-display: swap` shows the fallback
+   stack at once; a font that fails to load leaves the fallback stack, never invisible text. Code, ids and paths keep the app monospace font. Bump the version in the file name with the package. */
 @font-face {
   font-family: 'AM Geist';
   src: url('/api/modules/agent-manager/fonts/geist-1.9.2.woff2') format('woff2');
@@ -111,20 +111,6 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'AM Geist Mono';
-  src: url('/api/modules/agent-manager/fonts/geist-mono-1.9.2.woff2') format('woff2');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
-.agents-scope[data-font='geist'],
-.agents-scope[data-font='geist-mono'] {
+.agents-scope {
   font-family: 'AM Geist', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
-
-/* One more class than the utility `.agents-scope .font-mono`, so it wins. */
-.agents-scope[data-font='geist-mono'] .font-mono {
-  font-family: 'AM Geist Mono', ui-monospace, 'Cascadia Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
 }

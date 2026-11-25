@@ -1,5 +1,7 @@
 import { CheckCheck, Ellipsis, GitFork, Pin, PinOff } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { ActionsMenu, type MenuItem } from './ActionsMenu.js';
+import { DetailsButton } from './DetailsButton.js';
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { useUiVariant } from './deps.js';
 
@@ -14,16 +16,19 @@ export interface HeaderActionsProps {
   onTogglePin: () => void;
   canMarkSeen: boolean;
   onMarkSeen: () => void;
+  /** What the Details button of the `detailed` look shows in its floating panel (folder, chips, readiness). Absent: no Details button. */
+  details?: ReactNode;
 }
 
 /**
- * The actions of the header of the open agent: Fork, Pin, Mark as seen, as icon buttons at the right of the header line. The A/B question `ui-header-actions`:
- * three icons (line and detailed), or only Fork as an icon and Pin and Mark as seen in one three-dot menu (line-menu). An action that is off always says why
- * (tooltip, or the text under the menu item).
+ * The actions of the header of the open agent: Fork, Pin, Mark as seen, as icon buttons at the right of the header line. The A/B question `ui-header-actions`
+ * (the three looks share ONE header line, so the same height; what differs is the actions):
+ * A line: three icons; B line-menu: only Fork as an icon, Pin and Mark as seen in one three-dot menu (a floating overlay); C detailed: the three icons and a
+ * Details button that opens the full detail (folder, chips) in a floating panel. An action that is off always says why (tooltip, or the text under the menu item).
  */
 export function HeaderActions(props: HeaderActionsProps) {
   const variant = useUiVariant('headerActions');
-  const { busy, onFork, forkBlocked, forkMeaning, pinned, onTogglePin, canMarkSeen, onMarkSeen } = props;
+  const { busy, onFork, forkBlocked, forkMeaning, pinned, onTogglePin, canMarkSeen, onMarkSeen, details } = props;
   const fork: MenuItem = { id: 'fork', icon: GitFork, label: 'Fork', disabled: busy || forkBlocked !== undefined, reason: forkBlocked ?? forkMeaning, run: onFork };
   const pin: MenuItem = { id: 'pin', icon: pinned ? PinOff : Pin, label: pinned ? 'Unpin' : 'Pin', disabled: busy, run: onTogglePin };
   const seen: MenuItem = { id: 'seen', icon: CheckCheck, label: 'Mark as seen', disabled: busy || !canMarkSeen, reason: canMarkSeen ? undefined : 'only a Done session has something to mark', run: onMarkSeen };
@@ -38,6 +43,7 @@ export function HeaderActions(props: HeaderActionsProps) {
   }
   return (
     <div className="flex shrink-0 items-center gap-1">
+      {variant === 'detailed' && details !== undefined ? <DetailsButton>{details}</DetailsButton> : null}
       {forkButton}
       <IconButton icon={<pin.icon aria-hidden="true" className="h-4 w-4" />} aria-label={pin.label} disabled={pin.disabled} onClick={pin.run} />
       <IconButton icon={<seen.icon aria-hidden="true" className="h-4 w-4" />} aria-label={seen.label} disabled={seen.disabled} disabledReason={seen.disabled ? seen.reason : undefined} onClick={seen.run} />

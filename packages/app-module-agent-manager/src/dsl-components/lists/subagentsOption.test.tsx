@@ -65,7 +65,7 @@ describe.each([
     expect(rows).toHaveLength(2);
     // The only expandable items are folders (Tree): never an agent row.
     expect(rows.every((item) => !item.hasAttribute('aria-expanded'))).toBe(true);
-    expect(container.querySelector('[data-row-chevron-slot], span.h-7.w-7')).toBeNull();
+    expect(container.querySelector('[data-row-chevron-slot], span.h-7.w-7:not([data-status-column])')).toBeNull();
     // The count chip costs no vertical room and is kept.
     expect(screen.getByLabelText('3 sub-agents')).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();

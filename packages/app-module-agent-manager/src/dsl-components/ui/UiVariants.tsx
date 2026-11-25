@@ -21,14 +21,12 @@ export function UiVariants({ children }: { children: ReactNode }) {
   const treeDensity = useQuestion(UI_QUESTIONS.treeDensity);
   const switchReadiness = useQuestion(UI_QUESTIONS.switchReadiness);
   const groupHeader = useQuestion(UI_QUESTIONS.groupHeader);
-  const font = useQuestion(UI_QUESTIONS.font);
-  useRegisterAbTests([headerActions, treeDensity, switchReadiness, groupHeader, font]);
+  useRegisterAbTests([headerActions, treeDensity, switchReadiness, groupHeader]);
   const values: UiVariantValues = {
     headerActions: headerActions.value,
     treeDensity: treeDensity.value,
     switchReadiness: switchReadiness.value,
     groupHeader: groupHeader.value,
-    font: font.value,
   };
   return <Values.Provider value={values}>{children}</Values.Provider>;
 }

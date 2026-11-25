@@ -7,7 +7,7 @@ const NOW = 2_000_000;
 const session = row({ folder: 'shop', displayName: 'billing-owner', state: 'idle', statusUpdatedAt: 100 });
 
 function body(overrides: Partial<Parameters<typeof HerdrRowBody>[0]> = {}) {
-  return render(<HerdrRowBody session={session} density="herdr-line" now={NOW} terms={undefined} showSlot subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} {...overrides} />);
+  return render(<HerdrRowBody session={session} density="herdr-tinted" now={NOW} terms={undefined} showSlot subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} {...overrides} />);
 }
 
 /*
@@ -32,8 +32,8 @@ describe('the width priority of a Herdr row', () => {
 
   it('the age and the state light never shrink', () => {
     const { container } = body();
-    const light = container.querySelector<HTMLElement>('[data-herdr-light]');
-    expect(light?.className).toContain('shrink-0');
+    const column = container.querySelector<HTMLElement>('[data-status-column]');
+    expect(column?.className).toContain('shrink-0');
     const age = container.querySelector<HTMLElement>('[data-herdr-age]');
     expect(age?.className).toContain('shrink-0');
   });

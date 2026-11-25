@@ -17,6 +17,8 @@ import { BG_NO_INTERRUPT, BG_NO_MODE, BgLimits } from './BgLimits.js';
 import { HostBadge } from './OwnedChips.js';
 import { OwnedStateChip } from './OwnedStateChip.js';
 import { DAEMON_DOWN_REASON, useDaemonDown } from './DaemonState.js';
+import { useUiVariant } from '../ui/UiVariants.js';
+import { MoveBanner } from './MoveBanner.js';
 import { SwitchAction } from './SwitchAction.js';
 import { useOwnedSession } from './useOwnedSession.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
@@ -55,6 +57,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
   const [note, setNote] = useState('');
   // The daemon is known to be down: Stop, Resume, Interrupt and Forget are off with the reason and the fix, instead of a click that fails.
   const daemonDown = useDaemonDown();
+  const readinessStyle = useUiVariant('switchReadiness');
   // A phone: the attach card and the explanations of a background session become one row with a details toggle.
   const narrow = useMediaQuery('(max-width: 639px)');
   if (!owned) {
@@ -259,6 +262,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       ) : (
         <>
           {inline.slot === null ? null : createPortal(<Scope>{iconControls}</Scope>, inline.slot)}
+          {readinessStyle === 'banner' ? <MoveBanner session={session} /> : null}
           {liveWeb ? <div data-owned-mode="" className="max-w-full [&_select]:max-w-[11rem]">{modeSelect}</div> : null}
         </>
       )}

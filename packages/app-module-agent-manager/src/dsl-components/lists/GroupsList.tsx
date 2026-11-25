@@ -2,7 +2,7 @@ import { useId, useMemo } from 'react';
 import { flatten, groupSessions } from '../logic/grouping.js';
 import { agentId } from '../logic/states.js';
 import { groupText } from '../ui/stateLook.js';
-import { GROUP_STATE_EDGE, GroupHeaderName, groupHeaderBar, groupHeaderCount } from '../ui/groupHeaderLook.js';
+import { GROUP_STATE_EDGE, GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
@@ -49,12 +49,12 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
         const Chevron = collapsed ? ChevronRight : ChevronDown;
         return (
           <div key={group.id} role="group" aria-labelledby={headingId} className="pb-1">
-            <div id={headingId} className={`sticky top-0 z-10 bg-surface text-xs font-medium ${groupText(group.id)}`}>
-              <button type="button" aria-expanded={!collapsed} aria-label={`${group.label}, ${group.sessions.length}`} onClick={() => toggle(group.id)} className={`flex w-full items-center gap-1.5 px-3.5 pb-1.5 text-left ${headerStyle === 'bar' ? `${groupHeaderBar(headerStyle, GROUP_STATE_EDGE[group.id])} mt-2.5 pt-1.5` : 'pt-3.5'} ${FOCUS_RING} focus-visible:ring-inset`}>
-                <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
-                {group.id === 'pinned' ? <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : null}
-                {headerStyle === 'pill' ? <GroupHeaderName variant={headerStyle} text={group.label} textClass={groupText(group.id)} /> : <span>{group.label}</span>}
-                <span className={`tabular-nums ${groupHeaderCount(headerStyle)}`}>{group.sessions.length}</span>
+            <div id={headingId} className={`sticky top-0 z-10 bg-surface ${groupText(group.id)}`}>
+              <button type="button" aria-expanded={!collapsed} aria-label={`${group.label}, ${group.sessions.length}`} onClick={() => toggle(group.id)} className={`flex w-full items-center gap-1.5 text-left ${groupHeaderBox(headerStyle, GROUP_STATE_EDGE[group.id])} ${FOCUS_RING} focus-visible:ring-inset`}>
+                <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+                {group.id === 'pinned' ? <Pin aria-hidden="true" className="h-3.5 w-3.5" /> : null}
+                <GroupHeaderName variant={headerStyle} text={group.label} textClass={groupText(group.id)} />
+                <span className={groupHeaderCount(headerStyle)}>{group.sessions.length}</span>
               </button>
             </div>
             {(collapsed ? [] : group.sessions).map((session) => {

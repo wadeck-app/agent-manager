@@ -1,5 +1,5 @@
 import { liveTooltip } from './liveTooltip.js';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen as pageScreen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionStatusDto } from '../deps.js';
 import { row } from '../deps.js';
@@ -9,7 +9,19 @@ import { DEFAULT_UI_VARIANTS } from '../../logic/uiVariants.js';
 // violations-suppress: ts/no-deep-relative test helper of the module, not exported through deps.ts (it imports the variants context)
 import { UiVariantsContext } from '../../ui/UiVariants.js';
 import { formatSpan, formatTokens } from './format.js';
+import { StatusInfo } from './StatusInfo.js';
 import { publishLogStatus, resetPublishedStatus } from './useSessionStatus.js';
+
+// The status info lives in the Details panel of the detailed look; the one-line header above also shows some of the same chips, so every query of this file reads the panel only.
+const screen = new Proxy({} as typeof pageScreen, {
+  get: (_target, key) => {
+    const panel = document.querySelector<HTMLElement>('[data-anchored-popup]');
+    if (panel === null) {
+      throw new Error('The Details panel is not open: call show() first');
+    }
+    return (within(panel) as unknown as Record<string | symbol, unknown>)[key];
+  },
+});
 
 const session = row({ displayName: 'agent-manager-owner', cwd: '/work/agent-manager', sessionId: '12345678-aaaa-4bbb-8ccc-1234567890ab', pid: 4242, state: 'idle' });
 
@@ -30,12 +42,14 @@ function show(status?: SessionStatusDto, target = session) {
   if (status !== undefined) {
     publishLogStatus(target.sessionId, status);
   }
-  // The status info row is the one of the detailed header (the one-line header has its own tests in DetailHeader.line.test.tsx).
-  return render(
+  // The status info row is the one of the Details panel of the detailed look (the one-line header has its own tests in DetailHeader.line.test.tsx).
+  const result = render(
     <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerActions: 'detailed' }}>
       <DetailHeader session={target} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} onForked={() => undefined} onOpenSource={() => undefined} />
     </UiVariantsContext.Provider>,
   );
+  fireEvent.click(pageScreen.getByRole('button', { name: 'Show details' }));
+  return result;
 }
 
 beforeEach(() => resetPublishedStatus());
@@ -126,15 +140,25 @@ describe('the status info row', () => {
       return this.hasAttribute('data-status-chips') && (this.textContent ?? '').includes('pid') ? 500 : 100;
     });
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
-    show(FULL);
-    const more = screen.getByLabelText(/^1 more: pid 4242/);
+    // The component itself (the Details panel of the header passes wrapAll, which never drops a chip).
+    render(<StatusInfo session={session} status={FULL} />);
+    const more = pageScreen.getByLabelText(/^1 more: pid 4242/);
     expect(more).toHaveTextContent('+1');
     fireEvent.focus(more);
     expect(liveTooltip()).toHaveTextContent('Not enough room for: pid 4242.');
-    expect(screen.queryByText('pid 4242')).toBeNull();
+    expect(pageScreen.queryByText('pid 4242')).toBeNull();
     // The more important chips are still there.
-    expect(screen.getByLabelText('Claude Code 2.1.325')).toBeInTheDocument();
+    expect(pageScreen.getByLabelText('Claude Code 2.1.325')).toBeInTheDocument();
     overflow.mockRestore();
+  });
+
+  it('wrapAll (the Details panel) keeps every chip and wraps them, even when the row overflows', () => {
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(500);
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
+    render(<StatusInfo session={session} status={FULL} wrapAll />);
+    expect(pageScreen.getByText('pid 4242')).toBeInTheDocument();
+    expect(pageScreen.queryByLabelText(/more:/)).toBeNull();
+    expect(document.querySelector('[data-status-chips]')?.className).toContain('flex-wrap');
   });
 
   it('shows the earlier models in the tooltip of the model chip', () => {

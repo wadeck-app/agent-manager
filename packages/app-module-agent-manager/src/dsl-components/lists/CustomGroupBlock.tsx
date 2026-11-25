@@ -2,12 +2,14 @@ import { ChevronDown, ChevronRight, FolderCog } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { UNGROUPED_ID, type CustomSection } from '../logic/customMode.js';
-import { STATE_LOOK } from '../ui/stateLook.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
-import { StatusIcon } from '../ui/StatusIcon.js';
+import { GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
+import { StatusColumn } from '../ui/StatusColumn.js';
+import { useUiVariant } from '../ui/UiVariants.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { DropBar } from './DropBar.js';
+import { RollupLight } from './RollupLight.js';
 import { GroupSelectBox } from './GroupSelectBox.js';
 import type { CustomDnd } from './useCustomDnd.js';
 import { RowIconButton } from './RowIconButton.js';
@@ -33,6 +35,7 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
   const { group, sessions, rollup } = section;
   const name = group?.name ?? 'Ungrouped';
   const look = GROUP_LOOK[group?.color ?? 'none'];
+  const headerStyle = useUiVariant('groupHeader');
   const groupId = group?.id ?? null;
   const Chevron = open ? ChevronDown : ChevronRight;
   const overHeader = dnd.over?.target.kind === 'header' && dnd.over.target.groupId === groupId;
@@ -81,25 +84,20 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
           }
         }}
         {...dnd.header(groupId)}
-        className={`group relative flex min-h-[28px] cursor-pointer items-center gap-1.5 px-3 pt-2 text-xs ${overHeader && dnd.dragging?.kind === 'agent' ? 'bg-primary-light' : ''} ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
+        className={`group relative flex cursor-pointer items-center gap-1.5 ${groupHeaderBox(headerStyle, look.edge)} ${overHeader && dnd.dragging?.kind === 'agent' ? 'bg-primary-light' : ''} ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
       >
         <DropBar edge={edge} />
-        <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
-        <span className={`min-w-0 truncate font-medium ${group?.color === null || group === null ? 'text-muted' : look.text}`} title={name}>
-          {name}
-        </span>
-        <span className="tabular-nums text-muted">{sessions.length}</span>
+        <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
+        <GroupHeaderName variant={headerStyle} text={name} textClass={group?.color === null || group === null ? 'text-muted' : look.text} />
+        <span className={groupHeaderCount(headerStyle)}>{sessions.length}</span>
         <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={name} />
-        {/* Folded: the most urgent state inside, so a closed group still says when something needs you. */}
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+        {/* Folded: the most urgent state inside, so a closed group still says when something needs you. It has a column of its own, left of the settings column. */}
         {!open && rollup !== undefined ? (
-          <Tooltip content={`${STATE_LOOK[rollup].label}: the most urgent state in this group`} side="right">
-            <span className="inline-flex">
-              <StatusIcon state={rollup} />
-            </span>
-          </Tooltip>
+          <RollupLight state={rollup} subject="group" />
         ) : null}
         {onConfig !== undefined ? (
-          <span className="ml-auto flex shrink-0 items-center">
+          <StatusColumn>
             <Tooltip content="Group settings: name, order, colors (E)" side="left">
               <RowIconButton
                 label={`Settings of the group ${name}`}
@@ -109,11 +107,14 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
                   onConfig({ x: box.right - 280, y: box.bottom + 2 });
                 }}
                 className="opacity-60 hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
-                icon={<FolderCog aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />}
+                icon={<FolderCog aria-hidden="true" className="h-4 w-4" />}
               />
             </Tooltip>
-          </span>
-        ) : null}
+          </StatusColumn>
+        ) : (
+          <StatusColumn>{null}</StatusColumn>
+        )}
+        </span>
       </div>
       {open ? (
         <div role="group" aria-label={name}>

@@ -4,12 +4,12 @@ import type { AgentRow } from '../data/types.js';
 import type { GroupSection } from '../logic/customGroups.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
-import { GroupHeaderName, groupHeaderBar, groupHeaderCount } from '../ui/groupHeaderLook.js';
-import { STATE_LOOK } from '../ui/stateLook.js';
-import { StatusIcon } from '../ui/StatusIcon.js';
+import { GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
+import { StatusColumn } from '../ui/StatusColumn.js';
 import { Tooltip } from '../ui/Tooltip.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { DropBar } from './DropBar.js';
+import { RollupLight } from './RollupLight.js';
 import { GroupDot } from './GroupDot.js';
 import { GroupSelectBox } from './GroupSelectBox.js';
 import type { GroupDnd } from './useGroupDnd.js';
@@ -35,7 +35,7 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
   const headerStyle = useUiVariant('groupHeader');
   const look = GROUP_LOOK[group.color ?? 'none'];
   // The three looks of the A/B question ui-group-header; classes written in full.
-  const headerLook = groupHeaderBar(headerStyle, look.edge);
+  const headerLook = groupHeaderBox(headerStyle, look.edge);
   const Chevron = open ? ChevronDown : ChevronRight;
   const edge = dnd.over?.kind === 'header' && dnd.over.id === group.id ? (dnd.over.after ? 'after' : 'before') : undefined;
   const into = dnd.over?.kind === 'section' && dnd.over.id === group.id;
@@ -73,26 +73,22 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
         onClick={() => onToggle(!open)}
         onKeyDown={onKeyDown}
         {...dnd.header(group)}
-        className={`group relative flex cursor-pointer items-center gap-1.5 px-2 py-2 text-sm hover:bg-muted-bg ${headerLook} ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
+        className={`group relative flex cursor-pointer items-center gap-1.5 hover:bg-muted-bg ${headerLook} ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
       >
         <DropBar edge={edge} />
-        <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
+        <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
         <GroupDot color={group.color} />
         <GroupHeaderName variant={headerStyle} text={group.name} textClass={look.text} />
-        <span className="ml-auto flex shrink-0 items-center gap-2">
+        <span className={groupHeaderCount(headerStyle)}>{sessions.length}</span>
+        <span className="ml-auto flex shrink-0 items-center gap-1">
           <Tooltip content="Edit the group: name, color, order, delete (E)" side="left">
             <RowIconButton label={`Edit the group ${group.name}`} onClick={() => onEdit()} className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100" icon={<Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
           </Tooltip>
           <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={group.name} />
-          <span className={`text-xs tabular-nums text-muted ${groupHeaderCount(headerStyle)}`}>{sessions.length}</span>
           {rollup !== undefined ? (
-            <Tooltip content={`${STATE_LOOK[rollup].label}: the most urgent state in this group`} side="left">
-              <span className="inline-flex">
-                <StatusIcon state={rollup} />
-              </span>
-            </Tooltip>
+            <RollupLight state={rollup} subject="group" />
           ) : (
-            <span aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            <StatusColumn>{null}</StatusColumn>
           )}
         </span>
       </div>

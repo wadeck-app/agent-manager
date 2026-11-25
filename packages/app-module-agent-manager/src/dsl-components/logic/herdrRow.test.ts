@@ -33,7 +33,7 @@ describe('the state tint', () => {
 
 describe('the Herdr tint', () => {
   it('the state tint shows in every density (a choice of row shape never hides that an agent needs you)', () => {
-    for (const density of ['compact', 'herdr-line', 'herdr-name', 'herdr-tinted'] as const) {
+    for (const density of ['compact', 'herdr-name', 'herdr-tinted'] as const) {
       expect(herdrTint(density, 'needs-you', false)).toContain('--am-herdr-needs-bg');
       expect(herdrTint(density, 'done', false)).toContain('--am-herdr-unseen-bg');
       expect(herdrTint(density, 'idle', false, true)).toBe('bg-hue-orange-bg');
@@ -42,23 +42,26 @@ describe('the Herdr tint', () => {
     }
   });
 
-  it('the open row of the tinted variant is a gold outline with a gold gradient, whatever its state', () => {
-    for (const state of ['needs-you', 'done', 'idle'] as const) {
-      const look = herdrTint('herdr-tinted', state, true);
-      expect(look).toContain('--am-herdr-active-edge');
-      expect(look).toContain('--am-herdr-active-bg');
+  it('the open row of every Herdr row is a gold outline with a gold gradient, whatever its state, and keeps its state tint under it', () => {
+    for (const density of ['herdr-tinted', 'herdr-name'] as const) {
+      for (const state of ['needs-you', 'done', 'idle'] as const) {
+        const look = herdrTint(density, state, true);
+        expect(look).toContain('--am-herdr-active-edge');
+        expect(look).toContain('--am-herdr-active-bg');
+      }
     }
-    // The other variants keep their own open look (the list gives it).
-    expect(herdrTint('herdr-line', 'idle', true)).toBeUndefined();
-    expect(herdrTint('herdr-line', 'needs-you', true)).toBeUndefined();
+    expect(herdrTint('herdr-tinted', 'needs-you', true)).toContain('--am-herdr-needs-bg');
+    expect(herdrTint('herdr-tinted', 'idle', true, true)).toContain('bg-hue-orange-bg');
+    // The compact row keeps its own open look (the list gives it).
+    expect(herdrTint('compact', 'idle', true)).toBeUndefined();
+    expect(herdrTint('compact', 'needs-you', true)).toBeUndefined();
   });
 });
 
 describe('the shape of a Herdr row', () => {
   it('knows its variants, shows the folder text on the line and tinted variants and hides it on the name only one', () => {
     expect(isHerdrDensity('compact')).toBe(false);
-    expect(isHerdrDensity('herdr-line')).toBe(true);
-    expect(herdrRowShape('herdr-line')).toEqual({ folder: true });
+    expect(isHerdrDensity('herdr-tinted')).toBe(true);
     expect(herdrRowShape('herdr-tinted')).toEqual({ folder: true });
     expect(herdrRowShape('herdr-name')).toEqual({ folder: false });
   });

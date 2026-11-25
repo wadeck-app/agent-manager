@@ -17,17 +17,14 @@ export interface UiQuestion<T extends string> {
 export const HEADER_ACTIONS = ['line', 'line-menu', 'detailed'] as const;
 export type HeaderActionsVariant = (typeof HEADER_ACTIONS)[number];
 
-export const TREE_DENSITY = ['compact', 'herdr-line', 'herdr-tinted', 'herdr-name'] as const;
+export const TREE_DENSITY = ['herdr-tinted', 'compact', 'herdr-name'] as const;
 export type TreeDensityVariant = (typeof TREE_DENSITY)[number];
 
 export const SWITCH_READINESS = ['badge', 'button', 'banner'] as const;
 export type SwitchReadinessVariant = (typeof SWITCH_READINESS)[number];
 
-export const GROUP_HEADER = ['bar', 'plain', 'pill'] as const;
+export const GROUP_HEADER = ['herdr', 'bar', 'pill'] as const;
 export type GroupHeaderVariant = (typeof GROUP_HEADER)[number];
-
-export const FONT = ['app', 'geist', 'geist-mono'] as const;
-export type FontVariant = (typeof FONT)[number];
 
 export const UI_QUESTIONS = {
   headerActions: {
@@ -43,12 +40,11 @@ export const UI_QUESTIONS = {
   treeDensity: {
     id: 'ui-tree-density',
     label: 'Tree rows',
-    initial: 'compact',
+    initial: 'herdr-tinted',
     options: {
-      compact: { label: 'A Compact', hint: 'Recommended. One line per agent: state icon, name, host icon, time. Shows on every agent row of the list (left).' },
-      'herdr-line': { label: 'B Herdr line', hint: 'Like the Herdr panel: program icon, bold name, muted folder, age, and a state light on the right (blue dot = finished and unseen, spinner = working, red pill = needs you, grey ring = idle). Shows on every agent row of the list (left).' },
-      'herdr-tinted': { label: 'C Herdr tinted', hint: 'Herdr line with the open row in a gold outline and gradient (every row shape tints by state now: red when it needs you, blue when finished and unseen, orange when flagged). Shows on every agent row of the list (left).' },
-      'herdr-name': { label: 'D Herdr name only', hint: 'Herdr line without the grey folder text: only the session name and the state light. The densest. Shows on every agent row of the list (left).' },
+      'herdr-tinted': { label: 'A Herdr', hint: 'Recommended. The rows of the Herdr WAgents panel: 30 px, program icon, bold name, muted folder, age, and the state light in a fixed column on the right (blue dot = finished and unseen, spinner = working, "Needs you" pill, grey ring = idle). The open row has a gold outline and a gradient; red, orange and blue tints for needs you, flagged and unseen. Shows on every agent row of the Tree and Custom lists (left).' },
+      compact: { label: 'B Compact (previous)', hint: 'The previous rows, kept to compare: state icon on the left, name, host icon, time; 36 px high, no gradient on the open row. The Custom list always uses a Herdr row. Shows on every agent row of the Tree list (left).' },
+      'herdr-name': { label: 'C Herdr, name only', hint: 'The Herdr row without the grey folder text: only the session name, the age and the state light. The densest. Shows on every agent row of the Tree and Custom lists (left).' },
     },
   },
   switchReadiness: {
@@ -56,29 +52,19 @@ export const UI_QUESTIONS = {
     label: 'Move readiness',
     initial: 'badge',
     options: {
-      badge: { label: 'A Badge', hint: 'Recommended. A badge in the header of every agent says Free to move, Busy: N running or Unknown; the Move button stays neutral. Shows under the folder line of the open agent, whatever its host.' },
-      button: { label: 'B Button', hint: 'The Move button itself turns amber and carries the count in its label; the badge only shows on agents that cannot move. Shows on the header of the open agent (the button needs a Web or Terminal agent started here).' },
-      banner: { label: 'C Banner', hint: 'A neutral Move button and, under the actions, a warning line listing the first reason; the badge only shows on agents that cannot move. Shows on the header of the open agent.' },
+      badge: { label: 'A Badge in the line', hint: 'Recommended. A coloured badge in the header line says "Free to move", "Busy: N running" or "Unknown" (when the line has room), and the Move icon is grey with a small green or amber dot. No text on the button, no extra row. Shows on the header of the open agent.' },
+      button: { label: 'B Coloured button', hint: 'No badge in the line: the Move button itself is a coloured pill with words, green "Move: free", amber "Move: N running" or "Move: unknown". Shows on the header of the open agent (the button needs a Web or Terminal agent started here).' },
+      banner: { label: 'C Banner row', hint: 'No badge, a plain grey Move icon, and a full-width coloured row under the header says in a sentence what moving does (green: nothing runs; amber: what would be interrupted). Shows on the header of the open agent.' },
     },
   },
   groupHeader: {
     id: 'ui-group-header',
     label: 'Group header',
-    initial: 'bar',
+    initial: 'herdr',
     options: {
-      bar: { label: 'A Bar', hint: 'Recommended. A tinted header bar with a coloured left edge and the count in a pill. Shows on the folder headers of the list (left) and on your custom groups.' },
-      plain: { label: 'B Plain', hint: 'A plain header: the bold name and the count, no tint (the previous look). Shows on the folder headers of the list (left) and on your custom groups.' },
-      pill: { label: 'C Pill', hint: 'The folder or group name in an outlined pill: loud, good for a few groups, tiring with ten. Shows on the folder headers of the list (left) and on your custom groups.' },
-    },
-  },
-  font: {
-    id: 'ui-font',
-    label: 'Font',
-    initial: 'app',
-    options: {
-      app: { label: 'A App font', hint: 'Recommended. The font of the app, as now. Applies to the whole Agents page, its dialogs and its tooltips.' },
-      geist: { label: 'B Geist (as in Herdr)', hint: 'The text in Geist, the font of the Herdr agents panel, to feel at home. Code, ids and paths keep the app monospace font. Applies to the whole Agents page, its dialogs and its tooltips.' },
-      'geist-mono': { label: 'C Geist + Geist Mono', hint: 'Geist for the text and Geist Mono (Herdr ships it too, JetBrains Mono is not embedded) for tool commands, session ids, pids and paths. Applies to the whole Agents page, its dialogs and its tooltips.' },
+      herdr: { label: 'A Herdr', hint: 'Recommended. Like the Herdr panel: a small 11 px medium title in grey, the count after it, no background, a gap above; the settings or state icon sits in the same right column as the state lights of the rows. Shows on every group header of the Tree, Groups and Custom lists (left).' },
+      bar: { label: 'B Bar', hint: 'A tinted bar with a 4 px coloured left edge, the title in 14 px bold and the count in a grey pill: heavy, easy to find at a glance. Shows on every group header of the Tree, Groups and Custom lists (left).' },
+      pill: { label: 'C Pill', hint: 'The group name in an outlined pill, in the colour of the group, the count outside it: loud, good for a few groups, tiring with ten. Shows on every group header of the Tree, Groups and Custom lists (left).' },
     },
   },
 } as const satisfies Record<string, UiQuestion<string>>;
@@ -89,7 +75,6 @@ export type UiVariantValues = {
   treeDensity: TreeDensityVariant;
   switchReadiness: SwitchReadinessVariant;
   groupHeader: GroupHeaderVariant;
-  font: FontVariant;
 };
 
 /** What every question shows when no dock chose (and in a build without the dock). */
@@ -98,5 +83,4 @@ export const DEFAULT_UI_VARIANTS: UiVariantValues = {
   treeDensity: UI_QUESTIONS.treeDensity.initial,
   switchReadiness: UI_QUESTIONS.switchReadiness.initial,
   groupHeader: UI_QUESTIONS.groupHeader.initial,
-  font: UI_QUESTIONS.font.initial,
 };

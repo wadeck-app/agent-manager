@@ -8,7 +8,9 @@ import type { ListProps } from '../lists/common.js';
 import { ownedRow, row } from '../logic/fixtures.js';
 import { parseQuery } from '../logic/fuzzy.js';
 import { tabCounts } from '../logic/inbox.js';
+import { DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
 import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
+import { UiVariantsContext } from '../ui/UiVariants.js';
 import { ownedStateChip } from '../logic/owned.js';
 
 const noop = (): void => undefined;
@@ -17,9 +19,12 @@ const service = { get: (key: string) => (key === 'tab' ? 'all' : null), set: noo
 
 function draw(List: (props: ListProps) => React.ReactNode, sessions: ListProps['sessions']) {
   return render(
-    <UrlParamContext.Provider value={service}>
-      <List sessions={sessions} selectedId={undefined} onSelect={noop} now={2_000_000} query={parseQuery('')} searching={false} options={DEFAULT_VIEW_OPTIONS} />
-    </UrlParamContext.Provider>,
+    // The host badge and the owned chips are the compact row of the A/B question ui-tree-density (the Herdr row, the default, keeps the host in a tooltip).
+    <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, treeDensity: 'compact' }}>
+      <UrlParamContext.Provider value={service}>
+        <List sessions={sessions} selectedId={undefined} onSelect={noop} now={2_000_000} query={parseQuery('')} searching={false} options={DEFAULT_VIEW_OPTIONS} />
+      </UrlParamContext.Provider>
+    </UiVariantsContext.Provider>,
   );
 }
 
@@ -58,7 +63,7 @@ describe.each([
     expect(within(rowOf('name-perm')).getByText('Waiting for permission (2)')).toBeInTheDocument();
     const starting = rowOf('name-new');
     expect(within(starting).getByText('Starting...')).toBeInTheDocument();
-    // The compact Tree (the default) keeps the detail line in the tooltip of the row; the other lists write it under the name.
+    // The compact Tree row keeps the detail line in the tooltip of the row; the other lists write it under the name.
     if (_name === 'Tree') {
       expect(starting.querySelector('[title="Starting... no transcript yet"]')).not.toBeNull();
     } else {

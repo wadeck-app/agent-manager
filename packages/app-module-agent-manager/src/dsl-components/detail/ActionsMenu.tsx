@@ -1,7 +1,8 @@
 import type { LucideIcon } from 'lucide-react';
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { IconButton } from '@wadeck-app/dsl-ui';
-import { FOCUS_RING, usePopover } from './deps.js';
+import { FOCUS_RING } from './deps.js';
+import { AnchoredPopup } from './AnchoredPopup.js';
 
 export interface MenuItem {
   id: string;
@@ -14,21 +15,33 @@ export interface MenuItem {
   run: () => void;
 }
 
-/** A small menu button: the first item takes the focus on open, the arrows walk the items, Escape or a click outside closes it and gives the focus back. */
+const ITEM = '[role="menuitem"]:not([disabled])';
+
+/**
+ * A small menu button. The menu is a floating overlay anchored to the button (AnchoredPopup: in the body, flipped, kept inside the window), never part of the
+ * layout of the zone that holds the button. The first item takes the focus on open, the arrows, Home and End walk the items, Tab, Escape or a press outside
+ * closes it and the focus goes back to the button.
+ */
 export function ActionsMenu({ label, trigger, items, split = false }: { label: string; trigger: ReactNode; items: MenuItem[]; split?: boolean }) {
-  const { open, setOpen, box, panelId } = usePopover('[role="menuitem"]:not([disabled])');
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const button = useRef<HTMLSpanElement>(null);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') {
+    if (event.key === 'Tab') {
+      setOpen(false);
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       return;
     }
     event.preventDefault();
-    const entries = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')];
+    const entries = [...event.currentTarget.querySelectorAll<HTMLElement>(ITEM)];
     const index = entries.indexOf(document.activeElement as HTMLElement);
-    const next = event.key === 'ArrowDown' ? index + 1 : index - 1;
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? entries.length - 1 : event.key === 'ArrowDown' ? index + 1 : index - 1;
     entries[(next + entries.length) % entries.length]?.focus();
   };
   return (
-    <div ref={box} className="relative shrink-0">
+    <span ref={button} className="inline-flex shrink-0">
       <IconButton
         variant={split ? 'secondary' : open ? 'neutral' : 'ghost'}
         size={split ? 'icon-sm' : 'icon'}
@@ -40,7 +53,7 @@ export function ActionsMenu({ label, trigger, items, split = false }: { label: s
         icon={trigger}
       />
       {open ? (
-        <div id={panelId} role="menu" aria-label={label} onKeyDown={onKeyDown} className="absolute right-0 top-full z-30 mt-1 flex min-w-48 flex-col rounded-lg border border-border bg-surface p-1 shadow-lg">
+        <AnchoredPopup anchor={button} id={panelId} role="menu" label={label} focusOnOpen={ITEM} width={224} onClose={() => setOpen(false)} onKeyDown={onKeyDown}>
           {items.map((item) => (
             <button
               key={item.id}
@@ -60,8 +73,8 @@ export function ActionsMenu({ label, trigger, items, split = false }: { label: s
               </span>
             </button>
           ))}
-        </div>
+        </AnchoredPopup>
       ) : null}
-    </div>
+    </span>
   );
 }
