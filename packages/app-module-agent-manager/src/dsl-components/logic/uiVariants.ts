@@ -34,7 +34,7 @@ export const UI_QUESTIONS = {
     options: {
       line: { label: 'A One line', hint: 'Recommended. The whole header on ONE line: name, state, age, folder and branch, model, context, tokens, program, pid, and the actions (Fork, Pin, Mark as seen, Move, Stop) as icons at the far right. What does not fit goes into a +N chip. Shows on the header of the open agent (right of the list).' },
       'line-menu': { label: 'B One line, one menu', hint: 'Same single line, but only Fork stays an icon: Pin and Mark as seen are in one three-dot menu, the quietest line, one more click. Shows on the header of the open agent.' },
-      detailed: { label: 'C Detailed', hint: 'The previous header on three rows (name and state, folder and branch, then the chips), kept to compare with the one-line header. Shows on the header of the open agent.' },
+      detailed: { label: 'C Details panel', hint: 'The same one-line header and icons as A, plus a Details button: it opens folder, branch and the chips in a floating panel over the page instead of squeezing them into the line. Shows on the header of the open agent.' },
     },
   },
   treeDensity: {
@@ -52,7 +52,7 @@ export const UI_QUESTIONS = {
     label: 'Move readiness',
     initial: 'badge',
     options: {
-      badge: { label: 'A Badge in the line', hint: 'Recommended. A coloured badge in the header line says "Free to move", "Busy: N running" or "Unknown" (when the line has room), and the Move icon is grey with a small green or amber dot. No text on the button, no extra row. Shows on the header of the open agent.' },
+      badge: { label: 'A Badge in the line', hint: 'Recommended. A coloured badge in the header line says "Free to move", "Busy: N running" or "Unknown" (when the line has room), and the Move icon is tinted green (free) or amber (busy, unknown) with a 10 px dot on its corner. No text on the button, no extra row. Shows on the header of the open agent.' },
       button: { label: 'B Coloured button', hint: 'No badge in the line: the Move button itself is a coloured pill with words, green "Move: free", amber "Move: N running" or "Move: unknown". Shows on the header of the open agent (the button needs a Web or Terminal agent started here).' },
       banner: { label: 'C Banner row', hint: 'No badge, a plain grey Move icon, and a full-width coloured row under the header says in a sentence what moving does (green: nothing runs; amber: what would be interrupted). Shows on the header of the open agent.' },
     },

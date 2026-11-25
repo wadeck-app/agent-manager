@@ -66,12 +66,15 @@ describe('the one-line header (the default)', () => {
   const BUSY = { state: 'busy' as const, reasons: ['A turn is running'] };
   const MOVE_NAME = 'Move to Terminal (interrupts 1 running item)';
 
-  it('readiness look A (default): the Move icon is plain grey and says what runs in its name, the amber badge is in the line', async () => {
+  it('readiness look A (default): the Move icon is tinted by the state with a 10 px dot and says what runs in its name, the amber badge is in the line', async () => {
     const { container } = header(ownedRow({ sessionId: ID, adoptReadiness: BUSY }));
     const move = await within(container as HTMLElement).findByRole('button', { name: MOVE_NAME });
     expect(move.closest('[data-adopt-button]')).toHaveAttribute('data-tone', 'neutral');
     expect(move.textContent).toBe('');
     expect(container.querySelector('[data-readiness-dot="busy"]')?.className).toContain('bg-warning');
+    // The dot is 10 px with a ring that cuts it from the header, and the whole icon sits in an amber tint (not the words of look B, not the plain grey of look C).
+    expect(container.querySelector('[data-readiness-dot="busy"]')?.className).toContain('h-2.5');
+    expect(container.querySelector('[data-readiness-tint="busy"]')?.className).toContain('bg-warning-bg');
     expect(container.querySelector('[data-line-item="move"] [data-adopt-badge="busy"]')).toHaveTextContent('Busy: 1 running');
     expect(container.querySelector('[data-adopt-banner]')).toBeNull();
   });

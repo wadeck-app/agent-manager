@@ -39,9 +39,9 @@ export function HerdrRowBody({ session, density, selected = false, now, terms, s
   const showFolder = herdrRowShape(density).folder && session.folder !== session.displayName;
   return (
     <div className="flex h-full items-center gap-[9px] text-[13px] leading-5">
-      {/* The slot is on every row of a list that shows sub-agents, with or without any: the state icon and the name start at the same x on every row. A list that does not show them has no slot on any row. */}
+      {/* The slot is on every row of a list that shows sub-agents, with or without any: the state icon and the name start at the same x on every row. A list that does not show them has no slot on any row. It is 20 px wide (the 28 px button overflows it evenly) so that the name keeps the room. */}
       {showSlot ? (
-      <span data-row-chevron-slot="" className="ml-1 -mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center">
+      <span data-row-chevron-slot="" className="-ml-1 -mr-1 inline-flex h-7 w-5 shrink-0 items-center justify-center">
       {subagents !== undefined ? (
         <RowIconButton
           label={subagents.open ? `Hide the ${session.subagentCount} sub-agents` : `Show the ${session.subagentCount} sub-agents`}
@@ -57,6 +57,13 @@ export function HerdrRowBody({ session, density, selected = false, now, terms, s
         <span data-herdr-name="" className={`min-w-0 max-w-full truncate ${selected ? 'font-semibold text-content' : 'font-normal'} ${quiet ? 'text-muted-tint' : 'text-content'}`}>
           <Highlight text={session.displayName} terms={terms} />
         </span>
+        {/* The sub-agent count is secondary: in the clipped box it wraps out (after the folder) when the name needs the room. */}
+        {session.subagentCount > 0 ? (
+          <span data-herdr-subagents="" className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-tint">
+            <Bot aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            <span aria-label={`${session.subagentCount} sub-agents`}>{session.subagentCount}</span>
+          </span>
+        ) : null}
         {showFolder ? (
           <span data-herdr-folder="" className="min-w-[7ch] shrink grow basis-[7ch] truncate text-[13px] text-muted-tint" title={session.folder}>
             {`${MIDDLE_DOT} `}
@@ -76,12 +83,6 @@ export function HerdrRowBody({ session, density, selected = false, now, terms, s
         <span className="inline-flex shrink-0 text-muted-tint">
           <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span className="sr-only">Pinned</span>
-        </span>
-      ) : null}
-      {session.subagentCount > 0 ? (
-        <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-tint">
-          <Bot aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          <span aria-label={`${session.subagentCount} sub-agents`}>{session.subagentCount}</span>
         </span>
       ) : null}
       {/* The hover buttons float over the age and the light: a hidden slot in the flow would take the width of the name. */}

@@ -139,11 +139,16 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
               <Icon aria-hidden="true" className="h-3.5 w-3.5" />
               {words}
             </button>
+          ) : readinessStyle === 'badge' ? (
+            // Look A: the icon is coloured and sits in a tinted rounded square (green free, amber busy or unknown), so the readiness shows even when the badge of the line has no room (the words are the accessible name).
+            <span data-readiness-tint={view.readiness} className={`inline-flex rounded-md border ${view.readiness === 'free' ? 'border-hue-green/40 bg-hue-green-bg text-hue-green' : 'border-warning/50 bg-warning-bg text-warning-text'}`}>
+              <IconButton variant="ghost" aria-label={view.label} title={title} disabled={off} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
+            </span>
           ) : (
             <IconButton variant="ghost" aria-label={view.label} title={title} disabled={off} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
           )}
-          {/* Look A: a dot on the icon (green free, amber busy or unknown) so the readiness shows even when the badge of the line has no room (the words are the accessible name). */}
-          {readinessStyle === 'badge' ? <span aria-hidden="true" data-readiness-dot={view.readiness} className={`pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full ring-2 ring-surface ${view.readiness === 'free' ? 'bg-hue-green' : 'bg-warning'}`} /> : null}
+          {/* Look A: a 10 px dot on the corner of the tinted icon, cut from the header by a ring. */}
+          {readinessStyle === 'badge' ? <span aria-hidden="true" data-readiness-dot={view.readiness} className={`pointer-events-none absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ring-2 ring-surface ${view.readiness === 'free' ? 'bg-hue-green' : 'bg-warning'}`} /> : null}
         </span>
         {dialog}
       </>

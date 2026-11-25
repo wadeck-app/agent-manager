@@ -49,6 +49,19 @@ describe('the width priority of a Herdr row', () => {
     expect(inFlow).toHaveLength(0);
   });
 
+  it('the sub-agent count chip gives way before the name: it sits in the clipped one-line box, between the name and the folder, never in the fixed part of the row', () => {
+    const { container } = body({ session: row({ folder: 'shop', displayName: 'agent-manager-owner', state: 'idle', statusUpdatedAt: 100, subagentCount: 4 }) });
+    const chip = container.querySelector<HTMLElement>('[data-herdr-subagents]');
+    const name = container.querySelector<HTMLElement>('[data-herdr-name]');
+    const folder = container.querySelector<HTMLElement>('[data-herdr-folder]');
+    expect(chip).not.toBeNull();
+    expect(chip?.parentElement).toBe(name?.parentElement);
+    expect(chip?.previousElementSibling).toBe(name);
+    expect(chip?.nextElementSibling).toBe(folder);
+    expect(chip?.textContent).toBe('4');
+    expect(chip?.querySelector('[aria-label="4 sub-agents"]')).not.toBeNull();
+  });
+
   it('no folder text when it repeats the name; the name-only density has none', () => {
     const same = body({ session: row({ folder: 'billing-owner', displayName: 'billing-owner' }) });
     expect(same.container.querySelector('[data-herdr-folder]')).toBeNull();
