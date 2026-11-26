@@ -1,4 +1,4 @@
-import { ButtonAction } from '@wadeck-app/dsl-ui';
+import { ButtonAction, FieldText, HorizontalStack } from '@wadeck-app/dsl-ui';
 import { Check, FolderPlus, FolderX } from 'lucide-react';
 import { useState } from 'react';
 import type { AgentRow } from '../data/types.js';
@@ -81,24 +81,15 @@ export function MoveToGroupDialog({ session, groups, onClose }: { session: Agent
             void createAndMove();
           }}
         >
-          <label htmlFor="move-new-group" className="text-sm font-medium text-content">
-            New group
-          </label>
-          <div className="flex gap-2">
-            <input
-              id="move-new-group"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={80}
-              placeholder="Name of the group"
-              aria-invalid={problem !== ''}
-              aria-describedby={problem === '' ? undefined : 'move-new-group-problem'}
-              className={`h-am-hit min-w-0 flex-1 rounded border border-border bg-surface px-2 text-sm text-content ${FOCUS_RING}`}
-            />
+          {/* The base field and the base button share one height (38 px); items-end puts the button on the bottom of the input, whose label is above it, and the row wraps whole on a narrow screen. */}
+          <HorizontalStack gap="gap-2" align="items-end" wrap>
+            <div className="min-w-[12rem] flex-1">
+              <FieldText label="New group" value={name} onChange={setName} maxLength={80} placeholder="Name of the group" />
+            </div>
             <ButtonAction variant="primary" type="submit" loading={busy} icon={<FolderPlus aria-hidden="true" className="h-4 w-4" />} label="Create and move" />
-          </div>
+          </HorizontalStack>
           {problem !== '' ? (
-            <p id="move-new-group-problem" role="alert" className="text-sm text-danger">
+            <p role="alert" className="text-sm text-danger">
               {problem}
             </p>
           ) : null}

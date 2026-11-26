@@ -114,3 +114,103 @@
 .agents-scope {
   font-family: 'AM Geist', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
+
+/* The font of the SESSION LOG (the scroller of detail/log/LogViewerBody.tsx, class `am-log-font`: messages, thinking, tool calls and their output, hooks, code blocks) is JetBrains Mono, requested 2026-11-26. The left list, the header, the toolbar,
+   dialogs and the composer keep Geist: the class is on the log container only (a test checks it). Files: the latin subset of the npm package @fontsource/jetbrains-mono 5.3.0 (SIL OFL 1.1, src/backend/fonts/THIRD_PARTY_NOTICES.md), served by
+   backend/fonts/fontRoutes.ts. Weights 400, 500, 700 and the 400 italic (thinking): 600 maps to the 700 file. A glyph outside the latin subset falls to the next family of the stack. */
+@font-face {
+  font-family: 'AM JetBrains Mono';
+  src: url('/api/modules/agent-manager/fonts/jetbrains-mono-5.3.0-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AM JetBrains Mono';
+  src: url('/api/modules/agent-manager/fonts/jetbrains-mono-5.3.0-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AM JetBrains Mono';
+  src: url('/api/modules/agent-manager/fonts/jetbrains-mono-5.3.0-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AM JetBrains Mono';
+  src: url('/api/modules/agent-manager/fonts/jetbrains-mono-5.3.0-400-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* The family comes through a variable, so one edit changes the log font. `.font-mono` inside the log (inline code, tool output) follows it: elsewhere it keeps the app monospace font. The log text is wider than Geist (a monospace
+   cell is 0.6 em), so the log type steps are set again under the class, one step down from the page scale of the same density (the page never changes): body 13 px with a 1.6 line height at M, 12 px (S), 14 px (ML), 15 px (L). Long lines still wrap:
+   the rows carry `break-words` and `whitespace-pre-wrap`, nothing here changes that. */
+.agents-scope {
+  --am-log-font: 'AM JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.agents-scope .am-log-font,
+.agents-scope .am-log-font .font-mono {
+  font-family: var(--am-log-font);
+}
+
+.agents-scope .am-log-font,
+.agents-scope[data-density='m'] .am-log-font {
+  --am-fs-xs: 12px;
+  --am-lh-xs: 18px;
+  --am-fs-sm: 13px;
+  --am-lh-sm: 21px;
+  --am-fs-mono: 13px;
+  --am-lh-mono: 20px;
+  --am-lh-log: 1.6;
+}
+
+.agents-scope[data-density='s'] .am-log-font {
+  --am-fs-xs: 12px;
+  --am-lh-xs: 17px;
+  --am-fs-sm: 12px;
+  --am-lh-sm: 19px;
+  --am-fs-mono: 12px;
+  --am-lh-mono: 18px;
+  --am-lh-log: 1.6;
+}
+
+.agents-scope[data-density='ml'] .am-log-font {
+  --am-fs-xs: 12px;
+  --am-lh-xs: 18px;
+  --am-fs-sm: 14px;
+  --am-lh-sm: 22px;
+  --am-fs-mono: 14px;
+  --am-lh-mono: 21px;
+  --am-lh-log: 1.6;
+}
+
+.agents-scope[data-density='l'] .am-log-font {
+  --am-fs-xs: 13px;
+  --am-lh-xs: 19px;
+  --am-fs-sm: 15px;
+  --am-lh-sm: 24px;
+  --am-fs-mono: 15px;
+  --am-lh-mono: 23px;
+  --am-lh-log: 1.6;
+}
+
+/* The row menu is the library ContextMenu, whose panel is portaled to the body: outside .agents-scope, so no scoped utility and no module font reaches it, and the CSP (style-src 'self') forbids an inline style element. This is the ONE rule of the sheet that is not under the scope: it targets only a menu that holds one of our icons (data-am-menu, set by lists/RowMenu.tsx), never another module's menu. It says what ui/popupSurface.ts says (popupSurface.test.ts compares them). The two-part selector beats the equal-specificity utilities (bg-surface, shadow-lg) of the shell sheet whatever the order of the sheets. */
+[data-radix-popper-content-wrapper] [data-testid='context-menu-content']:has([data-am-menu]) {
+  border-color: color-mix(in srgb, var(--color-border) 40%, var(--color-muted));
+  background-color: color-mix(in srgb, var(--color-surface) 50%, var(--color-muted-bg));
+  box-shadow: 0 12px 32px -4px rgb(0 0 0 / 0.28), 0 2px 6px rgb(0 0 0 / 0.14);
+  font-family: 'AM Geist', ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+[data-radix-popper-content-wrapper] [data-testid='context-menu-content']:has([data-am-menu]) [role='separator'] {
+  border-color: color-mix(in srgb, var(--color-border) 60%, var(--color-muted));
+}

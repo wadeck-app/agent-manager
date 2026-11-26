@@ -30,6 +30,8 @@ export interface SwitchActionProps {
   onError: (text: string) => void;
   /** The one-line header: an icon button coloured by the readiness (its words are the accessible name and the tooltip); the badge and the daemon line are the header's. */
   compact?: boolean;
+  /** The dev dock preview of the Move readiness: the button looks as usual but a click only says that it is a preview (nothing is sent, the daemon state does not matter). */
+  previewOnly?: boolean;
 }
 
 
@@ -43,14 +45,14 @@ function movedText(dto: OwnedSessionDto, target: SwitchView['target'], notes: re
  * what is interrupted, and a click opens a dialog that lists the reasons (the "Move anyway" button is the only thing that sends `force`). The daemon
  * recomputes the readiness: when it finds the session not free after all, the dialog opens with ITS reasons, whatever colour the page showed.
  */
-export function SwitchAction({ session, disabled, onChange, onNote, onError, compact = false }: SwitchActionProps) {
+export function SwitchAction({ session, disabled, onChange, onNote, onError, compact = false, previewOnly = false }: SwitchActionProps) {
   const view = switchViewOf(session);
   const readinessStyle = useUiVariant('switchReadiness');
   const [open, setOpen] = useState(false);
   const [serverText, setServerText] = useState('');
   const [sending, setSending] = useState(false);
   const [dialogError, setDialogError] = useState('');
-  const daemonDown = useDaemonDown();
+  const daemonDown = useDaemonDown() && !previewOnly;
   if (view === undefined) {
     return null;
   }
@@ -87,6 +89,10 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
   };
 
   const click = (): void => {
+    if (previewOnly) {
+      onNote('Preview only (A/B dock): nothing was moved. Pick Real in "Preview Move readiness" to leave the preview.');
+      return;
+    }
     if (view.needsConfirm) {
       setServerText('');
       setDialogError('');

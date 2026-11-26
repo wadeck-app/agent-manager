@@ -47,6 +47,15 @@ afterEach(() => {
 });
 
 describe('LogViewer', () => {
+  it('carries the monospace log font class on the log container, not on the filter bar above it', async () => {
+    queue = [() => respond(answer([userPrompt('u', 'hello'), assistantText('a', 'hi')]))];
+    render(<LogViewer session={session} />);
+    expect(await screen.findByText('hello')).toBeInTheDocument();
+    const log = screen.getByRole('log');
+    expect(log).toHaveClass('am-log-font');
+    expect(document.querySelectorAll('.am-log-font')).toHaveLength(1);
+  });
+
   it('shows the tail with tool calls collapsed, and opens one with the keyboard-reachable button', async () => {
     queue = [() => respond(answer([userPrompt('u', 'run the tests'), assistantText('a', 'Sure, **running** now'), toolCall('t1', { status: 'ok', resultPreview: 'all green', durationMs: 3200 })]))];
     render(<LogViewer session={session} />);

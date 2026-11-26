@@ -1,52 +1,33 @@
-import { CheckCheck, Ellipsis, GitFork, Pin, PinOff } from 'lucide-react';
-import type { ReactNode } from 'react';
-import { ActionsMenu, type MenuItem } from './ActionsMenu.js';
-import { DetailsButton } from './DetailsButton.js';
+import { CheckCheck, GitFork, Pin, PinOff } from 'lucide-react';
 import { IconButton } from '@wadeck-app/dsl-ui';
-import { useUiVariant } from './deps.js';
 
 export interface HeaderActionsProps {
   /** An action of the header is running: the buttons wait. */
   busy: boolean;
   onFork: () => void;
-  /** Why Fork is not possible now (shown as its tooltip and as the reason of the off menu item); undefined when it is. */
+  /** Why Fork is not possible now (shown as its tooltip); undefined when it is. */
   forkBlocked: string | undefined;
   forkMeaning: string;
   pinned: boolean;
   onTogglePin: () => void;
   canMarkSeen: boolean;
   onMarkSeen: () => void;
-  /** What the Details button of the `detailed` look shows in its floating panel (folder, chips, readiness). Absent: no Details button. */
-  details?: ReactNode;
 }
 
 /**
- * The actions of the header of the open agent: Fork, Pin, Mark as seen, as icon buttons at the right of the header line. The A/B question `ui-header-actions`
- * (the three looks share ONE header line, so the same height; what differs is the actions):
- * A line: three icons; B line-menu: only Fork as an icon, Pin and Mark as seen in one three-dot menu (a floating overlay); C detailed: the three icons and a
- * Details button that opens the full detail (folder, chips) in a floating panel. An action that is off always says why (tooltip, or the text under the menu item).
+ * The actions of the header of the open agent: Fork, Pin, Mark as seen, as three icon buttons at the right of the header line (the settled look of the
+ * former A/B question "header actions"). An action that is off says why in its tooltip.
  */
 export function HeaderActions(props: HeaderActionsProps) {
-  const variant = useUiVariant('headerActions');
-  const { busy, onFork, forkBlocked, forkMeaning, pinned, onTogglePin, canMarkSeen, onMarkSeen, details } = props;
-  const fork: MenuItem = { id: 'fork', icon: GitFork, label: 'Fork', disabled: busy || forkBlocked !== undefined, reason: forkBlocked ?? forkMeaning, run: onFork };
-  const pin: MenuItem = { id: 'pin', icon: pinned ? PinOff : Pin, label: pinned ? 'Unpin' : 'Pin', disabled: busy, run: onTogglePin };
-  const seen: MenuItem = { id: 'seen', icon: CheckCheck, label: 'Mark as seen', disabled: busy || !canMarkSeen, reason: canMarkSeen ? undefined : 'only a Done session has something to mark', run: onMarkSeen };
-  const forkButton = <IconButton icon={<fork.icon aria-hidden="true" className="h-4 w-4" />} aria-label={fork.label} disabled={fork.disabled} disabledReason={fork.disabled ? fork.reason : undefined} onClick={fork.run} />;
-  if (variant === 'line-menu') {
-    return (
-      <div className="flex shrink-0 items-center gap-1">
-        {forkButton}
-        <ActionsMenu label="More actions" trigger={<Ellipsis aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} items={[pin, seen]} />
-      </div>
-    );
-  }
+  const { busy, onFork, forkBlocked, forkMeaning, pinned, onTogglePin, canMarkSeen, onMarkSeen } = props;
+  const forkOff = busy || forkBlocked !== undefined;
+  const seenOff = busy || !canMarkSeen;
+  const PinIcon = pinned ? PinOff : Pin;
   return (
     <div className="flex shrink-0 items-center gap-1">
-      {variant === 'detailed' && details !== undefined ? <DetailsButton>{details}</DetailsButton> : null}
-      {forkButton}
-      <IconButton icon={<pin.icon aria-hidden="true" className="h-4 w-4" />} aria-label={pin.label} disabled={pin.disabled} onClick={pin.run} />
-      <IconButton icon={<seen.icon aria-hidden="true" className="h-4 w-4" />} aria-label={seen.label} disabled={seen.disabled} disabledReason={seen.disabled ? seen.reason : undefined} onClick={seen.run} />
+      <IconButton icon={<GitFork aria-hidden="true" className="h-4 w-4" />} aria-label="Fork" disabled={forkOff} disabledReason={forkOff ? (forkBlocked ?? forkMeaning) : undefined} onClick={onFork} />
+      <IconButton icon={<PinIcon aria-hidden="true" className="h-4 w-4" />} aria-label={pinned ? 'Unpin' : 'Pin'} disabled={busy} onClick={onTogglePin} />
+      <IconButton icon={<CheckCheck aria-hidden="true" className="h-4 w-4" />} aria-label="Mark as seen" disabled={seenOff} disabledReason={seenOff ? 'only a Done session has something to mark' : undefined} onClick={onMarkSeen} />
     </div>
   );
 }

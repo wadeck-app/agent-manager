@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { customSections, UNGROUPED_ID, type DropContext } from '../logic/customMode.js';
 import { stepGroupIds } from '../logic/customGroups.js';
@@ -18,7 +18,7 @@ import { HerdrRowBody } from './HerdrRowBody.js';
 import { ListScroll } from './ListScroll.js';
 import { MoveToGroupDialog } from './MoveToGroupDialog.js';
 import { OptionShell } from './OptionShell.js';
-import { RowMenu } from './RowMenu.js';
+import { useRowMenu } from './useRowMenu.js';
 import { SubagentRows } from './SubagentRows.js';
 import { useCustomDnd } from './useCustomDnd.js';
 
@@ -30,7 +30,7 @@ type Anchor = { x: number; y: number };
  * order, header color and body color (the folder-cog button). Drag and drop, M (the Move dialog) and Alt+Up / Alt+Down arrange the agents and the groups;
  * a right-click (or the kebab button) flags an agent or marks it unread. Nothing is created for you: with no group the list says to use New group.
  */
-export function CustomList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups, marks }: ListProps) {
+export function CustomList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups, marks, rowActions }: ListProps) {
   // The view option "Show sub-agents under each agent": off, no row has a chevron, children or expansion state (the count chip stays).
   const showSubagents = options.subagents.show;
   const sections = useMemo(() => customSections(shown, groups?.groups ?? []), [shown, groups]);
@@ -47,7 +47,8 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
   const [moving, setMoving] = useState<string | undefined>(undefined);
   const [dialogFor, setDialogFor] = useState<string | undefined>(undefined);
   const [config, setConfig] = useState<{ id: string; anchor: Anchor } | undefined>(undefined);
-  const [menu, setMenu] = useState<{ id: string; anchor: Anchor } | undefined>(undefined);
+  // The "..." menu of every row, also opened by a right-click or the context-menu key (see OptionShell): move, flag, unread, pin, mark seen.
+  const rowMenu = useRowMenu({ marks, rowActions, onMove: groups === undefined ? undefined : setMoving });
   const refocus = useRef<{ attribute: 'data-session-id' | 'data-group-id'; value: string } | undefined>(undefined);
   // Sections the user opened or closed on this page (the server's collapsed flag decides otherwise; Ungrouped is local).
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
@@ -130,7 +131,6 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
     listKeys(event);
   };
 
-  const openMenu = (row: AgentRow, anchor: Anchor): void => setMenu({ id: agentId(row), anchor });
   const renderRow = (session: AgentRow, groupId: string | null, bodyClass: string) => {
     const id = agentId(session);
     const selected = id === selectedId;
@@ -143,15 +143,8 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
     const open = hasChildren && openAgents[id] === true;
     // The background of an agent: its open look, its state tint (needs you, unseen, flagged), then the body color of its group.
     const base = herdrTint(density, session.state, false, session.flagged, session.unread) ?? bodyClass;
-    const onContextMenu = (event: MouseEvent<HTMLDivElement>): void => {
-      event.preventDefault();
-      // The context-menu key reports no pointer: the menu opens under the row.
-      const box = event.currentTarget.getBoundingClientRect();
-      openMenu(session, event.clientX === 0 && event.clientY === 0 ? { x: box.left + 24, y: box.bottom } : { x: event.clientX, y: event.clientY });
-    };
     return (
       <Fragment key={id}>
-        <div role="none" onContextMenu={onContextMenu}>
           <OptionShell
             role="treeitem"
             level={2}
@@ -163,11 +156,11 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
             className={`group relative ${HERDR_ROW_BOX} ${dragged ? 'opacity-50' : ''}`}
             expanded={hasChildren ? open : undefined}
             rowProps={dnd.row(id, groupId)}
+            {...(rowMenu.available ? { onMenu: (anchor: Anchor) => rowMenu.open(session, anchor) } : {})}
           >
             <DropBar edge={edge} />
-            <HerdrRowBody session={session} density={density} selected={selected} now={now} terms={query.terms} showSlot={showSubagents} subagents={hasChildren ? { open, toggle: () => setOpenAgents((current) => ({ ...current, [id]: !open })) } : undefined} onMove={groups === undefined ? undefined : () => setMoving(id)} {...(marks === undefined ? {} : { onMenu: (anchor: Anchor) => openMenu(session, anchor) })} />
+            <HerdrRowBody session={session} density={density} selected={selected} now={now} terms={query.terms} showSlot={showSubagents} subagents={hasChildren ? { open, toggle: () => setOpenAgents((current) => ({ ...current, [id]: !open })) } : undefined} {...(rowMenu.available ? { onMenu: (anchor: Anchor) => rowMenu.open(session, anchor) } : {})} />
           </OptionShell>
-        </div>
         {open ? <SubagentRows sessionId={session.sessionId} /> : null}
       </Fragment>
     );
@@ -179,11 +172,12 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
   const movingSession = moving === undefined ? undefined : rowsById.get(moving);
   const configGroup = config === undefined ? undefined : groups?.groups.find((group) => group.id === config.id);
   const dialogGroup = dialogFor === undefined ? undefined : groups?.groups.find((group) => group.id === dialogFor);
-  const menuSession = menu === undefined ? undefined : rowsById.get(menu.id);
   return (
     <>
+      {/* The hint floats over the top of the list: put in the flow it pushed every row down while it showed (a drag moves nothing on the page). */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
       {dnd.hint !== '' ? (
-        <p role="status" data-drop-hint="" className="border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text">
+        <p role="status" data-drop-hint="" className="absolute inset-x-0 top-0 z-20 border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text shadow-md">
           {dnd.hint}
         </p>
       ) : null}
@@ -204,6 +198,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
           />
         ))}
       </ListScroll>
+      </div>
       {groups !== undefined && movingSession !== undefined ? <MoveToGroupDialog session={movingSession} groups={groups} onClose={() => setMoving(undefined)} /> : null}
       {groups !== undefined && dialogGroup !== undefined ? <GroupDialog group={dialogGroup} memberCount={shown.filter((row) => row.customGroupId === dialogGroup.id).length} groups={groups} onClose={() => setDialogFor(undefined)} /> : null}
       {groups !== undefined && config !== undefined && configGroup !== undefined ? (
@@ -219,9 +214,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
           }}
         />
       ) : null}
-      {marks !== undefined && menu !== undefined && menuSession !== undefined ? (
-        <RowMenu session={menuSession} anchor={menu.anchor} onClose={() => setMenu(undefined)} onFlag={(flag) => marks.setMarks(menu.id, { flag })} onUnread={(unread) => marks.setMarks(menu.id, { unread })} onMove={() => setMoving(menu.id)} />
-      ) : null}
+      {rowMenu.element}
     </>
   );
 }

@@ -280,7 +280,7 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
           </div>
         ) : null}
         <div className="relative min-h-0 flex-1">
-          <div ref={scroller} onScroll={onScroll} role="log" aria-label={`Log of ${session.displayName}`} aria-live="off" tabIndex={0} className={`absolute inset-0 flex flex-col overflow-y-auto px-4 py-3 ${FOCUS_RING}`}>
+          <div ref={scroller} onScroll={onScroll} role="log" aria-label={`Log of ${session.displayName}`} aria-live="off" tabIndex={0} className={`am-log-font absolute inset-0 flex flex-col overflow-y-auto px-4 py-3 ${FOCUS_RING}`}>
             {state.olderCursor !== null ? (
               <span className="mb-2 flex shrink-0 justify-center">
                 <ButtonAction variant="secondary" size="sm" loading={loadingOlder} icon={<ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />} label={loadingOlder ? 'Loading older entries' : 'Load older entries'} onClick={requestOlder} />

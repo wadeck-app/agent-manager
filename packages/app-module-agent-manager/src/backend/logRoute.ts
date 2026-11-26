@@ -26,6 +26,7 @@ import {
   type ToolCallEntry,
   type WindowResult,
 } from '@wadeck-app/agent-manager-core/transcript';
+import { subagentUsageOf, type SubagentUsageAnswer } from './subagentUsage.js';
 import type { LogActivity, LogEntry, LogLimits, LogOk, LogTruncation, SessionStatusDto, SubagentDto } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import { registerLocateRoute } from './locateCall.js';
@@ -300,9 +301,23 @@ export function subagentStatus(info: SubagentNode['info'], now: number): Subagen
   return isSubagentRunning(info, now) ? 'active' : 'idle';
 }
 
-function subagentDto(node: SubagentNode, now: number): SubagentDto {
+/** The usage of every sub-agent (incremental per transcript, see subagentUsage.ts), a few at a time. */
+async function usagesOf(subagents: readonly SubagentNode['info'][]): Promise<Map<string, SubagentUsageAnswer>> {
+  const usages = new Map<string, SubagentUsageAnswer>();
+  for (let i = 0; i < subagents.length; i += 16) {
+    await Promise.all(
+      subagents.slice(i, i + 16).map(async (info) => {
+        usages.set(info.agentId, await subagentUsageOf(info));
+      }),
+    );
+  }
+  return usages;
+}
+
+function subagentDto(node: SubagentNode, now: number, usages: ReadonlyMap<string, SubagentUsageAnswer>): SubagentDto {
   const { info } = node;
   const status = subagentStatus(info, now);
+  const usage = usages.get(info.agentId);
   return {
     agentId: info.agentId,
     status,
@@ -317,9 +332,11 @@ function subagentDto(node: SubagentNode, now: number): SubagentDto {
     finished: info.finished,
     isFork: info.isFork,
     ...(info.model !== undefined ? { model: info.model } : {}),
+    ...(usage?.usage !== undefined ? { usage: usage.usage } : {}),
+    ...(usage?.note !== undefined ? { usageNote: usage.note } : {}),
     ...(info.toolUseId !== undefined ? { toolUseId: info.toolUseId } : {}),
     ...(node.parentAgentId !== undefined ? { parentAgentId: node.parentAgentId } : {}),
-    children: node.children.map((child) => subagentDto(child, now)),
+    children: node.children.map((child) => subagentDto(child, now, usages)),
   };
 }
 
@@ -542,6 +559,7 @@ async function readLog(session: Session, path: string, projectDir: string, limit
   const subagents = subagentResult.ok ? subagentResult.subagents : [];
   const linked = linkSubagents(entries, subagents);
   const tree = buildAgentTree(subagents, agentCallOwners(activityEntries));
+  const usages = await usagesOf(subagents);
   const notes: string[] = [];
   if (!subagentResult.ok) {
     const { message, fix } = subagentResult.error;
@@ -561,7 +579,7 @@ async function readLog(session: Session, path: string, projectDir: string, limit
     cursor,
     olderCursor,
     more,
-    subagents: tree.map((node) => subagentDto(node, Date.now())),
+    subagents: tree.map((node) => subagentDto(node, Date.now(), usages)),
     subagentsNote: notes.join(' '),
     activity: activityOf(activityEntries),
     status: await statusFor(session),

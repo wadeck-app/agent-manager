@@ -26,6 +26,7 @@ import { SplitPane } from '../ui/SplitPane.js';
 import { SelectionProvider } from '../lists/selection.js';
 import { SelectedBar } from '../batch/SelectedBar.js';
 import { SelectionKeys } from '../batch/SelectionKeys.js';
+import { ListFooter } from './ListFooter.js';
 import { Toolbar } from './Toolbar.js';
 import { useInFlight } from './useInFlight.js';
 import { DaemonStateProvider } from '../owned/DaemonState.js';
@@ -238,6 +239,8 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     },
     [markSeen],
   );
+  // The pin and seen actions of the "..." menu of a row (the same requests as the header and the batch).
+  const rowActionsApi = useMemo(() => ({ pin, seen: markSeen }), [pin, markSeen]);
 
   // Opening a Done session marks it seen once it has stayed open a moment (not on every key press while moving through the list).
   const seenKey = selected?.state === 'done' ? `${selected.sessionId}:${selected.statusUpdatedAt ?? ''}` : undefined;
@@ -347,7 +350,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     listColumn = (
       <>
         <SelectedBar rows={orderedRows} groups={grouped.api} onPin={pinMany} onSeen={seenMany} />
-        <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} groups={mode === 'tree' || mode === 'custom' ? grouped.api : undefined} {...(mode === 'custom' ? { marks: marksApi } : {})} />
+        <List sessions={shownRows} selectedId={selectedId} onSelect={select} now={now} query={query} searching={searching} options={options} groups={mode === 'tree' || mode === 'custom' ? grouped.api : undefined} marks={marksApi} rowActions={rowActionsApi} />
       </>
     );
   }
@@ -404,7 +407,6 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         search={{ text: searchText, onText: setSearchText, shown: shownRows.length, total: rows.length, problems: query.problems, onMove: moveBy, onEnter: openFirst }}
         helpOpen={helpOpen}
         onHelpOpenChange={setHelpOpen}
-        onNewSession={() => setLaunchOpen(true)}
         detailOpen={selectedId !== undefined}
         onNewGroup={async (name) => (await grouped.api.create(name)) !== undefined}
         notices={<NoticesButton items={noticeItems} />}
@@ -412,7 +414,15 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
       />
       {launchOpen ? <NewSessionDialog ownedError={ownedError} ownedErrorText={ownedErrorText} onClose={() => setLaunchOpen(false)} onLaunched={launched} /> : null}
       <div className="min-h-0 flex-1">
-        <SplitPane list={listColumn} detail={detail} detailOpen={selectedId !== undefined} />
+        <SplitPane
+          list={
+            <>
+              {/* The list (or its loading and empty states) takes the room, the footer keeps its own line under it. */}
+              <div className="flex min-h-0 flex-1 flex-col">{listColumn}</div>
+              <ListFooter onNewSession={() => setLaunchOpen(true)} />
+            </>
+          }
+          detail={detail} detailOpen={selectedId !== undefined} />
       </div>
     </div>
     </LiveThreadsProvider>

@@ -43,10 +43,10 @@ describe('RowIconButton', () => {
 });
 
 describe('the Herdr row uses it', () => {
-  it('its hover buttons are row icon buttons of 28 px', () => {
-    const { container } = render(<HerdrRowBody session={row({ folder: 'shop', displayName: 'billing-owner' })} density="herdr-tinted" now={2_000_000} terms={undefined} showSlot subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} />);
-    const buttons = container.querySelectorAll('[data-herdr-actions] button');
-    expect(buttons).toHaveLength(2);
+  it('its always visible menu button is a row icon button of 28 px', () => {
+    const { container } = render(<HerdrRowBody session={row({ folder: 'shop', displayName: 'billing-owner' })} density="herdr-tinted" now={2_000_000} terms={undefined} showSlot subagents={undefined} onMenu={vi.fn()} />);
+    const buttons = container.querySelectorAll('button');
+    expect(buttons).toHaveLength(1);
     for (const button of Array.from(buttons)) {
       expect(button).toHaveAttribute('data-row-icon-button');
       expect(button).toHaveClass('h-7', 'w-7');

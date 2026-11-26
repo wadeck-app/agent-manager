@@ -357,10 +357,17 @@ describe('SplitPane saved width and dragging', () => {
   });
 });
 
-// The mode menu is ONE icon button named after the current mode; this opens it and picks an item.
+// The layout menu is ONE icon button with a fixed name; this opens it and picks a layout.
+const LAYOUT_BUTTON = 'List layout and view options';
+// The layout menu is ONE fixed icon: the current layout is the checked item inside its popup (opened, read, closed again).
+const expectLayout = (name: string): void => {
+  fireEvent.click(screen.getByRole('button', { name: LAYOUT_BUTTON }));
+  expect(screen.getByRole('radio', { name: new RegExp('^' + name) })).toHaveAttribute('aria-checked', 'true');
+  fireEvent.keyDown(document, { key: 'Escape' });
+};
 const pickMode = (name: string): void => {
-  fireEvent.click(screen.getByRole('button', { name: /^List mode: / }));
-  fireEvent.click(screen.getByRole('menuitemradio', { name: new RegExp(`^${name}`) }));
+  fireEvent.click(screen.getByRole('button', { name: LAYOUT_BUTTON }));
+  fireEvent.click(screen.getByRole('radio', { name: new RegExp(`^${name}`) }));
 };
 
 describe('the listing mode', () => {
@@ -376,7 +383,7 @@ describe('the listing mode', () => {
         <AgentWorkspace sessions={[SHOP, DOCS]} />
       </Page>,
     );
-    expect(screen.getByRole('button', { name: 'List mode: Tree' })).toBeInTheDocument();
+    expectLayout('Tree');
     expect(screen.getByRole('tree', { name: 'Agents by folder' })).toBeInTheDocument();
     pickMode('Inbox');
     expect(screen.getByTestId('mode').textContent).toBe('inbox');
@@ -395,12 +402,12 @@ describe('the listing mode', () => {
     );
     expect(screen.queryByRole('radiogroup', { name: 'Listing mode' })).toBeNull();
     expect(screen.queryByRole('radio', { name: 'Tree' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'List mode: Tree' }));
-    expect(within(screen.getByRole('menu', { name: 'List mode' })).getAllByRole('menuitemradio')).toHaveLength(4);
+    fireEvent.click(screen.getByRole('button', { name: LAYOUT_BUTTON }));
+    expect(within(screen.getByRole('radiogroup', { name: 'Layout' })).getAllByRole('radio')).toHaveLength(4);
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
     fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
     expect(screen.getByTestId('mode').textContent).toBe('groups');
-    expect(screen.getByRole('button', { name: 'List mode: Groups' })).toBeInTheDocument();
+    expectLayout('Groups');
   });
 
   it('uses the saved mode when the address has none', () => {
@@ -411,7 +418,7 @@ describe('the listing mode', () => {
         <AgentWorkspace sessions={[SHOP]} />
       </Page>,
     );
-    expect(screen.getByRole('button', { name: 'List mode: Inbox' })).toBeInTheDocument();
+    expectLayout('Inbox');
   });
 
   it('says so when the address names a mode that does not exist, shows Tree, and can remove it from the address', async () => {
@@ -423,7 +430,7 @@ describe('the listing mode', () => {
       </Page>,
     );
     await expectNoticeDetails(/asks for the mode 'cards', which does not exist. Showing Tree/);
-    expect(screen.getByRole('button', { name: 'List mode: Tree' })).toBeInTheDocument();
+    expect(screen.getByRole('tree', { name: 'Agents by folder' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove it from the address' }));
     expect(screen.getByTestId('mode').textContent).toBe('');
   });
@@ -556,7 +563,7 @@ describe('the view options', () => {
       </Page>,
     );
     expect(screen.getByText('Bash: npm test')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    fireEvent.click(screen.getByRole('button', { name: LAYOUT_BUTTON }));
     fireEvent.click(screen.getByRole('switch', { name: /Show the last activity/ }));
     expect(screen.queryByText('Bash: npm test')).toBeNull();
     expect(JSON.parse(window.localStorage.getItem(VIEW_OPTIONS_STORAGE_KEY) ?? '{}')).toMatchObject({ groups: { preview: false } });
@@ -569,7 +576,7 @@ describe('the view options', () => {
         <AgentWorkspace sessions={WITH_ACTIVITY} />
       </Page>,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    fireEvent.click(screen.getByRole('button', { name: LAYOUT_BUTTON }));
     expect(screen.getByRole('radio', { name: /By workspace/ })).toBeChecked();
     expect(screen.getByRole('radio', { name: /All expanded/ })).toBeChecked();
     fireEvent.click(screen.getByRole('radio', { name: /^None/ }));
@@ -584,7 +591,7 @@ describe('the view options', () => {
         <AgentWorkspace sessions={WITH_ACTIVITY} />
       </Page>,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'View options' }));
+    fireEvent.click(screen.getByRole('button', { name: LAYOUT_BUTTON }));
     const toggle = screen.getByRole('switch', { name: /Open the next agent after a reply/ });
     expect(toggle).not.toBeChecked();
     expect(screen.getByText(/stops needing you, the next one that does opens by itself/)).toBeInTheDocument();

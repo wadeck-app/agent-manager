@@ -53,9 +53,9 @@ export function NewGroupControl({ onCreate, iconOnly = false }: { onCreate: (nam
     return (
       <span ref={button} className="inline-flex">
         {iconOnly ? (
-          <IconButton variant="secondary" aria-label="New group" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} onClick={() => setOpen(true)} />
+          <IconButton size="icon-sm" variant="secondary" aria-label="New group" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} onClick={() => setOpen(true)} />
         ) : (
-          <ButtonAction variant="secondary" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} label="New group" onClick={() => setOpen(true)} />
+          <ButtonAction variant="secondary" size="sm" icon={<FolderPlus aria-hidden="true" className="h-3.5 w-3.5" />} label="New group" onClick={() => setOpen(true)} />
         )}
       </span>
     );
@@ -87,7 +87,7 @@ export function NewGroupControl({ onCreate, iconOnly = false }: { onCreate: (nam
         placeholder="Name of the group"
         aria-invalid={problem !== ''}
         aria-describedby={problem === '' ? undefined : 'new-group-problem'}
-        className={`h-am-hit w-44 rounded border border-border bg-surface px-2 text-sm text-content ${FOCUS_RING}`}
+        className={`h-7 w-44 rounded border border-border bg-surface px-2 text-sm text-content ${FOCUS_RING}`}
       />
       <ButtonAction variant="primary" size="sm" type="submit" label="Create" loading={busy} />
       <ButtonAction variant="secondary" size="sm" label="Cancel" onClick={close} />

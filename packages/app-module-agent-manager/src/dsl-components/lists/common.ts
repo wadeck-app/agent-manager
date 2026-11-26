@@ -16,8 +16,16 @@ export interface ListProps {
   options: ViewOptions;
   /** The custom groups (Tree list only); absent where the list has none (the other modes, tests). */
   groups?: GroupsApi;
-  /** The flag and unread marks (Custom mode only); absent where the list has none. */
+  /** The flag and unread marks (every mode); absent where the list has none (a list drawn alone in a test). */
   marks?: MarksApi;
+  /** Pin and mark seen, for the menu of a row; absent where the list has none (a list drawn alone in a test). */
+  rowActions?: RowActionsApi;
+}
+
+/** What the menu of a row needs to pin an agent and to mark it seen (the page owns the requests and shows a refusal). */
+export interface RowActionsApi {
+  pin: (session: AgentRow, pinned: boolean) => void;
+  seen: (session: AgentRow) => void;
 }
 
 /** What the Custom list needs to flag an agent or mark it unread (the page owns the requests and shows a refusal). */

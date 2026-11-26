@@ -56,7 +56,14 @@ export class ModelUsageAccumulator {
   private folded = { input: 0, output: 0, messages: 0 };
   private readonly names = new Map<string, { modelId: string; displayName: string }>();
 
-  constructor(private readonly fromStart = false) {}
+  /**
+   * `ownerAgentId`: whose lines are counted. Undefined: the main session (the lines of sub-agents are ignored). An agent id: the transcript of that sub-agent
+   * (feed it the entries of `agent-<id>.jsonl`): same formulas and same window estimate as the status line of the session.
+   */
+  constructor(
+    private readonly fromStart = false,
+    private readonly ownerAgentId?: string,
+  ) {}
 
   add(entries: readonly Entry[]): void {
     for (const entry of entries) {
@@ -70,10 +77,10 @@ export class ModelUsageAccumulator {
           this.names.set(canonical, { modelId: entry.modelId, displayName: entry.displayName });
         }
       } else if (entry.kind === 'assistant-text' || entry.kind === 'usage') {
-        if (entry.ownerAgentId === undefined) {
+        if (entry.ownerAgentId === this.ownerAgentId) {
           this.noteModel(entry.model);
         }
-        if (entry.kind === 'usage' && entry.ownerAgentId === undefined && entry.model !== '<synthetic>') {
+        if (entry.kind === 'usage' && entry.ownerAgentId === this.ownerAgentId && entry.model !== '<synthetic>') {
           this.noteUsage(entry);
         }
       }

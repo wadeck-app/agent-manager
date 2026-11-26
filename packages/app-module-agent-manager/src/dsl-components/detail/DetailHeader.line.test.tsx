@@ -114,20 +114,6 @@ describe('the one-line header (the default)', () => {
   });
 });
 
-describe('the detailed look (the same one line, the detail in a floating panel)', () => {
-  it('draws the one-line header, with the folder, chips and readiness line only in the Details panel', () => {
-    const { container } = header(row({ displayName: 'one', pid: 12 }), { headerActions: 'detailed' });
-    expect(container.querySelector('[data-header-layout="line"]')).not.toBeNull();
-    expect(document.querySelector('[data-status-info]')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
-    const panel = screen.getByRole('dialog', { name: 'Details' });
-    expect(panel.querySelector('[data-status-info]')).not.toBeNull();
-    expect(panel).toHaveTextContent('Not launched by agent-manager: moving needs adoption (not built yet)');
-    // Outside the header: the panel takes no room in it.
-    expect(container.contains(panel)).toBe(false);
-  });
-});
-
 const FULL: SessionStatusDto = {
   model: { id: 'claude-sonnet-5-5', displayName: 'Sonnet 5.5', known: true },
   contextUsedPct: { value: 38, basis: 'estimate', note: 'estimate', windowTokens: 1_000_000, compactAtTokens: 967_000, usedTokens: 367_800 },

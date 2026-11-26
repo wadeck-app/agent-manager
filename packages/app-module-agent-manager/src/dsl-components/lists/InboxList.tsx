@@ -13,6 +13,8 @@ import { ProjectLabel } from './ProjectLabel.js';
 import { RowMarks } from './RowMarks.js';
 import { StateIconTip } from './StateIconTip.js';
 import { TimeInState } from './TimeInState.js';
+import { RowMenuButton } from './RowMenuButton.js';
+import { useRowMenu } from './useRowMenu.js';
 
 const EMPTY_TEXT: Record<InboxTab, { title: string; hint: string }> = {
   'needs-you': { title: 'Nothing needs you', hint: 'No agent is waiting for a permission or an answer.' },
@@ -26,8 +28,10 @@ const EMPTY_TEXT: Record<InboxTab, { title: string; hint: string }> = {
  * the tab is in the URL, `?tab=`), the row says why (the reason line: what the agent waits for). The counts are those of the rows the search lets through.
  * Option `autoNext` (off by default): when the agent you are on stops needing you (you replied), the next one that needs you opens by itself.
  */
-export function InboxList({ sessions, selectedId, onSelect, now, query, searching, options }: ListProps) {
+export function InboxList({ sessions, selectedId, onSelect, now, query, searching, options, marks, rowActions }: ListProps) {
   const autoNext = options.inbox.autoNext;
+  // The "..." menu of every row: flag, unread, pin, mark seen (no groups here: no Move).
+  const rowMenu = useRowMenu({ marks, rowActions, onMove: undefined });
   const [tabParam, setTabParam] = useUrlParam('tab');
   const counts = useMemo(() => tabCounts(sessions), [sessions]);
   const tab = parseTab(tabParam) ?? firstNonEmptyTab(counts);
@@ -69,6 +73,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
 
   return (
     <>
+      {rowMenu.element}
       <div className="border-b border-border">
         <div role="tablist" aria-label="Inbox" onKeyDown={onTabKeys} className="flex overflow-x-auto">
           {INBOX_TABS.map((entry) => {
@@ -105,16 +110,22 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} className="min-h-am-row border-b border-border px-3.5 py-2.5">
+                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className="min-h-am-row border-b border-border px-3.5 py-2.5">
                   <div className="flex items-start gap-2.5">
                     <span className="mt-0.5">
                       <StateIconTip session={session} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <ProjectLabel session={session} className="min-w-[8rem] flex-1" terms={query.terms} />
-                        <RowMarks session={session} />
+                      {/* One line, never wrapping: name (takes the room), marks as icons, then the age and the "..." button in their fixed columns, so the ages and the buttons of all the rows are vertical axes. */}
+                      <div className="flex items-center gap-2">
+                        <ProjectLabel session={session} className="min-w-0 flex-1" terms={query.terms} />
+                        <RowMarks session={session} iconOnly />
                         <TimeInState session={session} now={now} />
+                        {rowMenu.available ? (
+                          <span className="-my-1 -mr-2 shrink-0">
+                            <RowMenuButton name={session.displayName} onMenu={(anchor) => rowMenu.open(session, anchor)} />
+                          </span>
+                        ) : null}
                       </div>
                       {line !== '' ? (
                         <p className={`truncate text-xs ${session.state === 'needs-you' ? 'text-hue-red' : 'text-muted-tint'}`} title={line}>

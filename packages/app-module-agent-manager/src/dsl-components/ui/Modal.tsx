@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Scope } from './Scope.js';
+import { POPUP_SURFACE } from './popupSurface.js';
 
 export interface ModalProps {
   title: string;
@@ -83,7 +84,7 @@ export function Modal({ title, onClose, dismissible = true, size = 'wide', child
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`flex max-h-full w-full flex-col overflow-hidden rounded-lg border border-border bg-surface text-content shadow-lg ${size === 'wide' ? 'max-w-3xl' : 'max-w-xl'}`}
+          className={`flex max-h-full w-full flex-col overflow-hidden ${POPUP_SURFACE} text-content ${size === 'wide' ? 'max-w-3xl' : 'max-w-xl'}`}
         >
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <h2 id={titleId} className="min-w-0 flex-1 text-base font-semibold">

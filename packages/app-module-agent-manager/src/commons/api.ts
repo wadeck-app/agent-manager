@@ -328,6 +328,13 @@ export interface SessionStatusDto {
 /** A transcript entry in JSON (the Entry type of the core transcript reader, see packages/agent-manager-core/src/transcript/types.ts). */
 export type LogEntry = import('@wadeck-app/agent-manager-core/transcript').Entry;
 
+/**
+ * What the transcript of one sub-agent says about its model and size: the SAME definitions and the same code as the header of the session (SessionStatusDto):
+ * `tokensIn` is the prompt of its last call, `tokensOut` the answer of the last message, `contextUsedPct` the share of the auto-compact point (estimated window).
+ * There is NO cost: the transcripts hold token counts, not a price, and this module has no price table.
+ */
+export type SubagentUsageDto = Pick<SessionStatusDto, 'model' | 'contextUsedPct' | 'tokensIn' | 'tokensOut'>;
+
 /** One sub-agent of the session. */
 export interface SubagentDto {
   agentId: string;
@@ -355,7 +362,12 @@ export interface SubagentDto {
   /** Epoch ms of the end: the last write, only for 'finished' and 'failed' (an approximation: the file is not touched after the last line). */
   endedAt?: number;
   isFork: boolean;
+  /** The model of the meta: often an alias ('sonnet', 'haiku'), not an id. The model of its messages is `usage.model`. */
   model?: string;
+  /** Model, tokens and context of the sub-agent from its own transcript; absent when `usageNote` says why. */
+  usage?: SubagentUsageDto;
+  /** Why `usage` is absent ('No transcript yet', 'No assistant message with usage yet', the read error); absent when `usage` is there. */
+  usageNote?: string;
   /** The tool call (LogEntry kind 'tool-call', field `id`) of the parent that started it. */
   toolUseId?: string;
   /** The parent sub-agent, absent for a direct child of the main session. */

@@ -5,6 +5,10 @@ import { pruneSelection, rangeBetween } from '../logic/selection.js';
 export interface SelectionApi {
   selected: ReadonlySet<string>;
   count: number;
+  /** Selection mode: the checkboxes of the rows and of the group headers are shown. Off by default; every way of selecting (a checkbox, shift or ctrl click, X, select all) turns it on. */
+  mode: boolean;
+  /** Turns the mode on, or off (off also clears the selection: leaving the mode never leaves a hidden selection that a batch could act on). */
+  setMode: (on: boolean) => void;
   isSelected: (id: string) => boolean;
   /** Ctrl or Cmd click, or the checkbox of a row: adds or removes one id and makes it the anchor of the next range. */
   toggle: (id: string) => void;
@@ -12,6 +16,7 @@ export interface SelectionApi {
   selectRange: (id: string, visible: readonly string[]) => void;
   /** The select-all box of a group, the toolbar: adds or removes these ids. */
   setMany: (ids: readonly string[], on: boolean) => void;
+  /** Clears the selection and leaves the selection mode. */
   clear: () => void;
 }
 
@@ -30,6 +35,7 @@ const NONE: ReadonlySet<string> = new Set();
  */
 export function SelectionProvider({ existing, children }: { existing: ReadonlySet<string>; children: ReactNode }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(NONE);
+  const [mode, setModeState] = useState(false);
   const anchor = useRef<string | undefined>(undefined);
 
   useEffect(() => {
@@ -41,6 +47,7 @@ export function SelectionProvider({ existing, children }: { existing: ReadonlySe
 
   const toggle = useCallback((id: string) => {
     anchor.current = id;
+    setModeState(true);
     setSelected((current) => {
       const next = new Set(current);
       if (!next.delete(id)) {
@@ -54,9 +61,11 @@ export function SelectionProvider({ existing, children }: { existing: ReadonlySe
     if (anchor.current === undefined) {
       anchor.current = id;
     }
+    setModeState(true);
     setSelected((current) => new Set([...current, ...ids]));
   }, []);
   const setMany = useCallback((ids: readonly string[], on: boolean) => {
+    setModeState(true);
     setSelected((current) => {
       const next = new Set(current);
       for (const id of ids) {
@@ -71,9 +80,20 @@ export function SelectionProvider({ existing, children }: { existing: ReadonlySe
   }, []);
   const clear = useCallback(() => {
     anchor.current = undefined;
+    setModeState(false);
     setSelected(NONE);
   }, []);
+  const setMode = useCallback(
+    (on: boolean) => {
+      if (on) {
+        setModeState(true);
+      } else {
+        clear();
+      }
+    },
+    [clear],
+  );
 
-  const api = useMemo<SelectionApi>(() => ({ selected, count: selected.size, isSelected: (id) => selected.has(id), toggle, selectRange, setMany, clear }), [selected, toggle, selectRange, setMany, clear]);
+  const api = useMemo<SelectionApi>(() => ({ selected, count: selected.size, mode, setMode, isSelected: (id) => selected.has(id), toggle, selectRange, setMany, clear }), [selected, mode, setMode, toggle, selectRange, setMany, clear]);
   return <SelectionContext.Provider value={api}>{children}</SelectionContext.Provider>;
 }

@@ -76,15 +76,16 @@ export function CustomGroupSection({ section, open, tabbable, dnd, onToggle, onE
         className={`group relative flex cursor-pointer items-center gap-1.5 hover:bg-muted-bg ${headerLook} ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
       >
         <DropBar edge={edge} />
+        {/* Selection mode only: the first item of the header, at the x of the boxes of the rows. */}
+        <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={group.name} />
         <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
         <GroupDot color={group.color} />
         <GroupHeaderName variant={headerStyle} text={group.name} textClass={look.text} />
         <span className={groupHeaderCount(headerStyle)}>{sessions.length}</span>
         <span className="ml-auto flex shrink-0 items-center gap-1">
           <Tooltip content="Edit the group: name, color, order, delete (E)" side="left">
-            <RowIconButton label={`Edit the group ${group.name}`} onClick={() => onEdit()} className="opacity-0 focus-visible:opacity-100 group-hover:opacity-100" icon={<Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
+            <RowIconButton label={`Edit the group ${group.name}`} onClick={() => onEdit()} icon={<Pencil aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
           </Tooltip>
-          <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={group.name} />
           {rollup !== undefined ? (
             <RollupLight state={rollup} subject="group" />
           ) : (

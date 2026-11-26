@@ -87,10 +87,11 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
         className={`group relative flex cursor-pointer items-center gap-1.5 ${groupHeaderBox(headerStyle, look.edge)} ${overHeader && dnd.dragging?.kind === 'agent' ? 'bg-primary-light' : ''} ${dragged ? 'opacity-50' : ''} ${FOCUS_RING} focus-visible:ring-inset`}
       >
         <DropBar edge={edge} />
+        {/* Selection mode only: the first item of the header, at the x of the boxes of the rows. */}
+        <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={name} />
         <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
         <GroupHeaderName variant={headerStyle} text={name} textClass={group?.color === null || group === null ? 'text-muted' : look.text} />
         <span className={groupHeaderCount(headerStyle)}>{sessions.length}</span>
-        <GroupSelectBox ids={sessions.map((session) => session.sessionId.toLowerCase())} name={name} />
         <span className="ml-auto flex shrink-0 items-center gap-1">
         {/* Folded: the most urgent state inside, so a closed group still says when something needs you. It has a column of its own, left of the settings column. */}
         {!open && rollup !== undefined ? (
@@ -106,7 +107,7 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
                   const box = event.currentTarget.getBoundingClientRect();
                   onConfig({ x: box.right - 280, y: box.bottom + 2 });
                 }}
-                className="opacity-60 hover:opacity-100 focus-visible:opacity-100 group-hover:opacity-100"
+                className="opacity-70 hover:opacity-100 focus-visible:opacity-100"
                 icon={<FolderCog aria-hidden="true" className="h-4 w-4" />}
               />
             </Tooltip>
@@ -119,8 +120,9 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
       {open ? (
         <div role="group" aria-label={name}>
           {sessions.length === 0 ? <p className="px-8 py-1.5 text-xs text-muted">{section.id === UNGROUPED_ID ? 'Every agent is in a group.' : 'Empty. Drag an agent here, or press M on an agent.'}</p> : sessions.map((session) => renderRow(session))}
-          {/* The strip under the last agent: a drop here puts the agent at the bottom of the group. */}
-          <div data-group-end={section.id} {...dnd.end(groupId)} className={`relative ${dnd.dragging?.kind === 'agent' ? 'h-3' : 'h-1'}`}>
+          {/* The strip under the last agent: a drop here puts the agent at the bottom of the group. Its height is a constant (a drag changes no position on the page): the zone that catches the drop is an overlay that only exists while an agent is dragged. */}
+          <div data-group-end={section.id} className="relative h-1">
+            {dnd.dragging?.kind === 'agent' ? <div data-group-end-zone="" {...dnd.end(groupId)} className="absolute inset-x-0 top-0 h-3" /> : null}
             {overEnd ? <span aria-hidden="true" data-drop-indicator="end" className="pointer-events-none absolute inset-x-0 top-1 z-10 h-0.5 bg-primary" /> : null}
           </div>
         </div>

@@ -14,73 +14,75 @@ export interface UiQuestion<T extends string> {
   options: Record<T, UiVariantOption>;
 }
 
-export const HEADER_ACTIONS = ['line', 'line-menu', 'detailed'] as const;
-export type HeaderActionsVariant = (typeof HEADER_ACTIONS)[number];
-
+/**
+ * The Tree rows and the group headers are settled (user decision 2026-11-26): the Herdr look, with no dock question. The two types stay because the lists still
+ * branch on them (their dead branches go with the next pass of the lists, which another change owns); every value but the default is dead code.
+ */
 export const TREE_DENSITY = ['herdr-tinted', 'compact', 'herdr-name'] as const;
 export type TreeDensityVariant = (typeof TREE_DENSITY)[number];
 
 export const SWITCH_READINESS = ['badge', 'button', 'banner'] as const;
 export type SwitchReadinessVariant = (typeof SWITCH_READINESS)[number];
 
+export const READINESS_PREVIEW = ['real', 'free', 'busy', 'unknown'] as const;
+export type ReadinessPreviewValue = (typeof READINESS_PREVIEW)[number];
+
 export const GROUP_HEADER = ['herdr', 'bar', 'pill'] as const;
 export type GroupHeaderVariant = (typeof GROUP_HEADER)[number];
 
 export const UI_QUESTIONS = {
-  headerActions: {
-    id: 'ui-header-actions',
-    label: 'Header actions',
-    initial: 'line',
-    options: {
-      line: { label: 'A One line', hint: 'Recommended. The whole header on ONE line: name, state, age, folder and branch, model, context, tokens, program, pid, and the actions (Fork, Pin, Mark as seen, Move, Stop) as icons at the far right. What does not fit goes into a +N chip. Shows on the header of the open agent (right of the list).' },
-      'line-menu': { label: 'B One line, one menu', hint: 'Same single line, but only Fork stays an icon: Pin and Mark as seen are in one three-dot menu, the quietest line, one more click. Shows on the header of the open agent.' },
-      detailed: { label: 'C Details panel', hint: 'The same one-line header and icons as A, plus a Details button: it opens folder, branch and the chips in a floating panel over the page instead of squeezing them into the line. Shows on the header of the open agent.' },
-    },
-  },
-  treeDensity: {
-    id: 'ui-tree-density',
-    label: 'Tree rows',
-    initial: 'herdr-tinted',
-    options: {
-      'herdr-tinted': { label: 'A Herdr', hint: 'Recommended. The rows of the Herdr WAgents panel: 30 px, program icon, bold name, muted folder, age, and the state light in a fixed column on the right (blue dot = finished and unseen, spinner = working, "Needs you" pill, grey ring = idle). The open row has a gold outline and a gradient; red, orange and blue tints for needs you, flagged and unseen. Shows on every agent row of the Tree and Custom lists (left).' },
-      compact: { label: 'B Compact (previous)', hint: 'The previous rows, kept to compare: state icon on the left, name, host icon, time; 36 px high, no gradient on the open row. The Custom list always uses a Herdr row. Shows on every agent row of the Tree list (left).' },
-      'herdr-name': { label: 'C Herdr, name only', hint: 'The Herdr row without the grey folder text: only the session name, the age and the state light. The densest. Shows on every agent row of the Tree and Custom lists (left).' },
-    },
-  },
   switchReadiness: {
     id: 'ui-switch-readiness',
     label: 'Move readiness',
     initial: 'badge',
     options: {
-      badge: { label: 'A Badge in the line', hint: 'Recommended. A coloured badge in the header line says "Free to move", "Busy: N running" or "Unknown" (when the line has room), and the Move icon is tinted green (free) or amber (busy, unknown) with a 10 px dot on its corner. No text on the button, no extra row. Shows on the header of the open agent.' },
-      button: { label: 'B Coloured button', hint: 'No badge in the line: the Move button itself is a coloured pill with words, green "Move: free", amber "Move: N running" or "Move: unknown". Shows on the header of the open agent (the button needs a Web or Terminal agent started here).' },
-      banner: { label: 'C Banner row', hint: 'No badge, a plain grey Move icon, and a full-width coloured row under the header says in a sentence what moving does (green: nothing runs; amber: what would be interrupted). Shows on the header of the open agent.' },
+      badge: { label: 'A Badge in the line', hint: 'Recommended. A coloured badge in the header line says "Free to move", "Busy: N running" or "Unknown" (when the line has room), and the Move icon is tinted green (free) or amber (busy, unknown) with a 10 px dot on its corner. No text on the button, no extra row. Shows on the header of the open agent. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview Move readiness" (next row of this dock); it also works on an agent that is not started here.' },
+      button: { label: 'B Coloured button', hint: 'No badge in the line: the Move button itself is a coloured pill with words, green "Move: free", amber "Move: N running" or "Move: unknown". Shows on the header of the open agent. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview Move readiness" (next row of this dock); it also works on an agent that is not started here.' },
+      banner: { label: 'C Banner row', hint: 'No badge, a plain grey Move icon, and a full-width coloured row under the header says in a sentence what moving does (green: nothing runs; amber: what would be interrupted). Shows on the header of the open agent. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview Move readiness" (next row of this dock); it also works on an agent that is not started here.' },
     },
   },
-  groupHeader: {
-    id: 'ui-group-header',
-    label: 'Group header',
-    initial: 'herdr',
+  readinessPreview: {
+    id: 'ui-readiness-preview',
+    label: 'Preview Move readiness',
+    initial: 'real',
     options: {
-      herdr: { label: 'A Herdr', hint: 'Recommended. Like the Herdr panel: a small 11 px medium title in grey, the count after it, no background, a gap above; the settings or state icon sits in the same right column as the state lights of the rows. Shows on every group header of the Tree, Groups and Custom lists (left).' },
-      bar: { label: 'B Bar', hint: 'A tinted bar with a 4 px coloured left edge, the title in 14 px bold and the count in a grey pill: heavy, easy to find at a glance. Shows on every group header of the Tree, Groups and Custom lists (left).' },
-      pill: { label: 'C Pill', hint: 'The group name in an outlined pill, in the colour of the group, the count outside it: loud, good for a few groups, tiring with ten. Shows on every group header of the Tree, Groups and Custom lists (left).' },
+      real: { label: 'Real', hint: 'No preview: the header shows the real state of the agent, and the Move readiness looks above only show for an agent started here (Web or Terminal) in the state it really has.' },
+      free: { label: 'Free', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if the agent were free to move (nothing runs), in the look chosen above in Move readiness. The Move button of an agent that is not started here is a preview: clicking it moves nothing.' },
+      busy: { label: 'Busy: 2 running', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if two items were running (a turn and a tool), in the look chosen above in Move readiness. Nothing is moved by clicking.' },
+      unknown: { label: 'Unknown', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if agent-manager could not tell what runs, in the look chosen above in Move readiness. Nothing is moved by clicking.' },
+    },
+  },
+  selectionEntry: {
+    id: 'ui-selection-entry',
+    label: 'Selection mode entry',
+    initial: 'checkbox',
+    options: {
+      checkbox: { label: 'A Checkbox by the title', hint: 'A checkbox-style toggle right after the "Agents" title turns the selection mode on (checkboxes appear at the left of every row and group header, and a Select all box appears next to it). Click it again, press Escape or clear to leave. Shows in the toolbar above the list.' },
+      button: { label: 'B Select button', hint: 'A "Select" button with an icon and a label in the toolbar, before New session, toggles the selection mode (pressed while it is on); Select all appears next to it. Shows in the toolbar above the list.' },
+      icon: { label: 'C Icon toggle', hint: 'An icon-only toggle button (a list with checks) in the toolbar icons, with a tooltip, toggles the selection mode; Select all appears next to it. The quietest entry. Shows in the toolbar above the list.' },
     },
   },
 } as const satisfies Record<string, UiQuestion<string>>;
 
+export const SELECTION_ENTRY = ['checkbox', 'button', 'icon'] as const;
+export type SelectionEntryVariant = (typeof SELECTION_ENTRY)[number];
+
 export type UiQuestionKey = keyof typeof UI_QUESTIONS;
 export type UiVariantValues = {
-  headerActions: HeaderActionsVariant;
+  /** Settled, not a dock question (see TREE_DENSITY). */
   treeDensity: TreeDensityVariant;
   switchReadiness: SwitchReadinessVariant;
+  /** Settled, not a dock question (see TREE_DENSITY). */
   groupHeader: GroupHeaderVariant;
+  readinessPreview: ReadinessPreviewValue;
+  selectionEntry: SelectionEntryVariant;
 };
 
 /** What every question shows when no dock chose (and in a build without the dock). */
 export const DEFAULT_UI_VARIANTS: UiVariantValues = {
-  headerActions: UI_QUESTIONS.headerActions.initial,
-  treeDensity: UI_QUESTIONS.treeDensity.initial,
+  treeDensity: 'herdr-tinted',
   switchReadiness: UI_QUESTIONS.switchReadiness.initial,
-  groupHeader: UI_QUESTIONS.groupHeader.initial,
+  groupHeader: 'herdr',
+  readinessPreview: UI_QUESTIONS.readinessPreview.initial,
+  selectionEntry: UI_QUESTIONS.selectionEntry.initial,
 };

@@ -61,8 +61,15 @@ export function placeTooltip(anchor: Box, size: { width: number; height: number 
 let closeOpenTooltip: (() => void) | undefined;
 
 export interface TooltipProps {
-  /** The text. Plain text only: a tooltip never holds something the user must read or click. */
-  content: string;
+  /**
+   * The text. Plain text only for the default variant: a tooltip never holds something the user must read or click. The 'card' variant takes labelled rows
+   * (read only: it never takes the pointer, so nothing in it can be clicked either).
+   */
+  content: React.ReactNode;
+  /** 'text' (default): the dark one-line bubble. 'card': a small surface card of fixed width for structured facts (sub-agent details). */
+  variant?: 'text' | 'card';
+  /** Layout of the wrapper around the child; the default shrinks to the child, a row that fills its list passes 'flex w-full min-w-0'. */
+  anchorClassName?: string;
   /** Preferred side; flipped when it does not fit. */
   side?: TooltipSide;
   /** The element described: exactly one, it receives aria-describedby while the tooltip is shown. */
@@ -76,7 +83,7 @@ export interface TooltipProps {
  *
  * Not dsl-ui's Tooltip: that one is a non-portaled span shown by Tailwind `group-hover`, which matches ANY ancestor carrying `group` (see the report).
  */
-export function Tooltip({ content, side = 'top', children }: TooltipProps) {
+export function Tooltip({ content, side = 'top', variant = 'text', anchorClassName = 'inline-flex min-w-0 max-w-full', children }: TooltipProps) {
   const id = useId();
   const anchorRef = useRef<HTMLSpanElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
@@ -118,7 +125,9 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
     }
     const anchor = anchorRef.current.getBoundingClientRect();
     const bubble = bubbleRef.current.getBoundingClientRect();
-    setPlacement(placeTooltip(anchor, { width: bubble.width, height: bubble.height }, { width: window.innerWidth, height: window.innerHeight }, side));
+    const next = placeTooltip(anchor, { width: bubble.width, height: bubble.height }, { width: window.innerWidth, height: window.innerHeight }, side);
+    // The same place again (a card whose live text changed every second): no new state, no extra render.
+    setPlacement((previous) => (previous !== undefined && previous.top === next.top && previous.left === next.left && previous.side === next.side ? previous : next));
   }, [open, content, side]);
 
   useEffect(() => {
@@ -160,7 +169,7 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
   const described = open ? React.cloneElement(children, { 'aria-describedby': [children.props['aria-describedby'], id].filter(Boolean).join(' ') }) : children;
 
   return (
-    <span ref={anchorRef} className="inline-flex min-w-0 max-w-full" onPointerEnter={schedule} onPointerLeave={hide} onFocus={onFocus} onBlur={hide} onPointerDown={hide}>
+    <span ref={anchorRef} className={anchorClassName} onPointerEnter={schedule} onPointerLeave={hide} onFocus={onFocus} onBlur={hide} onPointerDown={hide}>
       {described}
       {open
         ? createPortal(
@@ -171,7 +180,7 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
                 role="tooltip"
                 data-side={placement?.side}
                 // Fixed to the viewport, invisible until measured (so the first frame is not at 0,0).
-                className={`pointer-events-none fixed left-0 top-0 z-50 w-max max-w-xs rounded bg-content px-2 py-1 text-xs text-bg shadow-lg ${placement === undefined ? 'invisible' : ''}`}
+                className={`pointer-events-none fixed left-0 top-0 z-50 shadow-lg ${variant === 'card' ? 'w-80 max-w-[calc(100vw-1rem)] rounded-md border border-border bg-surface p-2 text-xs text-content' : 'w-max max-w-xs rounded bg-content px-2 py-1 text-xs text-bg'} ${placement === undefined ? 'invisible' : ''}`}
                 style={placement === undefined ? undefined : { top: placement.top, left: placement.left }}
               >
                 {content}

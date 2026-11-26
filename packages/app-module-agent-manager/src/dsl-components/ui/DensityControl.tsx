@@ -6,6 +6,7 @@ import { IconButton } from '@wadeck-app/dsl-ui';
 import { FOCUS_RING } from './focusRing.js';
 import { Tooltip } from './Tooltip.js';
 import { usePopover } from './usePopover.js';
+import { POPUP_SURFACE } from './popupSurface.js';
 
 const CHECKED_RADIO = '[role="radio"][aria-checked="true"]';
 
@@ -40,6 +41,7 @@ export function DensityControl() {
   return (
     <div ref={box} className="relative">
       <IconButton
+        size="icon-sm"
         variant={open ? 'neutral' : 'ghost'}
         aria-label={problem === '' ? 'Text size' : 'Text size (a note about the saved setting)'}
         title={problem === '' ? 'Text size' : `Text size: ${problem}`}
@@ -50,7 +52,7 @@ export function DensityControl() {
         icon={problem === '' ? <ALargeSmall aria-hidden="true" className="h-4 w-4" /> : <TriangleAlert aria-hidden="true" className="h-4 w-4" />}
       />
       {open ? (
-        <div id={panelId} role="dialog" aria-label="Text size" className="absolute right-0 top-full z-30 mt-1 w-72 rounded-lg border border-border bg-surface p-2 shadow-lg">
+        <div id={panelId} role="dialog" aria-label="Text size" className={`absolute right-0 top-full z-30 mt-1 w-72 ${POPUP_SURFACE} p-2`}>
           {problem !== '' ? (
             <div role="alert" className="mb-2 flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-text">
               <p className="min-w-0 flex-1">{problem}</p>

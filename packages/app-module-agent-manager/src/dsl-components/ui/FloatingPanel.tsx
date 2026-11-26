@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { POPUP_SURFACE } from './popupSurface.js';
 
 const MARGIN = 8;
 
@@ -47,7 +48,7 @@ export function FloatingPanel({ x, y, width = 260, label, onClose, children }: {
   }, []);
 
   return (
-    <div ref={box} role="dialog" aria-label={label} style={{ position: 'fixed', left: place.left, top: place.top, width }} className="z-50 flex flex-col gap-1 rounded-lg border border-border bg-surface p-2 text-sm shadow-lg">
+    <div ref={box} role="dialog" aria-label={label} style={{ position: 'fixed', left: place.left, top: place.top, width }} className={`z-50 flex flex-col gap-1 ${POPUP_SURFACE} p-2 text-sm`}>
       {children}
     </div>
   );

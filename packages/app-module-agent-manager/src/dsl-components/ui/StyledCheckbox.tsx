@@ -24,7 +24,8 @@ export function StyledCheckbox({ indeterminate = false, className = '', checked,
       <span
         data-styled-checkbox=""
         aria-hidden="true"
-        className={`pointer-events-none inline-flex h-4 w-4 items-center justify-center rounded-sm border text-on-solid transition-colors peer-hover:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-1 ${on ? 'border-primary-solid bg-primary-solid' : 'border-border bg-surface'}`}
+        // The empty box border is the muted-tint token (3:1 or more against the surface, light and dark: the WCAG non-text contrast), not the faint divider color.
+        className={`pointer-events-none inline-flex h-4 w-4 items-center justify-center rounded-sm border text-on-solid transition-colors peer-hover:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-1 ${on ? 'border-primary-solid bg-primary-solid' : 'border-muted-tint bg-surface'}`}
       >
         {indeterminate ? <Minus className="h-3 w-3" strokeWidth={3} /> : checked === true ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
       </span>

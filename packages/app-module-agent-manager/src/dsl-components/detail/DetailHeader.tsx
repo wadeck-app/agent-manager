@@ -3,17 +3,17 @@ import { useEffect, useState } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { ForkDialog } from '../launch/ForkDialog.js';
 import { FORK_MEANING, forkBlockedReason } from '../logic/forkForm.js';
+import { applyReadinessPreview } from '../logic/readinessPreview.js';
 import { threadChipText } from '../logic/threadForm.js';
 import type { OwnedSessionDto } from '../shared.js';
 import { IconButton } from '@wadeck-app/dsl-ui';
-import { useUiVariant } from '../ui/UiVariants.js';
 import { GuardrailBlocks } from '../guardrails/GuardrailBlocks.js';
-import { MoveStatusLine } from '../owned/MoveStatus.js';
 import { OwnedBar } from '../owned/OwnedBar.js';
+import { ReadinessPreviewControls } from '../owned/ReadinessPreviewControls.js';
+import { useUiVariant } from '../ui/UiVariants.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 import { HeaderActions } from './HeaderActions.js';
 import { HeaderLine } from './HeaderLine.js';
-import { StatusInfo } from './status/StatusInfo.js';
 import { useSessionStatus } from './status/useSessionStatus.js';
 
 export interface DetailHeaderProps {
@@ -50,17 +50,10 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
   const forkBlocked = forkBlockedReason(session);
   // The element of the header line the controls of an owned session are drawn into (the one-line looks).
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  // The A/B question ui-header-actions: the three looks share this one-line header (so the same height); only the actions differ. The detailed look adds a Details button
-  // whose floating panel holds the folder, the chips and the readiness line that the previous three-row header drew in the flow.
-  const actionsLook = useUiVariant('headerActions');
-  const details =
-    actionsLook === 'detailed' ? (
-      <>
-        <StatusInfo session={session} status={status} wrapAll />
-        <MoveStatusLine session={session} />
-      </>
-    ) : undefined;
-  const actions = <HeaderActions details={details} busy={busy} onFork={() => setForkFor(forkId)} forkBlocked={forkBlocked} forkMeaning={FORK_MEANING} pinned={session.pinned} onTogglePin={() => onTogglePin(!session.pinned)} canMarkSeen={canMarkSeen} onMarkSeen={onMarkSeen} />;
+  // The test helper of the A/B dock (never active without the dock): what the header says about moving is forced, on any agent.
+  const previewState = useUiVariant('readinessPreview');
+  const preview = applyReadinessPreview(session, previewState);
+  const actions = <HeaderActions busy={busy} onFork={() => setForkFor(forkId)} forkBlocked={forkBlocked} forkMeaning={FORK_MEANING} pinned={session.pinned} onTogglePin={() => onTogglePin(!session.pinned)} canMarkSeen={canMarkSeen} onMarkSeen={onMarkSeen} />;
   // A permission request of a Web session is already shown by its card under the log: the reason would say the same a third time.
   const reasonLine =
     session.state === 'needs-you' && session.reason !== '' && !(session.host === 'stream-json' && session.pendingPermissions > 0) ? <p className="mt-1 text-sm text-hue-red">{session.reason}</p> : null;
@@ -98,7 +91,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
         <span className="lg:hidden">
           <IconButton icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />} aria-label="Back to the list" onClick={onBack} />
         </span>
-        <HeaderLine session={session} status={status} now={now} />
+        <HeaderLine session={preview.session} status={status} now={now} />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {/* The controls of an owned session are drawn here by its bar (a portal), as icons. */}
           <span ref={setSlot} className="contents" />
@@ -113,7 +106,8 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
         </p>
       )}
       <GuardrailBlocks blocks={session.guardrailBlocks} />
-      <OwnedBar key={session.sessionId.toLowerCase()} session={session} onChange={onOwnedChange} onForgotten={onForgotten} inline={{ slot }} />
+      <OwnedBar key={session.sessionId.toLowerCase()} session={preview.synthetic ? session : preview.session} onChange={onOwnedChange} onForgotten={onForgotten} inline={{ slot }} />
+      {previewState === 'real' ? null : <ReadinessPreviewControls preview={preview} state={previewState} slot={slot} />}
       {reasonLine}
       {forkDialog}
     </header>

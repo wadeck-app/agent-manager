@@ -3,6 +3,7 @@ import { useEffect, useId, useRef } from 'react';
 import { SHORTCUTS } from '../logic/shortcuts.js';
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { Tooltip } from './Tooltip.js';
+import { POPUP_SURFACE } from './popupSurface.js';
 
 export interface ShortcutsHelpProps {
   /** Controlled by the page: the `?` key opens it. */
@@ -47,9 +48,9 @@ export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
 
   return (
     <div ref={box} className="relative">
-      <IconButton variant={open ? 'neutral' : 'ghost'} aria-label="Keyboard shortcuts" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)} icon={<Keyboard aria-hidden="true" className="h-4 w-4" />} />
+      <IconButton size="icon-sm" variant={open ? 'neutral' : 'ghost'} aria-label="Keyboard shortcuts" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)} icon={<Keyboard aria-hidden="true" className="h-4 w-4" />} />
       {open ? (
-        <div id={panelId} role="dialog" aria-label="Keyboard shortcuts" className="absolute right-0 top-full z-30 mt-1 w-80 rounded-lg border border-border bg-surface p-3 shadow-lg">
+        <div id={panelId} role="dialog" aria-label="Keyboard shortcuts" className={`absolute right-0 top-full z-30 mt-1 w-80 ${POPUP_SURFACE} p-3`}>
           <p className="mb-2 text-sm font-medium text-content">Keyboard shortcuts</p>
           <dl className="flex flex-col gap-1.5 text-sm">
             {SHORTCUTS.map((shortcut) => (

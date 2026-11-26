@@ -260,7 +260,7 @@ ${JSON.stringify(textLine(3, 'after the huge line'))}
     writeFileSync(join(dir, 'agent-a2.meta.json'), '{not json');
     const body = (await log()).body;
     // No transcript of its own yet: just started, so running, and no time is invented.
-    expect(body.subagents).toEqual([{ agentId: 'a1', status: 'active', agentType: 'Explore', description: 'look around', finished: false, isFork: false, toolUseId: 'toolu_a', children: [] }]);
+    expect(body.subagents).toEqual([{ agentId: 'a1', status: 'active', agentType: 'Explore', description: 'look around', finished: false, isFork: false, toolUseId: 'toolu_a', usageNote: expect.stringMatching(/no transcript yet/i), children: [] }]);
     expect(body.entries[1]).toMatchObject({ kind: 'tool-call', subagentId: 'a1' });
     expect(body.subagentsNote).toContain('agent-a2.meta.json');
     expect(JSON.stringify(body)).not.toContain(JSON.stringify(box.projects).slice(1, -1));
@@ -310,6 +310,24 @@ ${JSON.stringify(textLine(3, 'after the huge line'))}
       // Not marked finished and silent for longer than the freshness window: idle, with no end time (nothing says it ended).
       expect(byId.old.status).toBe('idle');
       expect(byId.old.endedAt).toBeUndefined();
+    });
+
+    it('adds the model, tokens and context share of each sub-agent from its own transcript, and says why when there is none', async () => {
+      sessionOf.id = putSession(box, process.pid);
+      writeLines(transcriptFile(box, sessionOf.id), [userLine(1, 'go')]);
+      const now = Date.now();
+      meta('run', { model: 'sonnet' }, now - 30_000);
+      const file = join(box.projects, SLUG, sessionOf.id, 'subagents', 'agent-run.jsonl');
+      writeFileSync(file, `${JSON.stringify({ isSidechain: true, agentId: 'run', type: 'assistant', uuid: 'u1', timestamp: new Date(now - 60_000).toISOString(), message: { id: 'm1', model: 'claude-sonnet-4-6', role: 'assistant', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: 2, cache_creation_input_tokens: 100, cache_read_input_tokens: 900, output_tokens: 40 } } })}
+`);
+      utimesSync(file, new Date(now - 30_000), new Date(now - 30_000));
+      meta('bare', {}, now - 30_000);
+      const byId = Object.fromEntries((await log()).body.subagents.map((s: { agentId: string }) => [s.agentId, s]));
+      expect(byId.run.model).toBe('sonnet');
+      expect(byId.run.usage).toMatchObject({ model: { displayName: 'Sonnet 4.6' }, tokensIn: 1002, tokensOut: 40, contextUsedPct: { usedTokens: 1002, windowTokens: 200_000 } });
+      expect(byId.run.usageNote).toBeUndefined();
+      expect(byId.bare.usage).toBeUndefined();
+      expect(byId.bare.usageNote).toMatch(/no assistant message with usage/i);
     });
 
     it('says "unknown" with the reason when a transcript exists but cannot be read, never "active"', async () => {

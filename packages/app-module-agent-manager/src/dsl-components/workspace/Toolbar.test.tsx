@@ -22,7 +22,6 @@ function props(extra: Partial<ToolbarProps>): ToolbarProps {
     search: { text: '', onText: vi.fn(), shown: 3, total: 3, problems: [], onMove: vi.fn(), onEnter: vi.fn() },
     helpOpen: false,
     onHelpOpenChange: vi.fn(),
-    onNewSession: vi.fn(),
     onNewGroup: async () => true,
     ...extra,
   };
@@ -53,11 +52,31 @@ describe('Toolbar notices button', () => {
     expect(screen.queryByRole('button', { name: /notices?$/ })).toBeNull();
   });
 
-  it('stays left of New session in modes without a New group button', () => {
+  it('has no New group button in modes without custom groups, and no New session button at all (it is the footer of the list pane)', () => {
     show({ mode: 'inbox', notices: <NoticesButton items={[WARN]} /> });
     expect(screen.queryByRole('button', { name: /new group/i })).toBeNull();
-    const notices = screen.getByRole('button', { name: '1 notice' });
-    const newSession = screen.getByRole('button', { name: 'New session' });
-    expect(notices.compareDocumentPosition(newSession) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'New session' })).toBeNull();
+  });
+
+  it('has ONE list configuration control, on the left, and none of the old separate ones', () => {
+    show({});
+    expect(screen.getAllByRole('button', { name: 'List layout and view options' })).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'View options' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^List mode/ })).toBeNull();
+    const actions = document.querySelector('.ml-auto') as HTMLElement;
+    expect(actions.contains(screen.getByRole('button', { name: 'List layout and view options' }))).toBe(false);
+  });
+
+  it('New group, the Sessions to show select, and the icon buttons share one compact size (the base size props, no custom height)', () => {
+    show({});
+    const newGroup = screen.getByRole('button', { name: /new group/i });
+    expect(newGroup.className).toMatch(/\bpy-1\b/);
+    expect(newGroup.className).toContain('text-xs');
+    for (const name of ['Text size', 'Keyboard shortcuts', 'List layout and view options']) {
+      const icon = screen.queryByRole('button', { name: new RegExp(name) });
+      if (icon !== null) {
+        expect(icon.className, name).toMatch(/\bh-7\b/);
+      }
+    }
   });
 });

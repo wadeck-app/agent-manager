@@ -14,9 +14,10 @@ export function HerdrLightView({ session }: { session: AgentRow }) {
   return (
     <Tooltip content={STATE_MEANING[session.state]} side="left">
       <span className="inline-flex shrink-0">
-        <StatusColumn pill={light.kind === 'pill'}>
+        <StatusColumn>
           <span data-herdr-light={light.kind} className="inline-flex items-center">
-            <LightNode state={session.state} compact={false} />
+            {/* A state that needs words (Needs you) has its pill before the age (HerdrRowBody): here its compact "!" box keeps the column an icon column. */}
+            <LightNode state={session.state} compact />
             {light.kind === 'pill' ? null : <span className="sr-only">{light.label}</span>}
           </span>
         </StatusColumn>

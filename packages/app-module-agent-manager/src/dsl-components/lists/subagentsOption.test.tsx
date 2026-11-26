@@ -57,7 +57,7 @@ describe.each([
 ])('%s with the sub-agents option', (_name, List) => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('off (default): no chevron, no sub-agent request, no aria-expanded on a row, the count chip stays, no reserved slot', () => {
+  it('off (default): no chevron, no sub-agent request, no aria-expanded on a row, no count chip, no reserved slot', () => {
     stubSubagents();
     const { container } = render(<Harness sessions={[parent, plain]} List={List} options={DEFAULT_VIEW_OPTIONS} />);
     expect(screen.queryByRole('button', { name: /sub-agents/ })).toBeNull();
@@ -66,8 +66,8 @@ describe.each([
     // The only expandable items are folders (Tree): never an agent row.
     expect(rows.every((item) => !item.hasAttribute('aria-expanded'))).toBe(true);
     expect(container.querySelector('[data-row-chevron-slot], span.h-7.w-7:not([data-status-column])')).toBeNull();
-    // The count chip costs no vertical room and is kept.
-    expect(screen.getByLabelText('3 sub-agents')).toBeInTheDocument();
+    // The count is not drawn on the row line in any state of the option.
+    expect(screen.queryByLabelText('3 sub-agents')).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 

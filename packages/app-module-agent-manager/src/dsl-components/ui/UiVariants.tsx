@@ -1,6 +1,6 @@
-import { useAbTest, useRegisterAbTests } from '@wadeck-app/dsl-ui';
+import { useAbExperiments, useAbTest, useRegisterAbTests } from '@wadeck-app/dsl-ui';
 import { createContext, useContext, type ReactNode } from 'react';
-import { DEFAULT_UI_VARIANTS, UI_QUESTIONS, type UiQuestion, type UiQuestionKey, type UiVariantValues } from '../logic/uiVariants.js';
+import { DEFAULT_UI_VARIANTS, UI_QUESTIONS, type UiQuestion, type UiVariantValues } from '../logic/uiVariants.js';
 
 /** The current options. Exported for the tests, which force one option without the dock. */
 export const UiVariantsContext = createContext<UiVariantValues>(DEFAULT_UI_VARIANTS);
@@ -17,21 +17,22 @@ function useQuestion<T extends string>(question: UiQuestion<T>) {
  * question shows its recommended option.
  */
 export function UiVariants({ children }: { children: ReactNode }) {
-  const headerActions = useQuestion(UI_QUESTIONS.headerActions);
-  const treeDensity = useQuestion(UI_QUESTIONS.treeDensity);
   const switchReadiness = useQuestion(UI_QUESTIONS.switchReadiness);
-  const groupHeader = useQuestion(UI_QUESTIONS.groupHeader);
-  useRegisterAbTests([headerActions, treeDensity, switchReadiness, groupHeader]);
+  const readinessPreview = useQuestion(UI_QUESTIONS.readinessPreview);
+  const selectionEntry = useQuestion(UI_QUESTIONS.selectionEntry);
+  useRegisterAbTests([switchReadiness, readinessPreview, selectionEntry]);
+  // The preview forces what the header says about an agent: it must never act when the dock is off (the choice stays in localStorage, the dock does not read it then).
+  const dockOn = useAbExperiments()?.enabled === true;
   const values: UiVariantValues = {
-    headerActions: headerActions.value,
-    treeDensity: treeDensity.value,
+    ...DEFAULT_UI_VARIANTS,
     switchReadiness: switchReadiness.value,
-    groupHeader: groupHeader.value,
+    selectionEntry: selectionEntry.value,
+    readinessPreview: dockOn ? readinessPreview.value : DEFAULT_UI_VARIANTS.readinessPreview,
   };
   return <Values.Provider value={values}>{children}</Values.Provider>;
 }
 
 /** The current option of one design question. */
-export function useUiVariant<K extends UiQuestionKey>(key: K): UiVariantValues[K] {
+export function useUiVariant<K extends keyof UiVariantValues>(key: K): UiVariantValues[K] {
   return useContext(Values)[key];
 }

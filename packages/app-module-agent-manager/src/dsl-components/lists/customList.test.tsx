@@ -48,7 +48,8 @@ const headerOf = (container: HTMLElement, id: string): HTMLElement => {
   }
   return element;
 };
-const stripOf = (container: HTMLElement, id: string): HTMLElement => container.querySelector<HTMLElement>(`[data-group-end="${id}"]`) as HTMLElement;
+// The drop zone under the last agent of a group: an overlay that exists only while an agent is dragged.
+const stripOf = (container: HTMLElement, id: string): HTMLElement => container.querySelector<HTMLElement>(`[data-group-end="${id}"] [data-group-end-zone]`) as HTMLElement;
 
 function drag(type: 'dragStart' | 'dragOver' | 'drop' | 'dragEnd', element: HTMLElement): boolean {
   const event = createEvent[type](element);
@@ -118,6 +119,34 @@ describe('CustomList', () => {
   });
 
   describe('drag and drop (the held item is read before it is cleared)', () => {
+    it('a drag moves nothing on the page: the strip under a group keeps its height, the drop zone and the hint are overlays, no element is added to the flow', () => {
+      const { container } = render(<Custom sessions={all} api={fakeApi([group('a', 0, { sort: 'urgency' }), group('b', 1)])} />);
+      const strips = Array.from(container.querySelectorAll<HTMLElement>('[data-group-end]'));
+      const before = strips.map((strip) => strip.className);
+      const flowBefore = container.querySelectorAll('[data-session-id], [data-group-id]').length;
+      expect(strips.length).toBeGreaterThan(0);
+      expect(container.querySelector('[data-group-end-zone]')).toBeNull();
+      drag('dragStart', rowOf(container, a1));
+      // Same height classes before and during the drag: only an absolute zone appears inside the strip.
+      expect(Array.from(container.querySelectorAll<HTMLElement>('[data-group-end]')).map((strip) => strip.className)).toEqual(before);
+      const zones = Array.from(container.querySelectorAll<HTMLElement>('[data-group-end-zone]'));
+      expect(zones.length).toBeGreaterThan(0);
+      for (const zone of zones) {
+        expect(zone.className).toContain('absolute');
+      }
+      // The drop indicators of a position are absolute too.
+      drag('dragOver', rowOf(container, b1));
+      for (const bar of Array.from(container.querySelectorAll<HTMLElement>('[data-drop-indicator]'))) {
+        expect(bar.className).toContain('absolute');
+      }
+      // The hint of a refused drop floats over the list.
+      drag('dragOver', rowOf(container, a2));
+      const hint = container.ownerDocument.querySelector<HTMLElement>('[data-drop-hint]');
+      expect(hint).not.toBeNull();
+      expect(hint?.className).toContain('absolute');
+      expect(container.querySelectorAll('[data-session-id], [data-group-id]').length).toBeGreaterThanOrEqual(flowBefore);
+    });
+
     it('an agent dropped on an agent of another group joins that group before it', () => {
       const api = fakeApi(groups());
       const { container } = render(<Custom sessions={all} api={api} />);
@@ -263,10 +292,10 @@ describe('CustomList', () => {
       const api = marks();
       const { container } = render(<Custom sessions={all} api={fakeApi(groups())} marks={api} />);
       fireEvent.contextMenu(rowOf(container, a1), { clientX: 120, clientY: 80 });
-      const menu = screen.getByRole('dialog', { name: 'Actions of a-one' });
-      fireEvent.click(within(menu).getByRole('button', { name: 'Flag' }));
+      const menu = screen.getByRole('menu');
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Flag' }));
       expect(api.setMarks).toHaveBeenCalledWith(a1.sessionId.toLowerCase(), { flag: true });
-      expect(screen.queryByRole('dialog', { name: 'Actions of a-one' })).toBeNull();
+      expect(screen.queryByRole('menu')).toBeNull();
     });
 
     it('the kebab button opens the same menu; a flagged agent offers to remove the flag, an unread one to mark it read', () => {
@@ -274,11 +303,11 @@ describe('CustomList', () => {
       const flagged = row({ displayName: 'flagged-one', customGroupId: 'a', customGroupOrder: 5, flagged: true, unread: true, state: 'done' });
       render(<Custom sessions={[flagged]} api={fakeApi(groups())} marks={api} />);
       fireEvent.click(screen.getByRole('button', { name: 'Actions of flagged-one' }));
-      const menu = screen.getByRole('dialog', { name: 'Actions of flagged-one' });
-      fireEvent.click(within(menu).getByRole('button', { name: 'Remove the flag' }));
+      const menu = screen.getByRole('menu');
+      fireEvent.click(within(menu).getByRole('menuitem', { name: 'Remove the flag' }));
       expect(api.setMarks).toHaveBeenCalledWith(flagged.sessionId.toLowerCase(), { flag: false });
       fireEvent.click(screen.getByRole('button', { name: 'Actions of flagged-one' }));
-      fireEvent.click(within(screen.getByRole('dialog', { name: 'Actions of flagged-one' })).getByRole('button', { name: 'Mark as read' }));
+      fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Mark as read' }));
       expect(api.setMarks).toHaveBeenLastCalledWith(flagged.sessionId.toLowerCase(), { unread: false });
     });
 
@@ -290,9 +319,12 @@ describe('CustomList', () => {
       expect(rowOf(container, unread).querySelector('[data-herdr-light="dot"]')).not.toBeNull();
     });
 
-    it('without a marks API the row has no menu button', () => {
+    it('without a marks API the menu still holds Move to a group, and no flag or unread item', () => {
       render(<Custom sessions={all} api={fakeApi(groups())} />);
-      expect(screen.queryByRole('button', { name: /Actions of/ })).toBeNull();
+      fireEvent.click(screen.getAllByRole('button', { name: /Actions of/ })[0] as HTMLElement);
+      const menu = screen.getByRole('menu');
+      expect(within(menu).getByRole('menuitem', { name: 'Move to a group...' })).toBeInTheDocument();
+      expect(within(menu).queryByRole('menuitem', { name: 'Flag' })).toBeNull();
     });
   });
 

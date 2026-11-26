@@ -286,7 +286,10 @@ describe('an active sub-agent is a guess, said as such', () => {
     expect(row).toHaveTextContent('Active');
     expect(row).not.toHaveTextContent('Running');
     expect(row).toHaveTextContent(/last activity 4\ds ago/);
-    expect(row.getAttribute('title')).toMatch(/no end marker, last activity .* ago\. Probably running/);
+    // No native title (its text would tick): the card, on focus, names the missing end marker.
+    expect(row).not.toHaveAttribute('title');
+    fireEvent.focus(row);
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/no end marker and written lately: probably running/);
     expect(screen.getByText(/1 active \(no end marker\)/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Active 1/ })).toBeInTheDocument();
   });

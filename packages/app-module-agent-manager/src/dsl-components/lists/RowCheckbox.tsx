@@ -3,18 +3,18 @@ import { visibleSessionIds } from '../workspace/usePageShortcuts.js';
 import { useSelection } from './selection.js';
 
 /**
- * The checkbox of a row: at the left edge, over the program icon, shown on hover, on keyboard focus and whenever something is selected (so a selection can be
- * extended with the pointer alone). Out of the tab order like the other buttons of a row: the row is the tab stop, X toggles it from the keyboard.
+ * The checkbox of a row, in the selection mode only (nothing is drawn, and no room is kept, otherwise): the first item of the row, at its left edge, so that
+ * the boxes of every row and of every group header are one column. It stays out of the tab order like the other buttons of a row: the row is the tab stop,
+ * X toggles it from the keyboard.
  */
-export function RowCheckbox({ id, name }: { id: string; name: string }) {
+export function RowCheckbox({ id, name, firstLine = false }: { id: string; name: string; /** A row of several lines: the box is centered on its first line (the 20 px of the state icon, 2 px down), not on the row. */ firstLine?: boolean }) {
   const selection = useSelection();
-  if (selection === null) {
+  if (selection === null || !selection.mode) {
     return null;
   }
   const checked = selection.isSelected(id);
-  const shown = selection.count > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100';
   return (
-    <span data-row-checkbox="" className={`absolute left-0.5 top-1/2 z-10 -translate-y-1/2 inline-flex rounded bg-surface p-0.5 shadow-sm ring-1 ring-border ${checked ? 'opacity-100' : shown}`} onClick={(event) => event.stopPropagation()}>
+    <span data-row-checkbox="" className={`inline-flex shrink-0 items-center ${firstLine ? 'mt-0.5 h-5' : 'h-7'}`} onClick={(event) => event.stopPropagation()}>
       <StyledCheckbox
         tabIndex={-1}
         aria-label={`Select ${name}`}
@@ -32,4 +32,3 @@ export function RowCheckbox({ id, name }: { id: string; name: string }) {
     </span>
   );
 }
-

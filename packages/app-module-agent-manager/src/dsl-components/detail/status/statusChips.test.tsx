@@ -9,17 +9,16 @@ import { DEFAULT_UI_VARIANTS } from '../../logic/uiVariants.js';
 // violations-suppress: ts/no-deep-relative test helper of the module, not exported through deps.ts (it imports the variants context)
 import { UiVariantsContext } from '../../ui/UiVariants.js';
 import { formatSpan, formatTokens } from './format.js';
-import { StatusInfo } from './StatusInfo.js';
 import { publishLogStatus, resetPublishedStatus } from './useSessionStatus.js';
 
-// The status info lives in the Details panel of the detailed look; the one-line header above also shows some of the same chips, so every query of this file reads the panel only.
+// The chips of the status live in the one-line header; every query of this file reads that line only.
 const screen = new Proxy({} as typeof pageScreen, {
   get: (_target, key) => {
-    const panel = document.querySelector<HTMLElement>('[data-anchored-popup]');
-    if (panel === null) {
-      throw new Error('The Details panel is not open: call show() first');
+    const line = document.querySelector<HTMLElement>('[data-header-line]');
+    if (line === null) {
+      throw new Error('The header line is not rendered: call show() first');
     }
-    return (within(panel) as unknown as Record<string | symbol, unknown>)[key];
+    return (within(line) as unknown as Record<string | symbol, unknown>)[key];
   },
 });
 
@@ -42,13 +41,11 @@ function show(status?: SessionStatusDto, target = session) {
   if (status !== undefined) {
     publishLogStatus(target.sessionId, status);
   }
-  // The status info row is the one of the Details panel of the detailed look (the one-line header has its own tests in DetailHeader.line.test.tsx).
   const result = render(
-    <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerActions: 'detailed' }}>
+    <UiVariantsContext.Provider value={DEFAULT_UI_VARIANTS}>
       <DetailHeader session={target} now={2_000_000} busy={false} onBack={() => undefined} onTogglePin={() => undefined} onMarkSeen={() => undefined} onOwnedChange={() => undefined} onForgotten={() => undefined} onForked={() => undefined} onOpenSource={() => undefined} />
     </UiVariantsContext.Provider>,
   );
-  fireEvent.click(pageScreen.getByRole('button', { name: 'Show details' }));
   return result;
 }
 
@@ -69,10 +66,10 @@ describe('formatting', () => {
   });
 });
 
-describe('the status info row', () => {
+describe('the status chips of the one-line header', () => {
   it('shows every field of a full status', () => {
     show(FULL);
-    const info = document.querySelector('[data-status-info]') as HTMLElement;
+    const info = document.querySelector('[data-header-line]') as HTMLElement;
     expect(within(info).getByText('/work/agent-manager')).toBeInTheDocument();
     expect(within(info).getByText('main')).toBeInTheDocument();
     expect(within(info).getByLabelText('Model Sonnet 5.5')).toBeInTheDocument();
@@ -109,7 +106,7 @@ describe('the status info row', () => {
 
   it('draws nothing for a field that is not available (no empty slot, no branch icon)', () => {
     show({});
-    const info = document.querySelector('[data-status-info]') as HTMLElement;
+    const info = document.querySelector('[data-header-line]') as HTMLElement;
     expect(within(info).queryByLabelText(/^Model/)).toBeNull();
     expect(within(info).queryByRole('img')).toBeNull();
     expect(within(info).queryByLabelText(/^Tokens/)).toBeNull();
@@ -134,33 +131,6 @@ describe('the status info row', () => {
     expect(chip.querySelector('.text-hue-red')).toHaveTextContent('93%');
   });
 
-  it('puts what does not fit into a +N chip, least important first, and says what is in it', () => {
-    // jsdom has no layout: fake an overflow while the pid chip is drawn, then the program chip, then fit.
-    const overflow = vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockImplementation(function (this: HTMLElement) {
-      return this.hasAttribute('data-status-chips') && (this.textContent ?? '').includes('pid') ? 500 : 100;
-    });
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
-    // The component itself (the Details panel of the header passes wrapAll, which never drops a chip).
-    render(<StatusInfo session={session} status={FULL} />);
-    const more = pageScreen.getByLabelText(/^1 more: pid 4242/);
-    expect(more).toHaveTextContent('+1');
-    fireEvent.focus(more);
-    expect(liveTooltip()).toHaveTextContent('Not enough room for: pid 4242.');
-    expect(pageScreen.queryByText('pid 4242')).toBeNull();
-    // The more important chips are still there.
-    expect(pageScreen.getByLabelText('Claude Code 2.1.325')).toBeInTheDocument();
-    overflow.mockRestore();
-  });
-
-  it('wrapAll (the Details panel) keeps every chip and wraps them, even when the row overflows', () => {
-    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(500);
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300);
-    render(<StatusInfo session={session} status={FULL} wrapAll />);
-    expect(pageScreen.getByText('pid 4242')).toBeInTheDocument();
-    expect(pageScreen.queryByLabelText(/more:/)).toBeNull();
-    expect(document.querySelector('[data-status-chips]')?.className).toContain('flex-wrap');
-  });
-
   it('shows the earlier models in the tooltip of the model chip', () => {
     show(FULL);
     fireEvent.focus(screen.getByLabelText('Model Sonnet 5.5'));
@@ -177,7 +147,8 @@ describe('the status info row', () => {
 
   it('shows the reasons as warnings: the status note, a branch error, a bypass file that cannot be read', () => {
     show({ statusNote: 'No assistant message yet: the model and the context are not known.', gitBranchError: 'git is not installed or not on the PATH', bypassError: 'guardrails.bypass.json is not valid JSON' });
-    expect(screen.getByText('No assistant message yet: the model and the context are not known.')).toBeInTheDocument();
+    // The status note is a row under the line, not in it.
+    expect(pageScreen.getByText('No assistant message yet: the model and the context are not known.')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Branch unknown: git is not installed or not on the PATH');
     expect(screen.getByLabelText('Bypass file problem: guardrails.bypass.json is not valid JSON')).toHaveTextContent('Bypass file unreadable');
   });

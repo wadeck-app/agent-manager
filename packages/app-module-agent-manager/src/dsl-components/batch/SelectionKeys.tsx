@@ -13,7 +13,7 @@ function ownsEscape(target: EventTarget | null): boolean {
 }
 
 /**
- * Escape clears the selection, but only when nothing else owns the key: not in a text field (a checkbox just clicked is not one) and not while a dialog or a
+ * Escape leaves the selection mode and clears the selection, but only when nothing else owns the key: not in a text field (a checkbox just clicked is not one) and not while a dialog or a
  * menu is open (Escape closes it and the selection stays). Registered before the page shortcuts (a child effect runs first) so that the Escape that clears
  * does not also close the open agent.
  */
@@ -27,7 +27,8 @@ export function SelectionKeys(): null {
         return;
       }
       const current = latest.current;
-      if (current !== null && current.count > 0) {
+      // Escape leaves the selection mode (and clears what is selected), also when nothing is ticked yet.
+      if (current !== null && (current.mode || current.count > 0)) {
         event.preventDefault();
         current.clear();
       }

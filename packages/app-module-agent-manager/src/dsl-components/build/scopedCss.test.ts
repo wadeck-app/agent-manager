@@ -13,6 +13,8 @@ import { DENSITY_SCALE, SCALE_VARIABLES } from '../ui/densityScale.js';
  * `@media{.lg\:flex{display:flex}}`. build-css.ts scopes every utility under `.agents-scope` (specificity 0,2,0), and ui/Scope.tsx puts the class on every root.
  */
 const SCOPE = '.agents-scope';
+/** The one deliberate rule outside the scope: the portaled library row menu (styles/agents.css says why). Only a menu that holds one of our icons matches it. */
+const PORTAL_MENU = "[data-radix-popper-content-wrapper] [data-testid='context-menu-content']:has([data-am-menu])";
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-css-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -46,8 +48,8 @@ describe('the module stylesheet', () => {
   it('has every rule under the scope selector (only the wrapper rule is the bare scope)', async () => {
     const all = rules(await parsed);
     expect(all.length).toBeGreaterThan(100);
-    // The wrapper's own attribute rules: the density scale.
-    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !/^\.agents-scope\[data-density='(?:s|m|ml|l)'\]$/.test(selector) && !selector.startsWith(`${SCOPE} `));
+    // The wrapper's own attribute rules (the density scale) and a descendant of the wrapper of one density (the log type steps, `.agents-scope[data-density='s'] .am-log-font`).
+    const unscoped = all.flatMap(({ rule }) => rule.selectors).filter((selector) => selector !== SCOPE && !/^\.agents-scope\[data-density='(?:s|m|ml|l)'\]( .+)?$/.test(selector) && !selector.startsWith(`${SCOPE} `) && !selector.startsWith(PORTAL_MENU));
     expect(unscoped, 'rules outside the scope leak into the other modules (and lose to theirs); see build-css.ts').toEqual([]);
   });
 

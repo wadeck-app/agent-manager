@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { actionSummary, dismissNotice, fixOf, guardrailsNoticesOf, guardrailsNotices, isDismissed, readDismissed, registryNotices, restoreNotices, shortDetails, workspaceNotices, worstTone, DETAILS_SHORT_MAX, SUMMARY_MAX } from './notices.js';
+import { actionSummary, dismissNotice, fixOf, guardrailsNoticesOf, guardrailsNotices, isDismissed, readDismissed, registryNotices, restoreNotices, workspaceNotices, worstTone, SUMMARY_MAX } from './notices.js';
 
 const DOWN = '2 owned sessions are listed in C:\\cfg\\owned-sessions.json but the daemon is not running: Stop, Resume and Move are unavailable and they show as plain rows. Fix: run `agent-manager start --detach`';
 const DOWN_ONE = '1 owned session is listed in C:\\cfg\\owned-sessions.json but the daemon is not running: Stop, Resume and Move are unavailable and it shows as a plain row. Fix: run `agent-manager start --detach`';
@@ -98,15 +98,6 @@ describe('worstTone', () => {
     expect(worstTone([item('info'), item('warning')])).toBe('warning');
     expect(worstTone([item('warning'), item('error'), item('info')])).toBe('error');
     expect(worstTone([item('info')])).toBe('info');
-  });
-});
-
-describe('shortDetails', () => {
-  it('keeps a short text whole and cuts a long one with an ellipsis', () => {
-    expect(shortDetails('short')).toBe('short');
-    const cut = shortDetails('x'.repeat(DETAILS_SHORT_MAX + 50));
-    expect(cut.length).toBeLessThanOrEqual(DETAILS_SHORT_MAX);
-    expect(cut.endsWith('...')).toBe(true);
   });
 });
 

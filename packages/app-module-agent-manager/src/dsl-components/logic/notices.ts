@@ -2,7 +2,7 @@ import { getErrorMessage } from './errorText.js';
 
 export type NoticeTone = 'error' | 'warning' | 'info';
 
-/** The longest one-line sentence of a notice (the full text is behind the More button of the panel). */
+/** The longest one-line title of a notice (the panel shows the full `details` under it, never cut). */
 export const SUMMARY_MAX = 70;
 
 export interface NoticeItem {
@@ -75,14 +75,6 @@ const SEVERITY: Record<NoticeTone, number> = { info: 0, warning: 1, error: 2 };
 /** The most severe tone of a list (the colour of the notices button). 'info' for an empty list. */
 export function worstTone(items: readonly NoticeItem[]): NoticeTone {
   return items.reduce<NoticeTone>((worst, item) => (SEVERITY[item.tone] > SEVERITY[worst] ? item.tone : worst), 'info');
-}
-
-/** The longest detail text shown before the More button. */
-export const DETAILS_SHORT_MAX = 140;
-
-/** The first words of a detail text, for the compact row of the panel (the whole text is one More click away). */
-export function shortDetails(text: string): string {
-  return text.length <= DETAILS_SHORT_MAX ? text : `${text.slice(0, DETAILS_SHORT_MAX - 3).trimEnd()}...`;
 }
 
 function clip(text: string): string {

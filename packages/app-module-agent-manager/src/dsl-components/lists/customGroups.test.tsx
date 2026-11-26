@@ -10,7 +10,7 @@ import { DEFAULT_VIEW_OPTIONS, type ViewOptions } from '../logic/viewOptions.js'
 import { UiVariantsContext } from '../ui/UiVariants.js';
 import type { CustomGroupDto } from '../shared.js';
 import { NewGroupControl } from '../workspace/NewGroupControl.js';
-import type { GroupsApi } from './common.js';
+import type { GroupsApi, MarksApi, RowActionsApi } from './common.js';
 import { TreeList } from './TreeList.js';
 
 const NOW = 2_000_000;
@@ -41,12 +41,12 @@ function useUrlService(): UrlParamService {
   return { get: (key) => params[key] ?? null, set: (key, value) => setParams((current) => ({ ...current, [key]: value })) };
 }
 
-function Tree({ sessions, api, options = DEFAULT_VIEW_OPTIONS, search = '' }: { sessions: AgentRow[]; api?: GroupsApi; options?: ViewOptions; search?: string }) {
+function Tree({ sessions, api, options = DEFAULT_VIEW_OPTIONS, search = '', marks, rowActions }: { sessions: AgentRow[]; api?: GroupsApi; options?: ViewOptions; search?: string; marks?: MarksApi; rowActions?: RowActionsApi }) {
   const [selected, setSelected] = useState<string | undefined>(undefined);
   const service = useUrlService();
   return (
     <UrlParamContext.Provider value={service}>
-      <TreeList sessions={sessions} selectedId={selected} onSelect={setSelected} now={NOW} query={parseQuery(search)} searching={search !== ''} options={options} groups={api} />
+      <TreeList sessions={sessions} selectedId={selected} onSelect={setSelected} now={NOW} query={parseQuery(search)} searching={search !== ''} options={options} groups={api} {...(marks === undefined ? {} : { marks })} {...(rowActions === undefined ? {} : { rowActions })} />
     </UrlParamContext.Provider>
   );
 }
@@ -338,8 +338,9 @@ describe('TreeList with custom groups', () => {
     it('the row button does the same with the pointer, marks the current group and offers the way out', () => {
       const api = fakeApi(groupsAB());
       const { container } = render(<Tree sessions={all} api={api} />);
-      fireEvent.click(within(rowOf(container, inA1)).getByRole('button', { name: /Move a-one to a group/ }));
-      const dialog = screen.getByRole('dialog');
+      fireEvent.click(within(rowOf(container, inA1)).getByRole('button', { name: 'Actions of a-one' }));
+      fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: /Move to a group/ }));
+      const dialog = screen.getByRole('dialog', { name: /Move a-one to a group/ });
       expect(within(dialog).getByRole('button', { name: /Group a/ })).toBeDisabled();
       expect(within(dialog).getByRole('button', { name: /Group a/ })).toHaveAttribute('aria-current', 'true');
       fireEvent.click(within(dialog).getByRole('button', { name: /Ungrouped: take it out/ }));
@@ -516,23 +517,55 @@ describe('NewGroupControl', () => {
   });
 });
 
-describe('the width of a Tree row', () => {
-  it.each([
-    ['herdr-tinted', '[data-herdr-actions]'],
-    ['compact', '[data-row-actions]'],
-  ] as const)('%s: the Move to a group button floats over the age instead of holding an empty slot beside the name (the name was cut to "docs..." with room left)', (look, selector) => {
+describe('the row actions of a Tree row', () => {
+  it.each(['herdr-tinted', 'compact'] as const)(
+    '%s: the "..." menu button is always visible, in the flow, never revealed by hover (a hidden or absolute button is out of reach of touch and keyboard users)',
+    (look) => {
+      const one = row({ folder: 'shop', displayName: 'docs-writer', state: 'idle', statusUpdatedAt: 100 });
+      const { container } = render(
+        <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, treeDensity: look }}>
+          <Tree sessions={[one]} api={fakeApi([group('a', 0)])} />
+        </UiVariantsContext.Provider>,
+      );
+      const button = within(rowOf(container, one)).getByRole('button', { name: 'Actions of docs-writer' });
+      expect(button).toHaveAttribute('data-row-icon-button');
+      for (let node: HTMLElement | null = button; node !== null && node !== rowOf(container, one); node = node.parentElement) {
+        expect(node.className).not.toMatch(/(^|s)(hidden|absolute|opacity-0)(s|$)/);
+        expect(node.className).not.toContain('group-hover');
+      }
+      expect(container.querySelector('[data-herdr-actions], [data-row-actions]')).toBeNull();
+    },
+  );
+
+  it('the menu holds every action: Move to a group, flag, mark as unread, pin, mark as seen (a finished agent)', () => {
+    const done = row({ folder: 'shop', displayName: 'finished-one', state: 'done', statusUpdatedAt: 100 });
+    const rowActions = { pin: vi.fn(), seen: vi.fn() };
+    const marks = { setMarks: vi.fn() };
+    const { container } = render(<Tree sessions={[done]} api={fakeApi([group('a', 0)])} marks={marks} rowActions={rowActions} />);
+    fireEvent.click(within(rowOf(container, done)).getByRole('button', { name: 'Actions of finished-one' }));
+    const menu = screen.getByRole('menu');
+    for (const name of ['Move to a group...', 'Flag', 'Mark as unread', 'Pin', 'Mark as seen']) {
+      expect(within(menu).getByRole('menuitem', { name })).toBeInTheDocument();
+    }
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Pin' }));
+    expect(rowActions.pin).toHaveBeenCalledExactlyOnceWith(done, true);
+  });
+
+  it('a right-click (and so the context-menu key and Shift+F10) opens the same menu on any row, not only in the Custom mode', () => {
     const one = row({ folder: 'shop', displayName: 'docs-writer', state: 'idle', statusUpdatedAt: 100 });
-    const { container } = render(
-      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, treeDensity: look }}>
-        <Tree sessions={[one]} api={fakeApi([group('a', 0)])} />
-      </UiVariantsContext.Provider>,
-    );
-    const button = within(rowOf(container, one)).getByRole('button', { name: /Move docs-writer to a group/ });
-    const actions = button.closest<HTMLElement>(selector);
-    expect(actions).not.toBeNull();
-    expect(actions?.className).toContain('absolute');
-    expect(actions?.className).toContain('hidden');
-    expect(actions?.className).toContain('group-hover:flex');
-    expect(actions?.className).toContain('group-focus-within:flex');
+    const { container } = render(<Tree sessions={[one]} api={fakeApi([group('a', 0)])} rowActions={{ pin: vi.fn(), seen: vi.fn() }} />);
+    fireEvent.contextMenu(rowOf(container, one), { clientX: 0, clientY: 0 });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
+  it('Shift+F10 and the ContextMenu key on the focused row open the menu too (keyboard users have no hover and no button in the tab order)', () => {
+    const one = row({ folder: 'shop', displayName: 'docs-writer', state: 'idle', statusUpdatedAt: 100 });
+    const { container } = render(<Tree sessions={[one]} api={fakeApi([group('a', 0)])} rowActions={{ pin: vi.fn(), seen: vi.fn() }} />);
+    fireEvent.keyDown(rowOf(container, one), { key: 'F10', shiftKey: true });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.keyDown(rowOf(container, one), { key: 'ContextMenu' });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 });

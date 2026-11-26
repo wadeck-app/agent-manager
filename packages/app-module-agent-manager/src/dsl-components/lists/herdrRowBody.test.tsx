@@ -7,7 +7,7 @@ const NOW = 2_000_000;
 const session = row({ folder: 'shop', displayName: 'billing-owner', state: 'idle', statusUpdatedAt: 100 });
 
 function body(overrides: Partial<Parameters<typeof HerdrRowBody>[0]> = {}) {
-  return render(<HerdrRowBody session={session} density="herdr-tinted" now={NOW} terms={undefined} showSlot subagents={undefined} onMove={vi.fn()} onMenu={vi.fn()} {...overrides} />);
+  return render(<HerdrRowBody session={session} density="herdr-tinted" now={NOW} terms={undefined} showSlot subagents={undefined} onMenu={vi.fn()} {...overrides} />);
 }
 
 /*
@@ -38,28 +38,35 @@ describe('the width priority of a Herdr row', () => {
     expect(age?.className).toContain('shrink-0');
   });
 
-  it('the hover buttons (move, menu) take no room in the row: they float over it, so the name keeps their width', () => {
+  it('the menu button is always drawn (no hover reveal), one row icon button in the flow that does not shrink, after the age and before the state light', () => {
     const { container } = body();
-    const actions = container.querySelector<HTMLElement>('[data-herdr-actions]');
-    expect(actions).not.toBeNull();
-    expect(actions?.className).toContain('absolute');
-    expect(actions?.querySelectorAll('button')).toHaveLength(2);
-    // Nothing else of the row is a button in the flow (no 20 px hidden slot next to the name).
-    const inFlow = Array.from(container.querySelectorAll('button')).filter((button) => !(actions?.contains(button) ?? false));
-    expect(inFlow).toHaveLength(0);
+    const buttons = container.querySelectorAll<HTMLElement>('button');
+    expect(buttons).toHaveLength(1);
+    const button = buttons[0] as HTMLElement;
+    expect(button).toHaveAttribute('data-row-icon-button');
+    expect(button).toHaveAttribute('aria-label', 'Actions of billing-owner');
+    expect(button).toHaveAttribute('aria-haspopup', 'menu');
+    expect(button.className).toContain('shrink-0');
+    for (const hidden of ['hidden', 'opacity-0', 'group-hover', 'absolute']) {
+      expect(button.className).not.toContain(hidden);
+      expect(button.closest('[data-row-menu-button], span')?.className ?? '').not.toContain(hidden);
+    }
+    expect(container.querySelector('[data-herdr-actions]')).toBeNull();
+    const age = container.querySelector<HTMLElement>('[data-herdr-age]');
+    expect(age?.compareDocumentPosition(button) ?? 0).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it('the sub-agent count chip gives way before the name: it sits in the clipped one-line box, between the name and the folder, never in the fixed part of the row', () => {
-    const { container } = body({ session: row({ folder: 'shop', displayName: 'agent-manager-owner', state: 'idle', statusUpdatedAt: 100, subagentCount: 4 }) });
-    const chip = container.querySelector<HTMLElement>('[data-herdr-subagents]');
-    const name = container.querySelector<HTMLElement>('[data-herdr-name]');
-    const folder = container.querySelector<HTMLElement>('[data-herdr-folder]');
-    expect(chip).not.toBeNull();
-    expect(chip?.parentElement).toBe(name?.parentElement);
-    expect(chip?.previousElementSibling).toBe(name);
-    expect(chip?.nextElementSibling).toBe(folder);
-    expect(chip?.textContent).toBe('4');
-    expect(chip?.querySelector('[aria-label="4 sub-agents"]')).not.toBeNull();
+  it('no menu button when the list has no action to offer', () => {
+    const { container } = body({ onMenu: undefined });
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('the sub-agent count is not drawn on the row line (the chevron label says it, where the list shows sub-agents)', () => {
+    const many = row({ folder: 'shop', displayName: 'agent-manager-owner', state: 'idle', statusUpdatedAt: 100, subagentCount: 4 });
+    const { container } = body({ session: many, subagents: { open: false, toggle: vi.fn() } });
+    expect(container.querySelector('[data-herdr-subagents]')).toBeNull();
+    expect(container.querySelector('[aria-label="4 sub-agents"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="Show the 4 sub-agents"]')).not.toBeNull();
   });
 
   it('no folder text when it repeats the name; the name-only density has none', () => {
@@ -93,5 +100,42 @@ describe('the left alignment of a Herdr row', () => {
     const { container } = body({ showSlot: false });
     expect(container.querySelector('[data-row-chevron-slot]')).toBeNull();
     expect(container.querySelector('button[aria-label*="sub-agents"]')).toBeNull();
+  });
+});
+
+/*
+ * The right side of every row is a set of fixed columns, in this order: marks (flag, pin, guardrail chip, the Needs you pill), age, "..." button, state light.
+ * jsdom has no layout, so the fixed widths are checked on classes; the real x of the columns is measured with agent-browser.
+ */
+describe('the fixed columns on the right of a Herdr row', () => {
+  it('the age is a fixed width column even when the registry gives no time', () => {
+    const withTime = body();
+    expect(withTime.container.querySelector('[data-herdr-age]')?.className).toContain('w-8');
+    const without = body({ session: row({ folder: 'shop', displayName: 'x', state: 'idle', statusUpdatedAt: undefined }) });
+    expect(without.container.querySelector('[data-herdr-age-empty]')?.className).toContain('w-8');
+  });
+
+  it('Needs you is a pill before the age, and the state light column stays an icon column (never widened by words)', () => {
+    const { container } = body({ session: row({ folder: 'shop', displayName: 'x', state: 'needs-you', statusUpdatedAt: 100 }) });
+    const pill = container.querySelector<HTMLElement>('[data-needs-you-pill]');
+    const age = container.querySelector<HTMLElement>('[data-herdr-age]');
+    expect(pill).not.toBeNull();
+    expect(pill?.textContent).toBe('Needs you');
+    expect(pill?.compareDocumentPosition(age as HTMLElement)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(container.querySelector('[data-status-column]')).toHaveAttribute('data-status-column', 'icon');
+  });
+
+  it('the flag and the pin sit before the age', () => {
+    const { container } = body({ session: row({ folder: 'shop', displayName: 'x', state: 'idle', statusUpdatedAt: 100, flagged: true, pinned: true }) });
+    const age = container.querySelector<HTMLElement>('[data-herdr-age]') as HTMLElement;
+    for (const name of ['Flagged', 'Pinned']) {
+      const mark = [...container.querySelectorAll<HTMLElement>('.sr-only')].find((element) => element.textContent === name) as HTMLElement;
+      expect(mark.compareDocumentPosition(age)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    }
+  });
+
+  it('the menu button sits in a fixed column of its own', () => {
+    const { container } = body();
+    expect(container.querySelector('[data-row-menu-column]')?.className).toContain('w-6');
   });
 });

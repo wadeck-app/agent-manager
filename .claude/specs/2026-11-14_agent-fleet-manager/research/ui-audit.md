@@ -332,3 +332,36 @@ Changes and decisions:
 - Gotcha: `npm run css` is not re-run by the dev server's watch; after adding a Tailwind class, run `tsx src/dsl-components/build/build-css.ts` or the class has no rule.
 
 Screenshots (throwaway): `poc/results/ab-tree/`, script `poc/scripts/ab-tree-shoot.sh`.
+
+## Decisions and base-component audit (2026-11-26, agent H)
+
+Decided by the user: header actions = A (one line of icons), group header = A Herdr, tree rows = Herdr look A. The three questions left the dock; header actions code is deleted (ActionsMenu, AnchoredPopup, DetailsButton, StatusInfo, CwdBranch, useChipFit, MoveStatusLine). Group header and tree row branches still live in `lists/` and `ui/groupHeaderLook.tsx` (owned by the lists change): `UiVariantValues` keeps `treeDensity` and `groupHeader` as fixed defaults until those branches go.
+
+Move readiness could not be tested on real data: the three looks only show for an agent started here, in the state it really has. The dock now has "Preview Move readiness" (real / free / busy / unknown): select any agent, pick a state; a discovered or ended agent gets a preview Move button that sends nothing (`logic/readinessPreview.ts`, `owned/ReadinessPreviewControls.tsx`). Without the dock the value is always `real`. Seen with agent-browser (isolated app-core 48811, 3 looks x 3 states, `poc/results/hmove/`). Left: look A busy has no room for the words badge at 1280 (the tinted icon and dot show it).
+
+MoveToGroupDialog: input and button were 36 px vs 40 px forked markup. Now `FieldText` + `ButtonAction` in a `HorizontalStack` (wrap, items-end): both 40 px, same y, at 1280 and 390 (the button wraps under the input at 390). The error line is a separate alert under the row: `FieldText` would move the input up and break the alignment, and its `aria-invalid` cannot be set from outside.
+
+Hand-made markup where a base component exists (not fixed here):
+
+| Where | Markup | Base component | Verdict |
+|---|---|---|---|
+| `folders/FolderExplorer` root select | raw `select` | `CompactSelect` | no `max-w` control: long paths would widen it |
+| `guardrails/DenialsSection` session prefix | raw `input` | `FieldText` | label-above layout of the base differs from the compact filter row |
+| `workspace/SearchBox`, `NewGroupControl`, `folders/FolderTree`, `FolderSmartList`, `FolderPicker`, `FolderPalette` | raw `input` (icon, combobox, Escape) | none (`FieldText` has no leading icon, no combobox role) | keep |
+| `detail/composer/ComposerBody` | raw `textarea` (auto-grow, drag and drop) | `FieldTextarea` | keep |
+| `launch/NewSessionDialog` host choice | raw radio with icon and description | `RadioGroup` takes label strings only | keep |
+| `ui/StyledCheckbox` | custom box | `Checkbox` has no indeterminate state | keep |
+| `lists/InboxList` tabs | `role="tab"` buttons | `TabButton` | lists change |
+| `detail/log/RailTabButton`, `SubagentModeSwitch`, `ui/DensityControl`, `workspace/ModeMenu` | segmented or toggle buttons | `TabButton` / `ChipButton` | to check one by one |
+| text links that expand (`ReasonList`, `GuardrailBlocks`, `ThreadDialog`, `ToolOutput`, `PermissionInput`) | `button` with underline | `ButtonAction variant="link"` has no `aria-expanded` | keep |
+
+## Selection mode, row menu, drag stability (2026-11-26, agent L)
+
+- Sub-agent count chip removed from every row (Tree, Custom, Groups, Inbox); the chevron label keeps the count ("Show the N sub-agents").
+- Row actions: one always visible `...` RowIconButton per row (after the age, before the 28 px status column; Groups and Inbox: beside the text block). Menu: move, flag, unread, pin, mark seen. Opened by click, right click, ContextMenu key, Shift+F10 (OptionShell handles the key itself). Group header buttons (pencil, folder-cog) no longer hidden until hover. Decision D2026-11-26a.
+- Selection mode (`SelectionApi.mode`): checkboxes only in the mode, first item of every row and group header (same x), no space kept when off. Ctrl/Shift click, X and select all turn it on; Escape, the entry toggle, or clear leave it and clear the selection. Empty checkbox border is `muted-tint`: 6.0:1 on white, 7.0:1 on the dark surface (measured computed colors).
+- A/B question `ui-selection-entry`: A checkbox by the title, B "Select" button (label becomes "Cancel"), C icon toggle; Select all appears next to the entry while the mode is on.
+- Drag stability: the end-of-group strip keeps `h-1`; the drop zone is an absolute overlay mounted only during a drag; the Custom drop hint is absolute. Measured with agent-browser (real mouse drag, Custom and Tree): boxes of headers and rows identical before, during and after.
+- Batch popup: strip from the menu edge to the window edge, pill centered, no list avoidance (D2026-11-26b). Measured center = content area center (760 at 1280 with menu, 640 menu hidden, 229.95 at 390).
+- Not verifiable headless: Shift+F10 / ContextMenu key through the browser (covered by unit tests only).
+- Screenshots (throwaway): `poc/results/sel/`.

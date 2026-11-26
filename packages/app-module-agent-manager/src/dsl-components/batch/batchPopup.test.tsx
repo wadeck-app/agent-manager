@@ -170,7 +170,7 @@ describe('the room the page keeps for the popup', () => {
   });
 });
 
-describe('the batch popup next to the list column', () => {
+describe('the batch popup is centered on the content area, not next to the list column', () => {
   afterEach(() => {
     document.querySelectorAll('[data-pane="list"]').forEach((pane) => pane.remove());
     vi.restoreAllMocks();
@@ -191,15 +191,18 @@ describe('the batch popup next to the list column', () => {
     });
   }
 
-  it('starts at the right edge of the list column when the pill fits to the right of it, so it never covers the list', () => {
+  it('is centered on the content area whatever the list: the strip starts at the menu edge (never at the right edge of the list) and ends at the window edge, the pill centered in it', () => {
     addList(540);
     fakeWidths(1280, 466);
     render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
-    expect(screen.getByTestId('batch-popup-strip').style.left).toBe('max(var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px)), 540px)');
+    const strip = screen.getByTestId('batch-popup-strip');
+    expect(strip.style.left).toBe('var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px))');
+    expect(strip.style.right).toBe('0px');
+    expect(strip.className).toContain('justify-center');
   });
 
-  it('keeps the whole content area when there is no room to the right of the list (a narrow window), and with no list at all', () => {
-    addList(540);
+  it('keeps the same strip with no list, a narrow window or a list that fills the page', () => {
+    addList(1000);
     fakeWidths(800, 466);
     const { unmount } = render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
     expect(screen.getByTestId('batch-popup-strip').style.left).toBe('var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px))');

@@ -1,14 +1,28 @@
-import { StyledCheckbox } from '../ui/StyledCheckbox.js';
+import { ButtonAction } from '@wadeck-app/dsl-ui';
+import { ListChecks, ListX } from 'lucide-react';
 import { useSelection } from '../lists/selection.js';
 import { groupCheck } from '../logic/selection.js';
 
-/** The select-all box of the toolbar: ticks every session the current list shows (a folded group included), indeterminate when only some are ticked. */
+/**
+ * Select all, in the toolbar, in the selection mode only: a labelled button, never a second checkbox next to the mode toggle (two boxes side by side read as
+ * one control). It ticks every session the current list shows (a folded group included); when they are all ticked it says "Select none" and clears them. The
+ * count of the selection is said by the batch popup.
+ */
 export function SelectAllBox({ ids }: { ids: readonly string[] }) {
   const selection = useSelection();
-  const state = selection === null ? 'none' : groupCheck(ids, selection.selected);
-  if (selection === null || ids.length === 0) {
+  if (selection === null || !selection.mode || ids.length === 0) {
     return null;
   }
-  return <StyledCheckbox indeterminate={state === 'some'} aria-label={`Select all ${ids.length} listed sessions`} title="Select all the listed sessions" checked={state === 'all'} onChange={() => selection.setMany(ids, state !== 'all')} />;
+  const all = groupCheck(ids, selection.selected) === 'all';
+  return (
+    <span data-select-all="" title={all ? `Unselect the ${ids.length} listed sessions` : `Select the ${ids.length} listed sessions`} className="inline-flex">
+      <ButtonAction
+        variant="secondary"
+        size="sm"
+        icon={all ? <ListX aria-hidden="true" className="h-3.5 w-3.5" /> : <ListChecks aria-hidden="true" className="h-3.5 w-3.5" />}
+        label={all ? 'Select none' : 'Select all'}
+        onClick={() => selection.setMany(ids, !all)}
+      />
+    </span>
+  );
 }
-

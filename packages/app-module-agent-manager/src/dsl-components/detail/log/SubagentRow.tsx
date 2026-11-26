@@ -1,5 +1,6 @@
 import { CircleAlert, LoaderCircle, Target } from 'lucide-react';
-import { FOCUS_RING } from '../deps.js';
+import { FOCUS_RING, Tooltip } from '../deps.js';
+import { SubagentCard } from './SubagentCard.js';
 import type { LocatePhase } from './useLocateCall.js';
 import { elapsedMs, formatElapsed, lastActivityText, STATUS_LOOK, type SubagentItem } from './subagentModel.js';
 
@@ -33,21 +34,6 @@ function locateWords(phase: LocatePhase): { text: string; tone: string; busy: bo
   }
 }
 
-/** The tooltip: the name, and what the status rests on (an active one has no end marker: only the last write says it is probably running). */
-function rowTitle(item: SubagentItem, now: number): string {
-  const { dto } = item;
-  if (dto.failureReason !== undefined) {
-    return `${item.title} (${dto.failureReason})`;
-  }
-  if (item.status === 'active') {
-    return `${item.title}: no end marker, ${dto.lastActivityAt === undefined ? 'no transcript yet (just started?)' : lastActivityText(dto.lastActivityAt, now)}. Probably running.`;
-  }
-  if (item.status === 'unknown') {
-    return `${item.title}: status unknown. ${dto.readError ?? ''}`.trim();
-  }
-  return item.title;
-}
-
 /** One sub-agent: status icon (shape and colour), name, type and model, time worked (live while it runs). Clicking selects it and shows the call that started it in the log. */
 export function SubagentRow({ item, now, selected, locate, onSelect, nested = false }: SubagentRowProps) {
   const look = STATUS_LOOK[item.status];
@@ -58,11 +44,11 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
   const detail = [dto.agentType, dto.model].filter(Boolean).join(' - ');
   return (
     <li>
+      <Tooltip variant="card" side="left" anchorClassName="flex w-full min-w-0" content={<SubagentCard item={item} now={now} />}>
       <button
         type="button"
         aria-pressed={selected}
         onClick={() => onSelect(dto.agentId)}
-        title={rowTitle(item, now)}
         className={`flex w-full min-w-0 items-start gap-2 rounded border-l-2 py-1.5 pr-2 text-left text-sm ${nested ? INDENT[Math.min(item.depth, INDENT.length - 1)] : 'pl-2'} ${selected ? 'border-primary bg-primary-light' : 'border-transparent hover:bg-muted-bg'} ${FOCUS_RING}`}
       >
         <Icon aria-hidden="true" className={`mt-0.5 h-am-icon w-am-icon shrink-0 ${look.text} ${look.iconClass}`} />
@@ -86,6 +72,7 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
           ) : null}
         </span>
       </button>
+      </Tooltip>
     </li>
   );
 }

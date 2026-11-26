@@ -1,25 +1,31 @@
 import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { Info, TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
-import { DETAILS_SHORT_MAX, shortDetails, type NoticeItem, type NoticeTone } from '../logic/notices.js';
+import type { NoticeItem, NoticeTone } from '../logic/notices.js';
 
-export const TONE_CLASS: Record<NoticeTone, string> = {
-  error: 'border-danger bg-danger-bg text-danger-text',
-  warning: 'border-warning bg-warning-bg text-warning-text',
-  info: 'border-border bg-info-bg text-info-text',
+/** The severity icon colour (the row itself is flat, the tone is carried by the icon and the left edge). */
+export const ICON_CLASS: Record<NoticeTone, string> = {
+  error: 'text-danger-text',
+  warning: 'text-warning-text',
+  info: 'text-info-text',
+};
+
+/** A 2 px left edge in the tone of the severity. */
+const EDGE_CLASS: Record<NoticeTone, string> = {
+  error: 'border-danger',
+  warning: 'border-warning',
+  info: 'border-border',
 };
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
 /**
- * One notice as a compact row of the notices panel: icon, title, a short detail text (More shows it whole), Copy fix and the action when there are some, and a
- * dismiss button.
+ * One notice of the notices panel, flat (the panel draws the dividers): severity icon, a one-line title, the FULL detail text (selectable, long paths wrap),
+ * the fix command with Copy fix when there is one, the action when there is one, and a dismiss button. Nothing is cut and nothing needs an extra click.
  */
 export function NoticeRow({ item, onDismiss }: { item: NoticeItem; onDismiss: (item: NoticeItem) => void }) {
-  const [whole, setWhole] = useState(false);
   const [copy, setCopy] = useState<CopyState>('idle');
   const Icon = item.tone === 'info' ? Info : TriangleAlert;
-  const cut = item.details.length > DETAILS_SHORT_MAX;
   const copyFix = (): void => {
     if (item.fix === undefined) {
       return;
@@ -30,23 +36,23 @@ export function NoticeRow({ item, onDismiss }: { item: NoticeItem; onDismiss: (i
     );
   };
   return (
-    <div role="listitem" data-notice={item.key} className={`rounded border px-2 py-1.5 text-sm ${TONE_CLASS[item.tone]}`}>
+    <div role="listitem" data-notice={item.key} className={`border-l-2 py-2 pl-2.5 pr-1.5 text-sm text-content ${EDGE_CLASS[item.tone]}`}>
       <div className="flex items-start gap-2">
-        <Icon aria-hidden="true" className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0" />
+        <Icon aria-hidden="true" className={`mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0 ${ICON_CLASS[item.tone]}`} />
         <div className="min-w-0 flex-1">
-          <p className="break-words font-medium">{item.summary}</p>
-          <p className="mt-0.5 break-words text-xs font-normal">{whole || !cut ? item.details : shortDetails(item.details)}</p>
+          <p className="break-words text-sm font-semibold leading-5">{item.summary}</p>
+          <p className="mt-0.5 break-words text-xs leading-5 text-content">{item.details}</p>
         </div>
         <IconButton variant="ghost" size="icon-xs" aria-label={`Dismiss: ${item.summary}`} icon={<X aria-hidden="true" className="h-3.5 w-3.5" />} onClick={() => onDismiss(item)} />
       </div>
-      {cut || item.fix !== undefined || item.action !== undefined ? (
-        <div className="mt-1 flex flex-wrap items-center gap-2 pl-6">
-          {cut ? <ButtonAction variant="secondary" size="sm" label={whole ? 'Less' : 'More'} onClick={() => setWhole(!whole)} /> : null}
-          {item.action !== undefined ? <ButtonAction variant="secondary" size="sm" label={item.action.label} onClick={item.action.run} /> : null}
+      {item.fix !== undefined || item.action !== undefined ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 pl-6">
+          {item.fix !== undefined ? <code className="min-w-0 break-all rounded bg-muted-bg px-1.5 py-0.5 font-mono text-am-mono text-content">{item.fix}</code> : null}
           {item.fix !== undefined ? <ButtonAction variant="secondary" size="sm" label="Copy fix" onClick={copyFix} /> : null}
+          {item.action !== undefined ? <ButtonAction variant="secondary" size="sm" label={item.action.label} onClick={item.action.run} /> : null}
         </div>
       ) : null}
-      <span aria-live="polite" className="block pl-6 text-xs empty:hidden">
+      <span aria-live="polite" className="block break-words pl-6 text-xs empty:hidden">
         {copy === 'copied' ? `Copied: ${item.fix}` : copy === 'failed' ? `Could not copy, type it yourself: ${item.fix}` : ''}
       </span>
     </div>

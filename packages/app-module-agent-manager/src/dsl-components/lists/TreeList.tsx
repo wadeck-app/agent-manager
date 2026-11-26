@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Folder, FolderInput, FolderOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { partitionByGroup, stepGroupIds } from '../logic/customGroups.js';
 import { HERDR_ROW_BOX, herdrTint, isHerdrDensity } from '../logic/herdrRow.js';
@@ -9,7 +9,6 @@ import type { AgentRow } from '../data/types.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { detailLine, type ListProps } from './common.js';
@@ -31,6 +30,8 @@ import { SubagentRows } from './SubagentRows.js';
 import { TimeInState } from './TimeInState.js';
 import { useGroupDnd } from './useGroupDnd.js';
 import { RowIconButton } from './RowIconButton.js';
+import { RowMenuButton } from './RowMenuButton.js';
+import { useRowMenu } from './useRowMenu.js';
 
 /** The agents that want you: the ones whose sub-agents open by themselves in the `attention` expansion. */
 function wantsYou(session: AgentRow): boolean {
@@ -45,7 +46,7 @@ function wantsYou(session: AgentRow): boolean {
  * An agent that started sub-agents has a chevron (and ArrowRight / ArrowLeft): opening it fetches its sub-agent tree (the log route sends it) and nests the
  * sub-agents under it. They are listed, not selectable: the sub-agent logs are not served.
  */
-export function TreeList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups }: ListProps) {
+export function TreeList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups, marks, rowActions }: ListProps) {
   const { grouping, expansion } = options.tree;
   // The view option "Show sub-agents under each agent": off, no row has a chevron, children or expansion state (the count chip stays).
   const showSubagents = options.subagents.show;
@@ -58,6 +59,8 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
   const headerStyle = useUiVariant('groupHeader');
   const [moving, setMoving] = useState<string | undefined>(undefined);
   const [editing, setEditing] = useState<string | undefined>(undefined);
+  // The "..." menu of every row: move to a group, flag, unread, pin, mark seen (what the page gave).
+  const rowMenu = useRowMenu({ marks, rowActions, onMove: groups === undefined ? undefined : setMoving });
   // The element to focus once the list was redrawn after a keyboard move (the row or header moved in the DOM and the browser drops its focus).
   const refocus = useRef<{ attribute: 'data-session-id' | 'data-group-id'; value: string } | undefined>(undefined);
   // Groups the user opened or closed on this page; without a choice the server's collapsed flag decides (and, in the attention expansion, what needs you).
@@ -209,6 +212,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
           className={`group relative ${herdr ? HERDR_ROW_BOX : `min-h-am-hit py-1 pr-3 ${level === 2 ? 'pl-5' : 'pl-3'}`} ${dragged ? 'opacity-50' : ''}`}
           expanded={hasChildren ? open : undefined}
           rowProps={dnd.row(id, session.customGroupId, members)}
+          {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})}
         >
           <DropBar edge={edge} />
           {herdr ? (
@@ -220,7 +224,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
               terms={query.terms}
               showSlot={showSubagents}
               subagents={hasChildren ? { open, toggle: () => toggleAgents(id, !open) } : undefined}
-              onMove={groups === undefined ? undefined : () => setMoving(id)}
+              {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})}
             />
           ) : (
             <div className="flex items-center gap-2">
@@ -240,15 +244,8 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                   <RowMarks session={session} iconOnly />
                 </span>
               </span>
-              {groups !== undefined ? (
-                // Floats over the age on hover and focus: a hidden button that kept its 28 px slot took the width of the name (cut to "docs..." with room left).
-                <span data-row-actions="" className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center rounded bg-surface px-0.5 shadow-sm ring-1 ring-border group-focus-within:flex group-hover:flex">
-                  <Tooltip content="Move to a group (M)" side="left">
-                    <RowIconButton label={`Move ${session.displayName} to a group`} onClick={() => setMoving(id)} icon={<FolderInput aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />} />
-                  </Tooltip>
-                </span>
-              ) : null}
               <TimeInState session={session} now={now} />
+              {rowMenu.available ? <RowMenuButton name={session.displayName} onMenu={(anchor) => rowMenu.open(session, anchor)} /> : null}
             </div>
           )}
         </OptionShell>
@@ -292,6 +289,8 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                 onKeyDown={(event) => onFolderKey(event, node)}
                 className={`group flex cursor-pointer items-center gap-1.5 hover:bg-muted-bg ${groupHeaderBox(headerStyle, GROUP_LOOK.none.edge)} ${FOCUS_RING} focus-visible:ring-inset`}
               >
+                {/* Selection mode only: the first item of the header, at the x of the boxes of the rows. */}
+                <GroupSelectBox ids={node.sessions.map(agentId)} name={node.folder} />
                 <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
                 <FolderIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
                 <GroupHeaderName variant={headerStyle} text={node.folder} textClass={GROUP_LOOK.none.text} title={node.cwd} />
@@ -302,7 +301,6 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                   </span>
                 ) : null}
                 <span className="ml-auto flex shrink-0 items-center gap-1">
-                  <GroupSelectBox ids={node.sessions.map(agentId)} name={node.folder} />
                   <RollupLight state={node.rollup} subject="folder" />
                 </span>
               </div>
@@ -314,6 +312,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
   const editingGroup = editing === undefined ? undefined : groups?.groups.find((group) => group.id === editing);
   const dialogs = (
     <>
+      {rowMenu.element}
       {groups !== undefined && movingSession !== undefined ? <MoveToGroupDialog session={movingSession} groups={groups} onClose={() => setMoving(undefined)} /> : null}
       {groups !== undefined && editingGroup !== undefined ? (
         <GroupDialog group={editingGroup} memberCount={shown.filter((session) => session.customGroupId === editingGroup.id).length} groups={groups} onClose={() => setEditing(undefined)} />

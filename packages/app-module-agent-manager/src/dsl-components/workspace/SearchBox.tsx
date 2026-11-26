@@ -41,7 +41,7 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
     }
   };
   return (
-    <div className="relative min-w-32 max-w-lg flex-1">
+    <div className="relative min-w-40 max-w-lg flex-1">
       <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
       <input
         data-agent-search=""
@@ -49,13 +49,14 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
         aria-label="Search agents"
         aria-describedby={problems.length > 0 ? problemsId : undefined}
         aria-invalid={problems.length > 0}
-        placeholder="Search, or state:done project:shop (press /)"
+        placeholder="Search agents (press /)"
+        title="Search by name, folder, path or last activity. Filters: state:done, project:shop, !state:idle. Press / to focus."
         autoComplete="off"
         spellCheck={false}
         value={text}
         onChange={(event) => onText(event.target.value)}
         onKeyDown={onKeyDown}
-        className={`h-am-hit w-full rounded border bg-bg pl-8 text-sm text-content placeholder:text-muted ${text === '' ? 'pr-2' : 'pr-24'} ${problems.length > 0 ? 'border-warning' : 'border-border'} ${FOCUS_RING}`}
+        className={`h-7 w-full rounded border bg-bg pl-8 text-sm text-content placeholder:text-muted ${text === '' ? 'pr-2' : 'pr-24'} ${problems.length > 0 ? 'border-warning' : 'border-border'} ${FOCUS_RING}`}
       />
       {text !== '' ? (
         <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1">

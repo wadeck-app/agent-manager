@@ -28,29 +28,29 @@ describe('NoticesButton', () => {
     expect(screen.getByRole('button', { name: '1 notice' })).toBeInTheDocument();
   });
 
-  it('is the same icon button as its neighbours (h-9 w-9, ghost) with a 16 px triangle', () => {
+  it('is the same icon button as its neighbours (the compact icon-sm size, h-7 w-7, ghost) with a 16 px triangle', () => {
     render(<NoticesButton items={[A]} />);
     const button = screen.getByRole('button', { name: '1 notice' });
-    expect(button.className).toMatch(/\bh-9\b/);
-    expect(button.className).toMatch(/\bw-9\b/);
+    expect(button.className).toMatch(/\bh-7\b/);
+    expect(button.className).toMatch(/\bw-7\b/);
     expect(button.className).toMatch(/\brelative\b/);
     const icon = button.querySelector('svg')!;
     expect(icon.getAttribute('class')).toMatch(/\bh-4\b/);
     expect(icon.getAttribute('class')).toMatch(/\bw-4\b/);
   });
 
-  it('shows the count as a corner badge INSIDE the button box: 16 px minimum, 11 px tabular digits, a ring in the surface colour, never offset outside', () => {
+  it('shows the count as a corner badge on the top right corner of the 28 px button (half outside it, so it does not hide the triangle): 16 px minimum, 11 px tabular digits, a ring in the surface colour', () => {
     render(<NoticesButton items={[A, B]} />);
     const button = screen.getByRole('button', { name: '2 notices' });
     const badge = button.querySelector('[data-notice-count]')!;
     expect(badge).not.toBeNull();
     expect(badge.textContent).toBe('2');
     expect(badge).toHaveAttribute('aria-hidden', 'true');
-    for (const wanted of [/\babsolute\b/, /\bright-0\.5\b/, /\btop-0\.5\b/, /\bh-4\b/, /\bmin-w-4\b/, /text-\[11px\]/, /\btabular-nums\b/, /\bleading-none\b/, /\bring-2\b/, /\bring-surface\b/, /\brounded-full\b/]) {
+    for (const wanted of [/\babsolute\b/, /-right-1\b/, /-top-1\b/, /\bh-4\b/, /\bmin-w-4\b/, /text-\[11px\]/, /\btabular-nums\b/, /\bleading-none\b/, /\bring-2\b/, /\bring-surface\b/, /\brounded-full\b/]) {
       expect(badge.className).toMatch(wanted);
     }
-    // Nothing negative: the badge never leaves the button box.
-    expect(badge.className).not.toMatch(/(^|\s)-(right|top|left|bottom|m[trbl]?)-/);
+    // Only the top right corner is offset, and only by 4 px: it never goes over the neighbour (the toolbar gap is 8 px).
+    expect(badge.className).not.toMatch(/(^|\s)-(left|bottom|m[trbl]?)-/);
   });
 
   it('counts 1 to 9 as is and anything above as 9+ (the name still says the real number)', () => {
@@ -93,14 +93,54 @@ describe('NoticesButton', () => {
     expect(screen.getByRole('button', { name: 'Dismiss all' })).toBeInTheDocument();
   });
 
-  it('a long detail text is cut with a More button that shows it whole (nothing is lost)', () => {
+  it('a long detail text is shown whole at once: no cut, no ellipsis, no More or Less button', () => {
     render(<NoticesButton items={[LONG]} />);
     open();
-    expect(screen.queryByText(/THE-END/)).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'More' }));
     expect(screen.getByText(/THE-END/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Less' }));
-    expect(screen.queryByText(/THE-END/)).toBeNull();
+    const text = screen.getByText(LONG.details);
+    expect(screen.queryByRole('button', { name: /^(More|Less)$/ })).toBeNull();
+    expect(text.className).not.toMatch(/line-clamp|truncate|text-ellipsis/);
+    expect(text.className).toMatch(/\bbreak-words\b/);
+  });
+
+  it('the title is compact at the normal text size, the severity icon takes the tone, the text can be selected', () => {
+    render(<NoticesButton items={[A, B]} />);
+    open();
+    const title = screen.getByText(A.summary);
+    expect(title.className).toMatch(/\btext-sm\b/);
+    expect(title.className).not.toMatch(/text-(base|lg|xl)/);
+    expect(title.className).not.toMatch(/select-none/);
+    expect(title.closest('[data-notice]')!.querySelector('svg')!.getAttribute('class')).toMatch(/text-warning-text/);
+    expect(screen.getByText(B.summary).closest('[data-notice]')!.querySelector('svg')!.getAttribute('class')).toMatch(/text-danger-text/);
+  });
+
+  it('is a flat list with dividers, not boxes inside a box', () => {
+    render(<NoticesButton items={[A, B]} />);
+    open();
+    expect(screen.getByRole('list').className).toMatch(/\bdivide-y\b/);
+    for (const row of screen.getAllByRole('listitem')) {
+      // No full border and no rounding (the 2 px left edge in the tone of the severity is the only line).
+      expect(row.className).not.toMatch(/(^|\s)(border|border-2|rounded(-\w+)?)(\s|$)/);
+      expect(row.className).toMatch(/\bborder-l-2\b/);
+    }
+  });
+
+  it('shows the fix command as code next to Copy fix', () => {
+    render(<NoticesButton items={[A]} />);
+    open();
+    const code = screen.getByText(A.fix!, { selector: 'code' });
+    expect(code.className).toMatch(/\bbreak-all\b|\bbreak-words\b/);
+  });
+
+  it('Dismiss all is offered only when there is more than one notice', () => {
+    const { unmount } = render(<NoticesButton items={[A]} />);
+    open();
+    expect(screen.queryByRole('button', { name: 'Dismiss all' })).toBeNull();
+    expect(screen.getByRole('button', { name: `Dismiss: ${A.summary}` })).toBeInTheDocument();
+    unmount();
+    render(<NoticesButton items={[A, B]} />);
+    open();
+    expect(screen.getByRole('button', { name: 'Dismiss all' })).toBeInTheDocument();
   });
 
   it('Copy fix copies the command and says so', async () => {
@@ -152,15 +192,48 @@ describe('NoticesButton', () => {
     expect(screen.queryByRole('dialog', { name: 'Notices' })).toBeNull();
   });
 
-  it('keeps inside a 390 px window: the panel spans the window on a narrow screen and hangs under the button from the sm breakpoint', () => {
+  it('is an overlay anchored to the button (absolute, out of the flow), wide enough, scrolling inside past 70% of the window', () => {
     render(<NoticesButton items={[A]} />);
     open();
-    const classes = screen.getByRole('dialog', { name: 'Notices' }).className;
-    expect(classes).toMatch(/\bfixed\b/);
-    expect(classes).toMatch(/\binset-x-2\b/);
-    expect(classes).toMatch(/\bsm:absolute\b/);
-    expect(classes).toMatch(/\bmax-h-/);
-    expect(classes).toMatch(/\boverflow-y-auto\b/);
+    const panel = screen.getByRole('dialog', { name: 'Notices' });
+    expect(panel.className).toMatch(/\babsolute\b/);
+    expect(panel.className).not.toMatch(/\b(fixed|static|relative)\b/);
+    expect(panel.className).toContain('w-[min(520px,calc(100vw-1.5rem))]');
+    expect(panel.className).toMatch(/\bmax-h-\[70vh\]/);
+    expect(screen.getByRole('list').parentElement!.className).toMatch(/\boverflow-y-auto\b/);
+  });
+
+  it.each([
+    { name: '390 px window, button at the right edge', width: 390, left: 330 },
+    { name: '390 px window, button near the left', width: 390, left: 20 },
+    { name: '700 px window, button in the middle', width: 700, left: 430 },
+    { name: '1280 px window', width: 1280, left: 1100 },
+  ])('never leaves the window: $name', ({ width, left }) => {
+    const boxWidth = 36;
+    const realWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { value: width, configurable: true });
+    const spy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const isBox = this.hasAttribute('data-notices');
+      return { x: 0, y: 0, top: 0, bottom: 36, left: isBox ? left : 0, right: isBox ? left + boxWidth : 0, width: isBox ? boxWidth : 0, height: 36, toJSON: () => ({}) } as DOMRect;
+    });
+    try {
+      render(<NoticesButton items={[A]} />);
+      open();
+      const panel = screen.getByRole('dialog', { name: 'Notices' });
+      const panelWidth = Math.min(520, width - 24);
+      // The offset is relative to the button box (the panel is absolute inside it).
+      const offset = Number.parseFloat(panel.style.left);
+      expect(Number.isFinite(offset)).toBe(true);
+      expect(left + offset).toBeGreaterThanOrEqual(12 - 0.5);
+      expect(left + offset + panelWidth).toBeLessThanOrEqual(width - 12 + 0.5);
+      // Right-aligned to the button whenever it fits.
+      if (left + boxWidth - panelWidth >= 12) {
+        expect(left + offset + panelWidth).toBeCloseTo(left + boxWidth, 0);
+      }
+    } finally {
+      spy.mockRestore();
+      Object.defineProperty(window, 'innerWidth', { value: realWidth, configurable: true });
+    }
   });
 
   it('dismiss removes the notice, the button counts the rest, and the dismissal is stored for the browser session', () => {

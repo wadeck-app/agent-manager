@@ -3,7 +3,7 @@ import { Keyboard, Plug } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { FOCUS_RING, Tooltip, failureText, requestJson } from '../deps.js';
 import type { ReplyDefaultTransportSetResponse, ReplyStatusOk, ReplyTransportSetResponse } from '../deps.js';
-import { usePopover } from '../deps.js';
+import { POPUP_SURFACE, usePopover } from '../deps.js';
 import { TransportRow } from './TransportRow.js';
 
 export interface TransportPickerProps {
@@ -88,7 +88,7 @@ export function TransportPicker({ sessionId, status, onChanged, onOpenChange }: 
         <Tooltip content={`Sent through the ${selected.transportId} transport: ${selected.deliveredAsText}. Click to change it.`}>{trigger}</Tooltip>
       )}
       {open ? (
-        <div id={panelId} role="dialog" aria-label="Transport" className="absolute bottom-full right-0 z-30 mb-1 flex w-[26rem] max-w-[92vw] flex-col gap-2 rounded-lg border border-border bg-surface p-2 text-content shadow-lg">
+        <div id={panelId} role="dialog" aria-label="Transport" className={`absolute bottom-full right-0 z-30 mb-1 flex w-[26rem] max-w-[92vw] flex-col gap-2 ${POPUP_SURFACE} p-2 text-content`}>
           <p className="px-1 text-xs text-muted" title="The setting is kept by the module, the same as the transport command of the CLI.">
             How replies reach this session
           </p>

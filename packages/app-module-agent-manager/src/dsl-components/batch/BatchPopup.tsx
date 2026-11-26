@@ -1,9 +1,10 @@
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { selectedText } from '../logic/selection.js';
 import { Scope } from '../ui/Scope.js';
+import { POPUP_SURFACE } from '../ui/popupSurface.js';
 
 /** Space kept between the popup and the A/B dock under it. */
 export const DOCK_GAP = 8;
@@ -56,53 +57,6 @@ function useBottom(active: boolean): { bottom: number; folded: boolean } {
   }, [active]);
   return bottom;
 }
-/** The list column of the page: the popup must not cover it when there is room to the right of it. */
-const LIST_PANE = '[data-pane="list"]';
-/** Room kept on both sides of the pill (the strip's own `px-2`). */
-const SIDE_ROOM = 16;
-
-/**
- * Where the strip starts, in px, so that the pill clears the list column: the right edge of the list when the pill (its measured width) fits between that
- * edge and the window edge, else 0 (the whole content area: a narrow window or a list that fills it, nothing better exists).
- */
-export function clearListLeft(listRight: number | undefined, barWidth: number, windowWidth: number): number {
-  if (listRight === undefined || barWidth <= 0 || windowWidth - listRight < barWidth + SIDE_ROOM) {
-    return 0;
-  }
-  return Math.round(listRight);
-}
-
-/** Follows the list column and the pill: re-measured when either resizes and when the window resizes. */
-function useClearList(active: boolean, bar: RefObject<HTMLDivElement | null>): number {
-  const [left, setLeft] = useState(0);
-  useLayoutEffect(() => {
-    if (!active) {
-      return;
-    }
-    const update = (): void => {
-      const pane = document.querySelector(LIST_PANE);
-      const next = clearListLeft(pane?.getBoundingClientRect().right, bar.current?.getBoundingClientRect().width ?? 0, window.innerWidth);
-      setLeft((previous) => (previous === next ? previous : next));
-    };
-    update();
-    window.addEventListener('resize', update);
-    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(update);
-    const pane = document.querySelector(LIST_PANE);
-    if (pane !== null) {
-      observer?.observe(pane);
-    }
-    if (bar.current !== null) {
-      observer?.observe(bar.current);
-    }
-    return () => {
-      window.removeEventListener('resize', update);
-      observer?.disconnect();
-    };
-  }, [active, bar]);
-  return left;
-}
-
-
 export interface BatchPopupProps {
   /** How many sessions are selected; the popup shows only above zero. */
   count: number;
@@ -113,7 +67,7 @@ export interface BatchPopupProps {
 
 /**
  * The floating pill of the multi-selection, like the bulk bar of a table but at the bottom centre of the content area, above the A/B dock when it is there.
- * Starts at the right edge of the list column when the pill fits to the right of it, so it never covers the list. Rendered in the body (a fixed element must not depend on the list column); below the dialogs (z-50) it opens, above the page.
+ * Centered on the content area (the strip between the right edge of the side menu and the window edge) whatever the layout: it may overlap the list, like the bulk bars of the tables (user decision 2026-11-26, D2026-11-26b). Rendered in the body (a fixed element must not depend on the list column); below the dialogs (z-50) it opens, above the page.
  */
 export function BatchPopup({ count, onClear, children }: BatchPopupProps) {
   const active = count > 0;
@@ -121,7 +75,6 @@ export function BatchPopup({ count, onClear, children }: BatchPopupProps) {
   // Room below the popup that the page must clear: the floor, or (folded dock, a pill that does not hide the reply box) the folded dock height as well.
   const below = folded ? bottom : FLOOR;
   const bar = useRef<HTMLDivElement>(null);
-  const clearLeft = useClearList(active, bar);
   // The footprint is measured from the window bottom: an open dock is ignored (it already hides the reply box), a folded one counts: below + height + gap.
   useLayoutEffect(() => {
     if (!active) {
@@ -154,13 +107,13 @@ export function BatchPopup({ count, onClear, children }: BatchPopupProps) {
   }
   return createPortal(
     <Scope>
-    <div data-testid="batch-popup-strip" className="pointer-events-none fixed z-40 flex justify-center px-2" style={{ left: clearLeft === 0 ? INSET_LEFT : `max(${INSET_LEFT}, ${clearLeft}px)`, right: 0, bottom }}>
+    <div data-testid="batch-popup-strip" className="pointer-events-none fixed z-40 flex justify-center px-2" style={{ left: INSET_LEFT, right: 0, bottom }}>
       <div
         ref={bar}
         data-batch-bar=""
         role="toolbar"
         aria-label="Actions on the selected sessions"
-        className={`pointer-events-auto flex max-w-full flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-surface px-3 py-1.5 shadow-2xl transition-all duration-200 ease-out ${shown ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}
+        className={`pointer-events-auto flex max-w-full flex-wrap items-center gap-1.5 ${POPUP_SURFACE} rounded-2xl px-3 py-1.5 transition-all duration-200 ease-out ${shown ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'}`}
       >
         <span role="status" aria-live="polite" className="mr-1 text-sm font-medium text-content">
           {selectedText(count)}
