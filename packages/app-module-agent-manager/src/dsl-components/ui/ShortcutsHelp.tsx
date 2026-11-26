@@ -2,7 +2,6 @@ import { Keyboard } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
 import { SHORTCUTS } from '../logic/shortcuts.js';
 import { IconButton } from '@wadeck-app/dsl-ui';
-import { Tooltip } from './Tooltip.js';
 import { POPUP_SURFACE } from './popupSurface.js';
 
 export interface ShortcutsHelpProps {

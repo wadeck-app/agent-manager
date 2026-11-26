@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { Ban, CircleHelp } from 'lucide-react';
 import { useState } from 'react';
 import { folderName } from '../logic/folderPicker.js';
@@ -15,24 +16,28 @@ export function DenialRow({ denial, withCommands }: { denial: DenialDto; withCom
     <tr className="border-b border-border last:border-b-0">
       <td className={`${TD} whitespace-nowrap tabular-nums`}>{clockText(denial.at)}</td>
       <td className={TD}>
-        <span className="flex items-center gap-1" title={denial.decision === 'deny' ? 'Denied' : 'Asked the user'}>
-          <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${denial.decision === 'deny' ? 'text-hue-red' : 'text-hue-orange'}`} />
-          <span>{denial.decision === 'deny' ? 'Denied' : 'Asked'}</span>
-        </span>
+        <Tooltip content={denial.decision === 'deny' ? 'Denied' : 'Asked the user'} describe={false}>
+          <span className="flex items-center gap-1">
+            <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${denial.decision === 'deny' ? 'text-hue-red' : 'text-hue-orange'}`} />
+            <span>{denial.decision === 'deny' ? 'Denied' : 'Asked'}</span>
+          </span>
+        </Tooltip>
       </td>
       <td className={`${TD} font-medium`}>{denial.category}</td>
       <td className={TD}>
         <span className="flex flex-col">
-          <span className={MONO} title={denial.session}>
-            {denial.prefix}
-          </span>
+          <Tooltip content={denial.session}>
+            <span className={MONO}>{denial.prefix}</span>
+          </Tooltip>
           {denial.sessionName !== '' ? <span className="text-xs text-muted">{denial.sessionName}</span> : null}
           {sub !== '' ? <span className="text-xs text-muted">sub-agent {sub}</span> : null}
         </span>
       </td>
       <td className={TD}>{denial.tool}</td>
       <td className={TD}>
-        <span title={denial.project}>{folderName(denial.project)}</span>
+        <Tooltip content={denial.project}>
+          <span>{folderName(denial.project)}</span>
+        </Tooltip>
       </td>
       <td className={`${TD} max-w-2xl break-all`}>
         {denial.file !== '' ? <span className={MONO}>{denial.file}</span> : null}

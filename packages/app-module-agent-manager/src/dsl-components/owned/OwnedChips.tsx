@@ -1,8 +1,8 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { Globe, ServerCog, SquareTerminal, type LucideIcon } from 'lucide-react';
 import { HOST_LABEL, HOST_MEANING } from '../logic/owned.js';
 import type { OwnedHostKind, SessionRowDto } from '../shared.js';
 import { Chip } from '../ui/Chip.js';
-import { Tooltip } from '../ui/Tooltip.js';
 
 const HOST_ICON: Record<OwnedHostKind, LucideIcon> = { 'stream-json': Globe, hc: SquareTerminal, bg: ServerCog };
 

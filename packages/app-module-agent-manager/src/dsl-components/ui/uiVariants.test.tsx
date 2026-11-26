@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { AbExperiments, UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -101,9 +102,12 @@ describe('the Thread action of a message', () => {
   it('is always visible: no reveal on hover, at the right end of the row, with the tooltip that says what it does', () => {
     render(<ThreadButton anchor={anchor} onThread={vi.fn()} />);
     const button = screen.getByRole('button', { name: 'Thread' });
-    expect(button.parentElement?.className).not.toContain('opacity-0');
-    expect(button.parentElement?.className).toContain('ml-auto');
-    expect(button).toHaveAttribute('title', THREAD_TOOLTIP);
+    const slot = button.closest('[data-thread-action]') as HTMLElement;
+    expect(slot.className).not.toContain('opacity-0');
+    expect(slot.className).toContain('ml-auto');
+    hoverTip(button);
+    expect(liveTooltip().textContent).toBe(THREAD_TOOLTIP);
+    expect(button).not.toHaveAttribute('title', expect.stringMatching(/./));
     expect(THREAD_TOOLTIP).toBe('Start a thread from this message');
   });
 });
@@ -188,8 +192,8 @@ describe('the Tree rows (settled Herdr look)', () => {
     expect(byId('n1').className).not.toContain('--am-herdr-active-bg');
     expect(within(byId('i1')).getByText('quiet').className).toContain('font-semibold');
     expect(within(byId('i1')).getByText('quiet').className).toContain('text-content');
-    // The words are a pill before the age; the light column keeps its compact "!" box (an icon column, never widened by words).
-    expect(document.querySelector('[data-needs-you-pill]')).toHaveTextContent('Needs you');
+    // No pill with words in a row (the names keep the room); the light column holds the compact "!" box, named for assistive technology.
+    expect(document.querySelector('[data-needs-you-pill]')).toBeNull();
     expect(document.querySelector('[data-herdr-light="pill"]')).toHaveTextContent('!');
     expect(document.querySelector('[data-herdr-light="dot"]')).not.toBeNull();
   });

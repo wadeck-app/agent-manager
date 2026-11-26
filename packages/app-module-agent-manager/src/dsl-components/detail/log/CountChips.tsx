@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { STATUS_LOOK, type SubagentCounts } from './subagentModel.js';
 
 /**
@@ -13,10 +14,12 @@ export function CountChips({ counts, vertical = false }: { counts: SubagentCount
         const Icon = look.icon;
         const name = `${counts[status]} ${look.label.toLowerCase()}`;
         return (
-          <span key={status} role="img" aria-label={name} title={vertical ? name : undefined} className={`inline-flex items-center gap-1 ${vertical ? 'flex-col' : ''} ${look.text}`}>
-            <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${look.iconClass}`} />
-            <span aria-hidden="true">{counts[status]}</span>
-          </span>
+          <Tooltip key={status} content={vertical ? name : undefined} side="left" describe={false}>
+            <span role="img" aria-label={name} className={`inline-flex items-center gap-1 ${vertical ? 'flex-col' : ''} ${look.text}`}>
+              <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${look.iconClass}`} />
+              <span aria-hidden="true">{counts[status]}</span>
+            </span>
+          </Tooltip>
         );
       })}
     </span>

@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { ChevronDown, ChevronRight, FolderCog } from 'lucide-react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
@@ -7,7 +8,6 @@ import { GROUP_LOOK } from '../ui/groupLook.js';
 import { GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { StatusColumn } from '../ui/StatusColumn.js';
 import { useUiVariant } from '../ui/UiVariants.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { DropBar } from './DropBar.js';
 import { RollupLight } from './RollupLight.js';
 import { GroupSelectBox } from './GroupSelectBox.js';

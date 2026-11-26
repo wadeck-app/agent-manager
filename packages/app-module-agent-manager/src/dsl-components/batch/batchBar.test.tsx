@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -104,7 +105,9 @@ describe('the batch bar', () => {
     tick('billing-owner');
     const off = screen.getByRole('button', { name: 'Mark as seen' });
     expect(off).toBeDisabled();
-    expect(off.closest('span[title]')?.getAttribute('title')).toContain('nothing to mark');
+    // A disabled button takes no pointer: the card opens from the wrapper around it, and the reason is also its accessible description.
+    hoverTip(off.parentElement as HTMLElement);
+    expect(liveTooltip().textContent).toContain('nothing to mark');
   });
 
   it('Pin pins the ones that are not, and becomes Unpin when all are pinned', () => {
@@ -228,7 +231,7 @@ describe('the batch send dialog', () => {
     const many = Array.from({ length: 22 }, (_, i) => row({ displayName: `agent-${i}`, state: 'idle' }));
     const dialog = await open(many, many.map((session) => session.displayName));
     await user.type(within(dialog).getByRole('textbox', { name: 'Message' }), 'hello');
-    expect(within(dialog).getByText(/at most 20 recipients: untick 2/)).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/at most 20 recipients: untick 2/)[0]).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Send to 22' })).toBeDisabled();
   });
 });

@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -47,7 +48,8 @@ describe('Fork dialog: a discovered session', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('fork of shop');
     // The row shows Haiku 4.5, which is not a value the dialog may send on its own: the family is a tooltip hint, the model stays on the default.
     expect(screen.getByRole('button', { name: 'Model and mode: Claude Code default' })).toBeInTheDocument();
-    expect(document.querySelector('[data-model-mode-options]')).toHaveAttribute('title', expect.stringMatching(/shows Haiku 4.5: pick haiku/));
+    hoverTip(document.querySelector('[data-model-mode-options]') as HTMLElement);
+    expect(liveTooltip().textContent).toMatch(/shows Haiku 4.5: pick haiku/);
     await openOptions();
     expect(screen.getByLabelText('Model')).toHaveValue('');
     expect(screen.getByLabelText('Permission mode')).toHaveValue('');

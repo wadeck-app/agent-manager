@@ -1,6 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { useId, type KeyboardEvent } from 'react';
-import { IconButton } from '@wadeck-app/dsl-ui';
+import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { FOCUS_RING } from '../ui/focusRing.js';
 
 export interface SearchBoxProps {
@@ -43,14 +43,15 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
   return (
     <div className="relative min-w-40 max-w-lg flex-1">
       <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
+      <Tooltip content="Search by name, folder, path or last activity. Filters: state:done, project:shop, !state:idle. Press / to focus." describe={false}>
       <input
+        data-tip-fill=""
         data-agent-search=""
         type="text"
         aria-label="Search agents"
         aria-describedby={problems.length > 0 ? problemsId : undefined}
         aria-invalid={problems.length > 0}
         placeholder="Search agents (press /)"
-        title="Search by name, folder, path or last activity. Filters: state:done, project:shop, !state:idle. Press / to focus."
         autoComplete="off"
         spellCheck={false}
         value={text}
@@ -58,6 +59,7 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
         onKeyDown={onKeyDown}
         className={`h-7 w-full rounded border bg-bg pl-8 text-sm text-content placeholder:text-muted ${text === '' ? 'pr-2' : 'pr-24'} ${problems.length > 0 ? 'border-warning' : 'border-border'} ${FOCUS_RING}`}
       />
+      </Tooltip>
       {text !== '' ? (
         <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
           <span role="status" className="text-xs tabular-nums text-muted">

@@ -1,7 +1,7 @@
 import { RotateCw, X } from 'lucide-react';
 import { useState } from 'react';
 import { retryPending } from '../composer/retryPending.js';
-import { IconButton } from '@wadeck-app/dsl-ui';
+import { TipIconButton } from '../deps.js';
 import { canRetry, dismissPending, type PendingMessage } from '../pending.js';
 
 
@@ -25,9 +25,9 @@ export function PendingActions({ message }: { message: PendingMessage }) {
   return (
     <span className="flex items-center gap-0.5">
       {retry ? (
-<IconButton size="icon-sm" aria-label="Send again as a new message" title="Send it again as a new message (same text, priority and images)" disabled={busy} onClick={() => void send()} icon={<RotateCw aria-hidden="true" className="h-3.5 w-3.5" />} />
+<TipIconButton size="icon-sm" aria-label="Send again as a new message" tip="Send it again as a new message (same text, priority and images)" disabled={busy} onClick={() => void send()} icon={<RotateCw aria-hidden="true" className="h-3.5 w-3.5" />} />
       ) : null}
-<IconButton size="icon-sm" aria-label="Dismiss this message" title="Dismiss this message: it is forgotten here, nothing is sent" onClick={() => dismissPending(message.sessionId, message.messageId)} icon={<X aria-hidden="true" className="h-3.5 w-3.5" />} />
+<TipIconButton size="icon-sm" aria-label="Dismiss this message" tip="Dismiss this message: it is forgotten here, nothing is sent" onClick={() => dismissPending(message.sessionId, message.messageId)} icon={<X aria-hidden="true" className="h-3.5 w-3.5" />} />
       {problem !== '' ? <span role="alert" className="sr-only">{problem}</span> : null}
     </span>
   );

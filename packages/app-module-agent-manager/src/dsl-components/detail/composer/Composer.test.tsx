@@ -1,3 +1,4 @@
+import { descriptionOf, focusByKeyboard, hoverTip, liveTooltip } from '../status/liveTooltip.js';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -243,14 +244,16 @@ describe('Composer errors and delivery', () => {
 describe('Composer limits', () => {
   it('does not show the limits as a permanent line', async () => {
     await ready();
-    expect(screen.queryByText(/Up to \d+ images/)).toBeNull();
+    // The limits are only in the tooltip: the always present copy for assistive technology is not a visible line.
+    expect(screen.queryAllByText(/Up to \d+ images/).filter((element) => element.closest('[role="tooltip"]') === null)).toEqual([]);
   });
 
   it('says them in the tooltip of the attach button, on keyboard focus too', async () => {
     await ready();
     const attach = screen.getByRole('button', { name: 'Attach images' });
-    // The attach button is the base icon button: the limits are its native title.
-    expect(attach.getAttribute('title')).toMatch(/Up to 2 images of .* each, .* in all\./);
+    focusByKeyboard(attach);
+    expect(liveTooltip().textContent).toMatch(/Up to 2 images of .* each, .* in all\./);
+    expect(descriptionOf(attach)).toMatch(/Up to 2 images/);
   });
 
   it('shows a counter on the attach button once an image is attached, and names it', async () => {
@@ -341,12 +344,12 @@ describe('Composer interrupt now', () => {
   it('puts the warning in the tooltip of the chip, on keyboard focus too, and says the mode is for one message', async () => {
     await ready();
     const chip = screen.getByRole('button', { name: /Interrupt now/ });
-    fireEvent.focus(chip);
-    const tip = await screen.findByRole('tooltip');
+    focusByKeyboard(chip);
+    const tip = liveTooltip();
     expect(tip).toHaveTextContent(/aborts the tool call the agent is running right now/);
     expect(tip).toHaveTextContent(/work in that call is lost/);
     expect(tip).toHaveTextContent(/one message only/);
-    expect(chip.getAttribute('aria-describedby')).toContain(tip.id);
+    expect(descriptionOf(chip)).toMatch(/one message only/);
   });
 });
 

@@ -76,7 +76,6 @@ export function ListLayoutMenu({ mode, onMode, options, onOptions }: ListLayoutM
         size="icon-sm"
         variant={open ? 'neutral' : 'ghost'}
         aria-label="List layout and view options"
-        title="List layout and view options"
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}

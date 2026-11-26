@@ -1,8 +1,8 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { KeyRound } from 'lucide-react';
 import { folderName } from '../logic/folderPicker.js';
 import { clockText, remainingText } from '../logic/guardrails.js';
 import type { GrantDto } from '../shared.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { Empty } from './Empty.js';
 import { TD, TH } from './parts.js';
 import { Section } from './Section.js';
@@ -45,7 +45,9 @@ export function GrantsSection({ grants, hiddenEntries, now, scanned }: { grants:
                       <SessionCell sessionId={grant.sessionId} name={grant.sessionName} />
                     </td>
                     <td className={TD}>
-                      <span title={grant.project}>{folderName(grant.project)}</span>
+                      <Tooltip content={grant.project}>
+                        <span>{folderName(grant.project)}</span>
+                      </Tooltip>
                     </td>
                     <td className={`${TD} max-w-xl break-words`}>{grant.rationale === '' ? <span className="text-muted">none given</span> : grant.rationale}</td>
                     <td className={`${TD} tabular-nums`}>{grant.maxUses === null ? `${grant.used}` : `${grant.used} of ${grant.maxUses}`}</td>

@@ -1,4 +1,4 @@
-import { ButtonAction } from '@wadeck-app/dsl-ui';
+import { ButtonAction, Tooltip } from '@wadeck-app/dsl-ui';
 import { CircleAlert, CircleCheck, CircleX, LoaderCircle, ShieldOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { requestJson } from '../data/http.js';
@@ -9,7 +9,6 @@ import { Banner } from '../ui/Banner.js';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
 import { StyledCheckbox } from '../ui/StyledCheckbox.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { bypassesOf, groupGrants, MAX_BATCH_GRANT_SESSIONS, MAX_BATCH_REVOKE_ITEMS, revokeConfirmLine, revokeResultsText, revokeSummaryText, sessionsOf, type GrantEntry } from './batchBypass.js';
 import { useBatchGrants } from './useBatchReads.js';
 

@@ -214,3 +214,17 @@
 [data-radix-popper-content-wrapper] [data-testid='context-menu-content']:has([data-am-menu]) [role='separator'] {
   border-color: color-mix(in srgb, var(--color-border) 60%, var(--color-muted));
 }
+
+/* The dsl-ui Tooltip wraps its trigger in an inline-flex span with no class to set. A trigger that fills its list (a sub-agent row) marks itself `data-tip-fill`, and its wrapper then fills the list too;
+   `data-tip-fit` is for a trigger that truncates (a name): the wrapper may shrink under its content. Scoped like every rule. */
+.agents-scope span:has(> [data-tip-fill]) {
+  display: flex;
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.agents-scope span:has(> [data-tip-fit]) {
+  min-width: 0;
+  max-width: 100%;
+}

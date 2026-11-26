@@ -1,6 +1,6 @@
 import { CircleAlert, LoaderCircle, Target } from 'lucide-react';
-import { FOCUS_RING, Tooltip } from '../deps.js';
-import { SubagentCard } from './SubagentCard.js';
+import { FOCUS_RING } from '../deps.js';
+import { SubagentTip } from './SubagentTip.js';
 import type { LocatePhase } from './useLocateCall.js';
 import { elapsedMs, formatElapsed, lastActivityText, STATUS_LOOK, type SubagentItem } from './subagentModel.js';
 
@@ -44,9 +44,10 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
   const detail = [dto.agentType, dto.model].filter(Boolean).join(' - ');
   return (
     <li>
-      <Tooltip variant="card" side="left" anchorClassName="flex w-full min-w-0" content={<SubagentCard item={item} now={now} />}>
+      <SubagentTip item={item} now={now}>
       <button
         type="button"
+        data-tip-fill=""
         aria-pressed={selected}
         onClick={() => onSelect(dto.agentId)}
         className={`flex w-full min-w-0 items-start gap-2 rounded border-l-2 py-1.5 pr-2 text-left text-sm ${nested ? INDENT[Math.min(item.depth, INDENT.length - 1)] : 'pl-2'} ${selected ? 'border-primary bg-primary-light' : 'border-transparent hover:bg-muted-bg'} ${FOCUS_RING}`}
@@ -72,7 +73,7 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
           ) : null}
         </span>
       </button>
-      </Tooltip>
+      </SubagentTip>
     </li>
   );
 }

@@ -1,3 +1,4 @@
+import { descriptionOf, focusByKeyboard, hoverTip, liveTooltip } from '../status/liveTooltip.js';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -154,9 +155,10 @@ describe('the transport selector', () => {
     status = typed;
     render(<Composer session={session} />);
     const cue = await screen.findByLabelText('Sends as typed by you');
-    expect(screen.queryByText(/typed into the terminal as if you had written it/)).toBeNull();
-    fireEvent.focus(cue);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(/Sends as typed by you.*typed into the terminal as if you had written it/);
+    // Only in the tooltip: the always present copy for assistive technology is not a visible line.
+    expect(screen.queryAllByText(/typed into the terminal as if you had written it/).filter((element) => element.closest('[role="tooltip"]') === null)).toEqual([]);
+    focusByKeyboard(cue);
+    expect(liveTooltip()).toHaveTextContent(/Sends as typed by you.*typed into the terminal as if you had written it/);
     expect(screen.getByRole('button', { name: 'Transport: hc' })).toBeInTheDocument();
   });
 
@@ -168,9 +170,9 @@ describe('the transport selector', () => {
     status = statusFixture();
     status.transports[0] = { ...status.transports[0]!, marker };
     render(<Composer session={session} />);
-    // The Send button is the base icon button: its hint is the native title.
     const send = await screen.findByRole('button', { name: 'Send' });
-    expect(send.getAttribute('title')).toMatch(expected);
+    focusByKeyboard(send);
+    expect(liveTooltip().textContent).toMatch(expected);
   });
 
   it('the Send tooltip claims nothing about a marker when the setting could not be read', async () => {

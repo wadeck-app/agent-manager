@@ -89,9 +89,9 @@ export function TransportPicker({ sessionId, status, onChanged, onOpenChange }: 
       )}
       {open ? (
         <div id={panelId} role="dialog" aria-label="Transport" className={`absolute bottom-full right-0 z-30 mb-1 flex w-[26rem] max-w-[92vw] flex-col gap-2 ${POPUP_SURFACE} p-2 text-content`}>
-          <p className="px-1 text-xs text-muted" title="The setting is kept by the module, the same as the transport command of the CLI.">
-            How replies reach this session
-          </p>
+          <Tooltip content="The setting is kept by the module, the same as the transport command of the CLI.">
+            <p className="px-1 text-xs text-muted">How replies reach this session</p>
+          </Tooltip>
           {error !== '' ? (
             <p role="alert" className="rounded border border-danger bg-danger-bg px-2 py-1 text-xs text-danger-text">
               {error}

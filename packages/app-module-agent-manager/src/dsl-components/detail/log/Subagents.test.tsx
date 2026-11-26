@@ -1,3 +1,4 @@
+import { focusByKeyboard, liveTooltip } from '../status/liveTooltip.js';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LocateResponse, LogResponse, SubagentDto } from '../deps.js';
@@ -288,8 +289,8 @@ describe('an active sub-agent is a guess, said as such', () => {
     expect(row).toHaveTextContent(/last activity 4\ds ago/);
     // No native title (its text would tick): the card, on focus, names the missing end marker.
     expect(row).not.toHaveAttribute('title');
-    fireEvent.focus(row);
-    expect(screen.getByRole('tooltip')).toHaveTextContent(/no end marker and written lately: probably running/);
+    focusByKeyboard(row);
+    expect(liveTooltip()).toHaveTextContent(/no end marker and written lately: probably running/);
     expect(screen.getByText(/1 active \(no end marker\)/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Active 1/ })).toBeInTheDocument();
   });
@@ -464,8 +465,8 @@ describe('the panel: rail, selection, one ordering rule, notes', () => {
     show();
     const sort = await screen.findByRole('button', { name: /Sort order/ });
     expect(sort.querySelector('svg')).not.toBeNull();
-    fireEvent.focus(sort);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(/Click to reverse the order/);
+    focusByKeyboard(sort);
+    expect(liveTooltip()).toHaveTextContent(/Click to reverse the order/);
   });
 
   it('unreadable or unknown saved settings give the defaults and a visible, dismissible note, and one console warning', async () => {

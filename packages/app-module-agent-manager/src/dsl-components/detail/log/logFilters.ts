@@ -83,6 +83,19 @@ function asObject(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? Object.fromEntries(Object.entries(value)) : undefined;
 }
 
+/** The field of the stored object that says whether the full filter bar is shown above the log (hidden by default: the header popup holds the same options). */
+const BAR_FIELD = 'bar';
+
+/** Whether the saved choice shows the filter bar. Anything unreadable is "hidden": readFilterPrefs already said so. */
+export function readBarPref(): boolean {
+  try {
+    const raw = window.localStorage.getItem(FILTER_PREFS_KEY);
+    return raw !== null && asObject(JSON.parse(raw))?.[BAR_FIELD] === true;
+  } catch {
+    return false;
+  }
+}
+
 export interface ReadFilters {
   prefs: FilterPrefs;
   problem: string;
@@ -109,7 +122,7 @@ export function readFilterPrefs(): ReadFilters {
   } catch (error) {
     return fail(error);
   }
-  if (stored === undefined || LOG_CATEGORIES.some((category) => stored[category] !== undefined && typeof stored[category] !== 'boolean')) {
+  if (stored === undefined || LOG_CATEGORIES.some((category) => stored[category] !== undefined && typeof stored[category] !== 'boolean') || (stored[BAR_FIELD] !== undefined && typeof stored[BAR_FIELD] !== 'boolean')) {
     return fail(raw);
   }
   const value = (category: LogCategory): boolean => (typeof stored[category] === 'boolean' ? stored[category] : DEFAULT_FILTERS[category]);
@@ -117,7 +130,7 @@ export function readFilterPrefs(): ReadFilters {
 }
 
 /** Writes ONLY the changed fields (merged with what is stored now, so another tab's choice for another field is kept). A sentence when the storage refused. */
-function writeMerged(patch: Partial<FilterPrefs>): string {
+function writeMerged(patch: Partial<FilterPrefs> & { bar?: boolean }): string {
   try {
     const raw = window.localStorage.getItem(FILTER_PREFS_KEY);
     let stored: Record<string, unknown> = {};
@@ -142,25 +155,56 @@ export interface LogFiltersFeed {
   problem: string;
   change: (patch: Partial<FilterPrefs>) => void;
   dismissProblem: () => void;
+  /** The full filter bar is shown above the log (off by default: the popup of the header holds the same options). */
+  showBar: boolean;
+  setShowBar: (show: boolean) => void;
+  /** Back to the defaults (hooks hidden, tool calls and agent messages shown). The "show the bar" choice is a display option, not a filter: kept. */
+  reset: () => void;
+  /** The three toggles are at their defaults. */
+  isDefault: boolean;
 }
 
-/** The choices of the filter bar, a setter that remembers them (localStorage), and the follow-up of the other tabs. */
+interface FeedState extends ReadFilters {
+  bar: boolean;
+}
+
+type Change = Partial<FilterPrefs> & { bar?: boolean };
+
+/** Every hook instance of this page (the log and the popup of the header): a change made in one reaches the others at once (the storage event only reaches other tabs). */
+const peers = new Set<(patch: Change, problem: string) => void>();
+
+const applyChange = (current: FeedState, patch: Change, problem: string): FeedState => {
+  const { bar, ...categories } = patch;
+  return { prefs: { ...current.prefs, ...categories }, bar: bar ?? current.bar, problem: problem !== '' ? problem : current.problem };
+};
+
+/** The choices of the filter bar, a setter that remembers them (localStorage), and the follow-up of the other tabs and of the other users of this hook in the page. */
 export function useLogFilters(): LogFiltersFeed {
-  const [state, setState] = useState<ReadFilters>(readFilterPrefs);
+  const [state, setState] = useState<FeedState>(() => ({ ...readFilterPrefs(), bar: readBarPref() }));
   useEffect(() => {
     const onStorage = (event: StorageEvent): void => {
       if (event.key === null || event.key === FILTER_PREFS_KEY) {
-        setState(readFilterPrefs());
+        setState({ ...readFilterPrefs(), bar: readBarPref() });
       }
     };
+    const onPeer = (patch: Change, problem: string): void => setState((current) => applyChange(current, patch, problem));
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    peers.add(onPeer);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      peers.delete(onPeer);
+    };
   }, []);
-  const change = useCallback((patch: Partial<FilterPrefs>) => {
+  const apply = useCallback((patch: Change) => {
     // The write happens here, in the event handler: a state updater must stay free of side effects (React may run it twice).
     const problem = writeMerged(patch);
-    setState((current) => ({ prefs: { ...current.prefs, ...patch }, problem: problem !== '' ? problem : current.problem }));
+    // This instance is one of the peers: it receives the change like the others.
+    peers.forEach((peer) => peer(patch, problem));
   }, []);
+  const change = useCallback((patch: Partial<FilterPrefs>) => apply(patch), [apply]);
+  const setShowBar = useCallback((show: boolean) => apply({ bar: show }), [apply]);
+  const reset = useCallback(() => apply({ ...DEFAULT_FILTERS }), [apply]);
   const dismissProblem = useCallback(() => setState((current) => ({ ...current, problem: '' })), []);
-  return { prefs: state.prefs, problem: state.problem, change, dismissProblem };
+  const isDefault = LOG_CATEGORIES.every((category) => state.prefs[category] === DEFAULT_FILTERS[category]);
+  return { prefs: state.prefs, problem: state.problem, change, dismissProblem, showBar: state.bar, setShowBar, reset, isDefault };
 }

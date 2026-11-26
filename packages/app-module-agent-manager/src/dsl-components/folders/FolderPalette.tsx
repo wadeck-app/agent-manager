@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useFolderLists, useFolderRecent, useFolderRoots, useFolderSearch } from '../data/useFolders.js';
 import { completed, pickOf, samePath, splitTyped, startingWith, type FolderPick } from '../logic/folderPicker.js';
@@ -185,24 +186,25 @@ export function FolderPalette({ inputId, value, onChange, onPick, onKnow, disabl
               <ListCaption>{CAPTION[kind]}</ListCaption>
               {options.map((option, index) =>
                 option.kind !== kind ? null : (
-                  <div
-                    key={option.id}
-                    id={`${inputId}-option-${index}`}
-                    role="option"
-                    aria-selected={index === current}
-                    title={option.path}
-                    // The input keeps the focus: a click picks without taking it away.
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => (disabled ? undefined : choose(option))}
-                    className={`${PICKER_ROW} cursor-pointer ${index === current ? PICKER_ROW_SELECTED : ''}`}
-                  >
-                    <FolderGlyph entry={{ hasGit: option.hasGit, isLink: false }} />
-                    <span className="shrink-0 font-medium">
-                      <Highlight text={option.kind === 'root' ? option.path : option.name} terms={option.kind === 'root' ? undefined : terms} />
-                    </span>
-                    <BranchBadge branch={option.branch} />
-                    {option.kind === 'recent' || option.kind === 'project' ? <span className="min-w-0 truncate text-xs text-muted">{option.path}</span> : null}
-                  </div>
+                  <Tooltip key={option.id} content={option.path}>
+                    <div
+                      data-tip-fill=""
+                      id={`${inputId}-option-${index}`}
+                      role="option"
+                      aria-selected={index === current}
+                      // The input keeps the focus: a click picks without taking it away.
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => (disabled ? undefined : choose(option))}
+                      className={`${PICKER_ROW} cursor-pointer ${index === current ? PICKER_ROW_SELECTED : ''}`}
+                    >
+                      <FolderGlyph entry={{ hasGit: option.hasGit, isLink: false }} />
+                      <span className="shrink-0 font-medium">
+                        <Highlight text={option.kind === 'root' ? option.path : option.name} terms={option.kind === 'root' ? undefined : terms} />
+                      </span>
+                      <BranchBadge branch={option.branch} />
+                      {option.kind === 'recent' || option.kind === 'project' ? <span className="min-w-0 truncate text-xs text-muted">{option.path}</span> : null}
+                    </div>
+                  </Tooltip>
                 ),
               )}
             </div>

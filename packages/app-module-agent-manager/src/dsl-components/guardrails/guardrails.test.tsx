@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { blockedText, bypassCommand, recentBlockedText, clockText, COMMAND_PREVIEW, previewOf, remainingText, subagentOf } from '../logic/guardrails.js';
+import { blockedText, bypassCommand, recentBlockedText, recentChipLabel, recentChipRows, recentChipTooltip, clockText, COMMAND_PREVIEW, previewOf, remainingText, subagentOf } from '../logic/guardrails.js';
 import { row } from '../logic/fixtures.js';
 import { folderName } from '../logic/folderPicker.js';
 import { RowMarks } from '../lists/RowMarks.js';
@@ -84,6 +84,21 @@ describe('text helpers', () => {
     expect(subagentOf('287760ca:M')).toBe('');
     expect(subagentOf('287760ca:A:a2a5:general-purpose')).toBe('general-purpose');
     expect(clockText(Date.parse('2026-11-21T10:00:00.000Z'))).toMatch(/^2026-11-2[01] \d\d:\d\d:\d\d$/);
+  });
+  it('recentChipLabel and recentChipTooltip: only the last 30 min, every category, empty when none', () => {
+    const none = { total: 37, categories: [], timeout: false, recent: { total: 0, categories: [] } };
+    expect(recentChipLabel(undefined)).toBe('');
+    expect(recentChipLabel(none)).toBe('');
+    const some = { total: 37, categories: [], timeout: false, recent: { total: 5, categories: ['rm', 'kill', 'eval', 'python'].map((category, index) => ({ category, count: index === 0 ? 2 : 1 })) } };
+    expect(recentChipLabel(some)).toBe('5 blocked');
+    expect(recentChipTooltip(some)).toBe('Blocked 5 times in the last 30 min. Click to open the Permissions tab');
+    expect(recentChipRows(some)).toEqual([
+      { label: 'rm', value: '2' },
+      { label: 'kill', value: '1' },
+      { label: 'eval', value: '1' },
+      { label: 'python', value: '1' },
+    ]);
+    expect(recentChipTooltip({ ...some, timeout: true, recent: { total: 1, categories: [{ category: 'rm', count: 1 }] } })).toBe('Blocked 1 time in the last 30 min. Bypass requests are timed out. Click to open the Permissions tab');
   });
   it('previewOf cuts a long command and keeps a short one', () => {
     expect(previewOf('ls', false)).toEqual({ text: 'ls', cut: false });

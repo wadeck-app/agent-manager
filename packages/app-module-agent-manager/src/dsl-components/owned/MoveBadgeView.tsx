@@ -1,7 +1,7 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { CircleCheck, TriangleAlert } from 'lucide-react';
 import type { MoveBadge } from '../logic/adoptSwitch.js';
 import { Chip, type ChipVariant } from '../ui/Chip.js';
-import { Tooltip } from '../ui/Tooltip.js';
 
 const BADGE_VARIANT: Record<MoveBadge['tone'], ChipVariant> = { free: 'success', busy: 'warning', unknown: 'warning' };
 

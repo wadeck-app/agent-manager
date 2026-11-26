@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { Bot, CircleCheck, CircleDot } from 'lucide-react';
 import type { SubagentDto } from '../shared.js';
 import { StatusColumn } from '../ui/StatusColumn.js';
@@ -11,9 +12,11 @@ export function SubagentRowNode({ node, depth }: { node: SubagentDto; depth: num
     <>
       <div role="treeitem" aria-level={depth + 3} aria-selected={false} className={`flex items-center gap-1.5 py-1 pr-2.5 text-xs ${INDENT[Math.min(depth, INDENT.length - 1)]}`}>
         <Bot aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
-        <span className="min-w-0 flex-1 truncate text-content" title={node.description ?? label}>
-          {label}
-        </span>
+        <Tooltip content={node.description ?? label} describe={false}>
+          <span data-tip-fill="" className="min-w-0 flex-1 truncate text-content">
+            {label}
+          </span>
+        </Tooltip>
         {node.agentType !== undefined && node.agentType !== label ? <span className="shrink-0 text-muted">{node.agentType}</span> : null}
         {/* The finished mark is in the same 28 px column as the state lights of the rows above: one vertical axis. */}
         <StatusColumn>

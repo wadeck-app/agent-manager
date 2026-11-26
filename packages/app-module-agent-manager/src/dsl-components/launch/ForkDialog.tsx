@@ -11,7 +11,7 @@ import { DaemonNotRunning } from './DaemonNotRunning.js';
 import { ModelModeOptions } from './ModelModeOptions.js';
 import type { OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
-import { ButtonAction, FieldText } from '@wadeck-app/dsl-ui';
+import { ButtonAction, FieldText, Tooltip } from '@wadeck-app/dsl-ui';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
 
@@ -95,7 +95,9 @@ export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
 
         <ModelModeOptions model={model} mode={mode} onModel={setChosenModel} onMode={setChosenMode} known={known} changed={chosenModel !== undefined || chosenMode !== undefined} busy={forking} hint={hint} />
 
-        <p className="truncate text-xs text-muted" title={`Folder: ${session.cwd}`}>{`Folder: ${session.cwd}`}</p>
+        <Tooltip content={`Folder: ${session.cwd}`} describe={false}>
+          <p data-tip-fit="" className="truncate text-xs text-muted">{`Folder: ${session.cwd}`}</p>
+        </Tooltip>
         {error !== '' ? <Banner tone="error">{error}</Banner> : null}
         {forking ? (
           <p role="status" className="flex items-center gap-2 text-sm text-muted">

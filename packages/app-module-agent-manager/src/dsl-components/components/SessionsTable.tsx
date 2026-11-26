@@ -1,4 +1,4 @@
-import { Badge } from '@wadeck-app/dsl-ui';
+import { Badge, Tooltip } from '@wadeck-app/dsl-ui';
 import { PAGE_BASE } from '../data/http.js';
 import { MONO, TD, TH } from '../guardrails/parts.js';
 import { clockText } from '../logic/guardrails.js';
@@ -62,19 +62,33 @@ export function SessionsTable({ rows, hiddenText, emptyText }: SessionsTableProp
                 {rows.map((row) => {
                   return (
                     <tr key={row.sessionId} className="border-b border-border last:border-b-0">
-                      <td className={`${TD} max-w-52 truncate font-medium`} title={`${row.displayName} (${row.sessionId})`}>
-                        <a href={`${PAGE_BASE}/agents?session=${encodeURIComponent(row.sessionId)}`} className="text-primary underline">
-                          {row.displayName}
-                        </a>
+                      <td className={`${TD} max-w-52 font-medium`}>
+                        <Tooltip content={`${row.displayName} (${row.sessionId})`} describe={false}>
+                          <a data-tip-fit="" href={`${PAGE_BASE}/agents?session=${encodeURIComponent(row.sessionId)}`} className="block truncate text-primary underline">
+                            {row.displayName}
+                          </a>
+                        </Tooltip>
                       </td>
-                      <td className={`${TD} max-w-36 truncate`} title={row.cwd}>
-                        {row.folder}
+                      <td className={`${TD} max-w-36`}>
+                        <Tooltip content={row.cwd} describe={false}>
+                          <span data-tip-fit="" className="block truncate">
+                            {row.folder}
+                          </span>
+                        </Tooltip>
                       </td>
-                      <td className={`${TD} whitespace-nowrap`} title={STATE_MEANING[row.state]}>
-                        <StateChip state={row.state} />
+                      <td className={`${TD} whitespace-nowrap`}>
+                        <Tooltip content={STATE_MEANING[row.state]}>
+                          <span className="inline-flex">
+                            <StateChip state={row.state} />
+                          </span>
+                        </Tooltip>
                       </td>
-                      <td className={`${TD} max-w-64 truncate text-muted`} title={detailOf(row)}>
-                        {detailOf(row)}
+                      <td className={`${TD} max-w-64 text-muted`}>
+                        <Tooltip content={detailOf(row)} describe={false}>
+                          <span data-tip-fit="" className="block truncate">
+                            {detailOf(row)}
+                          </span>
+                        </Tooltip>
                       </td>
                       <td className={`${TD} whitespace-nowrap tabular-nums`}>
                         {row.statusUpdatedAt === undefined ? '' : clockText(row.statusUpdatedAt)}

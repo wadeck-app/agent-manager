@@ -1,10 +1,10 @@
 import { ChevronDown, ChevronRight, Flag, Pin } from 'lucide-react';
 import type { AgentRow } from '../data/types.js';
 import { herdrRowShape, type HerdrDensity } from '../logic/herdrRow.js';
+import { detailLine } from './common.js';
 import { Highlight } from './Highlight.js';
+import { RowTip } from './RowTip.js';
 import { HerdrLightView } from './HerdrLightView.js';
-import { LightNode } from './LightNode.js';
-import { herdrLight } from '../logic/herdrRow.js';
 import { HerdrProgramIcon } from './HerdrProgramIcon.js';
 import { GuardrailChip } from '../guardrails/GuardrailChip.js';
 import { TimeInState } from './TimeInState.js';
@@ -53,35 +53,31 @@ export function HerdrRowBody({ session, density, selected = false, now, terms, s
       ) : null}
       <HerdrProgramIcon session={session} />
       {/* The name comes first: it takes what it needs up to the whole box. The folder wraps out of the one-line clipped box (never squeezes the name) when less than its minimum is left. */}
-      <span className="flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 overflow-hidden leading-5" title={session.displayName}>
-        <span data-herdr-name="" className={`min-w-0 max-w-full truncate ${selected ? 'font-semibold text-content' : 'font-normal'} ${quiet ? 'text-muted-tint' : 'text-content'}`}>
-          <Highlight text={session.displayName} terms={terms} />
-        </span>
-        {showFolder ? (
-          <span data-herdr-folder="" className="min-w-[7ch] shrink grow basis-[7ch] truncate text-[13px] text-muted-tint" title={session.folder}>
-            {`${MIDDLE_DOT} `}
-            <Highlight text={session.folder} terms={terms} />
+      <RowTip session={session} line={detailLine(session)}>
+        <span data-tip-fill="" className="flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 overflow-hidden leading-5">
+          <span data-herdr-name="" className={`min-w-0 max-w-full truncate ${selected ? 'font-semibold text-content' : 'font-normal'} ${quiet ? 'text-muted-tint' : 'text-content'}`}>
+            <Highlight text={session.displayName} terms={terms} />
           </span>
-        ) : null}
-      </span>
+          {showFolder ? (
+            <span data-herdr-folder="" className="min-w-[7ch] shrink grow basis-[7ch] truncate text-[13px] text-muted-tint">
+              {`${MIDDLE_DOT} `}
+              <Highlight text={session.folder} terms={terms} />
+            </span>
+          ) : null}
+        </span>
+      </RowTip>
       {session.flagged ? (
         <span className="inline-flex shrink-0 text-hue-orange">
           <Flag aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span className="sr-only">Flagged</span>
         </span>
       ) : null}
-      {/* Only what the row cannot say otherwise: the host is in the tooltip of the program icon, the waiting state is the light. */}
+      {/* Only what the row cannot say otherwise: the host is in the tooltip of the program icon, the waiting state is the light (the red "!" of Needs you has no pill with words here: the names keep that room, D2026-11-26k). */}
       <GuardrailChip blocks={session.guardrailBlocks} />
       {session.pinned ? (
         <span className="inline-flex shrink-0 text-muted-tint">
           <Pin aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
           <span className="sr-only">Pinned</span>
-        </span>
-      ) : null}
-      {/* Needs you is a mark like the flag and the pin: before the age, so that the state light column stays a 28 px icon column. */}
-      {herdrLight(session.state).kind === 'pill' ? (
-        <span data-needs-you-pill="" className="inline-flex shrink-0">
-          <LightNode state={session.state} compact={false} />
         </span>
       ) : null}
       <TimeInState session={session} now={now} className="text-[11px]" />

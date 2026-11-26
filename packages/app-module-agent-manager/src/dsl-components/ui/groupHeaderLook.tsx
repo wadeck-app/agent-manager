@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import type { GroupHeaderVariant } from '../logic/uiVariants.js';
 import type { GroupId } from '../logic/states.js';
 
@@ -51,20 +52,12 @@ export function groupHeaderCount(variant: GroupHeaderVariant): string {
 
 /** The name of a group: 11 px medium in the colour of `textClass` (herdr), 14 px bold in the content colour (bar), or an outlined pill in the colour of `textClass` (pill). */
 export function GroupHeaderName({ variant, text, textClass, title }: { variant: GroupHeaderVariant; text: string; textClass: string; title?: string }) {
-  if (variant === 'pill') {
-    return (
-      <span className={`truncate rounded-full border border-current px-2 py-0.5 text-xs font-semibold ${textClass}`} title={title ?? text}>
+  const look = variant === 'pill' ? `rounded-full border border-current px-2 py-0.5 text-xs font-semibold ${textClass}` : variant === 'bar' ? 'text-sm font-semibold text-content' : `text-[11px] font-medium ${textClass}`;
+  return (
+    <Tooltip content={title ?? text} describe={false}>
+      <span data-tip-fit="" className={`truncate ${look}`}>
         {text}
       </span>
-    );
-  }
-  return variant === 'bar' ? (
-    <span className="truncate text-sm font-semibold text-content" title={title ?? text}>
-      {text}
-    </span>
-  ) : (
-    <span className={`truncate text-[11px] font-medium ${textClass}`} title={title ?? text}>
-      {text}
-    </span>
+    </Tooltip>
   );
 }

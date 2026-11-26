@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
@@ -49,7 +50,8 @@ describe('the New session entry of the toolbar', () => {
     expect(screen.getByTestId('session-param')).toHaveTextContent(ID);
     const rowElement = document.querySelector(`[data-session-id="${ID}"]`) as HTMLElement;
     // The compact Tree row keeps the detail line in its tooltip; the chip says Starting.
-    expect(rowElement.querySelector('[title="Starting... no transcript yet"]')).not.toBeNull();
+    hoverTip(rowElement.querySelector<HTMLElement>('[data-tip-fill], [data-tip-fit]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent('Starting... no transcript yet');
     expect(rowElement).toHaveTextContent('Starting...');
     expect(rowElement).toHaveTextContent('Web');
     expect(rowElement).toHaveAttribute('aria-selected', 'true');

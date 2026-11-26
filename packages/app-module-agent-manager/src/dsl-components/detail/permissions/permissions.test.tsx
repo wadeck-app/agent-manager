@@ -1,3 +1,4 @@
+import { descriptionOf, focusByKeyboard, hoverTip, liveTooltip } from '../status/liveTooltip.js';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -32,7 +33,7 @@ describe('the Permissions panel', () => {
     const mine = screen.getByRole('region', { name: 'This session' });
     expect(within(mine).getByText('rm')).toBeInTheDocument();
     expect(within(mine).getByText('time-boxed')).toBeInTheDocument();
-    expect(within(mine).getByText((_, element) => element?.tagName === 'P' && element.textContent === '10 min left, 1 use, no limit')).toBeInTheDocument();
+    expect(within(mine).getByText((_, element) => element?.tagName === 'P' && /^10 min left.*, 1 use, no limit$/.test(element.textContent ?? ''))).toBeInTheDocument();
     expect(within(mine).getByText('clean the build folder')).toBeInTheDocument();
     const project = screen.getByRole('region', { name: 'Other sessions of this project' });
     expect(within(project).getByText('Session billing-owner')).toBeInTheDocument();

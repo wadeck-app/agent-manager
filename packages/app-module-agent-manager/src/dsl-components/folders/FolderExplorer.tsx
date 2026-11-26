@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { useFolderLists, useFolderRoots } from '../data/useFolders.js';
 import { folderName, pickOf, samePath, type FolderPick } from '../logic/folderPicker.js';
 import type { FolderEntryDto } from '../shared.js';
-import { IconButton } from '@wadeck-app/dsl-ui';
+import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { BranchBadge } from './BranchBadge.js';
 import { EmptyLine } from './EmptyLine.js';
@@ -130,19 +130,20 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
             return (
               <span key={crumb.path} className="flex shrink-0 items-center gap-0.5">
                 {index > 0 ? <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" /> : null}
-                <button
-                  type="button"
-                  disabled={disabled}
-                  aria-current={last ? 'page' : undefined}
-                  title={crumb.path}
-                  onClick={() => {
-                    onPick({ path: crumb.path, name: index === 0 ? here.breadcrumbs[0]!.name : crumb.name });
-                    go(crumb.path);
-                  }}
-                  className={`rounded px-1 py-0.5 text-sm hover:bg-muted-bg ${last ? 'font-medium text-content' : 'text-muted'} ${FOCUS_RING}`}
-                >
-                  {index === 0 ? folderName(crumb.path) : crumb.name}
-                </button>
+                <Tooltip content={crumb.path}>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-current={last ? 'page' : undefined}
+                    onClick={() => {
+                      onPick({ path: crumb.path, name: index === 0 ? here.breadcrumbs[0]!.name : crumb.name });
+                      go(crumb.path);
+                    }}
+                    className={`rounded px-1 py-0.5 text-sm hover:bg-muted-bg ${last ? 'font-medium text-content' : 'text-muted'} ${FOCUS_RING}`}
+                  >
+                    {index === 0 ? folderName(crumb.path) : crumb.name}
+                  </button>
+                </Tooltip>
               </span>
             );
           })}
@@ -158,20 +159,22 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
           <ul ref={box} aria-label={`Folders in ${here.path}`} onKeyDown={onKeyDown}>
             {here.entries.map((entry, index) => (
               <li key={entry.path} className="flex items-center pr-1">
-                <button
-                  type="button"
-                  data-explorer-row=""
-                  tabIndex={index === 0 ? 0 : -1}
-                  disabled={disabled}
-                  title={entry.path}
-                  onClick={() => onPick(pickOf(entry))}
-                  onDoubleClick={() => enter(entry)}
-                  className={`${PICKER_ROW} min-w-0 flex-1 ${samePath(value, entry.path) ? PICKER_ROW_SELECTED : ''}`}
-                >
-                  <FolderGlyph entry={entry} />
-                  <span className="min-w-0 truncate">{entry.name}</span>
-                  <BranchBadge branch={entry.branch} />
-                </button>
+                <Tooltip content={entry.path}>
+                  <button
+                    type="button"
+                    data-tip-fill=""
+                    data-explorer-row=""
+                    tabIndex={index === 0 ? 0 : -1}
+                    disabled={disabled}
+                    onClick={() => onPick(pickOf(entry))}
+                    onDoubleClick={() => enter(entry)}
+                    className={`${PICKER_ROW} min-w-0 flex-1 ${samePath(value, entry.path) ? PICKER_ROW_SELECTED : ''}`}
+                  >
+                    <FolderGlyph entry={entry} />
+                    <span className="min-w-0 truncate">{entry.name}</span>
+                    <BranchBadge branch={entry.branch} />
+                  </button>
+                </Tooltip>
                 {/* Not a tab stop: with a few hundred folders it would be as many; the keyboard opens a row with Enter or Right. */}
                 <IconButton size="icon-sm" tabIndex={-1} aria-label={`Open ${entry.name}`} disabled={disabled} onClick={() => enter(entry)} icon={<ChevronRight aria-hidden="true" className="h-4 w-4" />} />
               </li>

@@ -6,8 +6,9 @@ import { FORK_MEANING, forkBlockedReason } from '../logic/forkForm.js';
 import { applyReadinessPreview } from '../logic/readinessPreview.js';
 import { threadChipText } from '../logic/threadForm.js';
 import type { OwnedSessionDto } from '../shared.js';
-import { IconButton } from '@wadeck-app/dsl-ui';
-import { GuardrailBlocks } from '../guardrails/GuardrailBlocks.js';
+import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
+import { BlockedChip } from './BlockedChip.js';
+import { LogFilterMenu } from './log/LogFilterMenu.js';
 import { OwnedBar } from '../owned/OwnedBar.js';
 import { ReadinessPreviewControls } from '../owned/ReadinessPreviewControls.js';
 import { useUiVariant } from '../ui/UiVariants.js';
@@ -74,7 +75,9 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
             <GitFork aria-hidden="true" className="mr-1 inline h-am-icon-sm w-am-icon-sm align-text-bottom" />
             forked from{' '}
             {forkedFrom.name === undefined ? (
-              <span title={`${forkedFrom.id}: not in the list (ended or forgotten)`}>{`${forkedFrom.id.slice(0, 8)} (not in the list)`}</span>
+              <Tooltip content={`${forkedFrom.id}: not in the list (ended or forgotten)`}>
+                <span>{`${forkedFrom.id.slice(0, 8)} (not in the list)`}</span>
+              </Tooltip>
             ) : (
               <button type="button" onClick={() => onOpenSource(forkedFrom.id)} className="text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 {forkedFrom.name}
@@ -95,7 +98,9 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {/* The controls of an owned session are drawn here by its bar (a portal), as icons. */}
           <span ref={setSlot} className="contents" />
+          <BlockedChip sessionId={session.sessionId} blocks={session.guardrailBlocks} />
           {actions}
+          <LogFilterMenu sessionId={session.sessionId} />
         </div>
       </div>
       {originLine}
@@ -105,7 +110,6 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
           {status.statusNote}
         </p>
       )}
-      <GuardrailBlocks blocks={session.guardrailBlocks} />
       <OwnedBar key={session.sessionId.toLowerCase()} session={preview.synthetic ? session : preview.session} onChange={onOwnedChange} onForgotten={onForgotten} inline={{ slot }} />
       {previewState === 'real' ? null : <ReadinessPreviewControls preview={preview} state={previewState} slot={slot} />}
       {reasonLine}

@@ -26,7 +26,7 @@ export function DeliveryMark({ state, reason = '', hint = '' }: DeliveryMarkProp
   const Icon = look.icon;
   const words = [look.label, [reason, hint].filter((part) => part !== '').join('. ')].filter((part) => part !== '').join(': ');
   return (
-    <Tooltip content={words}>
+    <Tooltip content={words} describe={false}>
       <span role="img" aria-label={words} tabIndex={0} className={`inline-flex shrink-0 items-center rounded ${look.text}`}>
         <Icon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${look.spin}`} />
       </span>

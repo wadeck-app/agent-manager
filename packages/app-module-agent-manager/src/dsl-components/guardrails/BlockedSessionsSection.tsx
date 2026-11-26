@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { ShieldAlert } from 'lucide-react';
 import { CopyButton } from '../detail/log/CopyButton.js';
 import { folderName } from '../logic/folderPicker.js';
@@ -32,7 +33,9 @@ export function BlockedSessionsSection({ sessions, now }: { sessions: readonly S
                   <SessionCell sessionId={item.sessionId} name={item.sessionName} />
                 </td>
                 <td className={TD}>
-                  <span title={item.project}>{folderName(item.project)}</span>
+                  <Tooltip content={item.project}>
+                    <span>{folderName(item.project)}</span>
+                  </Tooltip>
                 </td>
                 <td className={TD}>
                   {item.total === 0 ? (

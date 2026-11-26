@@ -72,6 +72,10 @@ export function useItemFit(keys: readonly string[], order: readonly string[], si
     let base = 0;
     let more = MORE_FALLBACK;
     for (const child of children) {
+      // The screen reader only copy of a dsl-ui Tooltip text is a sibling of its trigger: out of the flow (absolute), so not part of the base.
+      if (child.getAttribute('role') === 'tooltip') {
+        continue;
+      }
       const own = child.getBoundingClientRect().width;
       const name = child.dataset['lineItem'];
       if (name !== undefined) {

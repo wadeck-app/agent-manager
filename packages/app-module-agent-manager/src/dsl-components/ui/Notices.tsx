@@ -97,7 +97,6 @@ export function NoticesButton({ items }: { items: readonly NoticeItem[] }) {
         size="icon-sm"
         variant={open ? 'neutral' : 'ghost'}
         aria-label={count}
-        title={count}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen(!open)}

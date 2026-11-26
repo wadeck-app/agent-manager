@@ -1,4 +1,4 @@
-import { ButtonAction, FieldText } from '@wadeck-app/dsl-ui';
+import { ButtonAction, FieldText, Tooltip } from '@wadeck-app/dsl-ui';
 import { Check, ShieldAlert, X } from 'lucide-react';
 import { useState } from 'react';
 import type { OwnedPermissionDto } from '../shared.js';
@@ -26,7 +26,9 @@ export function PermissionRequest({ request, total, inFlight, onDecide }: Permis
         {title !== request.toolName ? <span className="text-xs text-muted-tint">{request.toolName}</span> : null}
         {total > 1 ? <Chip variant="danger">{`1 of ${total}`}</Chip> : null}
       </div>
-      {request.description !== undefined && request.description !== '' ? <p className="line-clamp-2 text-sm text-content" title={request.description}>{request.description}</p> : null}
+      {request.description !== undefined && request.description !== '' ? <Tooltip content={request.description} describe={false}>
+          <p data-tip-fit="" className="line-clamp-2 text-sm text-content">{request.description}</p>
+        </Tooltip> : null}
       {request.blockedPath !== undefined && request.blockedPath !== '' ? (
         <p className="text-sm text-muted-tint">
           Path outside the allowed folders: <span className="break-all font-mono text-am-mono text-content">{request.blockedPath}</span>

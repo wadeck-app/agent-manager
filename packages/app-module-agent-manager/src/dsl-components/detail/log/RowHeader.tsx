@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { FOCUS_RING } from '../deps.js';
+import { FOCUS_RING, Tooltip } from '../deps.js';
+import { TooltipLines } from './TooltipLines.js';
 import { TONE_TEXT } from './frameStyles.js';
 import type { RowModel } from './rowModel.js';
 import { LOG_ICON, LOG_MONO } from './sizes.js';
@@ -21,9 +22,11 @@ export function RowHeader({ model, expandable, open, onToggle }: { model: RowMod
   // Wraps: on a narrow pane the chips and the duration drop to their own line under the title (right aligned), never over the title or the age.
   const row = 'flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-left';
   return expandable ? (
-    <button type="button" aria-expanded={open} onClick={onToggle} title={model.tooltip} className={`${row} rounded px-1 py-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
-      {content}
-    </button>
+    <Tooltip content={model.tooltip === undefined ? undefined : <TooltipLines text={model.tooltip} />}>
+      <button type="button" data-tip-fill="" aria-expanded={open} onClick={onToggle} className={`${row} rounded px-1 py-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
+        {content}
+      </button>
+    </Tooltip>
   ) : (
     <div className={`${row} px-1 py-0.5`}>{content}</div>
   );

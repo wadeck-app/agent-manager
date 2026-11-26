@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { useId, useMemo } from 'react';
 import { flatten, groupSessions } from '../logic/grouping.js';
 import { agentId } from '../logic/states.js';
@@ -78,7 +79,7 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
                     <div className="min-w-0 flex-1">
                       {/* One line, never wrapping: name (takes the room), marks as icons, then the age and the "..." button in their fixed columns, so the ages and the buttons of all the rows are vertical axes. */}
                       <div className="flex items-center gap-2">
-                        <ProjectLabel session={session} className="min-w-0 flex-1" terms={query.terms} />
+                        <ProjectLabel session={session} className="min-w-0 flex-1" terms={query.terms} line={line} />
                         <RowMarks session={session} iconOnly />
                         <TimeInState session={session} now={now} />
                         {rowMenu.available ? (
@@ -88,9 +89,11 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
                         ) : null}
                       </div>
                       {preview && line !== '' ? (
-                        <p className="truncate text-xs text-muted-tint" title={line}>
-                          <Highlight text={line} terms={query.terms} />
-                        </p>
+                        <Tooltip content={line} describe={false}>
+                          <p data-tip-fit="" className="truncate text-xs text-muted-tint">
+                            <Highlight text={line} terms={query.terms} />
+                          </p>
+                        </Tooltip>
                       ) : null}
                     </div>
                   </div>

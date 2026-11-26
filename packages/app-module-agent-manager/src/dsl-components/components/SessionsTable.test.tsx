@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { row } from '../logic/fixtures.js';
@@ -43,8 +44,10 @@ describe('SessionsTable', () => {
   it('keeps words whole: no break-all anywhere, a long name is cut with an ellipsis on one line, never wrapped mid-word', () => {
     const { container } = render(<SessionsTable rows={[row({ displayName: 'agent-manager-owner' })]} />);
     expect(container.innerHTML).not.toMatch(/break-all|break-words/);
-    expect(screen.getByRole('cell', { name: 'agent-manager-owner' }).className).toContain('truncate');
-    expect(screen.getByRole('cell', { name: 'agent-manager-owner' }).getAttribute('title')).toContain('agent-manager-owner');
+    // The cell holds the name in a truncating link; its full text is the tooltip.
+    expect(screen.getByRole('cell', { name: 'agent-manager-owner' }).querySelector('.truncate')).not.toBeNull();
+    hoverTip(screen.getByRole('cell', { name: 'agent-manager-owner' }).querySelector('a') as HTMLElement);
+    expect(liveTooltip().textContent).toContain('agent-manager-owner');
   });
 
   it('links the name to the session on the Agents page and says what a dead session is', () => {

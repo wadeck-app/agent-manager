@@ -72,18 +72,20 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
     const selectedName = selected === undefined ? '' : `Selected: ${selected.title}, ${look?.label.toLowerCase() ?? ''}, ${phaseWords(view.phase)}`;
     return (
       <aside aria-label={ariaLabel} className="flex min-h-0 w-am-hit shrink-0 flex-col items-center gap-2 border-l border-border py-1">
-        <IconButton aria-label={tab === 'permissions' ? `Show the permissions panel (${permissionsLabel})` : `Show the sub-agents panel (${total})`} title={tab === 'permissions' ? 'Show the permissions panel' : 'Show the sub-agents panel'} aria-expanded={false} onClick={() => onCollapsed(false)} icon={<PanelRightOpen aria-hidden="true" className="h-4 w-4" />} />
+        <IconButton aria-label={tab === 'permissions' ? `Show the permissions panel (${permissionsLabel})` : `Show the sub-agents panel (${total})`} aria-expanded={false} onClick={() => onCollapsed(false)} icon={<PanelRightOpen aria-hidden="true" className="h-4 w-4" />} />
         <span aria-hidden="true" className="flex flex-col items-center gap-1 text-xs text-muted">
           <Bot className="h-am-icon-sm w-am-icon-sm" />
           <span className="tabular-nums text-content">{counts.total}</span>
         </span>
         <CountChips counts={counts} vertical />
         {SelectedIcon !== undefined && look !== undefined ? (
-          <span role="img" aria-label={selectedName} title={selectedName} className={`inline-flex rounded-full border-2 border-primary p-0.5 ${look.text}`}>
-            <SelectedIcon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${look.iconClass}`} />
-          </span>
+          <Tooltip content={selectedName} side="left" describe={false}>
+            <span role="img" aria-label={selectedName} className={`inline-flex rounded-full border-2 border-primary p-0.5 ${look.text}`}>
+              <SelectedIcon aria-hidden="true" className={`h-am-icon-sm w-am-icon-sm ${look.iconClass}`} />
+            </span>
+          </Tooltip>
         ) : null}
-        <Tooltip content={permissionsLabel} side="left">
+        <Tooltip content={permissionsLabel} side="left" describe={false}>
           <button
             type="button"
             aria-label={permissionsLabel}
@@ -97,9 +99,11 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
           </button>
         </Tooltip>
         {problem !== '' ? (
-          <span role="img" aria-label={problem} title={problem} className="text-warning-text">
-            <TriangleAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-          </span>
+          <Tooltip content={problem} side="left" describe={false}>
+            <span role="img" aria-label={problem} className="text-warning-text">
+              <TriangleAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+            </span>
+          </Tooltip>
         ) : null}
       </aside>
     );

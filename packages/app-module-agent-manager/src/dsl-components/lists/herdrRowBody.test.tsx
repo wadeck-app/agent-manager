@@ -104,7 +104,7 @@ describe('the left alignment of a Herdr row', () => {
 });
 
 /*
- * The right side of every row is a set of fixed columns, in this order: marks (flag, pin, guardrail chip, the Needs you pill), age, "..." button, state light.
+ * The right side of every row is a set of fixed columns, in this order: marks (flag, pin, guardrail chip), age, "..." button, state light.
  * jsdom has no layout, so the fixed widths are checked on classes; the real x of the columns is measured with agent-browser.
  */
 describe('the fixed columns on the right of a Herdr row', () => {
@@ -115,13 +115,13 @@ describe('the fixed columns on the right of a Herdr row', () => {
     expect(without.container.querySelector('[data-herdr-age-empty]')?.className).toContain('w-8');
   });
 
-  it('Needs you is a pill before the age, and the state light column stays an icon column (never widened by words)', () => {
+  it('Needs you has no pill in the row (D2026-11-26k: the names keep the room): the red "!" light says it, in words for assistive technology', () => {
     const { container } = body({ session: row({ folder: 'shop', displayName: 'x', state: 'needs-you', statusUpdatedAt: 100 }) });
-    const pill = container.querySelector<HTMLElement>('[data-needs-you-pill]');
-    const age = container.querySelector<HTMLElement>('[data-herdr-age]');
-    expect(pill).not.toBeNull();
-    expect(pill?.textContent).toBe('Needs you');
-    expect(pill?.compareDocumentPosition(age as HTMLElement)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(container.querySelector('[data-needs-you-pill]')).toBeNull();
+    expect(container.textContent).not.toContain('Needs you!');
+    const light = container.querySelector<HTMLElement>('[data-herdr-light="pill"]');
+    expect(light).toHaveTextContent('!');
+    expect(light?.querySelector('.sr-only')?.textContent).toBe('Needs you');
     expect(container.querySelector('[data-status-column]')).toHaveAttribute('data-status-column', 'icon');
   });
 

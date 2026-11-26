@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useFolderLists, useFolderRoots, type Loadable } from '../data/useFolders.js';
@@ -151,20 +152,21 @@ export function FolderColumns({ value, onPick, disabled }: ColumnsProps) {
                     const open = column.selected === entry.path;
                     const picked = samePath(value, entry.path);
                     return (
-                      <div
-                        key={entry.path}
-                        role="option"
-                        aria-selected={open}
-                        tabIndex={entry.path === entryPointPath ? 0 : -1}
-                        title={entry.path}
-                        onClick={() => (disabled ? undefined : select(index, entry, false))}
-                        className={`${PICKER_ROW} cursor-pointer ${open || picked ? PICKER_ROW_SELECTED : ''}`}
-                      >
-                        <FolderGlyph entry={entry} />
-                        <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-                        <BranchBadge branch={entry.branch} />
-                        <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
-                      </div>
+                      <Tooltip key={entry.path} content={entry.path}>
+                        <div
+                          data-tip-fill=""
+                          role="option"
+                          aria-selected={open}
+                          tabIndex={entry.path === entryPointPath ? 0 : -1}
+                          onClick={() => (disabled ? undefined : select(index, entry, false))}
+                          className={`${PICKER_ROW} cursor-pointer ${open || picked ? PICKER_ROW_SELECTED : ''}`}
+                        >
+                          <FolderGlyph entry={entry} />
+                          <span className="min-w-0 flex-1 truncate">{entry.name}</span>
+                          <BranchBadge branch={entry.branch} />
+                          <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
+                        </div>
+                      </Tooltip>
                     );
                   })}
                 </div>

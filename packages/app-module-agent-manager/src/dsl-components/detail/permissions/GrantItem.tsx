@@ -1,4 +1,4 @@
-import { clockText, remainingText, type GrantDto } from '../deps.js';
+import { clockText, remainingText, Tooltip, type GrantDto } from '../deps.js';
 
 /** A grant read from the plugin files (no admin CLI, or another session): read-only, nothing here can revoke it. */
 export function GrantItem({ grant, now, showSession }: { grant: GrantDto; now: number; showSession: boolean }) {
@@ -12,7 +12,9 @@ export function GrantItem({ grant, now, showSession }: { grant: GrantDto; now: n
           <span className="text-muted">{grant.mode === 'once' ? 'once' : 'time-boxed'}</span>
         </p>
         <p className="tabular-nums text-muted">
-          <span title={`Expires at ${clockText(grant.expiresAt)}`}>{remainingText(left)} left</span>
+          <Tooltip content={`Expires at ${clockText(grant.expiresAt)}`}>
+            <span>{remainingText(left)} left</span>
+          </Tooltip>
           {`, ${uses}`}
         </p>
         {showSession ? <p className="truncate text-muted">{`Session ${grant.sessionName === '' ? grant.sessionId.slice(0, 8) : grant.sessionName}`}</p> : null}

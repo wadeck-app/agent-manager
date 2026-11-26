@@ -408,7 +408,6 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         helpOpen={helpOpen}
         onHelpOpenChange={setHelpOpen}
         detailOpen={selectedId !== undefined}
-        onNewGroup={async (name) => (await grouped.api.create(name)) !== undefined}
         notices={<NoticesButton items={noticeItems} />}
         selectableIds={orderedIds()}
       />
@@ -419,7 +418,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
             <>
               {/* The list (or its loading and empty states) takes the room, the footer keeps its own line under it. */}
               <div className="flex min-h-0 flex-1 flex-col">{listColumn}</div>
-              <ListFooter onNewSession={() => setLaunchOpen(true)} />
+              <ListFooter onNewSession={() => setLaunchOpen(true)} {...(mode === 'tree' || mode === 'custom' ? { onNewGroup: async (name: string) => (await grouped.api.create(name)) !== undefined } : {})} />
             </>
           }
           detail={detail} detailOpen={selectedId !== undefined} />

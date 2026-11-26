@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { render, within } from '@testing-library/react';
 import { UrlParamContext } from '@wadeck-app/dsl-ui';
 import { describe, expect, it } from 'vitest';
@@ -63,9 +64,10 @@ describe.each([
     expect(within(rowOf('name-perm')).getByText('Waiting for permission (2)')).toBeInTheDocument();
     const starting = rowOf('name-new');
     expect(within(starting).getByText('Starting...')).toBeInTheDocument();
-    // The compact Tree row keeps the detail line in the tooltip of the row; the other lists write it under the name.
+    // The compact Tree row keeps the detail line in the tooltip of the name; the other lists write it under the name.
     if (_name === 'Tree') {
-      expect(starting.querySelector('[title="Starting... no transcript yet"]')).not.toBeNull();
+      hoverTip(starting.querySelector<HTMLElement>('[data-tip-fill], [data-tip-fit]') as HTMLElement);
+      expect(liveTooltip()).toHaveTextContent('Starting... no transcript yet');
     } else {
       expect(starting).toHaveTextContent('Starting... no transcript yet');
     }

@@ -8,7 +8,7 @@ import { UiVariantsContext } from '../ui/UiVariants.js';
 import type { SessionStatusDto } from './deps.js';
 import { DetailHeader } from './DetailHeader.js';
 import { publishLogStatus, resetPublishedStatus } from './status/useSessionStatus.js';
-import { liveTooltip } from './status/liveTooltip.js';
+import { focusByKeyboard, hoverTip, liveTooltip } from './status/liveTooltip.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -148,10 +148,11 @@ describe('the one-line header: everything the three rows said', () => {
     // violations-suppress: shared/no-out-of-repo-path a Windows path is the data of the shortening, it is never opened
     const cwd = 'C:\Workspace_Tooling\agent-manager\packages\app-module-agent-manager\src';
     const { container } = header(row({ cwd }));
-    const folder = container.querySelector('[data-line-item="folder"] [title]') as HTMLElement;
+    const folder = container.querySelector('[data-line-item="folder"] .truncate') as HTMLElement;
     expect(folder.textContent).toContain('...');
     expect(folder.textContent?.endsWith('src')).toBe(true);
-    expect(folder.getAttribute('title')).toBe(cwd);
+    hoverTip(folder);
+    expect(liveTooltip()).toHaveTextContent(cwd);
   });
 
   // jsdom has no layout: fake it. The line is `lineWidth` wide, the name, state and age are 50 px each, every chip `chip` px unless listed in `wide`.
@@ -185,7 +186,7 @@ describe('the one-line header: everything the three rows said', () => {
     publishLogStatus(session.sessionId, FULL);
     const { container } = header(session);
     const more = container.querySelector('[data-line-more]') as HTMLElement;
-    fireEvent.focus(more);
+    focusByKeyboard(more);
     const tip = liveTooltip()?.textContent ?? '';
     expect(tip).toContain('context 38% of the way to auto-compact');
     expect(tip).not.toMatch(/context used/);
@@ -206,7 +207,7 @@ describe('the one-line header: everything the three rows said', () => {
     const more = container.querySelector('[data-line-more]') as HTMLElement;
     expect(more).toHaveTextContent('+1');
     expect(more.getAttribute('aria-label')).toMatch(/^1 more: pid 4242/);
-    fireEvent.focus(more);
+    focusByKeyboard(more);
     expect(liveTooltip()).toHaveTextContent('Not enough room for: pid 4242.');
     expect(screen.queryByText('pid 4242')).toBeNull();
     expect(within(container as HTMLElement).getByLabelText('Model Sonnet 5.5')).toBeInTheDocument();

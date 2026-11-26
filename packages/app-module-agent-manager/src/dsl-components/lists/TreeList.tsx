@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { partitionByGroup, stepGroupIds } from '../logic/customGroups.js';
@@ -7,6 +8,7 @@ import { agentId } from '../logic/states.js';
 import { buildTree, flatByUrgency, quietFolders, type FolderNode } from '../logic/tree.js';
 import type { AgentRow } from '../data/types.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
+import { RowTip } from './RowTip.js';
 import { GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
 import { useUiVariant } from '../ui/UiVariants.js';
@@ -193,11 +195,13 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     const tint = herdrTint(density, session.state, selected, session.flagged, session.unread);
     const idleTint = herdrTint(density, session.state, false, session.flagged, session.unread);
     const nameLine = showFolder ? (
-      <ProjectLabel session={session} terms={query.terms} />
+      <ProjectLabel session={session} terms={query.terms} line={line} />
     ) : (
-      <span className="block truncate text-content" title={session.displayName}>
-        <Highlight text={session.displayName} terms={query.terms} />
-      </span>
+      <RowTip session={session} line={line}>
+        <span data-tip-fit="" className="block truncate text-content">
+          <Highlight text={session.displayName} terms={query.terms} />
+        </span>
+      </RowTip>
     );
     return (
       <Fragment key={id}>
@@ -239,7 +243,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
               ) : null}
               <StateIconTip session={session} />
               <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 items-center gap-1.5" title={line === '' ? undefined : line}>
+                <span className="flex min-w-0 items-center gap-1.5">
                   <span className="min-w-0 flex-1">{nameLine}</span>
                   <RowMarks session={session} iconOnly />
                 </span>
@@ -296,9 +300,11 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                 <GroupHeaderName variant={headerStyle} text={node.folder} textClass={GROUP_LOOK.none.text} title={node.cwd} />
                 <span className={groupHeaderCount(headerStyle)}>{node.sessions.length}</span>
                 {node.disambiguation !== '' ? (
-                  <span className="truncate text-xs text-muted" title={node.disambiguation}>
-                    {node.disambiguation}
-                  </span>
+                  <Tooltip content={node.disambiguation} describe={false}>
+                    <span data-tip-fit="" className="truncate text-xs text-muted">
+                      {node.disambiguation}
+                    </span>
+                  </Tooltip>
                 ) : null}
                 <span className="ml-auto flex shrink-0 items-center gap-1">
                   <RollupLight state={node.rollup} subject="folder" />

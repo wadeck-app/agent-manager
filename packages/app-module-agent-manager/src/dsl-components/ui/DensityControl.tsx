@@ -3,8 +3,8 @@ import type { KeyboardEvent } from 'react';
 import { DENSITY_LABEL, DENSITY_SETTINGS, dismissDensityProblem, setDensity, useDensity, useDensityProblem, useDensitySetting, type Density, type DensitySetting } from './density.js';
 import { autoHint, densityHint } from './densityScale.js';
 import { IconButton } from '@wadeck-app/dsl-ui';
+import { TipIconButton } from './TipIconButton.js';
 import { FOCUS_RING } from './focusRing.js';
-import { Tooltip } from './Tooltip.js';
 import { usePopover } from './usePopover.js';
 import { POPUP_SURFACE } from './popupSurface.js';
 
@@ -40,11 +40,11 @@ export function DensityControl() {
 
   return (
     <div ref={box} className="relative">
-      <IconButton
+      <TipIconButton
         size="icon-sm"
         variant={open ? 'neutral' : 'ghost'}
         aria-label={problem === '' ? 'Text size' : 'Text size (a note about the saved setting)'}
-        title={problem === '' ? 'Text size' : `Text size: ${problem}`}
+        tip={problem === '' ? 'Text size' : `Text size: ${problem}`}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen(!open)}

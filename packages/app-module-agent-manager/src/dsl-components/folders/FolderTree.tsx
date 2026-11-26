@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useFolderLists, useFolderRoots } from '../data/useFolders.js';
@@ -210,24 +211,26 @@ export function FolderTree({ value, onPick, disabled }: TreeProps) {
                 const Chevron = row.expanded ? ChevronDown : ChevronRight;
                 return (
                   <li key={row.path} role="none">
-                    <div
-                      role="treeitem"
-                      aria-level={row.depth + 1}
-                      aria-expanded={row.expanded}
-                      aria-selected={selected}
-                      tabIndex={row.path === current ? 0 : -1}
-                      data-folder-path={row.path}
-                      title={row.path}
-                      onClick={() => (disabled ? undefined : choose(row))}
-                      onFocus={() => setActive(row.path)}
-                      style={indent}
-                      className={`${PICKER_ROW} cursor-pointer ${selected ? PICKER_ROW_SELECTED : ''}`}
-                    >
-                      <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
-                      <FolderGlyph entry={row.entry} />
-                      <span className="min-w-0 truncate">{row.entry.name}</span>
-                      <BranchBadge branch={row.entry.branch} />
-                    </div>
+                    <Tooltip content={row.path}>
+                      <div
+                        data-tip-fill=""
+                        role="treeitem"
+                        aria-level={row.depth + 1}
+                        aria-expanded={row.expanded}
+                        aria-selected={selected}
+                        tabIndex={row.path === current ? 0 : -1}
+                        data-folder-path={row.path}
+                        onClick={() => (disabled ? undefined : choose(row))}
+                        onFocus={() => setActive(row.path)}
+                        style={indent}
+                        className={`${PICKER_ROW} cursor-pointer ${selected ? PICKER_ROW_SELECTED : ''}`}
+                      >
+                        <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
+                        <FolderGlyph entry={row.entry} />
+                        <span className="min-w-0 truncate">{row.entry.name}</span>
+                        <BranchBadge branch={row.entry.branch} />
+                      </div>
+                    </Tooltip>
                   </li>
                 );
               }

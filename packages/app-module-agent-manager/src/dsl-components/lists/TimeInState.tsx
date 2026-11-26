@@ -1,6 +1,6 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import type { AgentRow } from '../data/types.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
-import { Tooltip } from '../ui/Tooltip.js';
 
 /**
  * The fixed width of the age column of every row (32 px: "59m", "12d" at 11 or 12 px), right aligned: the ages of all the rows sit on one vertical axis, whatever

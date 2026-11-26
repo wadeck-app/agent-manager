@@ -1,5 +1,5 @@
 import { ChartGantt, ListChecks, type LucideIcon } from 'lucide-react';
-import { FOCUS_RING } from '../deps.js';
+import { FOCUS_RING, Tooltip } from '../deps.js';
 import { SUBAGENTS_MODES, type SubagentsMode } from './subagentTypes.js';
 
 const MODES: Record<SubagentsMode, { label: string; icon: LucideIcon; hint: string }> = {
@@ -15,17 +15,17 @@ export function SubagentModeSwitch({ mode, onMode }: { mode: SubagentsMode; onMo
         const { label, icon: Icon, hint } = MODES[value];
         const pressed = mode === value;
         return (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={pressed}
-            title={hint}
-            onClick={() => onMode(value)}
-            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs ${pressed ? 'bg-primary-light text-content' : 'text-muted hover:bg-muted-bg hover:text-content'} ${FOCUS_RING}`}
-          >
-            <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
-            {label}
-          </button>
+          <Tooltip key={value} content={hint}>
+            <button
+              type="button"
+              aria-pressed={pressed}
+              onClick={() => onMode(value)}
+              className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs ${pressed ? 'bg-primary-light text-content' : 'text-muted hover:bg-muted-bg hover:text-content'} ${FOCUS_RING}`}
+            >
+              <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
+              {label}
+            </button>
+          </Tooltip>
         );
       })}
     </div>

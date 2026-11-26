@@ -54,21 +54,27 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
     node: (
       <span className="inline-flex min-w-0 items-center gap-1 text-xs text-muted">
         <Folder aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
-        <span className="truncate" title={session.cwd}>
-          {shortenPath(session.cwd, PATH_CHARS)}
-        </span>
-        {status.gitBranch === undefined ? null : (
-          <span className="inline-flex shrink-0 items-center gap-0.5 text-content" title={`Git branch ${status.gitBranch}`}>
-            <GitBranch aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            <span className="sr-only">branch </span>
-            {status.gitBranch}
+        <Tooltip content={session.cwd} describe={false}>
+          <span data-tip-fit="" className="truncate">
+            {shortenPath(session.cwd, PATH_CHARS)}
           </span>
+        </Tooltip>
+        {status.gitBranch === undefined ? null : (
+          <Tooltip content={`Git branch ${status.gitBranch}`} describe={false}>
+            <span className="inline-flex shrink-0 items-center gap-0.5 text-content">
+              <GitBranch aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+              <span className="sr-only">branch </span>
+              {status.gitBranch}
+            </span>
+          </Tooltip>
         )}
         {status.gitBranchError === undefined ? null : (
-          <span role="alert" className="inline-flex shrink-0 items-center gap-0.5 text-warning-text" title={status.gitBranchError}>
-            <TriangleAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
-            Branch unknown: {status.gitBranchError}
-          </span>
+          <Tooltip content={status.gitBranchError} describe={false}>
+            <span role="alert" className="inline-flex shrink-0 items-center gap-0.5 text-warning-text">
+              <TriangleAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
+              Branch unknown: {status.gitBranchError}
+            </span>
+          </Tooltip>
         )}
         <CopyButton text={status.gitBranch === undefined ? session.cwd : `${session.cwd}::${status.gitBranch}`} label={status.gitBranch === undefined ? 'Copy the working directory' : 'Copy the working directory and branch'} />
       </span>
@@ -127,9 +133,11 @@ ${move.unavailable}`;
   const goneEntries = gone.flatMap((item) => usableEntries(item.entries));
   return (
     <div ref={ref} data-header-line="" className={`flex min-w-[15rem] flex-1 flex-nowrap items-center gap-x-2 overflow-x-clip whitespace-nowrap ${tight ? '' : '[&>*]:shrink-0'}`}>
-      <h2 className={`max-w-[min(26ch,100%)] truncate text-base font-semibold text-content ${tight ? 'min-w-[8ch] shrink' : 'shrink-0'}`} title={session.displayName}>
-        {session.displayName}
-      </h2>
+      <Tooltip content={session.displayName} describe={false}>
+        <h2 data-tip-fit="" className={`max-w-[min(26ch,100%)] truncate text-base font-semibold text-content ${tight ? 'min-w-[8ch] shrink' : 'shrink-0'}`}>
+          {session.displayName}
+        </h2>
+      </Tooltip>
       <Tooltip content={STATE_MEANING[session.state]}>
         <Chip variant={STATE_VARIANT[session.state]} icon={<StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />}>
                     {tight ? <span className="sr-only">{look.label}</span> : look.label}

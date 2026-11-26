@@ -1,7 +1,7 @@
 import { useDateFormat } from '@wadeck-app/dsl-ui';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
 import { FOCUS_RING, Tooltip } from '../deps.js';
-import { SubagentCard } from './SubagentCard.js';
+import { SubagentTip } from './SubagentTip.js';
 import { MoreButtons } from './MoreButtons.js';
 import { buildTimeline, elapsedMs, formatElapsed, STATUS_LOOK } from './subagentModel.js';
 import type { SubagentContentProps, TimelineOrder } from './subagentTypes.js';
@@ -57,9 +57,10 @@ export function SubagentTimeline({ items, now, selectedId, onSelect, order, onOr
           const selected = selectedId === item.dto.agentId;
           return (
             <li key={item.dto.agentId}>
-              <Tooltip variant="card" side="left" anchorClassName="flex w-full min-w-0" content={<SubagentCard item={item} now={now} />}>
+              <SubagentTip item={item} now={now}>
               <button
                 type="button"
+                data-tip-fill=""
                 aria-pressed={selected}
                 onClick={() => onSelect(item.dto.agentId)}
                 className={`flex w-full items-center gap-2 rounded border-l-2 py-1 pl-1.5 pr-1 text-left text-xs ${selected ? 'border-primary bg-primary-light' : 'border-transparent hover:bg-muted-bg'} ${FOCUS_RING}`}
@@ -72,7 +73,7 @@ export function SubagentTimeline({ items, now, selectedId, onSelect, order, onOr
                 <span className="w-16 shrink-0 text-right tabular-nums text-muted">{elapsed === undefined ? '' : formatElapsed(elapsed)}</span>
                 <span className="sr-only">{look.label}</span>
               </button>
-              </Tooltip>
+              </SubagentTip>
             </li>
           );
         })}

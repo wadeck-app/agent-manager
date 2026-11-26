@@ -43,6 +43,22 @@ export function recentBlockedText(blocks: GuardrailBlocksDto): string {
   return blocks.recent.total === 0 ? '' : `Blocked ${countText(blocks.recent.total, blocks.recent.categories, ` in the last ${RECENT_WINDOW_TEXT}`)}`;
 }
 
+/** The label of the header chip: "3 blocked" for the blocks of the last 30 min; empty when there are none (no chip). */
+export function recentChipLabel(blocks: GuardrailBlocksDto | undefined): string {
+  return blocks === undefined || blocks.recent.total === 0 ? '' : `${blocks.recent.total} blocked`;
+}
+
+/** The tooltip text of the header chip: the window and where a click leads; the categories are its rows (recentChipRows). */
+export function recentChipTooltip(blocks: GuardrailBlocksDto): string {
+  const times = blocks.recent.total === 1 ? '1 time' : `${blocks.recent.total} times`;
+  return `Blocked ${times} in the last ${RECENT_WINDOW_TEXT}${blocks.timeout ? '. Bypass requests are timed out' : ''}. Click to open the Permissions tab`;
+}
+
+/** Every category blocked in the last 30 min with its count (the rows of the tooltip of the header chip). */
+export function recentChipRows(blocks: GuardrailBlocksDto): { label: string; value: string }[] {
+  return blocks.recent.categories.map((item) => ({ label: item.category, value: String(item.count) }));
+}
+
 /** How much of a command a row shows before "Show full". */
 export const COMMAND_PREVIEW = 120;
 

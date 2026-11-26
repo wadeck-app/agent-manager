@@ -1,4 +1,4 @@
-import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
+import { ButtonAction, Tooltip } from '@wadeck-app/dsl-ui';
 import { ArrowRightLeft, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { requestJson } from '../data/http.js';
@@ -7,6 +7,7 @@ import { MOVE_DAEMON_DOWN, moveStatusOf, switchViewOf } from '../logic/adoptSwit
 import type { SwitchView } from '../logic/adoptSwitch.js';
 import type { OwnedSessionDto, OwnedSwitchResponse } from '../shared.js';
 import { chipClass } from '../ui/Chip.js';
+import { TipIconButton } from '../ui/TipIconButton.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { useDaemonDown } from './DaemonState.js';
@@ -141,17 +142,19 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
       <>
         <span data-adopt-button="" data-readiness={view.readiness} data-tone={coloured ? view.tone : 'neutral'} className="relative inline-flex shrink-0">
           {coloured ? (
-            <button type="button" aria-label={view.label} title={title} disabled={off} onClick={click} className={`${chipClass(view.tone === 'warning' ? 'warning' : 'success')} cursor-pointer hover:brightness-95 ${FOCUS_RING}${off ? ' cursor-not-allowed opacity-50' : ''}`}>
+            <Tooltip content={title}>
+            <button type="button" aria-label={view.label} disabled={off} onClick={click} className={`${chipClass(view.tone === 'warning' ? 'warning' : 'success')} cursor-pointer hover:brightness-95 ${FOCUS_RING}${off ? ' cursor-not-allowed opacity-50' : ''}`}>
               <Icon aria-hidden="true" className="h-3.5 w-3.5" />
               {words}
             </button>
+            </Tooltip>
           ) : readinessStyle === 'badge' ? (
             // Look A: the icon is coloured and sits in a tinted rounded square (green free, amber busy or unknown), so the readiness shows even when the badge of the line has no room (the words are the accessible name).
             <span data-readiness-tint={view.readiness} className={`inline-flex rounded-md border ${view.readiness === 'free' ? 'border-hue-green/40 bg-hue-green-bg text-hue-green' : 'border-warning/50 bg-warning-bg text-warning-text'}`}>
-              <IconButton variant="ghost" aria-label={view.label} title={title} disabled={off} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
+              <TipIconButton variant="ghost" aria-label={view.label} tip={title} disabled={off} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
             </span>
           ) : (
-            <IconButton variant="ghost" aria-label={view.label} title={title} disabled={off} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
+            <TipIconButton variant="ghost" aria-label={view.label} tip={title} disabled={off} onClick={click} icon={<Icon aria-hidden="true" className="h-4 w-4" />} />
           )}
           {/* Look A: a 10 px dot on the corner of the tinted icon, cut from the header by a ring. */}
           {readinessStyle === 'badge' ? <span aria-hidden="true" data-readiness-dot={view.readiness} className={`pointer-events-none absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ring-2 ring-surface ${view.readiness === 'free' ? 'bg-hue-green' : 'bg-warning'}`} /> : null}
@@ -163,7 +166,8 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
   return (
     <>
       {/* The base button takes no data attribute and no title: the wrapper carries them (the tests and the tooltip read them there). */}
-      <span data-adopt-button="" data-readiness={view.readiness} data-tone={tone} title={daemonDown ? DAEMON_DOWN_TITLE : view.title} className="inline-flex shrink-0">
+      <Tooltip content={daemonDown ? DAEMON_DOWN_TITLE : view.title}>
+      <span data-adopt-button="" data-readiness={view.readiness} data-tone={tone} className="inline-flex shrink-0">
         <ButtonAction
           variant={tone === 'warning' ? 'danger-outline' : 'secondary'}
           size="sm"
@@ -174,6 +178,7 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
         />
         {separate ? <span className="sr-only"> {detail}</span> : null}
       </span>
+      </Tooltip>
       {/* The badge of the A/B question ui-switch-readiness (the default look): every state, free included, in words. */}
       {readinessStyle === 'badge' && !view.recovery && status.badge !== undefined ? <MoveBadgeView badge={status.badge} /> : null}
       {readinessStyle === 'banner' ? <MoveBanner session={session} /> : null}

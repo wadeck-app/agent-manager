@@ -1,7 +1,7 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { ShieldAlert } from 'lucide-react';
 import { recentBlockedText } from '../logic/guardrails.js';
 import type { GuardrailBlocksDto } from '../shared.js';
-import { Tooltip } from '../ui/Tooltip.js';
 
 /**
  * The small "blocked by a guardrail" mark of a list row: a shield and the number of blocks of the LAST 30 MINUTES, the sentence (with the window) in the tooltip.

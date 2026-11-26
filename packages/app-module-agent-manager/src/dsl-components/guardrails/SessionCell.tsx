@@ -1,3 +1,4 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { PAGE_BASE } from '../data/http.js';
 
 /** A session of the plugin's files: its name and a link to the Agents page when the registry knows it, else the id (full when known, else the 8 characters). */
@@ -5,19 +6,21 @@ export function SessionCell({ sessionId, name }: { sessionId: string; name: stri
   const shortId = sessionId.slice(0, 8);
   if (name === '') {
     return (
-      <span className="font-mono text-am-mono" title={`${sessionId}: not in the session registry (ended or never listed)`}>
-        {sessionId.length > 8 ? shortId : sessionId}
-      </span>
+      <Tooltip content={`${sessionId}: not in the session registry (ended or never listed)`}>
+        <span className="font-mono text-am-mono">{sessionId.length > 8 ? shortId : sessionId}</span>
+      </Tooltip>
     );
   }
   return (
     <span className="flex flex-col">
-      <a href={`${PAGE_BASE}/agents?session=${encodeURIComponent(sessionId)}`} className="text-primary underline" title={`Open ${name} in the Agents page`}>
-        {name}
-      </a>
-      <span className="font-mono text-xs text-muted" title={sessionId}>
-        {shortId}
-      </span>
+      <Tooltip content={`Open ${name} in the Agents page`}>
+        <a href={`${PAGE_BASE}/agents?session=${encodeURIComponent(sessionId)}`} className="text-primary underline">
+          {name}
+        </a>
+      </Tooltip>
+      <Tooltip content={sessionId}>
+        <span className="font-mono text-xs text-muted">{shortId}</span>
+      </Tooltip>
     </span>
   );
 }

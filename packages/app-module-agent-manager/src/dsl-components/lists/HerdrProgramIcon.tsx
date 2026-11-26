@@ -1,8 +1,8 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { Asterisk, SquareTerminal } from 'lucide-react';
 import type { AgentRow } from '../data/types.js';
 import { harnessChip } from '../detail/status/harness.js';
 import { HOST_LABEL } from '../logic/owned.js';
-import { Tooltip } from '../ui/Tooltip.js';
 
 /** The program of the session as an icon: the Claude mark (an asterisk) in orange for Claude Code, a terminal for any other program; the words are the tooltip. */
 export function HerdrProgramIcon({ session }: { session: AgentRow }) {

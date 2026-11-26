@@ -1,8 +1,7 @@
-import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
+import { ButtonAction, IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { ListChecks, X } from 'lucide-react';
 import { useSelection } from '../lists/selection.js';
 import { StyledCheckbox } from '../ui/StyledCheckbox.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { SelectAllBox } from './SelectAllBox.js';
 

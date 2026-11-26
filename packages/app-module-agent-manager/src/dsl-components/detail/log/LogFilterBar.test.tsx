@@ -1,3 +1,4 @@
+import { descriptionOf, focusByKeyboard, hoverTip, liveTooltip } from '../status/liveTooltip.js';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LogEntry, LogResponse } from '../deps.js';
@@ -20,6 +21,8 @@ let entries: LogEntry[];
 
 beforeEach(() => {
   window.localStorage.clear();
+  // The bar is hidden by default: these tests are about the bar, so they ask for it (LogFilterMenu.test.tsx covers the default and the choice).
+  window.localStorage.setItem(FILTER_PREFS_KEY, JSON.stringify({ bar: true }));
   resetPending();
   Element.prototype.scrollIntoView = vi.fn();
   entries = [userPrompt('u', 'run the tests'), toolCall('a', { status: 'ok', resultPreview: 'one' }), hook('h1'), hook('h2', { outcome: 'error', exitCode: 1, stderr: 'bad json' }), assistantText('mid', 'between'), toolCall('b', { status: 'ok', name: 'SendMessage', inputSummary: 'worker' }), peer('p'), assistantText('z', 'done')];
@@ -47,7 +50,8 @@ describe('log filters', () => {
     expect(filter('tools')).toHaveTextContent('Tools 1');
     expect(filter('agents')).toHaveTextContent('Agent messages 2');
     expect(screen.queryByText('Hook')).toBeNull();
-    expect(screen.getByText('2 hidden')).toHaveAttribute('title', 'Hidden by the filters: 2 hooks');
+    hoverTip(screen.getByText('2 hidden'));
+    expect(liveTooltip().textContent).toBe('Hidden by the filters: 2 hooks');
     // Not hidden: the lone tool call (a row of its own, not a group: the SendMessage is an agent message), the message of the other session.
     expect(screen.getByRole('button', { name: /^Bash/ })).toBeInTheDocument();
     expect(screen.getByText('from the other session')).toBeInTheDocument();
@@ -58,7 +62,7 @@ describe('log filters', () => {
     await screen.findByText('run the tests');
     fireEvent.click(filter('hooks'));
     expect(filter('hooks')).toHaveAttribute('aria-pressed', 'true');
-    expect(JSON.parse(window.localStorage.getItem(FILTER_PREFS_KEY) ?? '{}')).toEqual({ hooks: true });
+    expect(JSON.parse(window.localStorage.getItem(FILTER_PREFS_KEY) ?? '{}')).toEqual({ bar: true, hooks: true });
     const hooks = screen.getAllByRole('button', { name: /^Hook(?!s)/ });
     expect(hooks).toHaveLength(2);
     expect(hooks[0]).toHaveAttribute('aria-expanded', 'false');
@@ -76,13 +80,14 @@ describe('log filters', () => {
     fireEvent.click(filter('agents'));
     expect(screen.queryByRole('button', { name: /^Bash/ })).toBeNull();
     expect(screen.queryByText('from the other session')).toBeNull();
-    expect(screen.getByText('5 hidden')).toHaveAttribute('title', 'Hidden by the filters: 2 hooks, 1 tool calls, 2 agent messages');
+    hoverTip(screen.getByText('5 hidden'));
+    expect(liveTooltip().textContent).toBe('Hidden by the filters: 2 hooks, 1 tool calls, 2 agent messages');
     expect(screen.getByText('run the tests')).toBeInTheDocument();
     expect(screen.getByText('done')).toBeInTheDocument();
   });
 
   it('reads the saved choice at the start', async () => {
-    window.localStorage.setItem(FILTER_PREFS_KEY, JSON.stringify({ hooks: true, tools: false }));
+    window.localStorage.setItem(FILTER_PREFS_KEY, JSON.stringify({ bar: true, hooks: true, tools: false }));
     render(<LogViewer session={session} />);
     await screen.findByText('run the tests');
     expect(filter('hooks')).toHaveAttribute('aria-pressed', 'true');
@@ -123,7 +128,9 @@ describe('tool meta chips in the log', () => {
     ];
     render(<LogViewer session={session} />);
     const group = await screen.findByRole('button', { name: /3 tool calls/ });
-    expect(group.getAttribute('title')).toBe('Edit /work/a.ts: +12 -3, 400 ms\nEdit /work/b.ts: +5 -0, 300 ms\nBash npm test: 40 lines, 14 s');
+    hoverTip(group);
+    // One line per call, each its own block in the card.
+    expect([...liveTooltip().querySelectorAll('.text-left')].map((line) => line.textContent).join('\n')).toBe('Edit /work/a.ts: +12 -3, 400 ms\nEdit /work/b.ts: +5 -0, 300 ms\nBash npm test: 40 lines, 14 s');
     expect(within(group).getByRole('img', { name: '2 files changed: 17 lines added, 3 lines removed' })).toHaveTextContent('2 files+17-3');
     expect(within(group).getByRole('img', { name: '1 Bash call, 14 s in total' })).toBeInTheDocument();
     fireEvent.click(group);

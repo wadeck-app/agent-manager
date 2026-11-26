@@ -1,7 +1,7 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { CircleAlert, CircleX, LoaderCircle, OctagonAlert, type LucideIcon } from 'lucide-react';
 import { ownedStateChip, type ChipTone } from '../logic/owned.js';
 import type { SessionRowDto } from '../shared.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { Chip, type ChipVariant } from '../ui/Chip.js';
 
 /** The shared chip variant of each tone of the owned state. */

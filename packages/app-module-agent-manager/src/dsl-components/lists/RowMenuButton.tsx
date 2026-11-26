@@ -1,5 +1,5 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import { MoreHorizontal } from 'lucide-react';
-import { Tooltip } from '../ui/Tooltip.js';
 import { RowIconButton } from './RowIconButton.js';
 
 /**

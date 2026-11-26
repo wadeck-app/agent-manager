@@ -1,3 +1,4 @@
+import { descriptionOf, focusByKeyboard, hoverTip, liveTooltip } from '../status/liveTooltip.js';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // violations-suppress: ts/no-deep-relative test fixtures of the logic folder
@@ -37,7 +38,8 @@ describe('the bypasses of the session from the admin CLI', () => {
     expect(first).toHaveTextContent('1 use left');
     expect(first).toHaveTextContent('10 min left');
     expect(within(first).getByText('clean the build folder')).toBeInTheDocument();
-    expect(first.querySelector('[data-full-session]')).toHaveAttribute('title', `Matched on the full session id ${SID}`);
+    hoverTip(first.querySelector('[data-full-session]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent(`Matched on the full session id ${SID}`);
     const second = mine.querySelector('[data-cli-grant="b2c3d4e5"]') as HTMLElement;
     expect(second).toHaveTextContent('time-boxed');
     expect(second).toHaveTextContent('no use limit');

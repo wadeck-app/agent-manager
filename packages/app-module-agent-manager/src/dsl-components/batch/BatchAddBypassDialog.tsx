@@ -1,4 +1,4 @@
-import { ButtonAction, FieldSelect, FieldText, TabButton } from '@wadeck-app/dsl-ui';
+import { ButtonAction, FieldSelect, FieldText, TabButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { CircleAlert, CircleCheck, CircleX, Clock, LoaderCircle, ShieldPlus } from 'lucide-react';
 import { useState } from 'react';
 import { requestJson } from '../data/http.js';
@@ -9,7 +9,6 @@ import type { BatchGrantResult, BatchGrantStatus, BatchGrantsOk, GrantModeDto } 
 import { Banner } from '../ui/Banner.js';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { grantBlockText, grantConfirmLine, grantResultsText, grantSummaryText, retryableGrantIds, sessionsOf } from './batchBypass.js';
 import { SessionNames } from './SessionNames.js';
 import { useBatchRules } from './useBatchReads.js';

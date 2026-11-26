@@ -40,10 +40,10 @@ describe('Workspace: owned sessions without a daemon', () => {
     expect(screen.getByText('Owned sessions file unusable')).toBeInTheDocument();
   });
 
-  it('the button sits immediately left of New group (Tree), and a dismissed notice can be restored from the panel while another is active', () => {
+  it('the button sits in the notices slot of the toolbar, and a dismissed notice can be restored from the panel while another is active', () => {
     show({ ownedDownText: TEXT, ownedStateErrorText: 'the file of owned sessions X cannot be used (not valid JSON)' });
     const button = screen.getByRole('button', { name: '2 notices' });
-    expect(button.closest('[data-notices-slot]')?.nextElementSibling?.textContent).toMatch(/new group/i);
+    expect(button.closest('[data-notices-slot]')?.closest('[data-toolbar]')).not.toBeNull();
     fireEvent.click(button);
     fireEvent.click(screen.getByRole('button', { name: /^Dismiss: Daemon off/ }));
     expect(screen.queryByText('Daemon off: 2 owned sessions unavailable')).toBeNull();

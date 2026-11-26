@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 
 import { useFolderRecent, useFolderSearch } from '../data/useFolders.js';
 import { folderName, pickOf, readFavorites, saveFavorites, samePath, toggleFavorite, type FolderPick } from '../logic/folderPicker.js';
 import { Banner } from '../ui/Banner.js';
-import { IconButton } from '@wadeck-app/dsl-ui';
+import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { Highlight } from '../lists/Highlight.js';
 import { BranchBadge } from './BranchBadge.js';
@@ -135,21 +135,23 @@ export function FolderSmartList({ value, onPick, disabled }: SmartListProps) {
     const dir = parentText(item.path);
     return (
       <li key={item.path} className="flex items-center gap-0.5 pr-1">
-        <button
-          type="button"
-          data-smart-row=""
-          disabled={disabled || item.missing}
-          title={item.missing ? `${item.path} no longer exists` : item.path}
-          onClick={() => onPick(pickOf({ path: item.path, name: item.name, hasGit: item.hasGit, branch: item.branch }))}
-          className={`${PICKER_ROW} min-w-0 flex-1 disabled:cursor-not-allowed disabled:opacity-60 ${selected ? PICKER_ROW_SELECTED : ''}`}
-        >
-          <FolderGlyph entry={{ hasGit: item.hasGit, isLink: false }} />
-          <span className="shrink-0 font-medium">
-            <Highlight text={item.name} terms={terms} />
-          </span>
-          <BranchBadge branch={item.branch} />
-          <span className="min-w-0 truncate text-xs text-muted">{item.missing ? 'no longer exists' : dir}</span>
-        </button>
+        <Tooltip content={item.missing ? `${item.path} no longer exists` : item.path}>
+          <button
+            data-tip-fill=""
+            type="button"
+            data-smart-row=""
+            disabled={disabled || item.missing}
+            onClick={() => onPick(pickOf({ path: item.path, name: item.name, hasGit: item.hasGit, branch: item.branch }))}
+            className={`${PICKER_ROW} min-w-0 flex-1 disabled:cursor-not-allowed disabled:opacity-60 ${selected ? PICKER_ROW_SELECTED : ''}`}
+          >
+            <FolderGlyph entry={{ hasGit: item.hasGit, isLink: false }} />
+            <span className="shrink-0 font-medium">
+              <Highlight text={item.name} terms={terms} />
+            </span>
+            <BranchBadge branch={item.branch} />
+            <span className="min-w-0 truncate text-xs text-muted">{item.missing ? 'no longer exists' : dir}</span>
+          </button>
+        </Tooltip>
         <IconButton size="icon-sm" variant={isPinned ? 'neutral' : 'ghost'} icon={isPinned ? <PinOff aria-hidden="true" className="h-4 w-4" /> : <Pin aria-hidden="true" className="h-4 w-4" />} aria-label={isPinned ? `Unpin ${item.name}` : `Pin ${item.name}`} aria-pressed={isPinned} disabled={disabled} onClick={() => pin(item.path)} />
       </li>
     );

@@ -1,4 +1,4 @@
-import { liveTooltip } from './liveTooltip.js';
+import { focusByKeyboard, liveTooltip } from './liveTooltip.js';
 import { act, fireEvent, render, screen as pageScreen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionStatusDto } from '../deps.js';
@@ -77,7 +77,7 @@ describe('the status chips of the one-line header', () => {
     const context = within(info).getByRole('img', { name: 'Context 38% of the way to auto-compact, plenty of room' });
     expect(context).toHaveTextContent(/^38%$/);
     expect(context.querySelector('svg')).toBeNull();
-    fireEvent.focus(context);
+    focusByKeyboard(context);
     expect(liveTooltip()).toHaveTextContent(/367\.8k tokens in the context, auto-compact at about 967\.0k \(38%.*Window 1\.0M.*1000k window assumed.*not read from Claude Code/);
     expect(within(info).getByLabelText('Tokens: 367,800 tokens in the prompt of the last call, 816 tokens in its answer (grows while it streams)')).toHaveTextContent('367.8k816');
     expect(within(info).getByLabelText('Running for 2h22m')).toBeInTheDocument();
@@ -121,7 +121,7 @@ describe('the status chips of the one-line header', () => {
     show({ model: { id: 'claude-mystery-9', displayName: 'claude-mystery-9', known: false } });
     const chip = screen.getByLabelText('Model, unrecognised id claude-mystery-9');
     expect(chip).toHaveTextContent('claude-mystery-9');
-    fireEvent.focus(chip);
+    focusByKeyboard(chip);
     expect(liveTooltip()).toHaveTextContent('Unrecognised model id: claude-mystery-9');
   });
 
@@ -133,7 +133,7 @@ describe('the status chips of the one-line header', () => {
 
   it('shows the earlier models in the tooltip of the model chip', () => {
     show(FULL);
-    fireEvent.focus(screen.getByLabelText('Model Sonnet 5.5'));
+    focusByKeyboard(screen.getByLabelText('Model Sonnet 5.5'));
     expect(liveTooltip()).toHaveTextContent('Before: Opus 5.5');
   });
 
@@ -156,7 +156,7 @@ describe('the status chips of the one-line header', () => {
   it('a bypass counted in uses has no expiry time in its tooltip', () => {
     show({ bypasses: [{ category: 'git-commit-push', label: 'c&p', left: '2x' }] });
     const chip = screen.getByLabelText('Bypass c&p, 2x left');
-    fireEvent.focus(chip);
+    focusByKeyboard(chip);
     expect(liveTooltip()).toHaveTextContent('counted in uses (no expiry time)');
   });
 

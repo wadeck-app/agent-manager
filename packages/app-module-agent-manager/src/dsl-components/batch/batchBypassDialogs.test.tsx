@@ -176,7 +176,7 @@ describe('BatchAddBypassDialog', () => {
     stubFetch({ ...CSRF, [RULES(many[0]?.sessionId ?? '')]: { body: rulesOf('x', '/w/shop', [rule('rm')]) } });
     render(<BatchAddBypassDialog rows={many} onClose={vi.fn()} />);
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByText(/at most 20 sessions.*untick 1/)).toBeInTheDocument();
+    expect(await (await within(dialog).findAllByText(/at most 20 sessions.*untick 1/))[0]).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Add bypass' })).toBeDisabled();
   });
 

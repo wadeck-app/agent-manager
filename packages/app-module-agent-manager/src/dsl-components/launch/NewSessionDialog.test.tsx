@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,7 +67,12 @@ describe('New session dialog: the form', () => {
     });
     open();
     const buttons = await screen.findAllByRole('button', { name: /^(new|old)/ });
-    expect(buttons.map((button) => button.getAttribute('title'))).toEqual(['/work/new', '/work/old']);
+    expect(
+      buttons.map((button) => {
+        hoverTip(button);
+        return liveTooltip().textContent;
+      }),
+    ).toEqual(['/work/new', '/work/old']);
     await userEvent.click(buttons[0]!);
     expect(folder().value).toBe('/work/new');
     expect(document.querySelector('[data-picked-folder]')).toHaveTextContent('new');

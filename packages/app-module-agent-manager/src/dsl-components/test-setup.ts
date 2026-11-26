@@ -27,6 +27,15 @@ const fakeShell = {
   },
 };
 
+// jsdom has no ResizeObserver, which the card of the dsl-ui Tooltip (Radix popper) measures with: a silent stand-in (a test that needs to drive it stubs its own, vi.stubGlobal).
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  };
+}
+
 // Every test starts with the write token already "fetched": the tests of the token itself (data/http.test.ts) reset it.
 beforeEach(() => {
   // A dismissed notice is remembered for the browser session: every test starts with none dismissed.

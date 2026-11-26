@@ -1,4 +1,4 @@
-import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
+import { ButtonAction, IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { clockText, GUARDRAILS_REVOKE_ENABLED, remainingText, type CliGrantDto } from '../deps.js';
@@ -19,17 +19,23 @@ export function CliGrantItem({ grant, now, busy, onRevoke }: { grant: CliGrantDt
           <span className="font-medium text-content">{grant.category}</span>
           <span className="text-muted">{grant.mode === 'once' ? 'once' : 'time-boxed'}</span>
           {grant.origin === null ? null : (
-            <span data-origin={grant.origin} title={grant.origin === 'ui' ? 'Created from this page, with your PIN' : `The plugin reports the origin "${grant.origin}"`} className="text-muted">
-              {grant.origin === 'ui' ? 'added from this page' : `origin: ${grant.origin}`}
-            </span>
+            <Tooltip content={grant.origin === 'ui' ? 'Created from this page, with your PIN' : `The plugin reports the origin "${grant.origin}"`}>
+              <span data-origin={grant.origin} className="text-muted">
+                {grant.origin === 'ui' ? 'added from this page' : `origin: ${grant.origin}`}
+              </span>
+            </Tooltip>
           )}
-          <span data-full-session="" title={`Matched on the full session id ${grant.sessionId}`} className="inline-flex items-center gap-0.5 text-muted">
-            <KeyRound aria-hidden="true" className="h-3 w-3" />
-            full id
-          </span>
+          <Tooltip content={`Matched on the full session id ${grant.sessionId}`}>
+            <span data-full-session="" className="inline-flex items-center gap-0.5 text-muted">
+              <KeyRound aria-hidden="true" className="h-3 w-3" />
+              full id
+            </span>
+          </Tooltip>
         </p>
         <p className="tabular-nums text-muted">
-          <span title={`Expires at ${clockText(grant.expiresAt)}`}>{expired ? 'expired' : `${remainingText(left)} left`}</span>
+          <Tooltip content={`Expires at ${clockText(grant.expiresAt)}`}>
+            <span>{expired ? 'expired' : `${remainingText(left)} left`}</span>
+          </Tooltip>
           {`, ${uses}`}
         </p>
         <p className="break-words text-muted">{grant.reason === '' ? 'No reason given' : grant.reason}</p>

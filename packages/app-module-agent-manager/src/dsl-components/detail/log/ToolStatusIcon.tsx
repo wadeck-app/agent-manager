@@ -12,7 +12,7 @@ export function ToolStatusIcon({ call }: { call: ToolCall }) {
     unknown: { Icon: CircleHelp, text: 'text-muted', label: 'No result was seen for this call' },
   }[call.status];
   return (
-    <Tooltip content={look.label}>
+    <Tooltip content={look.label} describe={false}>
       <span role="img" aria-label={look.label} className="inline-flex">
         <look.Icon aria-hidden="true" className={`${LOG_ICON} ${look.text}`} />
       </span>

@@ -1,3 +1,4 @@
+import { hoverTip, liveTooltip } from '../detail/status/liveTooltip.js';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -53,7 +54,8 @@ describe('the Move button: the daemon is not running', () => {
       </DaemonStateProvider>,
     );
     expect(button()).toBeDisabled();
-    expect(wrapper().getAttribute('title')).toMatch(/daemon is not running.*agent-manager start --detach/s);
+    hoverTip(wrapper());
+    expect(liveTooltip().textContent).toMatch(/daemon is not running.*agent-manager start --detach/s);
     // A muted line says the same under the button, and the readiness (which does not need the daemon) stays in words.
     expect(document.querySelector('[data-move-unavailable]')).toHaveTextContent('Daemon not running: agent-manager start --detach');
     expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('Free to move');
@@ -217,8 +219,8 @@ describe('the Start button after a failed move', () => {
     const { calls } = stubFetch({ [SWITCH]: switched('stream-json') });
     const { onChange } = bar({ host: 'hc', ownedState: 'unobserved', alive: false, switchFailure: { ...FAILURE, target: 'stream-json' } });
     expect(wrapper()).toHaveTextContent('Start on Web');
-    expect(screen.getByText(/The last move to Web failed/)).toBeInTheDocument();
-    expect(screen.getByText(/hc run refused \(busy\)/)).toBeInTheDocument();
+    expect(screen.getAllByText(/The last move to Web failed/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/hc run refused \(busy\)/).length).toBeGreaterThan(0);
     await userEvent.click(button());
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: expect.objectContaining({ id: ID, hostKind: 'stream-json' }) }));
     expect(calls.find((call) => call.method === 'POST' && call.path === `/owned/${ID}/switch`)?.body).toEqual({ target: 'stream-json', force: false });

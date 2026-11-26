@@ -1,4 +1,4 @@
-import { CompactSelect, HorizontalStack } from '@wadeck-app/dsl-ui';
+import { CompactSelect, HorizontalStack, Tooltip } from '@wadeck-app/dsl-ui';
 import type { CSSProperties, ReactNode } from 'react';
 import { SelectionEntry } from '../batch/SelectionEntry.js';
 import { useSelection } from '../lists/selection.js';
@@ -8,7 +8,6 @@ import type { ViewOptions } from '../logic/viewOptions.js';
 import { DensityControl } from '../ui/DensityControl.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
 import { ListLayoutMenu } from './ListLayoutMenu.js';
-import { NewGroupControl } from './NewGroupControl.js';
 import { SearchBox, type SearchBoxProps } from './SearchBox.js';
 
 export interface ToolbarProps {
@@ -25,23 +24,21 @@ export interface ToolbarProps {
   search: SearchBoxProps;
   helpOpen: boolean;
   onHelpOpenChange: (open: boolean) => void;
-  /** Creates a custom group with this name; resolves true when it was created. Only the Tree lists the groups, so the button shows there only. */
-  onNewGroup?: (name: string) => Promise<boolean>;
   /** A session is open: below the lg breakpoint the detail replaces the list, so the toolbar (which acts on the list) gives its room back to the detail. */
   detailOpen?: boolean;
   /** The ids the list shows (what the select-all box ticks); absent: no box. */
   selectableIds?: readonly string[];
-  /** The notices button (a NoticesButton, which renders nothing without an active notice): placed immediately left of the New group button. */
+  /** The notices button (a NoticesButton, which renders nothing without an active notice): first of the right-aligned controls. */
   notices?: ReactNode;
 }
 
 /**
  * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the list layout and view options (ONE fixed icon, one popup), the
- * search, then New group, the selection entry, which sessions to show and the icon buttons that are not list options (text size, shortcut help). New session is
- * not here: it is the footer of the list pane (ListFooter), always visible under the list.
+ * search, then the notices, the selection entry, which sessions to show and the icon buttons that are not list options (text size, shortcut help). New session and New group are
+ * not here: they are the action bar of the list pane (ListFooter), always visible under the list.
  */
-export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, onNewGroup, detailOpen = false, selectableIds, notices = null }: ToolbarProps) {
-  // Under 1280 px (the shell menu takes 240 px of it) the toolbar keeps one row: icons for the modes and for New group, a number for the count, short labels.
+export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, detailOpen = false, selectableIds, notices = null }: ToolbarProps) {
+  // Under 1280 px (the shell menu takes 240 px of it) the toolbar keeps one row: a number for the count, short labels.
   const countText = `${count} ${count === 1 ? 'session' : 'sessions'}${show === 'alive' && hiddenDead > 0 ? `, ${hiddenDead} ended hidden` : ''}`;
   const tight = useMediaQuery('(max-width: 1279px)');
   // The selection mode adds a Select all button to the line: the count gives it room (a number, the sentence in its tooltip) so the toolbar keeps one row at 1280 px.
@@ -51,16 +48,18 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
     <div data-toolbar="" className={`${detailOpen ? 'hidden lg:flex' : 'flex'} min-h-am-hit flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1`}>
       <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
       {selectableIds === undefined ? null : <SelectionEntry slot="title" ids={selectableIds} />}
-      <span className="text-sm text-muted" title={shortCount ? countText : undefined}>
-        {shortCount ? (
-          <>
-            <span aria-hidden="true">{count}</span>
-            <span className="sr-only">{countText}</span>
-          </>
-        ) : (
-          countText
-        )}
-      </span>
+      <Tooltip content={shortCount ? countText : undefined} describe={false}>
+        <span className="text-sm text-muted">
+          {shortCount ? (
+            <>
+              <span aria-hidden="true">{count}</span>
+              <span className="sr-only">{countText}</span>
+            </>
+          ) : (
+            countText
+          )}
+        </span>
+      </Tooltip>
       <ListLayoutMenu mode={mode} onMode={onMode} options={options} onOptions={onOptions} />
       <SearchBox {...search} />
       {/* The actions sit in the library row (one gap for all of them, wrapping whole on a narrow screen); ml-auto pushes the row to the right edge. */}
@@ -70,9 +69,8 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
           <div data-notices-slot="" className="empty:hidden">
             {notices}
           </div>
-          {(mode === 'tree' || mode === 'custom') && onNewGroup !== undefined ? <NewGroupControl onCreate={onNewGroup} iconOnly={tight} /> : null}
           {selectableIds === undefined ? null : <SelectionEntry slot="actions" ids={selectableIds} />}
-          {/* The base select has no size prop: it is as high as a text-sm line plus its padding. The line height of this one box is the text-xs one (the line height of a small ButtonAction), so the select, New group and the icon buttons are all 28 px at every density. */}
+          {/* The base select has no size prop: it is as high as a text-sm line plus its padding. The line height of this one box is the text-xs one (the line height of a small ButtonAction), so the select and the icon buttons are all 28 px at every density. */}
           <span data-show-select="" className="inline-flex" style={{ '--am-lh-sm': 'var(--am-lh-xs)' } as CSSProperties}>
             <CompactSelect
               ariaLabel="Sessions to show"

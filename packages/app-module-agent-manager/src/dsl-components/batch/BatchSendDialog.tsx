@@ -1,4 +1,4 @@
-import { ButtonAction, Checkbox, FieldTextarea } from '@wadeck-app/dsl-ui';
+import { ButtonAction, Checkbox, FieldTextarea, Tooltip } from '@wadeck-app/dsl-ui';
 import { CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, Send } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { requestJson } from '../data/http.js';
@@ -9,7 +9,6 @@ import type { BatchRecipientResult, BatchRecipientState, BatchReplyResponse } fr
 import { Banner } from '../ui/Banner.js';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { MAX_BATCH_RECIPIENTS, previewText, resultsText, retryableIds, sendBlockText, STATE_WORDS, summaryText } from './batchModel.js';
 import { useRecipientChecks } from './useRecipientChecks.js';
 

@@ -1,13 +1,13 @@
+import { Tooltip } from '@wadeck-app/dsl-ui';
 import type { AgentRow } from '../data/types.js';
 import { herdrLight } from '../logic/herdrRow.js';
 import { STATE_MEANING } from '../logic/states.js';
 import { StatusColumn } from '../ui/StatusColumn.js';
-import { Tooltip } from '../ui/Tooltip.js';
 import { LightNode } from './LightNode.js';
 
 /**
  * The state light on the right of a Herdr row, in the fixed 28 px column of the page (ui/StatusColumn.tsx): every light is centred in the column, so the
- * lights of all the rows and the icons of the group headers sit on one vertical axis. The pill with words is wider than the column and right aligned.
+ * lights of all the rows and the icons of the group headers sit on one vertical axis. Every state is an icon, so the column never widens.
  */
 export function HerdrLightView({ session }: { session: AgentRow }) {
   const light = herdrLight(session.state);
@@ -16,9 +16,9 @@ export function HerdrLightView({ session }: { session: AgentRow }) {
       <span className="inline-flex shrink-0">
         <StatusColumn>
           <span data-herdr-light={light.kind} className="inline-flex items-center">
-            {/* A state that needs words (Needs you) has its pill before the age (HerdrRowBody): here its compact "!" box keeps the column an icon column. */}
-            <LightNode state={session.state} compact />
-            {light.kind === 'pill' ? null : <span className="sr-only">{light.label}</span>}
+            {/* Needs you is the compact red "!" box, named in words for assistive technology (the visible pill of the row was removed so that the names keep the room). */}
+            <LightNode state={session.state} />
+            <span className="sr-only">{light.label}</span>
           </span>
         </StatusColumn>
       </span>
