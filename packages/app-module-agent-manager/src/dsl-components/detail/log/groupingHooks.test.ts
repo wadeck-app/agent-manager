@@ -41,12 +41,8 @@ describe('mergeSystemRows', () => {
   const notice = (key: string, noticeKind: 'stop-hook' | 'turn-duration' | 'local-command'): LogEntry => ({ key, offset: 0, kind: 'system-notice', noticeKind, subtype: noticeKind, isMeta: false, durationMs: 32_000 });
   const rows = buildRows([assistantText('a', 'x'), hook('h1'), notice('n1', 'stop-hook'), notice('n2', 'turn-duration'), assistantText('b', 'y'), notice('n3', 'local-command')]);
 
-  it('look rows: the rows are returned as they are', () => {
-    expect(mergeSystemRows(rows, 'rows').map((row) => row.key)).toEqual(rows.map((row) => row.key));
-  });
-
-  it('other looks: a run of hooks and turn rows is ONE row that holds every entry; a message or another notice ends the run', () => {
-    const merged = mergeSystemRows(rows, 'merged');
+  it('a run of hooks and turn rows is ONE row that holds every entry; a message or another notice ends the run', () => {
+    const merged = mergeSystemRows(rows);
     expect(merged.map((row) => row.type)).toEqual(['entry', 'system', 'entry', 'entry']);
     const system = merged[1]!;
     expect(system.type === 'system' ? system.entries.map((entry) => entry.key) : []).toEqual(['h1', 'n1', 'n2']);

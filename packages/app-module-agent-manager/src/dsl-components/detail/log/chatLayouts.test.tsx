@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-// violations-suppress: ts/no-deep-relative test of the layouts reads the variants of the dock, not exported through deps.ts (it is a test-only use)
-import { CHAT_LAYOUT, DEFAULT_UI_VARIANTS, UI_QUESTIONS, type ChatLayoutVariant } from '../../logic/uiVariants.js';
-// violations-suppress: ts/no-deep-relative the context of the dock is not exported through deps.ts (test-only use)
-import { UiVariantsContext } from '../../ui/UiVariants.js';
+// violations-suppress: ts/no-deep-relative test of the layouts reads the setting of the user, not exported through deps.ts (it is a test-only use)
+import { CHAT_LAYOUT_CHOICES, CHAT_LAYOUT_IDS, DEFAULT_CHAT_LAYOUT, type ChatLayoutVariant } from '../../logic/chatLayoutPref.js';
+// violations-suppress: ts/no-deep-relative the provider of the setting is not exported through deps.ts (test-only use)
+import { ChatLayoutProvider } from '../../ui/ChatLayoutContext.js';
 import { ChatFrame } from './ChatFrame.js';
 import { CHAT_LAYOUTS } from './chatLayouts.js';
 import { assistantText, userPrompt } from './entryFixtures.js';
@@ -13,29 +13,40 @@ const MARKDOWN = 'Here is the plan:\n\n- first item\n- second item\n\n```ts\ncon
 const NO_CONTEXT = { isOpen: () => false, toggle: () => undefined };
 const UUID = '11111111-0000-4000-8000-000000000001';
 
-function frame(entry: ReturnType<typeof userPrompt>, variant: ChatLayoutVariant, props: { continued?: boolean; onThread?: () => void } = {}) {
+function frame(entry: ReturnType<typeof userPrompt>, variant: ChatLayoutVariant | undefined, props: { onThread?: () => void } = {}) {
   const model = describeEntry({ ...entry, uuid: UUID } as typeof entry);
-  return (
-    <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, chatLayout: variant }}>
-      <ChatFrame model={model} open={false} onToggle={() => undefined} context={NO_CONTEXT} now={5_000} highlighted={false} {...props} />
-    </UiVariantsContext.Provider>
+  const inner = <ChatFrame model={model} open={false} onToggle={() => undefined} context={NO_CONTEXT} now={5_000} highlighted={false} {...props} />;
+  // No provider: the default, as a component used alone shows it.
+  return variant === undefined ? (
+    inner
+  ) : (
+    <ChatLayoutProvider layout={variant} setLayout={() => undefined}>
+      {inner}
+    </ChatLayoutProvider>
   );
 }
 
 afterEach(() => vi.restoreAllMocks());
 
 describe('chat layouts', () => {
-  it('has a descriptor, a dock option and a hint saying where to look for each of the eight layouts', () => {
-    expect([...CHAT_LAYOUT]).toHaveLength(8);
-    for (const id of CHAT_LAYOUT) {
+  it('has four layouts, a descriptor and a one-line description for each, and the default is the rule', () => {
+    expect([...CHAT_LAYOUT_IDS]).toEqual(['rule', 'bubbles', 'claude-ai', 'terminal']);
+    for (const id of CHAT_LAYOUT_IDS) {
       expect(CHAT_LAYOUTS[id]).toBeDefined();
-      expect(UI_QUESTIONS.chatLayout.options[id].hint).toContain('HOW TO SEE IT: open any agent with a log');
+      expect(CHAT_LAYOUT_CHOICES[id].hint).not.toContain('\n');
     }
-    expect(UI_QUESTIONS.chatLayout.id).toBe('ui-chat-layout');
-    expect(DEFAULT_UI_VARIANTS.chatLayout).toBe('bubbles');
+    // The layouts that were dropped (slack, card, irc, doc) have no descriptor left.
+    expect(Object.keys(CHAT_LAYOUTS).sort()).toEqual([...CHAT_LAYOUT_IDS].sort());
+    expect(DEFAULT_CHAT_LAYOUT).toBe('rule');
   });
 
-  it.each(CHAT_LAYOUT)('%s: an agent message keeps its markdown, its links, its code copy and its sender', (variant) => {
+  it('without a provider the rule layout draws: a coloured left rule and the name in the header', () => {
+    const { container } = render(frame(assistantText('a1', 'hi'), undefined));
+    expect(container.querySelector('[data-chat-role="assistant"] > div')).toHaveClass('border-l-2', 'border-hue-purple');
+    expect(screen.getByText('Claude')).not.toHaveClass('sr-only');
+  });
+
+  it.each(CHAT_LAYOUT_IDS)('%s: an agent message keeps its markdown, its links, its code copy and its sender', (variant) => {
     render(frame(assistantText('a1', MARKDOWN), variant));
     expect(screen.getByText('first item')).toBeInTheDocument();
     expect(screen.getByText('second item')).toBeInTheDocument();
@@ -46,7 +57,7 @@ describe('chat layouts', () => {
     expect(screen.getAllByText(/Claude|claude/).length).toBeGreaterThan(0);
   });
 
-  it.each(CHAT_LAYOUT)('%s: a message of yours keeps its text, its sender, its age and the Thread action', (variant) => {
+  it.each(CHAT_LAYOUT_IDS)('%s: a message of yours keeps its text, its sender, its age and the Thread action', (variant) => {
     const onThread = vi.fn();
     render(frame(userPrompt('u1', 'please fix the build'), variant, { onThread }));
     expect(screen.getByText('please fix the build')).toBeInTheDocument();
@@ -57,14 +68,14 @@ describe('chat layouts', () => {
     expect(onThread).toHaveBeenCalledTimes(1);
   });
 
-  it.each(CHAT_LAYOUT)('%s: every layout draws the same text for the same message', (variant) => {
+  it.each(CHAT_LAYOUT_IDS)('%s: every layout draws the same text for the same message', (variant) => {
     const { container } = render(frame(userPrompt('u1', 'one\ntwo with `code`'), variant));
     const body = container.textContent ?? '';
     expect(body).toContain('one');
     expect(body).toContain('two with `code`');
   });
 
-  it('the default layout is the one of today: your message on the right, the agent one on the left in a bordered bubble with its header', () => {
+  it('the bubbles layout: your message on the right, the agent one on the left in a bordered bubble with its header', () => {
     const user = render(frame(userPrompt('u1', 'hello'), 'bubbles'));
     expect(user.container.querySelector('[data-chat-role="user"]')).toHaveClass('flex', 'justify-end');
     expect(user.container.querySelector('[data-chat-role="user"] > div')).toHaveClass('max-w-am-prose', 'rounded-lg', 'bg-primary-light');
@@ -75,31 +86,15 @@ describe('chat layouts', () => {
     expect(screen.getByText('Claude')).not.toHaveClass('sr-only');
   });
 
-  it('a layout that groups senders drops the header of a following message of the same sender, but never its content', () => {
-    render(frame(assistantText('a2', 'second message'), 'slack', { continued: true }));
-    expect(screen.getByText('second message')).toBeInTheDocument();
-    expect(document.querySelector('[data-chat-grouped="true"]')).not.toBeNull();
-    // Read aloud.
-    expect(screen.getByText('Claude')).toHaveClass('sr-only');
-  });
-
-  it('a layout that does not group senders keeps every header', () => {
-    render(frame(assistantText('a2', 'second message'), 'bubbles', { continued: true }));
-    expect(document.querySelector('[data-chat-grouped="true"]')).toBeNull();
-    expect(screen.getByText('Claude')).not.toHaveClass('sr-only');
-  });
-
-  it('a message of yours with a mark (queued) is never grouped: its label says it', () => {
-    const queued = { ...userPrompt('u3', 'later'), queued: true } as ReturnType<typeof userPrompt>;
-    render(frame(queued, 'slack', { continued: true }));
-    expect(document.querySelector('[data-chat-grouped="true"]')).toBeNull();
-    expect(screen.getByText('You (queued)')).toBeInTheDocument();
-  });
-
   it('a layout without a name still shows a label that says more than the plain name', () => {
     const queued = { ...userPrompt('u3', 'later'), queued: true } as ReturnType<typeof userPrompt>;
     render(frame(queued, 'terminal'));
     expect(screen.getByText('You (queued)')).not.toHaveClass('sr-only');
+  });
+
+  it('a layout without a name reads the sender aloud', () => {
+    render(frame(assistantText('a1', 'hi'), 'claude-ai'));
+    expect(screen.getByText('Claude')).toHaveClass('sr-only');
   });
 
   describe('long messages', () => {
@@ -118,22 +113,15 @@ describe('chat layouts', () => {
     });
 
     it('a short message has no Show more', () => {
-      render(frame(userPrompt('u9', 'short'), 'irc'));
+      render(frame(userPrompt('u9', 'short'), 'rule'));
       expect(screen.queryByRole('button', { name: /Show more/ })).toBeNull();
     });
 
     it('a layout without clamp never offers Show more', () => {
       vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(900);
       vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(200);
-      render(frame(userPrompt('u9', LONG), 'card'));
+      render(frame(userPrompt('u9', LONG), 'bubbles'));
       expect(screen.queryByRole('button', { name: /Show more/ })).toBeNull();
     });
-  });
-
-  it('the gutter layout shows the time in the gutter and the nick of the sender', () => {
-    const { container } = render(frame(assistantText('a1', 'hi'), 'irc'));
-    const row = container.querySelector('[data-chat-role="assistant"]') as HTMLElement;
-    expect(within(row).getByText('claude')).toBeInTheDocument();
-    expect(row.querySelector('time')).not.toBeNull();
   });
 });

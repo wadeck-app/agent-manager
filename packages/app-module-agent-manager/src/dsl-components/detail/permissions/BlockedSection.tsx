@@ -3,6 +3,7 @@ import { ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 import { blockedCountsText, BLOCKED_RANKINGS, BLOCKED_RANKING_LABEL, bypassCommand, isBlockedRanking, PAGE_BASE, PageLink, rankBlocks, readBlockedRanking, RECENT_WINDOW_TEXT, saveBlockedRanking, type AgentRow, type BlockedRanking } from '../deps.js';
 import { CopyButton } from '../log/CopyButton.js';
+import { SECTION } from './sectionSpacing.js';
 import type { SessionGrantsFeed } from './useSessionGrants.js';
 
 const NOTE = 'text-xs text-muted';
@@ -32,7 +33,7 @@ export function BlockedSection({ session, view }: { session: AgentRow; view: Ses
   };
   const ranked = blocks === undefined ? undefined : rankBlocks(blocks, ranking);
   return (
-    <section aria-label="Blocked" className="border-b border-border px-3 py-2">
+    <section aria-label="Blocked" className={`${SECTION} px-3`}>
       <h4 className="flex items-center gap-1.5 text-xs font-medium text-content">
         <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm text-muted" />
         Blocked

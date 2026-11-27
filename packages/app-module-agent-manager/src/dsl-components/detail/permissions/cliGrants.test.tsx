@@ -36,16 +36,17 @@ describe('the bypasses of the session from the admin CLI', () => {
     expect(within(first).getByText('rm')).toBeInTheDocument();
     expect(first.querySelector('[data-grant-uses]')).toHaveTextContent('1 use left');
     expect(first.querySelector('[data-grant-left]')).toHaveTextContent('10 min left');
-    expect(first.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
-    // No key link on the row any more: the ids are in the tooltip of the reason.
+    // No key link on the row any more: the reason and the ids are in the tooltip of the category (the table keeps the reason out of the row).
     expect(first.querySelector('[data-full-session]')).toBeNull();
     hoverTip(first.querySelector('[data-grant-reason]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent('clean the build folder');
     expect(liveTooltip()).toHaveTextContent(`Session id${SID}`);
     expect(liveTooltip()).toHaveTextContent('Bypass ida1b2c3d4');
     const second = mine.querySelector('[data-cli-grant="b2c3d4e5"]') as HTMLElement;
     expect(second.querySelector('[data-grant-uses]')).toBeNull();
     expect(second).not.toHaveTextContent('no use limit');
-    expect(second.querySelector('[data-grant-reason]')).toHaveTextContent('No reason given');
+    hoverTip(second.querySelector('[data-grant-reason]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent('No reason given');
     expect(screen.queryByText('read from files (admin CLI not found)')).toBeNull();
   });
 

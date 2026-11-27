@@ -35,7 +35,9 @@ describe('the Permissions panel', () => {
     expect(mine.querySelector('[data-grant-left]')).toHaveTextContent('10 min left');
     // No use limit: no use text on the row.
     expect(mine.querySelector('[data-grant-uses]')).toBeNull();
-    expect(mine.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
+    // The table keeps the reason in the tooltip of the category.
+    hoverTip(mine.querySelector('[data-grant-reason]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent('clean the build folder');
     const project = screen.getByRole('region', { name: 'Other sessions of this project' });
     expect(within(project).getAllByText('billing-owner')[0]).toBeInTheDocument();
     expect(project.querySelector('[data-grant-uses]')).toHaveTextContent('0 of 1 use');
@@ -89,7 +91,8 @@ describe('the Permissions panel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('The bypasses could not be read: Cannot reach the app-core server.');
     rerender(<PermissionsPanel session={session} feed={feedOf([grant('g1', SID)], { error: 'Cannot reach the app-core server.' })} />);
     expect(screen.getByRole('alert')).toHaveTextContent('the list is the last one read');
-    expect(document.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
+    hoverTip(document.querySelector('[data-grant-reason]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent('clean the build folder');
   });
 
   it('says it is reading before the first answer, and warns about unreadable files and the emergency switch', () => {
@@ -120,7 +123,8 @@ describe('the rail with its two tabs', () => {
     fireEvent.click(button);
     const panel = screen.getByRole('complementary', { name: 'Permissions' });
     expect(within(panel).getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
-    expect(panel.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
+    hoverTip(panel.querySelector('[data-grant-reason]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent('clean the build folder');
   });
 
   it('no badge for zero bypasses (the label says it), and no sub-agents is said on the Sub-agents tab', () => {

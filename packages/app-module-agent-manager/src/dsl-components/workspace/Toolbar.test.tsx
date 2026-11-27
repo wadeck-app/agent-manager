@@ -1,12 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { HeaderActionsProvider, HeaderActionsSlot, UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
+import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeItem } from '../logic/notices.js';
 import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
 import { NoticesButton } from '../ui/Notices.js';
 import { DEFAULT_UI_VARIANTS, UI_QUESTIONS } from '../logic/uiVariants.js';
-import { UiVariantsContext } from '../ui/UiVariants.js';
+import { TrailSlot } from '../ui/TrailSlot.js';
 import { Toolbar, type ToolbarProps } from './Toolbar.js';
 
 const service: UrlParamService = { get: () => null, set: () => undefined };
@@ -29,15 +29,13 @@ function props(extra: Partial<ToolbarProps>): ToolbarProps {
   };
 }
 
-// The tests of the controls render the in-page header (the default is the breadcrumb row, tested below with its own slot).
-const IN_PAGE = { ...DEFAULT_UI_VARIANTS, headerPlacement: 'in-page' as const };
-
+// The header is always drawn through the shell header slot (HeaderActions), which a test provides with TrailSlot.
 const show = (extra: Partial<ToolbarProps>) =>
   render(
     <UrlParamContext.Provider value={service}>
-      <UiVariantsContext.Provider value={IN_PAGE}>
+      <TrailSlot>
         <Toolbar {...props(extra)} />
-      </UiVariantsContext.Provider>
+      </TrailSlot>
     </UrlParamContext.Provider>,
   );
 
@@ -96,51 +94,28 @@ describe('Toolbar search box', () => {
   });
 });
 
-describe('Toolbar header placement (A/B question ui-header-placement)', () => {
-  const inPage = (extra: Partial<ToolbarProps> = {}) => (
-    <UrlParamContext.Provider value={service}>
-      <UiVariantsContext.Provider value={IN_PAGE}>
-        <Toolbar {...props(extra)} />
-      </UiVariantsContext.Provider>
-    </UrlParamContext.Provider>
-  );
-  // The default of the question: no override of the variants.
+describe('Toolbar header placement (settled: the breadcrumb row)', () => {
   const inTrail = (extra: Partial<ToolbarProps> = {}) => (
     <UrlParamContext.Provider value={service}>
-      <UiVariantsContext.Provider value={DEFAULT_UI_VARIANTS}>
-        <HeaderActionsProvider>
-          <header data-testid="trail">
-            <HeaderActionsSlot />
-          </header>
-          <main data-testid="page">
-            <Toolbar {...props(extra)} />
-          </main>
-        </HeaderActionsProvider>
-      </UiVariantsContext.Provider>
+      <TrailSlot>
+        <main data-testid="page">
+          <Toolbar {...props(extra)} />
+        </main>
+      </TrailSlot>
     </UrlParamContext.Provider>
   );
 
-  it('the default is in-trail (the breadcrumb row), the other option is in-page', () => {
-    expect(UI_QUESTIONS.headerPlacement.initial).toBe('in-trail');
-    expect(DEFAULT_UI_VARIANTS.headerPlacement).toBe('in-trail');
-    expect(Object.keys(UI_QUESTIONS.headerPlacement.options)).toEqual(['in-trail', 'in-page']);
-    expect(UI_QUESTIONS.headerPlacement.options['in-trail'].hint).toContain('The default');
-    expect(UI_QUESTIONS.headerPlacement.options['in-page'].hint).not.toContain('Today');
+  it('has no dock question any more: the old stored value of ui-header-placement is simply ignored', () => {
+    expect(Object.keys(UI_QUESTIONS)).not.toContain('headerPlacement');
+    expect(Object.values(UI_QUESTIONS).map((question) => question.id)).not.toContain('ui-header-placement');
+    expect(DEFAULT_UI_VARIANTS).not.toHaveProperty('headerPlacement');
   });
 
-  it('in-page renders one h1 and the bordered row in the page', () => {
-    render(inPage());
-    expect(screen.getAllByRole('heading', { level: 1, name: 'Agents' })).toHaveLength(1);
-    const row = document.querySelector('[data-toolbar]') as HTMLElement;
-    expect(row.className).toContain('border-b');
-    expect(row.hasAttribute('data-placement')).toBe(false);
-  });
-
-  it('in-trail (the default) renders one h1 through HeaderActions, in the trail slot and not in the page', () => {
+  it('renders one h1 through HeaderActions, in the trail slot and not in the page', () => {
     render(inTrail());
     const heading = screen.getByRole('heading', { level: 1, name: 'Agents' });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.getByTestId('trail')).toContainElement(heading);
+    expect(screen.getByTestId('trail-slot')).toContainElement(heading);
     expect(screen.getByTestId('page')).not.toContainElement(heading);
     const row = heading.closest('[data-toolbar]') as HTMLElement;
     expect(row.getAttribute('data-placement')).toBe('in-trail');
@@ -150,7 +125,7 @@ describe('Toolbar header placement (A/B question ui-header-placement)', () => {
     expect(screen.getByRole('textbox', { name: 'Search agents' })).toBeInTheDocument();
   });
 
-  it('in-trail keeps the controls alive (the search field takes typing)', async () => {
+  it('keeps the controls alive (the search field takes typing)', async () => {
     const onText = vi.fn();
     render(inTrail({ search: { text: '', onText, shown: 3, total: 3, problems: [], onMove: vi.fn(), onEnter: vi.fn() } }));
     await userEvent.type(screen.getByRole('textbox', { name: 'Search agents' }), 'a');

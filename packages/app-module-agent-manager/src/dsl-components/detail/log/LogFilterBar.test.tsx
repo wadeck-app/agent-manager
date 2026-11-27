@@ -57,17 +57,20 @@ describe('log filters', () => {
     expect(screen.getByText('from the other session')).toBeInTheDocument();
   });
 
-  it('shows the hooks as collapsed rows when switched on, remembers it, and keeps them out of the way of the group of calls', async () => {
+  it('shows the hooks as one collapsed line when switched on, remembers it, and keeps them out of the way of the group of calls', async () => {
     render(<LogViewer session={session} />);
     await screen.findByText('run the tests');
     fireEvent.click(filter('hooks'));
     expect(filter('hooks')).toHaveAttribute('aria-pressed', 'true');
     expect(JSON.parse(window.localStorage.getItem(FILTER_PREFS_KEY) ?? '{}')).toEqual({ bar: true, hooks: true });
-    const hooks = screen.getAllByRole('button', { name: /^Hook(?!s)/ });
-    expect(hooks).toHaveLength(2);
-    expect(hooks[0]).toHaveAttribute('aria-expanded', 'false');
+    // The two hooks follow each other: ONE collapsed System line, its lines one click away (the failed one has an error text to open).
+    const strip = screen.getByRole('button', { name: /^System/ });
+    expect(strip).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('bad json')).toBeNull();
-    fireEvent.click(hooks[1]!);
+    fireEvent.click(strip);
+    const hooks = screen.getAllByRole('button', { name: /^Hook(?!s)/ });
+    expect(hooks).toHaveLength(1);
+    fireEvent.click(hooks[0]!);
     expect(screen.getByText('bad json')).toBeInTheDocument();
     expect(screen.getByText(/Exit code: 1/)).toBeInTheDocument();
     expect(screen.queryByText(/hidden/)).toBeNull();

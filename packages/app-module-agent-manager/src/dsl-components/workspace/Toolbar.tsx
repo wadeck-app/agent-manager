@@ -8,7 +8,6 @@ import { DensityControl } from '../ui/DensityControl.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
 import { Scope } from '../ui/Scope.js';
 import { TrailRow } from './TrailRow.js';
-import { useUiVariant } from '../ui/UiVariants.js';
 import { ListLayoutMenu } from './ListLayoutMenu.js';
 import { SearchBox, type SearchBoxProps } from './SearchBox.js';
 
@@ -47,7 +46,6 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
   const tight = useMediaQuery('(max-width: 1279px)');
   // The Select all button of the selection mode has a reserved slot next to the toggle (SelectionEntry): turning the mode on moves nothing in the toolbar.
   const shortCount = tight;
-  const placement = useUiVariant('headerPlacement');
   const content = (
     <>
       <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
@@ -90,21 +88,12 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
     </>
   );
   const visibility = detailOpen ? 'hidden lg:flex' : 'flex';
-  if (placement === 'in-trail') {
-    // In the shell trail row (HeaderActions portals it there, outside our page root: Scope brings back the stylesheet scope and the density variables). A flex row of unknown width: it takes the room that is left (flex-1, min-w-0), wraps whole controls, no border or padding of its own.
-    return (
-      <HeaderActions>
-        <Scope>
-          <TrailRow className={`${visibility} ${TRAIL_ROW}`}>
-            {content}
-          </TrailRow>
-        </Scope>
-      </HeaderActions>
-    );
-  }
+  // In the shell trail row (HeaderActions portals it there, outside our page root: Scope brings back the stylesheet scope and the density variables). A flex row of unknown width: it takes the room that is left (flex-1, min-w-0), wraps whole controls, no border or padding of its own.
   return (
-    <div data-toolbar="" className={`${visibility} min-h-am-hit flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1`}>
-      {content}
-    </div>
+    <HeaderActions>
+      <Scope>
+        <TrailRow className={`${visibility} ${TRAIL_ROW}`}>{content}</TrailRow>
+      </Scope>
+    </HeaderActions>
   );
 }

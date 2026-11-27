@@ -106,7 +106,8 @@ describe('the filter popup of the header', () => {
     await screen.findByText('run the tests');
     const popup = await openPopup();
     await userEvent.click(within(popup).getByRole('switch', { name: 'Hooks' }));
-    expect(screen.getAllByRole('button', { name: /^Hook(?!s)/ })).toHaveLength(2);
+    // Two hooks in a row are one System line.
+    expect(screen.getAllByRole('button', { name: /^System/ })).toHaveLength(1);
     expect(JSON.parse(window.localStorage.getItem(FILTER_PREFS_KEY) ?? '{}')).toEqual({ hooks: true });
     expect(filterButton()).toHaveAccessibleName('Log filters');
     await userEvent.click(within(popup).getByRole('switch', { name: 'Tools' }));

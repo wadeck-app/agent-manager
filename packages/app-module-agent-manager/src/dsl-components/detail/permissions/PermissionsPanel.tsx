@@ -7,6 +7,7 @@ import { CliGrantList } from './CliGrantList.js';
 import { AddBypassDialog } from './AddBypassDialog.js';
 import { GrantList } from './GrantList.js';
 import { RulesSection } from './RulesSection.js';
+import { SECTION } from './sectionSpacing.js';
 import type { SessionGrantsFeed } from './useSessionGrants.js';
 import { useSessionRules } from './useSessionRules.js';
 
@@ -89,7 +90,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
       {cli.kind === 'loading' ? <p className={`px-3 py-2 ${NOTE}`}>Reading the bypasses of this session from the plugin...</p> : null}
       {cli.kind === 'ok' ? <CliGrantList grants={cli.data.grants} cwdNote={cli.data.cwdNote} busy={busy} onRevoke={revoke} /> : null}
       {cli.kind === 'error' ? (
-        <section aria-label="This session" className="border-b border-border">
+        <section aria-label="This session" className={SECTION}>
           <p role="alert" className={WARN}>
             {`The bypasses of this session could not be read from the plugin: ${cli.text}`}
           </p>
@@ -115,7 +116,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
         </>
       ) : null}
       <BlockedSection session={session} view={view} />
-      <section aria-label="Request a bypass" className="flex flex-col gap-2 px-3 py-2">
+      <section aria-label="Request a bypass" className={`${SECTION} flex flex-col gap-2 px-3`}>
         <p className={NOTE}>Add a bypass for this session here (your PIN is asked), or copy a command above and run it in the session: you then answer the plugin dialog there.</p>
         <div>
           <ButtonAction variant="secondary" size="sm" disabled={cli.kind !== 'ok'} icon={<Plus aria-hidden="true" className="h-3.5 w-3.5" />} label="Add bypass" onClick={() => setAdding(true)} />

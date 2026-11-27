@@ -1,5 +1,5 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { ExpandMark } from './ExpandMark.js';
 import { RowButton, FOCUS_RING, Tooltip } from '../deps.js';
 import { TooltipLines } from './TooltipLines.js';
 import { TONE_TEXT } from './frameStyles.js';
@@ -7,16 +7,15 @@ import type { RowModel } from './rowModel.js';
 import { LOG_ICON, LOG_MONO } from './sizes.js';
 import { TIP_FILL } from '../deps.js';
 
-/** The clickable (or static) title line of a row. */
+/** The clickable title line of a row. A row with nothing to open is a static line with a faint chevron in the same slot, and its summary is shown whole (it wraps). */
 export function RowHeader({ model, expandable, open, onToggle }: { model: RowModel; expandable: boolean; open: boolean; onToggle: () => void }) {
   const Icon = model.icon;
-  const Chevron = open ? ChevronDown : ChevronRight;
   const content: ReactNode = (
     <>
-      {expandable ? <Chevron aria-hidden="true" className={`${LOG_ICON} text-muted`} /> : null}
+      <ExpandMark open={open} enabled={expandable} />
       <Icon aria-hidden="true" className={`${LOG_ICON} ${model.iconClass}`} />
       <span className={`shrink-0 text-sm font-medium ${TONE_TEXT[model.tone]}`}>{model.label}</span>
-      {open ? <span className="flex-1" /> : <span className={`min-w-[5rem] flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>}
+      {open ? <span className="flex-1" /> : <span className={`min-w-[5rem] flex-1 ${expandable ? 'truncate' : 'break-words'} ${LOG_MONO} text-muted`}>{model.summary}</span>}
       {model.trailing === undefined ? null : <span className="ml-auto inline-flex shrink-0 items-center whitespace-nowrap">{model.trailing}</span>}
     </>
   );

@@ -4,8 +4,8 @@ import { BASE, UNKNOWN_DASH, WIDTH, type GlyphState } from './handOverShapes.js'
 export function HandOverPlug({ state }: { state: GlyphState }) {
   return (
     <g {...BASE} strokeWidth={WIDTH}>
-      <path d="M9 2.5v4.5M15 2.5v4.5M12 17v4.5" />
-      <path d="M6 7h12v4a6 6 0 0 1-12 0Z" fill={state === 'busy' ? 'currentColor' : 'none'} {...(state === 'unknown' ? { strokeDasharray: UNKNOWN_DASH } : {})} />
+      <path d="M8.5 2v5M15.5 2v5M12 19v3" />
+      <path d="M4 7h16v4a8 8 0 0 1-16 0Z" fill={state === 'busy' ? 'currentColor' : 'none'} {...(state === 'unknown' ? { strokeDasharray: UNKNOWN_DASH } : {})} />
     </g>
   );
 }

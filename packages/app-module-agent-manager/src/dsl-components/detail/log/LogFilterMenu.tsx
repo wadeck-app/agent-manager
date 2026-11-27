@@ -1,7 +1,7 @@
 import { ButtonAction, IconButton, Switch, Tooltip } from '@wadeck-app/dsl-ui';
 import { ListFilter } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { CountBadge, FloatingPanel, POPUP_SECTION } from '../deps.js';
+import { ChatLayoutChoices, CountBadge, FloatingPanel, POPUP_SECTION } from '../deps.js';
 import { useFilterSummary } from './filterSummary.js';
 import { hiddenSentence, NAME } from './filterNames.js';
 import { LOG_CATEGORIES, useLogFilters } from './logFilters.js';
@@ -86,6 +86,10 @@ export function LogFilterMenu({ sessionId }: { sessionId: string }) {
               <Switch size="sm" label="Show the filter bar" checked={feed.showBar} onChange={feed.setShowBar} />
               <span className="pl-11 text-xs text-muted">The same switches as a bar above the log</span>
             </div>
+          </div>
+          <div data-chat-section="" className={`mt-1 flex flex-col gap-0.5 ${POPUP_SECTION} pt-2`}>
+            <p className="px-1 pb-0.5 text-xs font-semibold text-muted">Chat layout</p>
+            <ChatLayoutChoices name="log-chat-layout" />
           </div>
           {feed.problem === '' ? null : (
             <p role="alert" className="px-1 pt-1 text-xs text-warning-text">

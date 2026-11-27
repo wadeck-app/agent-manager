@@ -1,13 +1,14 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // violations-suppress: ts/no-deep-relative test fixtures of the logic folder
 import { overview } from '../../logic/permissionsFixtures.js';
 // violations-suppress: ts/no-deep-relative test fixtures of the owned folder
 import { stubFetch } from '../../owned/testFetch.js';
 
-import { DEFAULT_UI_VARIANTS, GRANT_ROW, permissionsOf, row, UiVariantsContext, type GrantRowVariant } from '../deps.js';
+import { permissionsOf, row } from '../deps.js';
 import type { CliGrantDto, SessionGrantsDto } from '../deps.js';
 import { PermissionsPanel } from './PermissionsPanel.js';
+import { SECTION, SECTION_BODY } from './sectionSpacing.js';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -21,13 +22,9 @@ const data = (grants: CliGrantDto[]): SessionGrantsDto => ({ ok: true, code: '',
 const CSRF = { 'GET /csrf': { body: { header: 'x-agent-manager-csrf', token: 't' } } };
 const revoked = (id: string, category: string) => ({ body: { ok: true, id, category, sessionId: SID, cwd: '/w/shop', auditError: '' } });
 
-function renderWith(variant: GrantRowVariant, grants: CliGrantDto[]) {
+function renderWith(grants: CliGrantDto[]) {
   const files = overview([]);
-  return render(
-    <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, grantRow: variant }}>
-      <PermissionsPanel session={session} feed={{ overview: files, view: permissionsOf(files, SID, session.cwd), error: '', loading: false, reload: vi.fn(), cli: { kind: 'ok', data: data(grants) } }} />
-    </UiVariantsContext.Provider>,
-  );
+  return render(<PermissionsPanel session={session} feed={{ overview: files, view: permissionsOf(files, SID, session.cwd), error: '', loading: false, reload: vi.fn(), cli: { kind: 'ok', data: data(grants) } }} />);
 }
 
 /** The closest element that holds both nodes. */
@@ -42,24 +39,38 @@ function commonAncestor(a: Element, b: Element): Element {
   return node;
 }
 
-// jsdom has no layout: the structure is what can be pinned. The title and the trash icon must share one line (a wrapper that is not the row itself), whatever the look.
-describe.each(GRANT_ROW)('the bypass row, look "%s"', (variant) => {
-  it('shows the facts and offers the same revoke: the trash icon sits on the line of the title, with its accessible name', () => {
-    renderWith(variant, [grant('a1b2c3d4', 'rm', { usesLeft: 1, mode: 'once' })]);
+// jsdom has no layout: the structure is what can be pinned. The title and the trash icon must share one line (a wrapper that is not the row itself).
+describe('the bypass row (the table is the only rendering)', () => {
+  it('shows the facts and offers the revoke: the trash icon sits on the line of the title, with its accessible name', () => {
+    renderWith([grant('a1b2c3d4', 'rm', { usesLeft: 1, mode: 'once' })]);
     const item = screen.getByRole('region', { name: 'This session' }).querySelector('[data-cli-grant="a1b2c3d4"]') as HTMLElement;
-    expect(item.closest('[data-grant-rows]')).toHaveAttribute('data-grant-rows', variant);
+    expect(item.closest('[data-grant-rows]')).not.toBeNull();
     const revoke = within(item).getByRole('button', { name: 'Revoke the rm bypass' });
     const title = within(item).getAllByText('rm')[0] as HTMLElement;
     // The line of the title is a wrapper inside the row, not the row: the icon is not on a line of its own under the text.
     expect(commonAncestor(title, revoke)).not.toBe(item);
+    // The table: three fixed columns (category, time left, trash) so that the times line up.
+    expect(item.querySelector('.grid')?.className).toContain('grid-cols-[minmax(0,1fr)_6.5rem_1.75rem]');
     expect(item.querySelector('[data-grant-left]')).toHaveTextContent('10 min left');
     expect(item).not.toHaveTextContent('no use limit');
     expect(item).not.toHaveTextContent('full id');
   });
 
+  it('two bypasses that share their reason and expiry stay two rows, each with its own revoke (no group)', () => {
+    const reason = 'ship the fix';
+    renderWith([grant('a1b2c3d4', 'git-commit', { reason }), grant('b2c3d4e5', 'git-push', { reason })]);
+    const items = document.querySelectorAll('[data-grant-row]');
+    expect(items).toHaveLength(2);
+    for (const item of items) {
+      expect(within(item as HTMLElement).getAllByRole('button', { name: /^Revoke/ })).toHaveLength(1);
+    }
+    expect(screen.queryByRole('button', { name: /bypasses:/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /bypass details/ })).toBeNull();
+  });
+
   it('Revoke asks first, then sends the PIN-gated request for this bypass only', async () => {
     const { calls } = stubFetch({ ...CSRF, 'POST /guardrails/grants/a1b2c3d4/revoke': revoked('a1b2c3d4', 'rm') });
-    renderWith(variant, [grant('a1b2c3d4', 'rm')]);
+    renderWith([grant('a1b2c3d4', 'rm')]);
     fireEvent.click(screen.getByRole('button', { name: 'Revoke the rm bypass' }));
     expect(calls.filter((call) => call.method === 'POST')).toEqual([]);
     expect(screen.getByText('Revoke the rm bypass (10 min left)? The guardrail applies again to this session at once.')).toBeInTheDocument();
@@ -69,50 +80,30 @@ describe.each(GRANT_ROW)('the bypass row, look "%s"', (variant) => {
   });
 });
 
-describe('the look "grouped"', () => {
-  const pair = [grant('a1b2c3d4', 'git-commit', { reason: 'ship the fix' }), grant('b2c3d4e5', 'git-push', { reason: 'ship the fix' }), grant('c3d4e5f6', 'rm', { reason: 'clean up' })];
+describe('the spacing of the blocks of the Permissions tab', () => {
+  const SECTIONS = ['This session', 'Other sessions of this project', 'Blocked', 'Request a bypass'];
 
-  it('folds the bypasses that share session, reason and expiry minute into one row with one revoke; the others stay alone', () => {
-    renderWith('grouped', pair);
-    const items = document.querySelectorAll('[data-grant-row]');
-    expect(items).toHaveLength(2);
-    const group = items[0] as HTMLElement;
-    expect(within(group).getByText('git-commit')).toBeInTheDocument();
-    expect(within(group).getByText('git-push')).toBeInTheDocument();
-    expect(within(group).getAllByRole('button', { name: /^Revoke/ })).toHaveLength(1);
-    expect(within(group).getByRole('button', { name: 'Revoke the 2 bypasses: git-commit and git-push' })).toBeInTheDocument();
+  it('every block has the same vertical padding (the one section token) and the module divider under it', () => {
+    renderWith([grant('a1b2c3d4', 'rm')]);
+    for (const name of SECTIONS) {
+      const block = screen.getByRole('region', { name });
+      expect(block.className, name).toContain(SECTION);
+      // Nothing else adds a vertical padding to the block (a second value would break the rhythm).
+      expect(block.className.replace(SECTION, ''), name).not.toMatch(/p[ty]-/);
+    }
   });
 
-  it('one confirmation, then one revoke request per bypass, one after the other', async () => {
-    const { calls } = stubFetch({ ...CSRF, 'POST /guardrails/grants/a1b2c3d4/revoke': revoked('a1b2c3d4', 'git-commit'), 'POST /guardrails/grants/b2c3d4e5/revoke': revoked('b2c3d4e5', 'git-push') });
-    renderWith('grouped', pair.slice(0, 2));
-    fireEvent.click(screen.getByRole('button', { name: 'Revoke the 2 bypasses: git-commit and git-push' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm revoke' }));
-    await waitFor(() => expect(calls.filter((call) => call.method === 'POST')).toHaveLength(2));
-    expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual(['/guardrails/grants/a1b2c3d4/revoke', '/guardrails/grants/b2c3d4e5/revoke']);
-  });
-
-  it('the first refusal stops the group: the second bypass is not revoked and the failure stays on screen', async () => {
-    const { calls } = stubFetch({ ...CSRF, 'POST /guardrails/grants/a1b2c3d4/revoke': { status: 409, body: { ok: false, error: { code: 'grant-not-found', message: 'gone', hint: 'Refresh.' } } } });
-    renderWith('grouped', pair.slice(0, 2));
-    fireEvent.click(screen.getByRole('button', { name: 'Revoke the 2 bypasses: git-commit and git-push' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm revoke' }));
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('The git-commit bypass a1b2c3d4 was not revoked'));
-    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
-  });
-});
-
-describe('the look "expand"', () => {
-  it('opens on a click and shows the reason in full, the id and the expiry; closed again on the next click', () => {
-    renderWith('expand', [grant('a1b2c3d4', 'rm')]);
-    const toggle = screen.getByRole('button', { name: 'rm bypass details' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(document.querySelector('[data-grant-details]')).toBeNull();
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(document.querySelector('[data-grant-details]')).toHaveTextContent('clean the build folder');
-    expect(document.querySelector('[data-grant-details]')).toHaveTextContent('a1b2c3d4');
-    fireEvent.click(toggle);
-    expect(document.querySelector('[data-grant-details]')).toBeNull();
+  it('the blocks do not add a second gap of their own: the headings and the first line take the body margin only', () => {
+    renderWith([grant('a1b2c3d4', 'rm')]);
+    for (const name of ['This session', 'Other sessions of this project']) {
+      const heading = within(screen.getByRole('region', { name })).getByRole('heading', { level: 4 });
+      expect(heading.className, name).not.toMatch(/p[tb]-/);
+    }
+    const mine = screen.getByRole('region', { name: 'This session' });
+    expect((mine.querySelector('[data-grant-rows]') as HTMLElement).parentElement?.className).toContain(SECTION_BODY);
+    // The space after the table of grants, before the next block, is the padding of the block itself (and the divider).
+    const others = screen.getByRole('region', { name: 'Other sessions of this project' });
+    expect(mine.nextElementSibling).toBe(others);
+    expect(mine.className).toContain('border-b border-border');
   });
 });

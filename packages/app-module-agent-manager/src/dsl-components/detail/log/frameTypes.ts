@@ -10,6 +10,4 @@ export interface FrameProps {
   highlighted: boolean;
   /** Opens the Thread dialog on a message row. Stable across renders (the memoised frames do not compare it). Absent: no Thread action. */
   onThread?: (anchor: Extract<ThreadAnchor, { kind: 'ok' }>) => void;
-  /** The row before is a message of the same sender (the layouts that group senders drop the header). */
-  continued?: boolean;
 }

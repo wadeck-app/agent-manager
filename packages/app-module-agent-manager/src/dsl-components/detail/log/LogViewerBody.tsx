@@ -1,7 +1,7 @@
 import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { ArrowDown, ChevronUp, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Banner, ThreadDialog, useUiVariant } from '../deps.js';
+import { Banner, ThreadDialog, useChatLayout } from '../deps.js';
 import { CHAT_LAYOUTS } from './chatLayouts.js';
 import { FOCUS_RING } from '../deps.js';
 import { useMediaQuery, useMinWidth, useNow } from '../deps.js';
@@ -109,9 +109,8 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
     () => applyFilters(hideWebQueueLines(state.entries), filters.prefs, (entry) => agent !== undefined && entry.kind === 'tool-call' && (entry.id === agent.toolUseId || entry.subagentId === agent.agentId)),
     [state.entries, filters.prefs, agent],
   );
-  const hookLook = useUiVariant('hookRows');
-  const rows = useMemo(() => mergeSystemRows(buildRows(filtered.entries, filters.grouped), hookLook), [filtered.entries, filters.grouped, hookLook]);
-  const chatLayout = CHAT_LAYOUTS[useUiVariant('chatLayout')];
+  const rows = useMemo(() => mergeSystemRows(buildRows(filtered.entries, filters.grouped)), [filtered.entries, filters.grouped]);
+  const chatLayout = CHAT_LAYOUTS[useChatLayout()];
   // The header owns the filter button: it counts with what this log loaded.
   const { counts, hidden, hiddenTotal } = filtered;
   useEffect(() => {
@@ -258,7 +257,7 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
     }
   };
 
-  // One model per row, built once: a row needs the one before it (a following message of the same sender).
+  // One model per row, built once.
   const models = rows.map((row) => describeRow(row, deliveryOf));
   const unseen = Math.max(0, state.appended - seenMark);
   const retryButton = (
@@ -328,7 +327,6 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
             <div className={`mx-auto flex w-full max-w-am-log flex-col ${chatLayout.gap}`}>
               {rows.map((row, index) => {
                 const model = models[index]!;
-                const before = models[index - 1];
                 return (
                 // A new key at each "shown" event restarts the pulse animation on the same row.
                 <div
@@ -340,8 +338,7 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
                 >
                   <RowFrame
                     model={model}
-                    continued={before !== undefined && before.role === model.role}
-                    sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.type === 'system' ? [...row.entries, row.look, ...row.entries.map((entry) => open.has(entry.key))] : row.entry.kind === 'user-prompt' && row.entry.webReply !== undefined ? [row.entry, delivery.get(row.entry.webReply.messageId)] : row.entry}
+                    sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.type === 'system' ? [...row.entries, ...row.entries.map((entry) => open.has(entry.key))] : row.entry.kind === 'user-prompt' && row.entry.webReply !== undefined ? [row.entry, delivery.get(row.entry.webReply.messageId)] : row.entry}
                       open={open.has(row.key)}
                     onToggle={toggle}
                     context={context}

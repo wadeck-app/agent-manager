@@ -16,6 +16,8 @@ import { navTarget } from '../logic/nav.js';
 import { orderedSessionIds } from '../logic/order.js';
 import { agentId } from '../logic/states.js';
 import { RowLookProvider } from '../lists/RowLookContext.js';
+import { readChatLayout, saveChatLayout, type ChatLayoutVariant } from '../logic/chatLayoutPref.js';
+import { ChatLayoutProvider } from '../ui/ChatLayoutContext.js';
 import { readRowLook, rowLookProblemText, saveRowLook, type RowLook } from '../logic/rowLook.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
 import { MODE_LABEL, SHOW_ALL_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
@@ -154,6 +156,15 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   const changeRowLook = useCallback((next: RowLook) => {
     setRowLookError(saveRowLook(next) ?? '');
     setRowLook(next);
+  }, []);
+  // How the messages of the log are drawn (rule, bubbles, Claude.ai, terminal): saved in this browser, edited in the list menu and in the log filter popup; a saved
+  // value that is not valid is said on the page (the default shows meanwhile), never replaced in silence.
+  const [savedChatLayout] = useState(readChatLayout);
+  const [chatLayout, setChatLayout] = useState<ChatLayoutVariant>(savedChatLayout.layout);
+  const [chatLayoutError, setChatLayoutError] = useState(savedChatLayout.problem);
+  const changeChatLayout = useCallback((next: ChatLayoutVariant) => {
+    setChatLayoutError(saveChatLayout(next) ?? '');
+    setChatLayout(next);
   }, []);
   // The search is the same in every mode: it filters the rows before the mode draws them.
   const [searchText, setSearchText] = useState('');
@@ -383,6 +394,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     ...(searchNote === '' ? [] : [{ key: 'search', tone: 'warning' as const, summary: 'The search could not open an agent', details: searchNote, onDismiss: () => setSearchNote('') }]),
     ...(optionsSaveError === '' ? [] : [{ key: 'view-options', tone: 'warning' as const, summary: 'The view options were not saved', details: optionsSaveError, onDismiss: () => setOptionsSaveError('') }]),
     ...(rowLookError === '' ? [] : [{ key: 'row-look', tone: 'warning' as const, summary: 'The row look has a problem', details: rowLookError, onDismiss: () => setRowLookError('') }]),
+    ...(chatLayoutError === '' ? [] : [{ key: 'chat-layout', tone: 'warning' as const, summary: 'The chat layout has a problem', details: chatLayoutError, onDismiss: () => setChatLayoutError('') }]),
     ...workspaceNotices({ ownedDownText, ownedStateErrorText, unreadableText, guardrailsErrorText, userStateError }),
     ...(actionError === '' ? [] : [{ key: 'action', tone: 'error' as const, summary: actionSummary(actionError), details: actionError, onDismiss: () => setActionError('') }]),
   ];
@@ -424,6 +436,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     <DaemonStateProvider down={ownedError?.code === 'daemon-not-running'}>
     <LiveThreadsProvider count={liveThreads}>
     <RowLookProvider look={rowLook} setLook={changeRowLook}>
+    <ChatLayoutProvider layout={chatLayout} setLayout={changeChatLayout}>
     <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
       <Toolbar
         count={rows.length}
@@ -458,6 +471,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
           detailOpen={selectedId !== undefined} />
       </div>
     </div>
+    </ChatLayoutProvider>
     </RowLookProvider>
     </LiveThreadsProvider>
     </DaemonStateProvider>

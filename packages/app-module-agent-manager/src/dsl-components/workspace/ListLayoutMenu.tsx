@@ -9,6 +9,7 @@ import { OptionChoice } from './OptionChoice.js';
 import { OptionGroup } from './OptionGroup.js';
 import { OptionToggle } from './OptionToggle.js';
 import { RowButton } from '../ui/RowButton.js';
+import { ChatLayoutChoices } from '../ui/ChatLayoutChoices.js';
 import { RowLookSection } from './RowLookSection.js';
 
 const MODE_ICON: Record<ModeId, LucideIcon> = { tree: ListTree, groups: LayoutList, inbox: Inbox, custom: FolderKanban };
@@ -157,6 +158,13 @@ export function ListLayoutMenu({ mode, onMode, options, onOptions }: ListLayoutM
             {mode === 'inbox' ? (
               <OptionToggle checked={options.inbox.autoNext} onToggle={(autoNext) => onOptions({ ...options, inbox: { autoNext } })} label="Open the next agent after a reply" hint="When the agent you are on stops needing you, the next one that does opens by itself" />
             ) : null}
+          </div>
+          <div data-section="chat" className={`mt-1.5 flex flex-col gap-1 ${POPUP_SECTION} pt-1`}>
+            <p data-section-title="" className="px-2 pb-0 pt-1.5 text-xs font-semibold text-muted">
+              Chat
+            </p>
+            <p className="px-2 text-xs text-muted">How the messages of the conversation are drawn in the log of the open agent.</p>
+            <ChatLayoutChoices name="list-chat-layout" />
           </div>
           <RowLookSection />
         </div>

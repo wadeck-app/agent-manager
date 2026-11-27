@@ -32,7 +32,7 @@ describe('no native tooltip on a sub-agent row or a log time', () => {
 
   it('the time of a log row: its exact time is in the card, never the relative text that ticks', () => {
     vi.useFakeTimers();
-    const { container } = render(<TimeLabel timestamp={T0 - 30_000} now={T0} clock />);
+    const { container } = render(<TimeLabel timestamp={T0 - 30_000} now={T0} />);
     expect(titles(container)).toEqual([]);
     fireEvent.pointerEnter(container.querySelector('time')!.parentElement!);
     act(() => {

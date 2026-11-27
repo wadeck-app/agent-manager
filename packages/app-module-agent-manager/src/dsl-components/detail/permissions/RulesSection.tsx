@@ -17,7 +17,7 @@ export function RulesSection({ rules }: { rules: RulesState }) {
   const summary = rules.kind === 'loading' ? 'reading...' : rules.kind === 'error' ? 'could not be read' : String(count);
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
-    <section aria-label="Rules" className="border-b border-border">
+    <section aria-label="Rules" className="border-b border-border py-1">
       {rules.kind === 'ok' && rules.data.configError !== '' ? (
         <p data-rules-config-error="" className={`${WARN} break-words`}>
           {`The guardrails configuration of this folder has an error: ${rules.data.configError}${rules.data.configPath === '' ? '' : ` (file: ${rules.data.configPath})`}. Fix the file, then refresh: the rules below may not be what you wrote.`}

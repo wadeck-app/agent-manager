@@ -1,16 +1,16 @@
-import type { HookRowsVariant, LogEntry } from '../deps.js';
+import type { LogEntry } from '../deps.js';
 import { toolLabel } from './toolChips.js';
 
 export type ToolCall = Extract<LogEntry, { kind: 'tool-call' }>;
 
-/** What the "Hook rows" look condenses (see mergeSystemRows). */
+/** What the one-line system row condenses (see mergeSystemRows). */
 export type SystemEntry = Extract<LogEntry, { kind: 'hook' | 'system-notice' }>;
 
 export type Row =
   | { type: 'entry'; key: string; entry: LogEntry }
   | { type: 'group'; key: string; calls: ToolCall[] }
-  /** Consecutive hook and turn rows condensed by the "Hook rows" look of the dock (never built by buildRows). */
-  | { type: 'system'; key: string; entries: SystemEntry[]; look: Exclude<HookRowsVariant, 'rows'> };
+  /** Consecutive hook and turn rows condensed into one line (built by mergeSystemRows, never by buildRows). */
+  | { type: 'system'; key: string; entries: SystemEntry[] };
 
 /**
  * Consecutive tool calls (two or more) become one collapsed group "N tool calls". The group key is the key of its first call: stable while calls are added.
@@ -80,24 +80,21 @@ export function toggleOpen(open: ReadonlySet<string>, key: string): Set<string> 
   return next;
 }
 
-/** The entries the "Hook rows" look condenses: the hooks of Claude Code, the Stop hook summary and the turn duration. Other notices (commands, compaction) keep their rows. */
+/** The entries the one-line system row condenses: the hooks of Claude Code, the Stop hook summary and the turn duration. Other notices (commands, compaction) keep their rows. */
 export function isSystemEntry(entry: LogEntry): entry is SystemEntry {
   return entry.kind === 'hook' || (entry.kind === 'system-notice' && (entry.noticeKind === 'stop-hook' || entry.noticeKind === 'turn-duration'));
 }
 
 /**
  * Condenses every run of consecutive hook / stop-hook / turn-duration rows into ONE row (rows of the other kinds in between end the run, so a run never
- * crosses a message). The key is the key of the first entry: stable while entries are added after it. `rows` look: the rows stay as they are.
+ * crosses a message). The key is the key of the first entry: stable while entries are added after it.
  */
-export function mergeSystemRows(rows: readonly Row[], look: HookRowsVariant): Row[] {
-  if (look === 'rows') {
-    return [...rows];
-  }
+export function mergeSystemRows(rows: readonly Row[]): Row[] {
   const out: Row[] = [];
   let run: SystemEntry[] = [];
   const flush = (): void => {
     if (run.length > 0) {
-      out.push({ type: 'system', key: `system:${run[0]!.key}`, entries: run, look });
+      out.push({ type: 'system', key: `system:${run[0]!.key}`, entries: run });
       run = [];
     }
   };

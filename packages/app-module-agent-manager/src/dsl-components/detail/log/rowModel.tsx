@@ -40,7 +40,10 @@ export interface RowModel {
   tone: 'normal' | 'muted' | 'error';
   /** 'interrupt': a message that aborted the running tool call (an orange outline on its bubble). */
   cue?: 'interrupt';
-  /** Collapsed until clicked (tool calls, thinking, notices). Messages are open. */
+  /**
+   * Collapsed until clicked (tool calls, thinking, notices). Messages are open. FALSE also when there is nothing to open that the header does not already say
+   * (a notice whose text is its own summary, a hook that printed nothing): the row is then a static line with a faint chevron, never a button that opens an empty body.
+   */
   expandable: boolean;
   body: ((context: OpenContext) => ReactNode) | null;
   /** A message of the conversation: the transcript entry a thread can stop at (or why it cannot). Absent for every other row. */
@@ -50,8 +53,13 @@ export interface RowModel {
   /** The id of the tool call, for the highlight of its sub-agent. */
   callId?: string;
   subagentId?: string;
-  /** A run of hooks and turn rows condensed by the "Hook rows" look: the frame draws it as a footer or a chip strip when the look says so. */
+  /** A run of hooks and turn rows condensed into ONE line (see systemModel.tsx). */
   system?: SystemModel;
+}
+
+/** The body of a row adds something to its one-line summary: more lines, a cut summary, or more than the text. */
+function exceeds(text: string, summary: string): boolean {
+  return text.trim() !== summary;
 }
 
 function truncatedNote(truncated: boolean, bytes: number, shownChars: number): ReactNode {
@@ -141,7 +149,10 @@ function promptModel(entry: Extract<LogEntry, { kind: 'user-prompt' }>, delivery
   }
   const label = entry.source === 'peer' ? `Message from ${entry.peer?.name ?? entry.peer?.from ?? 'another session'}` : entry.source === 'task-notification' ? 'Background task finished' : 'Added by the harness';
   const icon = entry.source === 'peer' ? Users : entry.source === 'task-notification' ? Bell : Cpu;
-  return { ...base, tone: 'muted', role: 'meta', icon, iconClass: 'text-muted', label, summary: firstLine(entry.text), expandable: true, body };
+  const summary = firstLine(entry.text);
+  // The text opens only when it says more than the summary line (more lines, a cut line, images, a shortened text).
+  const more = exceeds(entry.text, summary) || entry.images.length > 0 || entry.textTruncated;
+  return { ...base, tone: 'muted', role: 'meta', icon, iconClass: 'text-muted', label, summary, expandable: more, body: more ? body : null };
 }
 
 function noticeModel(entry: Extract<LogEntry, { kind: 'system-notice' }>): RowModel {
@@ -155,8 +166,9 @@ function noticeModel(entry: Extract<LogEntry, { kind: 'system-notice' }>): RowMo
     label: `System: ${entry.noticeKind === 'other' ? entry.subtype : entry.noticeKind}`,
     summary: firstLine(text),
     tone: entry.level === 'error' ? 'error' : 'muted',
-    expandable: text.length > 0,
-    body: text === '' ? null : () => <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{text}</p>,
+    // A turn duration has a body that only repeats its summary, a stop-hook without text has none: neither opens.
+    expandable: text.length > 0 && exceeds(text, firstLine(text)),
+    body: text === '' || !exceeds(text, firstLine(text)) ? null : () => <p className="whitespace-pre-wrap break-words text-sm leading-am-log">{text}</p>,
     ...(entry.timestamp === undefined ? {} : { timestamp: entry.timestamp }),
   };
 }
@@ -197,20 +209,18 @@ function describeEntryBase(entry: LogEntry, deliveryOf?: DeliveryLookup): RowMod
         icon: Brain,
         iconClass: 'text-muted',
         label: 'Thinking',
-        summary: firstLine(entry.text),
+        // No text: the summary says why there is nothing to open. Text that is all in the summary line: nothing more to open either.
+        summary: entry.text === '' ? 'The transcript keeps no text for this thinking block.' : firstLine(entry.text),
         tone: 'muted',
-        expandable: true,
+        expandable: entry.text !== '' && (exceeds(entry.text, firstLine(entry.text)) || entry.textTruncated),
         ...at,
         ...(entry.durationMs === undefined ? {} : { trailing: <span className={`${LOG_META} text-muted`}>{formatDuration(entry.durationMs)}</span> }),
-        body: () =>
-          entry.text === '' ? (
-            <p className={`${LOG_META} text-muted`}>The transcript keeps no text for this thinking block.</p>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <p className="whitespace-pre-wrap break-words text-sm leading-am-log italic text-muted">{entry.text}</p>
-              {truncatedNote(entry.textTruncated, entry.textBytes, entry.text.length)}
-            </div>
-          ),
+        body: () => (
+          <div className="flex flex-col gap-1">
+            <p className="whitespace-pre-wrap break-words text-sm leading-am-log italic text-muted">{entry.text}</p>
+            {truncatedNote(entry.textTruncated, entry.textBytes, entry.text.length)}
+          </div>
+        ),
       };
     case 'tool-call':
       return callModel(entry);
@@ -286,6 +296,8 @@ function hookModel(entry: Extract<LogEntry, { kind: 'hook' }>): RowModel {
     entry.toolUseId === undefined ? undefined : `Id: ${entry.toolUseId}`,
     entry.outcome === 'other' ? `Attachment type: ${entry.attachmentType}` : undefined,
   ].filter((fact): fact is string => fact !== undefined);
+  // A hook opens when it has something to show beyond its name and outcome (already in the summary): a command, an exit code, an output, an error text.
+  const hasMore = facts.length > 0 || entry.output !== undefined || entry.stderr !== undefined;
   return {
     key: entry.key,
     role: 'meta',
@@ -294,10 +306,10 @@ function hookModel(entry: Extract<LogEntry, { kind: 'hook' }>): RowModel {
     label: 'Hook',
     summary: [entry.hookName, outcome, entry.output === undefined ? '' : firstLine(entry.output, 100)].filter((part) => part !== '').join(' - '),
     tone: failed ? 'error' : 'muted',
-    expandable: true,
+    expandable: hasMore,
     ...(entry.timestamp === undefined ? {} : { timestamp: entry.timestamp }),
     ...(entry.durationMs === undefined ? {} : { trailing: <span className={`${LOG_META} tabular-nums text-muted`}>{formatDuration(entry.durationMs)}</span> }),
-    body: () => (
+    body: !hasMore ? null : () => (
       <div className="flex flex-col gap-1">
         {facts.length === 0 ? null : <p className={`${LOG_META} whitespace-pre-wrap break-words text-muted`}>{facts.join('\n')}</p>}
         {entry.output === undefined ? null : <pre className={`max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-muted-bg p-2 ${LOG_MONO}`}>{entry.output}</pre>}

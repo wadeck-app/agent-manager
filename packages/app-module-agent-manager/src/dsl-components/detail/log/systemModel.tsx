@@ -1,51 +1,44 @@
-import { ChevronDown, ChevronRight, TriangleAlert, Webhook } from 'lucide-react';
+import { TriangleAlert, Webhook } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { RowButton } from '../deps.js';
 import type { LogEntry } from '../deps.js';
+import { ExpandMark } from './ExpandMark.js';
 import { formatDuration } from './format.js';
 import type { Row, SystemEntry } from './grouping.js';
 import type { OpenContext, RowModel } from './rowModel.js';
 import { LOG_ICON, LOG_MONO } from './sizes.js';
 
-const LINE_BUTTON = 'flex w-full items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-muted-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+const LINE_BASE = 'flex w-full items-center gap-2 rounded px-1 py-0.5 text-left';
+const LINE_BUTTON = `${LINE_BASE} hover:bg-muted-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary`;
 
-/** One thing the condensed rows say, in words: a hook (or several of the same name), the Stop hook summary, the duration of the turn. */
+/** One thing the condensed row says, in words: a hook (or several of the same name), the Stop hook summary, the duration of the turn. */
 export interface SystemPart {
   id: string;
   kind: 'hook' | 'turn';
   /** The full short sentence: "PreToolUse:Bash x3", "stop-hook", "turn took 32 s", "Stop failed". */
   text: string;
-  /** The same for a chip, shorter: "32 s" for the turn. */
-  chip: string;
   failed: boolean;
-  /** The details, one per line (the tooltip). */
-  tip: string;
 }
 
-/** What a condensed row of the "Hook rows" look carries; the rows of the look "rows" never have it. */
+/** What the condensed row carries (a run of hooks and turn rows shown as ONE line "System"). */
 export interface SystemModel {
-  look: 'merged' | 'footer' | 'chips';
   parts: SystemPart[];
   failed: boolean;
 }
-
-const OUTCOME: Record<Extract<LogEntry, { kind: 'hook' }>['outcome'], string> = { success: 'ok', error: 'error (not blocking)', cancelled: 'cancelled', message: 'message', async: 'async response', other: 'unknown outcome' };
 
 function partOf(entry: SystemEntry): SystemPart {
   if (entry.kind === 'hook') {
     const failed = entry.outcome === 'error' || entry.outcome === 'cancelled';
     const text = failed ? `${entry.hookName} ${entry.outcome === 'error' ? 'failed' : 'cancelled'}` : entry.hookName;
-    const detail = [OUTCOME[entry.outcome], entry.durationMs === undefined ? '' : formatDuration(entry.durationMs), entry.exitCode === undefined ? '' : `exit ${entry.exitCode}`].filter((part) => part !== '').join(', ');
-    return { id: `${entry.hookName}:${failed}`, kind: 'hook', text, chip: text, failed, tip: `${entry.hookName}: ${detail}` };
+    return { id: `${entry.hookName}:${failed}`, kind: 'hook', text, failed };
   }
   if (entry.noticeKind === 'turn-duration') {
     const took = entry.durationMs === undefined ? 'turn ended' : `turn took ${formatDuration(entry.durationMs)}`;
-    return { id: `turn:${entry.key}`, kind: 'turn', text: took, chip: entry.durationMs === undefined ? 'turn' : `took ${formatDuration(entry.durationMs)}`, failed: false, tip: entry.messageCount === undefined ? took : `${took} (${entry.messageCount} messages)` };
+    return { id: `turn:${entry.key}`, kind: 'turn', text: took, failed: false };
   }
   const errors = entry.hookErrorCount ?? 0;
   const text = errors > 0 ? `stop-hook: ${errors} hook error(s)` : 'stop-hook';
-  const detail = [entry.hookCount === undefined ? '' : `${entry.hookCount} hook(s)`, errors > 0 ? `${errors} error(s)` : '', entry.durationMs === undefined ? '' : formatDuration(entry.durationMs), entry.preventedContinuation === true ? 'prevented continuation' : ''].filter((part) => part !== '').join(', ');
-  return { id: `stop:${errors > 0}`, kind: 'hook', text, chip: text, failed: entry.level === 'error' || errors > 0, tip: detail === '' ? 'stop-hook' : `stop-hook: ${detail}` };
+  return { id: `stop:${errors > 0}`, kind: 'hook', text, failed: entry.level === 'error' || errors > 0 };
 }
 
 /** The parts of a run: the same hook name met several times is one part with a count ("PreToolUse:Bash x3"); a failed one is never merged into an ok one. */
@@ -60,38 +53,54 @@ export function systemParts(entries: readonly SystemEntry[]): SystemPart[] {
       parts.push(part);
     } else {
       known.count += 1;
-      parts[known.index] = { ...known.base, text: `${known.base.text} x${known.count}`, chip: `${known.base.chip} x${known.count}`, tip: `${parts[known.index]!.tip}\n${part.tip}` };
+      parts[known.index] = { ...known.base, text: `${known.base.text} x${known.count}` };
     }
   }
   return parts;
 }
 
-/** The words of the footer look: the turn first (the sentence the person wants), then what ran; a hook "ran" (a failure says itself). */
-export function footerText(parts: readonly SystemPart[]): string {
-  return [...parts.filter((part) => part.kind === 'turn'), ...parts.filter((part) => part.kind === 'hook')].map((part) => (part.kind === 'hook' && !part.failed ? `${part.text} ran` : part.text)).join(', ');
-}
-
-/** One line of an opened run: its own header (the full row of the "rows" look, folded) and, when open, its body. */
+/**
+ * One line of an opened run: its own header (the full row, folded) and, when open, its body. A line with nothing to open (a stop-hook without output, a turn
+ * duration that only repeats its own header) is a static line with a faint chevron in the same slot, not a button.
+ */
 function SystemLine({ entry, context, describe }: { entry: SystemEntry; context: OpenContext; describe: (entry: LogEntry) => RowModel }) {
   const model = describe(entry);
-  const open = context.isOpen(entry.key);
-  const Chevron = open ? ChevronDown : ChevronRight;
+  const open = model.expandable && context.isOpen(entry.key);
   const Icon = model.icon;
+  const labelClass = `text-sm font-medium ${model.expandable ? 'shrink-0' : ''} ${model.tone === 'error' ? 'text-hue-red' : ''}`;
+  const inside = (
+    <>
+      <ExpandMark open={open} enabled={model.expandable} />
+      <Icon aria-hidden="true" className={`${LOG_ICON} ${model.iconClass}`} />
+      {model.expandable ? (
+        <>
+          <span className={labelClass}>{model.label}</span>
+          <span className={`min-w-0 flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>
+        </>
+      ) : (
+        // Nothing to open: the whole line is shown, wrapping as text does (label and summary flow together on a narrow pane).
+        <span className="min-w-0 flex-1 break-words">
+          <span className={labelClass}>{model.label}</span> <span className={`${LOG_MONO} text-muted`}>{model.summary}</span>
+        </span>
+      )}
+      {model.trailing}
+    </>
+  );
   return (
-    <div className="flex flex-col">
-      <RowButton type="button" aria-expanded={open} onClick={() => context.toggle(entry.key)} className={LINE_BUTTON}>
-        <Chevron aria-hidden="true" className={`${LOG_ICON} text-muted`} />
-        <Icon aria-hidden="true" className={`${LOG_ICON} ${model.iconClass}`} />
-        <span className={`shrink-0 text-sm font-medium ${model.tone === 'error' ? 'text-hue-red' : ''}`}>{model.label}</span>
-        <span className={`min-w-0 flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>
-        {model.trailing}
-      </RowButton>
+    <div className="flex flex-col" data-system-line={model.expandable ? 'expandable' : 'static'}>
+      {model.expandable ? (
+        <RowButton type="button" aria-expanded={open} onClick={() => context.toggle(entry.key)} className={LINE_BUTTON}>
+          {inside}
+        </RowButton>
+      ) : (
+        <div className={LINE_BASE}>{inside}</div>
+      )}
       {open ? <div className="ml-6 mb-1 mt-1">{model.body?.(context)}</div> : null}
     </div>
   );
 }
 
-/** The individual lines of a run, as the body of the condensed row: nothing of the rows of the look "rows" is lost. */
+/** The individual lines of a run, as the body of the condensed row: nothing of the separate rows is lost. */
 function systemBody(entries: readonly SystemEntry[], describe: (entry: LogEntry) => RowModel): (context: OpenContext) => ReactNode {
   return (context) => (
     <div className="flex flex-col" data-system-lines="">
@@ -102,11 +111,17 @@ function systemBody(entries: readonly SystemEntry[], describe: (entry: LogEntry)
   );
 }
 
-/** The model of a condensed run (looks merged, footer, chips); `describe` is the model of one entry as a row of its own. */
+/** The model of a condensed run; `describe` is the model of one entry as a row of its own. */
 export function describeSystem(row: Extract<Row, { type: 'system' }>, describe: (entry: LogEntry) => RowModel): RowModel {
   const parts = systemParts(row.entries);
   const failed = parts.some((part) => part.failed);
   const first = row.entries[0]!;
+  // The run opens only when a line of it has more to say than the summary does: something to expand, or a figure the summary leaves out (the duration of a hook).
+  // A stop-hook and a turn duration alone are already told whole by the summary: the row is a plain line with a faint chevron.
+  const anything = row.entries.some((entry) => {
+    const line = describe(entry);
+    return line.expandable || line.trailing !== undefined;
+  });
   return {
     key: row.key,
     role: 'meta',
@@ -115,9 +130,9 @@ export function describeSystem(row: Extract<Row, { type: 'system' }>, describe: 
     label: 'System',
     summary: parts.map((part) => part.text).join(', '),
     tone: failed ? 'error' : 'muted',
-    expandable: true,
+    expandable: anything,
     ...(first.timestamp === undefined ? {} : { timestamp: first.timestamp }),
-    body: systemBody(row.entries, describe),
-    system: { look: row.look, parts, failed },
+    body: anything ? systemBody(row.entries, describe) : null,
+    system: { parts, failed },
   };
 }

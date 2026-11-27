@@ -74,28 +74,3 @@ export function detailRows(grant: GrantRowData): { label: string; value: string;
   }
   return rows;
 }
-
-/** One row of the list: one bypass, or (look "Grouped") several that share session, reason and expiry minute. */
-export interface GrantGroup {
-  key: string;
-  grants: GrantRowData[];
-}
-
-export function singles(grants: readonly GrantRowData[]): GrantGroup[] {
-  return grants.map((grant) => ({ key: `${grant.sessionId}|${grant.id}`, grants: [grant] }));
-}
-
-/** Bypasses of the same session with the same reason and the same expiry minute (made by one request, git-commit and git-push for instance) fold into one group; the order of the list is kept. */
-export function groupByReason(grants: readonly GrantRowData[]): GrantGroup[] {
-  const groups = new Map<string, GrantGroup>();
-  for (const grant of grants) {
-    const key = `${grant.sessionId}|${grant.reason}|${Math.floor(grant.expiresAt / 60_000)}`;
-    const found = groups.get(key);
-    if (found === undefined) {
-      groups.set(key, { key, grants: [grant] });
-    } else {
-      found.grants.push(grant);
-    }
-  }
-  return [...groups.values()];
-}

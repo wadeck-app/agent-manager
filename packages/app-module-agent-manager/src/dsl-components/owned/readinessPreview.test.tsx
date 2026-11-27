@@ -82,8 +82,8 @@ describe('the preview question in the dock', () => {
     }
     expect(Object.keys(UI_QUESTIONS.switchReadiness.options)).toEqual([...SWITCH_READINESS]);
     expect(SWITCH_READINESS).toHaveLength(5);
-    expect(UI_QUESTIONS.switchReadiness.initial).toBe('window');
-    expect(DEFAULT_UI_VARIANTS.switchReadiness).toBe('window');
+    expect(UI_QUESTIONS.switchReadiness.initial).toBe('hop');
+    expect(DEFAULT_UI_VARIANTS.switchReadiness).toBe('hop');
     for (const option of Object.values(UI_QUESTIONS.switchReadiness.options)) {
       expect(option.hint).toMatch(/No text, no extra row, no banner/);
       expect(option.hint).toContain('Free:');

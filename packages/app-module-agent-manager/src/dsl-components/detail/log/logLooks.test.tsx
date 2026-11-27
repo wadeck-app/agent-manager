@@ -1,8 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { HookRowsVariant, LogEntry, LogResponse } from '../deps.js';
-import { DEFAULT_UI_VARIANTS, row, UiVariantsContext } from '../deps.js';
+import type { LogEntry, LogResponse } from '../deps.js';
+import { row } from '../deps.js';
 import { DetailHeader } from '../DetailHeader.js';
 import { resetPending } from '../pending.js';
 import { resetPublishedStatus } from '../status/useSessionStatus.js';
@@ -15,7 +15,7 @@ const session = row({ displayName: 'shop-owner' });
 
 const hook = (key: string, patch: Partial<Extract<LogEntry, { kind: 'hook' }>> = {}): LogEntry => ({ key, offset: 0, timestamp: 4_000, kind: 'hook', hookEvent: 'Stop', hookName: 'Stop', outcome: 'success', attachmentType: 'hook_success', durationMs: 108, ...patch });
 const notice = (key: string, noticeKind: 'stop-hook' | 'turn-duration', patch: Partial<Extract<LogEntry, { kind: 'system-notice' }>> = {}): LogEntry => ({ key, offset: 0, timestamp: 5_000, kind: 'system-notice', noticeKind, subtype: noticeKind, isMeta: false, ...patch });
-const thinking = (key: string): LogEntry => ({ key, offset: 0, timestamp: 2_500, kind: 'thinking', collapsible: true, text: 'let me think about the tests', textTruncated: false, textBytes: 27 });
+const thinking = (key: string): LogEntry => ({ key, offset: 0, timestamp: 2_500, kind: 'thinking', collapsible: true, text: 'let me think about the tests\nthen run them', textTruncated: false, textBytes: 44 });
 const queueLine = (key: string): LogEntry => ({ key, offset: 0, timestamp: 2_600, kind: 'queue-operation', operation: 'dequeue' });
 
 const json = (body: unknown): Response => ({ ok: true, status: 200, json: async () => body }) as unknown as Response;
@@ -63,12 +63,12 @@ afterEach(() => {
   window.localStorage.clear();
 });
 
-function page(hookRows: HookRowsVariant = 'rows') {
+function page() {
   return render(
-    <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, hookRows }}>
+    <>
       <DetailHeader session={session} now={2_000_000} busy={false} onBack={vi.fn()} onTogglePin={vi.fn()} onMarkSeen={vi.fn()} onOwnedChange={vi.fn()} onForgotten={vi.fn()} onForked={vi.fn()} onOpenSource={vi.fn()} />
       <LogViewer session={session} />
-    </UiVariantsContext.Provider>,
+    </>,
   );
 }
 
@@ -149,62 +149,90 @@ describe('Group consecutive calls', () => {
   });
 });
 
-describe('the Hook rows look', () => {
+describe('the one-line system row', () => {
   const showHooks = (): void => window.localStorage.setItem(FILTER_PREFS_KEY, JSON.stringify({ hooks: true }));
 
-  it('rows (default): today, a row for each hook and each notice, with the same words', async () => {
+  it('a run of hooks and turn rows is ONE "System" row with the same information, every line one click away', async () => {
     showHooks();
     page();
     await screen.findByText('run the tests');
-    expect(screen.getByRole('button', { name: /^Hook/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /System: stop-hook/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /System: turn-duration/ })).toBeInTheDocument();
-    expect(document.querySelector('[data-system-look]')).toBeNull();
-  });
-
-  it.each(['merged', 'footer', 'chips'] as const)('%s: one condensed entry, the same information, every line one click away', async (look) => {
-    showHooks();
-    page(look);
-    await screen.findByText('run the tests');
     expect(screen.queryByRole('button', { name: /System: turn-duration/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Hook/ })).toBeNull();
     const strip = screen.getByRole('button', { name: /^System(?!:)/ });
     expect(strip).toHaveAccessibleName(expect.stringContaining('turn took 32 s'));
     expect(strip).toHaveAccessibleName(expect.stringContaining('stop-hook'));
     expect(strip).toHaveAccessibleName(expect.stringContaining('Stop'));
     await userEvent.click(strip);
     const lines = document.querySelector('[data-system-lines]') as HTMLElement;
-    expect(within(lines).getByRole('button', { name: /Hook/ })).toBeInTheDocument();
-    expect(within(lines).getByRole('button', { name: /System: stop-hook/ })).toBeInTheDocument();
-    expect(within(lines).getByRole('button', { name: /System: turn-duration/ })).toBeInTheDocument();
-    // Each line opens in turn: the duration of the turn is in its body.
-    await userEvent.click(within(lines).getByRole('button', { name: /System: turn-duration/ }));
-    expect(within(lines).getAllByText(/took 32 s/).length).toBeGreaterThan(0);
+    expect(within(lines).getByText('Hook')).toBeInTheDocument();
+    expect(within(lines).getByText('System: stop-hook')).toBeInTheDocument();
+    expect(within(lines).getByText('System: turn-duration')).toBeInTheDocument();
   });
 
-  it.each(['merged', 'footer', 'chips'] as const)('%s: the Hooks filter still hides the hooks (the turn stays)', async (look) => {
-    page(look);
+  it('a line with nothing to open (a stop-hook without text, a turn duration that repeats its header, a hook that printed nothing) is static with a faint chevron, not a button', async () => {
+    showHooks();
+    entries = [...entries.slice(0, 7), hook('h1'), notice('n1', 'stop-hook'), notice('n2', 'turn-duration', { durationMs: 43_000 })];
+    page();
     await screen.findByText('run the tests');
-    const strip = screen.getByRole('button', { name: /^System(?!:)/ });
-    expect(strip).toHaveAccessibleName(expect.stringContaining('turn took 32 s'));
-    expect(strip).not.toHaveAccessibleName(expect.stringContaining('stop-hook'));
-    expect(strip).not.toHaveAccessibleName(expect.stringContaining('Stop'));
+    await userEvent.click(screen.getByRole('button', { name: /^System(?!:)/ }));
+    const lines = document.querySelector('[data-system-lines]') as HTMLElement;
+    const statics = [...lines.querySelectorAll('[data-system-line="static"]')];
+    expect(statics).toHaveLength(3);
+    for (const line of statics) {
+      // The same chevron slot, decorative, not focusable, no click effect.
+      const mark = line.querySelector('[data-expand-mark="off"]');
+      expect(mark).not.toBeNull();
+      expect(mark).toHaveAttribute('aria-hidden', 'true');
+      expect(line.querySelector('button, [tabindex], [aria-expanded]')).toBeNull();
+    }
+    expect(within(lines).queryAllByRole('button')).toHaveLength(0);
+    expect(statics[2]).toHaveTextContent('System: turn-duration');
+    expect(statics[2]).toHaveTextContent('took 43 s');
+    await userEvent.click(statics[2]!);
+    expect(lines.querySelectorAll('[data-system-line="static"]')).toHaveLength(3);
+    expect(statics[2]).toHaveTextContent(/^.*System: turn-duration.*took 43 s$/);
   });
 
-  it.each(['merged', 'footer', 'chips'] as const)('%s: a failed hook is said in words and in red', async (look) => {
+  it('a hook with an output opens (a button), and shows the output', async () => {
+    showHooks();
+    entries = [...entries.slice(0, 7), hook('h1', { output: 'lint passed' }), notice('n2', 'turn-duration', { durationMs: 32_000 })];
+    page();
+    await screen.findByText('run the tests');
+    await userEvent.click(screen.getByRole('button', { name: /^System(?!:)/ }));
+    const lines = document.querySelector('[data-system-lines]') as HTMLElement;
+    const open = within(lines).getByRole('button', { name: /Hook/ });
+    expect(open).toHaveAttribute('aria-expanded', 'false');
+    expect(open.querySelector('[data-expand-mark="closed"]')).not.toBeNull();
+    await userEvent.click(open);
+    expect(open).toHaveAttribute('aria-expanded', 'true');
+    expect(within(lines).getAllByText(/lint passed/).length).toBeGreaterThan(0);
+    expect(lines.querySelector('[data-system-line="static"]')).toHaveTextContent('System: turn-duration');
+  });
+
+  it('a run that has nothing to open at all is a plain "System" line, not a button', async () => {
+    entries = [...entries.slice(0, 7), notice('n2', 'turn-duration', { durationMs: 32_000 })];
+    page();
+    await screen.findByText('run the tests');
+    expect(screen.queryByRole('button', { name: /^System/ })).toBeNull();
+    expect(screen.getByText('turn took 32 s')).toBeInTheDocument();
+    expect(document.querySelector('[data-expand-mark="off"]')).not.toBeNull();
+  });
+
+  it('the Hooks filter still hides the hooks (the turn stays)', async () => {
+    entries = [...entries.slice(0, 7), hook('h1', { output: 'x' }), notice('n2', 'turn-duration', { durationMs: 32_000 })];
+    page();
+    await screen.findByText('run the tests');
+    expect(screen.queryByText(/Stop/)).toBeNull();
+    expect(screen.getByText('turn took 32 s')).toBeInTheDocument();
+  });
+
+  it('a failed hook is said in words and in red', async () => {
     entries = [...entries.slice(0, 7), hook('h1', { outcome: 'error', hookName: 'PreToolUse:Bash' }), notice('n2', 'turn-duration', { durationMs: 32_000 })];
     showHooks();
-    page(look);
+    page();
     await screen.findByText('run the tests');
     const strip = screen.getByRole('button', { name: /^System(?!:)/ });
     expect(strip).toHaveAccessibleName(expect.stringContaining('PreToolUse:Bash failed'));
     expect(strip.outerHTML).toMatch(/hue-red/);
-  });
-
-  it('the chips look has one chip per hook, one for the stop hooks and one for the duration', async () => {
-    showHooks();
-    page('chips');
-    await screen.findByText('run the tests');
-    expect(document.querySelectorAll('[data-system-chip]').length).toBe(3);
-    expect(document.querySelector('[data-system-chip="turn"]')).toHaveTextContent('took 32 s');
   });
 });

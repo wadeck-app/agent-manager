@@ -17,6 +17,7 @@ import { OwnedStateChip } from '../owned/OwnedStateChip.js';
 import { stubFetch } from '../owned/testFetch.js';
 import { Toolbar } from '../workspace/Toolbar.js';
 import { Scope } from './Scope.js';
+import { TrailSlot } from './TrailSlot.js';
 import { UiVariants, UiVariantsContext } from './UiVariants.js';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -144,16 +145,16 @@ describe('the Toolbar on a narrow screen', () => {
       onHelpOpenChange: vi.fn(),
       onNewSession: vi.fn(),
     };
-    // The header of the page (not the breadcrumb row, the default): the in-page placement.
-    const inPage = (extra: { detailOpen?: boolean }) => (
-      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerPlacement: 'in-page' }}>
+    // The header is drawn through the shell slot (the breadcrumb row), which the test provides.
+    const inTrail = (extra: { detailOpen?: boolean }) => (
+      <TrailSlot>
         <Toolbar {...props} {...extra} />
-      </UiVariantsContext.Provider>
+      </TrailSlot>
     );
-    const { container, rerender } = render(inPage({}));
-    expect(container.querySelector('[data-toolbar]')?.className).not.toContain('hidden');
-    rerender(inPage({ detailOpen: true }));
-    expect(container.querySelector('[data-toolbar]')?.className).toContain('hidden lg:flex');
+    const { rerender } = render(inTrail({}));
+    expect(document.querySelector('[data-toolbar]')?.className).not.toContain('hidden');
+    rerender(inTrail({ detailOpen: true }));
+    expect(document.querySelector('[data-toolbar]')?.className).toContain('hidden lg:flex');
   });
 });
 
