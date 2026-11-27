@@ -2,7 +2,7 @@ import { Tooltip } from '@wadeck-app/dsl-ui';
 import { ChevronDown, ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { partitionByGroup, stepGroupIds } from '../logic/customGroups.js';
-import { HERDR_ROW_BOX, herdrTint, isHerdrDensity } from '../logic/herdrRow.js';
+import { HERDR_ROW_BOX, HERDR_ROW_BOX_STACKED, herdrTint, isHerdrDensity } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { buildTree, flatByUrgency, quietFolders, type FolderNode } from '../logic/tree.js';
@@ -17,6 +17,7 @@ import { detailLine, type ListProps } from './common.js';
 import { EmptyNote } from './EmptyNote.js';
 import { RollupLight } from './RollupLight.js';
 import { HerdrRowBody } from './HerdrRowBody.js';
+import { isStacked } from './RowSecondary.js';
 import { Highlight } from './Highlight.js';
 import { CustomGroupSection } from './CustomGroupSection.js';
 import { DropBar } from './DropBar.js';
@@ -59,6 +60,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
   const density = useUiVariant('treeDensity');
   // The look of the headers of the folders (the A/B question ui-group-header applies to them as well as to the custom groups).
   const headerStyle = useUiVariant('groupHeader');
+  const stackedRows = isStacked(useUiVariant('rowSeparator'));
   const [moving, setMoving] = useState<string | undefined>(undefined);
   const [editing, setEditing] = useState<string | undefined>(undefined);
   // The "..." menu of every row: move to a group, flag, unread, pin, mark seen (what the page gave).
@@ -213,7 +215,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
           tabbable={id === tabbable}
           onSelect={onSelect}
           {...(herdr ? { look: { selected: tint ?? '', idle: idleTint === undefined ? 'hover:bg-muted-bg' : `${idleTint} hover:brightness-95` } } : {})}
-          className={`group relative ${herdr ? HERDR_ROW_BOX : `min-h-am-hit py-1 pr-3 ${level === 2 ? 'pl-5' : 'pl-3'}`} ${dragged ? 'opacity-50' : ''}`}
+          className={`group relative ${herdr ? (stackedRows ? HERDR_ROW_BOX_STACKED : HERDR_ROW_BOX) : `min-h-am-hit py-1 pr-3 ${level === 2 ? 'pl-5' : 'pl-3'}`} ${dragged ? 'opacity-50' : ''}`}
           expanded={hasChildren ? open : undefined}
           rowProps={dnd.row(id, session.customGroupId, members)}
           {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})}

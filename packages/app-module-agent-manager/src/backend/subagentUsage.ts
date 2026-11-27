@@ -2,12 +2,13 @@ import { stat } from 'node:fs/promises';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
 import { createTailerState, ModelUsageAccumulator, TranscriptTailer, type TailerState } from '@wadeck-app/agent-manager-core/transcript';
 import type { SubagentUsageDto } from '../commons/api.js';
-import { usageStatus } from './sessionStatus.js';
+import { costDto, usageStatus } from './sessionStatus.js';
 
 /**
- * The model, tokens and context share of ONE sub-agent, from its own transcript (`agent-<id>.jsonl`, same format as the main one: research/subagent-usage-in-transcripts.md).
+ * The model, tokens, context share and estimated cost of ONE sub-agent, from its own transcript (`agent-<id>.jsonl`, same format as the main one: research/subagent-usage-in-transcripts.md).
  * The figures are the ones of the session header (usageStatus over a ModelUsageAccumulator), not another formula. Read incrementally: per transcript the offset of the
  * last complete line and the folded counters are kept, so an unchanged file costs one stat per poll and a growing one only its new bytes.
+ * The same reader serves the MAIN transcript of a session (no `agentId`): its cost needs every message, not the tail window of the digest.
  */
 
 /** Transcripts remembered; beyond it the oldest go first (it only saves work: a forgotten one is read again from its start). */
@@ -41,16 +42,18 @@ export function subagentUsageStats(): { entries: number; bytesRead: number } {
   return { entries: cache.size, bytesRead: totalBytesRead };
 }
 
-function answerOf(cached: Cached, agentId: string): SubagentUsageAnswer {
+function answerOf(cached: Cached): SubagentUsageAnswer {
   if (cached.readNote !== '') {
     return { note: cached.readNote };
   }
-  const status = usageStatus(cached.accumulator.rollup());
+  const rollup = cached.accumulator.rollup();
+  const status = usageStatus(rollup);
   const usage: SubagentUsageDto = {
     ...(status.model !== undefined ? { model: status.model } : {}),
     ...(status.contextUsedPct !== undefined ? { contextUsedPct: status.contextUsedPct } : {}),
     ...(status.tokensIn !== undefined ? { tokensIn: status.tokensIn } : {}),
     ...(status.tokensOut !== undefined ? { tokensOut: status.tokensOut } : {}),
+    ...(rollup.messages > 0 ? { cost: costDto(rollup.cost) } : {}),
   };
   if (usage.tokensIn === undefined && usage.tokensOut === undefined) {
     return { note: 'No assistant message with usage in its transcript yet.' };
@@ -58,7 +61,7 @@ function answerOf(cached: Cached, agentId: string): SubagentUsageAnswer {
   return { usage };
 }
 
-async function refresh(info: { agentId: string; transcriptPath: string }, limit: number): Promise<SubagentUsageAnswer> {
+async function refresh(info: { agentId?: string; transcriptPath: string }, limit: number): Promise<SubagentUsageAnswer> {
   const { agentId, transcriptPath: path } = info;
   let size: number;
   let mtimeMs: number;
@@ -73,10 +76,10 @@ async function refresh(info: { agentId: string; transcriptPath: string }, limit:
   }
   let cached = cache.get(path);
   if (cached !== undefined && cached.size === size && cached.mtimeMs === mtimeMs && cached.readNote === '') {
-    return answerOf(cached, agentId);
+    return answerOf(cached);
   }
   cached ??= { size: -1, mtimeMs: -1, state: createTailerState(), accumulator: new ModelUsageAccumulator(true, agentId), readNote: '' };
-  const tailer = new TranscriptTailer({ agentId });
+  const tailer = new TranscriptTailer(agentId === undefined ? {} : { agentId });
   for (;;) {
     const result = await tailer.readNew(path, cached.state);
     if (result.error !== undefined) {
@@ -107,14 +110,14 @@ async function refresh(info: { agentId: string; transcriptPath: string }, limit:
     }
     cache.delete(oldest.value);
   }
-  return answerOf(cached, agentId);
+  return answerOf(cached);
 }
 
 /**
- * The usage of a sub-agent. `readError` (the transcript exists but could not be opened, see SubagentInfo) is passed on as the note, never as "no usage".
+ * The usage of a sub-agent, or of the main transcript of a session when `agentId` is absent. `readError` (the transcript exists but could not be opened, see SubagentInfo) is passed on as the note, never as "no usage".
  * Never throws: every failure is a `note` with the reason, shown by the card.
  */
-export async function subagentUsageOf(info: { agentId: string; transcriptPath: string; readError?: string }, limit: number = MAX_USAGE_CACHED): Promise<SubagentUsageAnswer> {
+export async function subagentUsageOf(info: { agentId?: string; transcriptPath: string; readError?: string }, limit: number = MAX_USAGE_CACHED): Promise<SubagentUsageAnswer> {
   if (info.readError !== undefined) {
     return { note: info.readError };
   }

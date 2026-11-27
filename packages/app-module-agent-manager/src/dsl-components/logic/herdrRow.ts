@@ -16,6 +16,9 @@ export function isHerdrDensity(density: TreeDensityVariant): density is HerdrDen
 /** The classes of every Herdr row box (research/ui-audit.md, "Herdr values"): 30 px, 8 px rounded, the list's 8 px side padding as a margin, 8 px inside on the left and 2 px on the right (the state column is 26 px wide). */
 export const HERDR_ROW_BOX = 'mx-2 h-[30px] rounded-lg py-0 pl-2 pr-0.5';
 
+/** The same box when the row stacks the name and the folder on two lines (the A/B question `ui-row-separator`, variant E): 44 px instead of 30. */
+export const HERDR_ROW_BOX_STACKED = 'mx-2 h-[44px] rounded-lg py-0 pl-2 pr-0.5';
+
 export interface HerdrLight {
   /** dot: a filled dot. spinner: a turning arc. pill: a coloured pill with words. ring: an empty ring. icon: the page's own icon (a state Herdr has no light for). */
   kind: 'dot' | 'spinner' | 'pill' | 'ring' | 'icon';

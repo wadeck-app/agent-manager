@@ -302,6 +302,13 @@ export type UsageEntry = EntryBase & {
   outputTokens: number;
   cacheRead: number;
   cacheCreate: number;
+  /** Part of `cacheCreate` written with the 1 hour TTL (`cache_creation.ephemeral_1h_input_tokens`); absent when the line has no split (the rest is 5 minutes). */
+  cacheCreate1h?: number;
+  /** `server_tool_use.web_search_requests`; absent when the line has no such field. */
+  webSearches?: number;
+  /** `usage.speed` ("standard", "fast") and `usage.inference_geo` ("" = global, "us"), as written: both change the price. */
+  speed?: string;
+  inferenceGeo?: string;
   /**
    * Estimate of the context size after this message: inputTokens + cacheRead + cacheCreate (the prompt that was sent) + outputTokens. An estimate:
    * it ignores what the next request adds.

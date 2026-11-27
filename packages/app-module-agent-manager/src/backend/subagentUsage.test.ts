@@ -66,6 +66,35 @@ describe('subagentUsageOf', () => {
     expect(await subagentUsageOf({ agentId: AGENT, transcriptPath: path, readError: 'EACCES: denied' })).toEqual({ note: expect.stringContaining('EACCES: denied') });
   });
 
+  it('estimates the cost per message with the price table, once per message id even when its lines repeat', async () => {
+    // Sonnet 4.6: $3 input, $15 output, $0.30 cache read, $3.75 cache write (5m) per million tokens. m1 is written twice (streaming): counted once, largest counts.
+    writeFileSync(path, line('m1', usage(1_000_000, 0, 0, 1000)) + line('m1', usage(1_000_000, 0, 0, 2_000_000)) + line('m2', usage(0, 1_000_000, 1_000_000, 0)));
+    const { usage: answer } = await read();
+    expect(answer?.cost).toMatchObject({ pricedMessages: 2, unpriced: [] });
+    expect(answer?.cost?.usd).toBeCloseTo(3 + 30 + 3.75 + 0.3, 9);
+    expect(answer?.cost?.asOf).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('names a model without a price instead of pricing it, and still prices the others', async () => {
+    writeFileSync(path, line('m1', usage(1_000_000, 0, 0, 0)) + line('m2', usage(1_000_000, 0, 0, 0), 'claude-future-9'));
+    const { usage: answer } = await read();
+    expect(answer?.cost?.usd).toBeCloseTo(3, 9);
+    expect(answer?.cost).toMatchObject({ pricedMessages: 1, unpriced: [{ model: 'claude-future-9', messages: 1 }] });
+  });
+
+  it('keeps the cost across incremental reads (new bytes only) and gives the main transcript the same reader (no agent id)', async () => {
+    writeFileSync(path, line('m1', usage(1_000_000, 0, 0, 0)));
+    expect((await read()).usage?.cost?.usd).toBeCloseTo(3, 9);
+    appendFileSync(path, line('m2', usage(1_000_000, 0, 0, 0)));
+    expect((await read()).usage?.cost?.usd).toBeCloseTo(6, 9);
+    // The main session: lines without agentId count, the lines of a sub-agent do not.
+    const main = join(dir, 'main.jsonl');
+    const mainLine = JSON.stringify({ type: 'assistant', uuid: 'mu1', timestamp: '2026-11-26T10:00:00.000Z', message: { id: 'mm1', model: 'claude-sonnet-4-6', role: 'assistant', content: [{ type: 'text', text: 'ok' }], usage: usage(2_000_000, 0, 0, 0) } });
+    writeFileSync(main, `${mainLine}
+${line('x1', usage(9_000_000, 0, 0, 0))}`);
+    expect((await subagentUsageOf({ transcriptPath: main })).usage?.cost?.usd).toBeCloseTo(6, 9);
+  });
+
   it('keeps the cache bounded', async () => {
     writeFileSync(path, line('m1', usage(1, 0, 10, 5)));
     for (let i = 0; i < 5; i += 1) {

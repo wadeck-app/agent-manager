@@ -324,12 +324,26 @@ function recordUsage(sink: Sink, ctx: LineContext, message: Record<string, unkno
   }
   const { state } = sink;
   const seen = state.recentMessageIds;
-  const inputTokens = asNumber(usage.input_tokens) ?? 0;
-  const outputTokens = asNumber(usage.output_tokens) ?? 0;
-  const cacheRead = asNumber(usage.cache_read_input_tokens) ?? 0;
-  const cacheCreate = asNumber(usage.cache_creation_input_tokens) ?? 0;
+  const counts = {
+    inputTokens: asNumber(usage.input_tokens) ?? 0,
+    outputTokens: asNumber(usage.output_tokens) ?? 0,
+    cacheRead: asNumber(usage.cache_read_input_tokens) ?? 0,
+    cacheCreate: asNumber(usage.cache_creation_input_tokens) ?? 0,
+  };
+  // What the price depends on besides the counts (research/session-cost.md): the 1h share of the cache writes, web searches, the speed and the inference geo.
+  const cache1h = isRecord(usage.cache_creation) ? asNumber(usage.cache_creation.ephemeral_1h_input_tokens) : undefined;
+  const searches = isRecord(usage.server_tool_use) ? asNumber(usage.server_tool_use.web_search_requests) : undefined;
+  const speed = asString(usage.speed);
+  const geo = asString(usage.inference_geo);
+  const extras = {
+    ...(cache1h !== undefined ? { cacheCreate1h: cache1h } : {}),
+    ...(searches !== undefined ? { webSearches: searches } : {}),
+    ...(speed !== undefined ? { speed } : {}),
+    ...(geo !== undefined ? { inferenceGeo: geo } : {}),
+  };
+  const estimateOf = (c: typeof counts): number => c.inputTokens + c.cacheRead + c.cacheCreate + c.outputTokens;
   if (messageId === undefined) {
-    push(sink, ctx, { kind: 'usage', messageId, model, inputTokens, outputTokens, cacheRead, cacheCreate, contextEstimate: inputTokens + cacheRead + cacheCreate + outputTokens });
+    push(sink, ctx, { kind: 'usage', messageId, model, ...counts, ...extras, contextEstimate: estimateOf(counts) });
     return;
   }
   if (seen.includes(messageId)) {
@@ -339,27 +353,42 @@ function recordUsage(sink: Sink, ctx: LineContext, message: Record<string, unkno
       return;
     }
     const max = {
-      inputTokens: Math.max(previous.inputTokens, inputTokens),
-      outputTokens: Math.max(previous.outputTokens, outputTokens),
-      cacheRead: Math.max(previous.cacheRead, cacheRead),
-      cacheCreate: Math.max(previous.cacheCreate, cacheCreate),
+      inputTokens: Math.max(previous.inputTokens, counts.inputTokens),
+      outputTokens: Math.max(previous.outputTokens, counts.outputTokens),
+      cacheRead: Math.max(previous.cacheRead, counts.cacheRead),
+      cacheCreate: Math.max(previous.cacheCreate, counts.cacheCreate),
     };
-    if (max.inputTokens === previous.inputTokens && max.outputTokens === previous.outputTokens && max.cacheRead === previous.cacheRead && max.cacheCreate === previous.cacheCreate) {
+    const nextSpeed = previous.speed ?? speed;
+    const nextGeo = previous.inferenceGeo ?? geo;
+    const maxExtras = {
+      ...(previous.cacheCreate1h !== undefined || cache1h !== undefined ? { cacheCreate1h: Math.max(previous.cacheCreate1h ?? 0, cache1h ?? 0) } : {}),
+      ...(previous.webSearches !== undefined || searches !== undefined ? { webSearches: Math.max(previous.webSearches ?? 0, searches ?? 0) } : {}),
+      ...(nextSpeed !== undefined ? { speed: nextSpeed } : {}),
+      ...(nextGeo !== undefined ? { inferenceGeo: nextGeo } : {}),
+    };
+    const unchanged =
+      max.inputTokens === previous.inputTokens &&
+      max.outputTokens === previous.outputTokens &&
+      max.cacheRead === previous.cacheRead &&
+      max.cacheCreate === previous.cacheCreate &&
+      maxExtras.cacheCreate1h === previous.cacheCreate1h &&
+      maxExtras.webSearches === previous.webSearches;
+    if (unchanged) {
       return;
     }
-    const contextEstimate = max.inputTokens + max.cacheRead + max.cacheCreate + max.outputTokens;
+    const contextEstimate = estimateOf(max);
     if (sink.batchUsage.get(messageId) === previous) {
       // The first line is in this batch too: complete it in place instead of emitting an update.
-      Object.assign(previous, max, { contextEstimate });
+      Object.assign(previous, max, maxExtras, { contextEstimate });
     } else {
-      const updated = push(sink, ctx, { kind: 'usage', messageId, model: previous.model ?? model, ...max, contextEstimate }, previous.key) as UsageEntry;
+      const updated = push(sink, ctx, { kind: 'usage', messageId, model: previous.model ?? model, ...max, ...maxExtras, contextEstimate }, previous.key) as UsageEntry;
       state.usageById = { ...state.usageById, [messageId]: updated };
       sink.batchUsage.set(messageId, updated);
     }
     return;
   }
   seen.push(messageId);
-  const entry = push(sink, ctx, { kind: 'usage', messageId, model, inputTokens, outputTokens, cacheRead, cacheCreate, contextEstimate: inputTokens + cacheRead + cacheCreate + outputTokens }) as UsageEntry;
+  const entry = push(sink, ctx, { kind: 'usage', messageId, model, ...counts, ...extras, contextEstimate: estimateOf(counts) }) as UsageEntry;
   state.usageById = { ...state.usageById, [messageId]: entry };
   sink.batchUsage.set(messageId, entry);
   if (seen.length > LIMITS.recentMessageIds) {

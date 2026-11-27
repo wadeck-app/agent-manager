@@ -30,6 +30,7 @@ import { subagentUsageOf, type SubagentUsageAnswer } from './subagentUsage.js';
 import type { LogActivity, LogEntry, LogLimits, LogOk, LogTruncation, SessionStatusDto, SubagentDto } from '../commons/api.js';
 import { CodedRequestError, fail, shaped } from './apiError.js';
 import { registerLocateRoute } from './locateCall.js';
+import { sessionCostOf } from './sessionCost.js';
 import { statusOf } from './sessionStatus.js';
 import { linkWebReplies } from './webReplyLinks.js';
 import { digestOf } from './transcriptDigest.js';
@@ -447,10 +448,12 @@ export function registerLogRoute(kit: RouteKit, owned: OwnedSource): void {
 }
 
 /** The status line data of the open session: the cached transcript digest (model, usage) and the registry folder (branch, role, bypasses). */
-async function statusFor(session: Session): Promise<SessionStatusDto> {
+async function statusFor(session: Session, cost?: { path: string; usages: ReadonlyMap<string, SubagentUsageAnswer> }): Promise<SessionStatusDto> {
   const now = Date.now();
   const digest = await digestOf(session, now);
-  return statusOf(session, digest.usage, digest.note, now);
+  const status = await statusOf(session, digest.usage, digest.note, now);
+  // The cost reads every message of the transcripts (incrementally, cached), so only the log of an open session asks for it.
+  return cost === undefined ? status : { ...status, cost: await sessionCostOf(cost.path, cost.usages) };
 }
 
 async function emptyLog(session: Session, note: string): Promise<LogOk> {
@@ -582,7 +585,7 @@ async function readLog(session: Session, path: string, projectDir: string, limit
     subagents: tree.map((node) => subagentDto(node, Date.now(), usages)),
     subagentsNote: notes.join(' '),
     activity: activityOf(activityEntries),
-    status: await statusFor(session),
+    status: await statusFor(session, { path, usages }),
     truncated,
     limits: LOG_LIMITS,
     note: '',

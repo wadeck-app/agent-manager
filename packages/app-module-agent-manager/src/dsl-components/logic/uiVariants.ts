@@ -62,7 +62,22 @@ export const UI_QUESTIONS = {
       icon: { label: 'C Icon toggle', hint: 'An icon-only toggle button (a list with checks) in the toolbar icons, with a tooltip, toggles the selection mode; Select all appears next to it. The quietest entry. Shows in the toolbar above the list.' },
     },
   },
+  rowSeparator: {
+    id: 'ui-row-separator',
+    label: 'Name and folder in a row',
+    initial: 'space',
+    options: {
+      space: { label: 'A Colour and space', hint: 'Recommended. No glyph at all: the name in the content colour, then the folder in the muted colour after a clear 8 px gap. The folder gives way first (it is cut, then dropped) so the name keeps its room. Shows in every row of Tree, Custom, Groups, Inbox and in the sub-agent rows.' },
+      rule: { label: 'B Thin rule', hint: 'A 1 px vertical rule, 12 px tall, between the name and the folder with the same 8 px gap on each side. Shows in every row of Tree, Custom, Groups, Inbox and in the sub-agent rows.' },
+      chip: { label: 'C Mini chip', hint: 'The folder in a tiny neutral outlined chip (16 px high, the module Chip at size xs) after the name. Shows in every row of Tree, Custom, Groups, Inbox and in the sub-agent rows.' },
+      folder: { label: 'D Folder icon', hint: 'A small muted folder icon (12 px) followed by the muted folder text, after the name. Shows in every row of Tree, Custom, Groups, Inbox and in the sub-agent rows.' },
+      stacked: { label: 'E Stacked', hint: 'Two lines in the row: the name above, the folder below in smaller muted text. The Tree and Custom rows grow from 30 to 44 px; the age, the menu button and the state light stay centred on the same vertical axes. Groups and Inbox rows stack as well.' },
+    },
+  },
 } as const satisfies Record<string, UiQuestion<string>>;
+
+export const ROW_SEPARATOR = ['space', 'rule', 'chip', 'folder', 'stacked'] as const;
+export type RowSeparatorVariant = (typeof ROW_SEPARATOR)[number];
 
 export const SELECTION_ENTRY = ['checkbox', 'button', 'icon'] as const;
 export type SelectionEntryVariant = (typeof SELECTION_ENTRY)[number];
@@ -76,6 +91,7 @@ export type UiVariantValues = {
   groupHeader: GroupHeaderVariant;
   readinessPreview: ReadinessPreviewValue;
   selectionEntry: SelectionEntryVariant;
+  rowSeparator: RowSeparatorVariant;
 };
 
 /** What every question shows when no dock chose (and in a build without the dock). */
@@ -85,4 +101,5 @@ export const DEFAULT_UI_VARIANTS: UiVariantValues = {
   groupHeader: 'herdr',
   readinessPreview: UI_QUESTIONS.readinessPreview.initial,
   selectionEntry: UI_QUESTIONS.selectionEntry.initial,
+  rowSeparator: UI_QUESTIONS.rowSeparator.initial,
 };

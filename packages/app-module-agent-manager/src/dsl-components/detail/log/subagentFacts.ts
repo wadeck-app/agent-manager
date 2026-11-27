@@ -1,3 +1,4 @@
+import { costValue } from '../status/costText.js';
 import { contextTone, formatTokens } from '../status/format.js';
 import { elapsedMs, formatElapsed, STATUS_LOOK, type SubagentItem } from './subagentModel.js';
 
@@ -36,7 +37,8 @@ const missing = (label: string, reason: string): SubagentFact => ({ label, value
 
 /**
  * The facts of the hover card, only what the data says. `clock` writes an epoch ms as a date and time in the locale of the app. Tokens, model and context share
- * come from the usage of its transcript (`dto.usage`, the same definitions as the session header); the cost has no source and says so.
+ * come from the usage of its transcript (`dto.usage`, the same definitions as the session header); the cost is an estimate (its messages x the price table of the core
+ * package) and says so; a model without a price says "No price for <model>".
  */
 export function subagentFacts(item: SubagentItem, now: number, clock: (at: number) => string): SubagentFact[] {
   const { dto } = item;
@@ -71,8 +73,12 @@ export function subagentFacts(item: SubagentItem, now: number, clock: (at: numbe
   } else {
     facts.push(missing('Tokens', why));
   }
-  // There is no cost in any transcript and no price table in this app: never a number made up.
-  facts.push(missing('Cost', 'no price in the transcripts, no price table here'));
+  if (usage?.cost === undefined) {
+    facts.push(missing('Cost', why));
+  } else {
+    const cost = costValue(usage.cost);
+    facts.push({ label: 'Cost', value: cost.text, note: cost.note, ...(cost.priced ? {} : { missing: true }) });
+  }
   const context = usage?.contextUsedPct;
   facts.push(
     context === undefined

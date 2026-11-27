@@ -109,7 +109,7 @@ ${move.unavailable}`;
   }
   if (status.tokensIn !== undefined || status.tokensOut !== undefined) {
     const text = [status.tokensIn === undefined ? undefined : `${formatTokens(status.tokensIn)} in`, status.tokensOut === undefined ? undefined : `${formatTokens(status.tokensOut)} out`].filter((part) => part !== undefined).join(' / ');
-    droppable.push({ key: 'tokens', node: <TokenCounts tokensIn={status.tokensIn} tokensOut={status.tokensOut} />, entries: [{ label: 'tokens', value: text }] });
+    droppable.push({ key: 'tokens', node: <TokenCounts tokensIn={status.tokensIn} tokensOut={status.tokensOut} cost={status.cost} />, entries: [{ label: 'tokens', value: text }] });
   }
   if (status.durationMs !== undefined) {
     droppable.push({ key: 'duration', node: <DurationChip durationMs={status.durationMs} />, entries: [{ label: 'running for', value: formatSpan(status.durationMs) }] });

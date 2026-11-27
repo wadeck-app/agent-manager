@@ -213,7 +213,7 @@ describe('the Tree rows (settled Herdr look)', () => {
       expect(column.className).toContain('justify-center');
       expect(column.className).toContain('shrink-0');
     }
-    const folder = screen.getByText('a').closest('[aria-level="1"]') as HTMLElement;
+    const folder = (screen.getAllByText('a')[0] as HTMLElement).closest('[aria-level="1"]') as HTMLElement;
     expect(folder.querySelector('[data-status-column]')).not.toBeNull();
     // The rows end 10 px from the list edge (mx-2 and pr-0.5), the header too (pr-2.5): same axis.
     const rowEdge = (document.querySelector('[data-session-id]') as HTMLElement).className;
@@ -235,13 +235,13 @@ describe('the group header on the folder headers (settled Herdr look)', () => {
       ),
     );
   }
-  const header = (): HTMLElement => screen.getByText('shop').closest('[aria-level="1"]') as HTMLElement;
+  const header = (): HTMLElement => (screen.getAllByText('shop')[0] as HTMLElement).closest('[aria-level="1"]') as HTMLElement;
 
   it('a plain 11 px header, no bar, no pill, the count after the name', () => {
     folders({});
     expect(header().className).not.toContain('border-l-4');
-    expect(screen.getByText('shop').className).toContain('text-[11px]');
-    expect(screen.getByText('shop').className).not.toContain('rounded-full');
+    expect((screen.getAllByText('shop')[0] as HTMLElement).className).toContain('text-[11px]');
+    expect((screen.getAllByText('shop')[0] as HTMLElement).className).not.toContain('rounded-full');
     expect(header().querySelector('[data-status-column]')).not.toBeNull();
   });
 });

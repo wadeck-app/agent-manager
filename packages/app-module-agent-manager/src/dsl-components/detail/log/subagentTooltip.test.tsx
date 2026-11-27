@@ -66,8 +66,8 @@ describe('the hover and focus card of a sub-agent', () => {
     return { ...view, card: cardOf() };
   }
 
-  it('shows labelled rows with the model, type, status reason, tokens and context of an active sub-agent, and says the cost is not available and why', () => {
-    const { card } = open(row(make({ status: 'active', finished: false, usage })));
+  it('shows labelled rows with the model, type, status reason, tokens and context of an active sub-agent, and an estimated cost', () => {
+    const { card } = open(row(make({ status: 'active', finished: false, usage: { ...usage, cost: { usd: 0.0123, pricedMessages: 4, unpriced: [], asOf: '2026-11-27' } } })));
     const shown = facts(card);
     expect(Object.keys(shown)).toEqual(['Name', 'Type', 'Model', 'Status', 'Started', 'Duration', 'Last activity', 'Tokens', 'Cost', 'Context']);
     expect(shown['Model']).toBe('Sonnet 4.6');
@@ -76,9 +76,21 @@ describe('the hover and focus card of a sub-agent', () => {
     expect(shown['Duration']).toContain('10m 00s');
     expect(shown['Tokens']).toContain('100.0k in / 200 out');
     expect(shown['Context']).toContain('60%');
-    expect(shown['Cost']).toMatch(/Not available.*no price table/);
+    expect(shown['Cost']).toMatch(/^\$0\.0123Estimate computed by this app.*table of 2026-11-27.*not your bill/);
     // The trigger is described by the always present, screen reader only copy of the card.
     expect(screen.getByRole('button').getAttribute('aria-describedby')).toBeTruthy();
+  });
+
+  it('says "No price for <model>" and why when the table has no price for the model of the sub-agent', () => {
+    const cost = { usd: 0, pricedMessages: 0, unpriced: [{ model: 'claude-future-9', messages: 3, reason: 'no price for claude-future-9 in the table dated 2026-11-27' }], asOf: '2026-11-27' };
+    const { card } = open(row(make({ status: 'active', finished: false, usage: { ...usage, cost } })));
+    expect(facts(card)['Cost']).toMatch(/^No price for claude-future-9.*no price for claude-future-9 in the table dated 2026-11-27/);
+    expect(facts(card)['Cost']).not.toContain('$');
+  });
+
+  it('says why the cost is missing when the transcript gave no usage', () => {
+    const { card } = open(row(make({ status: 'finished', usageNote: 'No transcript yet: the sub-agent has not written anything.' })));
+    expect(facts(card)['Cost']).toMatch(/Not available.*No transcript yet/);
   });
 
   it('says why a value is missing instead of leaving it out', () => {

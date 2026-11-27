@@ -270,6 +270,32 @@ export interface BypassDto {
   leftMs?: number;
 }
 
+/**
+ * An estimated cost: the tokens of the assistant messages (each counted once per message id) times the list price of their model, from the table of
+ * `@wadeck-app/agent-manager-core` (research/session-cost.md). NOT a bill: Bedrock, Vertex and negotiated rates differ, and the transcripts hold no cost.
+ * `usd` sums only the `pricedMessages`; the messages of a model the table has no price for are listed in `unpriced` (never given another model's price),
+ * so a non-empty `unpriced` means `usd` is a lower bound (or, with no priced message, there is no figure at all).
+ */
+export interface CostDto {
+  usd: number;
+  pricedMessages: number;
+  unpriced: { model: string; messages: number; reason: string }[];
+  /** Day of the price table the estimate rests on (YYYY-MM-DD). */
+  asOf: string;
+}
+
+/**
+ * The cost of the whole session: its own transcript, the transcripts of its sub-agents (separate files) and their sum. Only in the status of the log route.
+ * `main` is absent when the main transcript could not be read (`mainNote` says why). `withoutUsage` counts the sub-agents whose transcript gave no usage (unreadable
+ * or still empty): their cost is not in `subagents` or `total`.
+ */
+export interface SessionCostDto {
+  main?: CostDto;
+  mainNote?: string;
+  subagents: CostDto & { agents: number; withoutUsage: number };
+  total: CostDto;
+}
+
 /** The status line data of one session. Shared by the rows of GET /sessions and by `status` of GET /sessions/:id/log. */
 export interface SessionStatusDto {
   /** The current model: the one of the last assistant message of the main session. Absent while no assistant message exists (see statusNote). */
@@ -293,6 +319,8 @@ export interface SessionStatusDto {
   bypasses?: BypassDto[];
   /** Set when the bypass file exists but cannot be read or parsed: visible text, never an empty list. */
   bypassError?: string;
+  /** Estimated cost of the session and of its sub-agents; only in the status of the log route (the rows of GET /sessions do not read whole transcripts). */
+  cost?: SessionCostDto;
   /** Why model, context or tokens are absent ("No transcript yet", "No assistant message yet"); absent when nothing is missing. */
   statusNote?: string;
 }
@@ -331,9 +359,9 @@ export type LogEntry = import('@wadeck-app/agent-manager-core/transcript').Entry
 /**
  * What the transcript of one sub-agent says about its model and size: the SAME definitions and the same code as the header of the session (SessionStatusDto):
  * `tokensIn` is the prompt of its last call, `tokensOut` the answer of the last message, `contextUsedPct` the share of the auto-compact point (estimated window).
- * There is NO cost: the transcripts hold token counts, not a price, and this module has no price table.
+ * `cost` is an ESTIMATE computed by this app (every message of its transcript x the price table of the core package), see CostDto.
  */
-export type SubagentUsageDto = Pick<SessionStatusDto, 'model' | 'contextUsedPct' | 'tokensIn' | 'tokensOut'>;
+export type SubagentUsageDto = Pick<SessionStatusDto, 'model' | 'contextUsedPct' | 'tokensIn' | 'tokensOut'> & { cost?: CostDto };
 
 /** One sub-agent of the session. */
 export interface SubagentDto {

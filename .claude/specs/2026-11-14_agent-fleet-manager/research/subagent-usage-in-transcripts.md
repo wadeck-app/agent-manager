@@ -13,6 +13,6 @@ Measured 2026-11-26, read-only, on 60 real `subagents/agent-<id>.jsonl` files of
 ## Consequences
 
 - Tokens in/out, model and context share per sub-agent: `ModelUsageAccumulator(fromStart, agentId)` over the entries of its own transcript, same formulas as the session header (`usageStatus`). Code: `backend/subagentUsage.ts`, incremental per transcript (offset + folded counters).
-- Cost: NOT available. No price table exists in this repo and transcripts hold no cost. The card says so; nothing is invented.
+- Cost: estimated since 2026-11-27 from a dated price table, see `session-cost.md` (this line said "not available" before).
 - Context share: the window is an estimate (see `statusline-data-in-transcripts.md`), so the share is an estimate, as in the header.
 - A fork's first lines are `fork-context-ref` (no usage); only its own messages count.

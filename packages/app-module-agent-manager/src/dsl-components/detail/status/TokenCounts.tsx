@@ -1,13 +1,32 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
-import { Tooltip } from '../deps.js';
+import { Scope, Tooltip } from '../deps.js';
+import type { SessionCostDto } from '../deps.js';
 import { CHIP, CHIP_ICON } from './chipStyle.js';
+import { costEstimateNote, sessionCostLines } from './costText.js';
 import { formatTokens, groupDigits } from './format.js';
 
-/** Tokens of the last API call as the status line shows them: the prompt size going up, the answer coming down. Either one alone is shown when only one is known. */
-export function TokenCounts({ tokensIn, tokensOut }: { tokensIn: number | undefined; tokensOut: number | undefined }) {
+/**
+ * Tokens of the last API call as the status line shows them: the prompt size going up, the answer coming down. Either one alone is shown when only one is known.
+ * The tooltip also carries the estimated cost of the session as rows (main session, sub-agents, total) and says it is an estimate from a dated price table.
+ */
+export function TokenCounts({ tokensIn, tokensOut, cost }: { tokensIn: number | undefined; tokensOut: number | undefined; cost?: SessionCostDto | undefined }) {
   const parts = [tokensIn === undefined ? undefined : `${groupDigits(tokensIn)} tokens in the prompt of the last call`, tokensOut === undefined ? undefined : `${groupDigits(tokensOut)} tokens in its answer (grows while it streams)`].filter((part) => part !== undefined);
+  const rows =
+    cost === undefined
+      ? undefined
+      : sessionCostLines(cost).map((line) => ({
+          label: line.label,
+          value: (
+            <Scope>
+              <span data-cost-line="" className={`block min-w-0 break-words font-medium tabular-nums ${line.missing ? 'text-white/70' : ''}`}>
+                {line.value}
+              </span>
+            </Scope>
+          ),
+        }));
+  const note = cost === undefined ? '' : ` ${costEstimateNote(cost.total)} Cost covers every message of the session and of its sub-agents, not only the last call.`;
   return (
-    <Tooltip content={`${parts.join('; ')}. Same numbers as the Claude Code status line (they are the last call, not running totals).`}>
+    <Tooltip content={`${parts.join('; ')}. Same numbers as the Claude Code status line (they are the last call, not running totals).${note}`} {...(rows === undefined ? {} : { rows })}>
       <span tabIndex={0} aria-label={`Tokens: ${parts.join(', ')}`} className={CHIP}>
         {tokensIn === undefined ? null : (
           <span aria-hidden="true" className="inline-flex items-center gap-0.5 tabular-nums">

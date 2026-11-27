@@ -42,3 +42,22 @@ export function clockTime(ms: number): string {
   const date = new Date(ms);
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
+
+/**
+ * A dollar amount: two decimals from one dollar ("$12.34", thousands grouped), three significant digits below ("$0.123", "$0.0123", "$0.0012"), "<$0.0001" for
+ * a tiny positive amount, "$0.00" for exactly zero. Show it with `tabular-nums`.
+ */
+export function formatUsd(usd: number): string {
+  if (usd >= 1) {
+    const [whole, cents] = usd.toFixed(2).split('.');
+    return `$${whole!.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${cents}`;
+  }
+  if (usd <= 0) {
+    return '$0.00';
+  }
+  if (usd < 0.0001) {
+    return '<$0.0001';
+  }
+  const decimals = Math.min(4, Math.max(2, 2 - Math.floor(Math.log10(usd))));
+  return `$${usd.toFixed(decimals)}`;
+}

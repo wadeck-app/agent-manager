@@ -1,4 +1,5 @@
 import { contextWindowOf, describeModel, parseModelId, type ContextWindow } from './models.js';
+import { costOf } from './prices.js';
 import type { Entry, ModelRef, UsageEntry } from './types.js';
 
 /** Previous models remembered (most recent first). */
@@ -19,6 +20,12 @@ export type LastUsage = {
   outputTokens: number;
 };
 
+/** Messages of a model the price table does not cover (or covers not for their mode): their cost is NOT in `CostRollup.usd`. */
+export type UnpricedModel = { model: string; messages: number; reason: string };
+
+/** Estimated cost of the assistant messages counted (per message, see prices.ts): `usd` covers only `pricedMessages`; `unpriced` names what is missing from it. */
+export type CostRollup = { usd: number; pricedMessages: number; unpriced: UnpricedModel[] };
+
 export type ModelUsageRollup = {
   /** The model of the last main-session assistant entry; absent when none was seen. */
   currentModel?: ModelRef;
@@ -38,9 +45,26 @@ export type ModelUsageRollup = {
   cumulativeComplete: boolean;
   /** Assistant messages counted in the cumulative sums. */
   messages: number;
+  /** Estimated cost of those messages (complete only when `cumulativeComplete`). */
+  cost: CostRollup;
 };
 
 const percent = (part: number, whole: number): number => Math.min(100, Math.max(0, Math.round((part / whole) * 100)));
+type CostTally = { usd: number; priced: number; unpriced: Map<string, UnpricedModel> };
+const emptyTally = (): CostTally => ({ usd: 0, priced: 0, unpriced: new Map() });
+
+/** Adds the cost of one message to a tally: a priced one to the sum, an unpriced one to its model's counter. */
+function tally(into: CostTally, usage: UsageEntry): void {
+  const result = costOf(usage.model, usage);
+  if (result.kind === 'known') {
+    into.usd += result.usd;
+    into.priced += 1;
+  } else if (result.kind === 'unknown-model') {
+    const key = `${result.model}|${result.reason}`;
+    const seen = into.unpriced.get(key);
+    into.unpriced.set(key, { model: result.model, reason: result.reason, messages: (seen?.messages ?? 0) + 1 });
+  }
+}
 const sumInput = (u: UsageEntry): number => u.inputTokens + u.cacheRead + u.cacheCreate;
 
 /**
@@ -54,6 +78,8 @@ export class ModelUsageAccumulator {
   private readonly recent = new Map<string, UsageEntry>();
   private latest: UsageEntry | undefined;
   private folded = { input: 0, output: 0, messages: 0 };
+  /** Cost of the entries folded out of `recent`: a message is priced once its numbers can no longer change. */
+  private foldedCost = emptyTally();
   private readonly names = new Map<string, { modelId: string; displayName: string }>();
 
   /**
@@ -114,6 +140,7 @@ export class ModelUsageAccumulator {
       if (oldest !== undefined) {
         const gone = this.recent.get(oldest)!;
         this.recent.delete(oldest);
+        tally(this.foldedCost, gone);
         this.folded = { input: this.folded.input + sumInput(gone), output: this.folded.output + gone.outputTokens, messages: this.folded.messages + 1 };
       }
     }
@@ -125,6 +152,10 @@ export class ModelUsageAccumulator {
     for (const usage of this.recent.values()) {
       input += sumInput(usage);
       output += usage.outputTokens;
+    }
+    const cost: CostTally = { usd: this.foldedCost.usd, priced: this.foldedCost.priced, unpriced: new Map(this.foldedCost.unpriced) };
+    for (const usage of this.recent.values()) {
+      tally(cost, usage);
     }
     const last = this.latest;
     const lastUsage: LastUsage | undefined =
@@ -139,6 +170,7 @@ export class ModelUsageAccumulator {
       cumulativeOutput: output,
       cumulativeComplete: this.fromStart,
       messages: this.folded.messages + this.recent.size,
+      cost: { usd: cost.usd, pricedMessages: cost.priced, unpriced: [...cost.unpriced.values()] },
     };
   }
 }

@@ -3,8 +3,8 @@ import { readFile, stat } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import type { Session } from '@wadeck-app/agent-manager-core';
 import { getErrorMessage } from '@wadeck-app/agent-manager-core';
-import type { ModelRef, ModelUsageRollup } from '@wadeck-app/agent-manager-core/transcript';
-import type { BypassDto, ContextUsedDto, ModelDto, SessionStatusDto } from '../commons/api.js';
+import { PRICE_TABLE_AS_OF, type CostRollup, type ModelRef, type ModelUsageRollup } from '@wadeck-app/agent-manager-core/transcript';
+import type { BypassDto, ContextUsedDto, CostDto, ModelDto, SessionStatusDto } from '../commons/api.js';
 
 /**
  * The data of the Claude Code status line (C:\Users\<user>\.claude\statusline*.js) for a registry session. Read-only. The working directory ALWAYS comes
@@ -301,6 +301,25 @@ export async function bypassesOf(cwd: string, sessionId: string, now: number): P
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // The whole status
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
+
+/** The estimated cost of a rollup as sent to the UI. */
+export const costDto = (cost: CostRollup): CostDto => ({ usd: cost.usd, pricedMessages: cost.pricedMessages, unpriced: cost.unpriced.map((item) => ({ model: item.model, messages: item.messages, reason: item.reason })), asOf: PRICE_TABLE_AS_OF });
+
+/** Sum of estimated costs: the unpriced models are merged by model and reason. */
+export function sumCosts(parts: readonly CostDto[]): CostDto {
+  const unpriced = new Map<string, CostDto['unpriced'][number]>();
+  let usd = 0;
+  let pricedMessages = 0;
+  for (const part of parts) {
+    usd += part.usd;
+    pricedMessages += part.pricedMessages;
+    for (const item of part.unpriced) {
+      const key = `${item.model}|${item.reason}`;
+      unpriced.set(key, { ...item, messages: (unpriced.get(key)?.messages ?? 0) + item.messages });
+    }
+  }
+  return { usd, pricedMessages, unpriced: [...unpriced.values()], asOf: PRICE_TABLE_AS_OF };
+}
 
 const modelDto = (model: ModelRef): ModelDto => ({ ...(model.id !== undefined ? { id: model.id } : {}), displayName: model.displayName, known: model.known });
 

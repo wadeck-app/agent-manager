@@ -27,7 +27,9 @@ export type { ContextWindow, ModelRow, ParsedModelId, WindowSource } from './mod
 export { createModelTrackerState, insertModelChanges } from './modelChanges.js';
 export type { ModelTrackerState } from './modelChanges.js';
 export { MAX_PREVIOUS_MODELS, ModelUsageAccumulator, rollupModelUsage } from './modelUsage.js';
-export type { LastUsage, ModelUsageRollup } from './modelUsage.js';
+export type { CostRollup, LastUsage, ModelUsageRollup, UnpricedModel } from './modelUsage.js';
+export { costOf, PRICE_TABLE, PRICE_TABLE_AS_OF, priceOf, US_GEO_MULTIPLIER, WEB_SEARCH_USD } from './prices.js';
+export type { CostResult, ModelPrice, PricedUsage, Rates } from './prices.js';
 export type {
   ActivitySummary,
   AssistantTextEntry,

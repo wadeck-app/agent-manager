@@ -251,6 +251,34 @@ ${JSON.stringify(textLine(3, 'after the huge line'))}
     expect(body.truncated.unreadableLines).toBe(1);
   });
 
+  it('puts the estimated cost of the session, of its sub-agents and their total in the status (every message of the transcripts, not the tail window)', async () => {
+    const id = putSession(box, process.pid);
+    const assistant = (messageId: string, model: string, input: number, agentId?: string): Record<string, unknown> => ({
+      type: 'assistant',
+      uuid: `u-${messageId}`,
+      timestamp: '2026-11-26T10:00:00.000Z',
+      ...(agentId === undefined ? {} : { isSidechain: true, agentId }),
+      message: { id: messageId, model, role: 'assistant', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: input, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 0 } },
+    });
+    // 300 messages of 1M input tokens: far more than the 64 KiB tail the digest reads, and than the 100 entries of a page. Sonnet 5.5: $2 per million.
+    writeLines(transcriptFile(box, id), [userLine(1, 'go'), ...Array.from({ length: 300 }, (_, index) => assistant(`m${index}`, 'claude-sonnet-5-5', 1_000_000))]);
+    const dir = join(box.projects, SLUG, id, 'subagents');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'agent-s1.meta.json'), JSON.stringify({ agentType: 'Explore', description: 'known' }));
+    writeLines(join(dir, 'agent-s1.jsonl'), [assistant('s1m1', 'claude-haiku-4-5-20251001', 1_000_000, 's1')]);
+    writeFileSync(join(dir, 'agent-s2.meta.json'), JSON.stringify({ agentType: 'Explore', description: 'unknown model' }));
+    writeLines(join(dir, 'agent-s2.jsonl'), [assistant('s2m1', 'claude-future-9', 1_000_000, 's2')]);
+    const { status } = (await log()).body;
+    expect(status.cost.main.usd).toBeCloseTo(600, 6);
+    // Haiku 4.5: $1 per million; the unpriced one is counted as a sub-agent with usage whose model has no price.
+    expect(status.cost.subagents.usd).toBeCloseTo(1, 9);
+    expect(status.cost.subagents.unpriced).toEqual([expect.objectContaining({ model: 'claude-future-9', messages: 1 })]);
+    expect(status.cost.total.usd).toBeCloseTo(601, 6);
+    const byId = Object.fromEntries((await log()).body.subagents.map((s: { agentId: string }) => [s.agentId, s]));
+    expect(byId['s1'].usage.cost.usd).toBeCloseTo(1, 9);
+    expect(byId['s2'].usage.cost).toMatchObject({ usd: 0, pricedMessages: 0, unpriced: [{ model: 'claude-future-9' }] });
+  });
+
   it('lists the sub-agents as a tree and links the call that started each, without exposing local paths', async () => {
     const id = putSession(box, process.pid);
     writeLines(transcriptFile(box, id), [userLine(1, 'go'), toolUseLine(2, 'toolu_a', 'Agent', { description: 'look around', prompt: 'p' })]);

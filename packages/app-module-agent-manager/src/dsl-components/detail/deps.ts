@@ -1,6 +1,6 @@
 // What the detail pane folders (log, composer) take from the rest of the UI: one re-export, so they import it from one level up
 // (the violations rule ts/no-deep-relative forbids '../../').
-export type { DeliveryUi, LogEntry, LogLimits, LocateOk, LocateResponse, LogOk, LogResponse, LogTruncation, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyDefaultTransportSetResponse, ReplyMarkerMode, ReplyStatusOk, ReplyStatusResponse, ReplyTransportSetResponse, TransportStatusDto, SessionRowDto, SessionStatusDto, ModelDto, BypassDto, SubagentDto } from '../shared.js';
+export type { DeliveryUi, LogEntry, LogLimits, LocateOk, LocateResponse, LogOk, LogResponse, LogTruncation, ReplyMessageDto, ReplyOk, ReplyRequest, ReplyResponse, ReplyDefaultTransportSetResponse, ReplyMarkerMode, ReplyStatusOk, ReplyStatusResponse, ReplyTransportSetResponse, TransportStatusDto, SessionRowDto, SessionStatusDto, SessionCostDto, CostDto, ModelDto, BypassDto, SubagentDto } from '../shared.js';
 export { failureText, requestJson } from '../data/http.js';
 export type { Outcome } from '../data/http.js';
 export { PAGE_BASE } from '../data/http.js';

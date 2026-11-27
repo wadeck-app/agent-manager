@@ -108,7 +108,7 @@ describe('TreeList with custom groups', () => {
     // a custom group comes before the automatic folders, which sit under "Ungrouped, by workspace"
     expect(screen.getByText('Ungrouped, by workspace')).toBeInTheDocument();
     const ungrouped = container.querySelector('[data-ungrouped]')!;
-    expect(within(ungrouped as HTMLElement).getByText('docs')).toBeInTheDocument();
+    expect(within(ungrouped as HTMLElement).getAllByText('docs')[0]).toBeInTheDocument();
     expect(within(ungrouped as HTMLElement).queryByText('a-one')).toBeNull();
     // members of a group are listed by their position
     const order = Array.from(container.querySelectorAll('[data-session-id]')).map((el) => el.textContent);
