@@ -243,9 +243,9 @@ describe('row highlight by state (the same variables in every mode, see styles/a
       const needs = rowOf('needs-row');
       expect(needs.className).toContain(NEEDS);
       expect(rowOf('unseen-row').className).toContain(UNSEEN);
-      expect(rowOf('flag-row').className).toContain('bg-hue-orange-bg');
+      expect(rowOf('flag-row').className).toContain('--am-herdr-flag-bg');
       const quiet = rowOf('quiet-row').className;
-      expect(quiet).not.toMatch(/--am-herdr|bg-hue-orange-bg/);
+      expect(quiet).not.toMatch(/--am-herdr|--am-herdr-flag-bg/);
       expect(quiet).toContain('hover:bg-muted-bg');
     });
   }
@@ -256,13 +256,13 @@ describe('row highlight by state (the same variables in every mode, see styles/a
     expect(rowOf('needs-row').className).toContain(NEEDS);
     first.unmount();
     const quiet = render(<Harness sessions={[rows[3]!]} List={InboxList} />);
-    expect(rowOf('quiet-row').className).not.toMatch(/--am-herdr|bg-hue-orange-bg/);
+    expect(rowOf('quiet-row').className).not.toMatch(/--am-herdr|--am-herdr-flag-bg/);
     quiet.unmount();
     const second = render(<Harness sessions={[rows[1]!]} List={InboxList} />);
     expect(rowOf('unseen-row').className).toContain(UNSEEN);
     second.unmount();
     render(<Harness sessions={[rows[2]!]} List={InboxList} />);
-    expect(rowOf('flag-row').className).toContain('bg-hue-orange-bg');
+    expect(rowOf('flag-row').className).toContain('--am-herdr-flag-bg');
   });
 
   it('the open row has the gold outline of the Tree rows over the state tint (Groups and Inbox rows are the Tree rows look, Q7)', () => {

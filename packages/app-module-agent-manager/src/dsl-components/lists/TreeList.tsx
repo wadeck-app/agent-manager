@@ -33,6 +33,8 @@ import { SubagentRows } from './SubagentRows.js';
 import { TimeInState } from './TimeInState.js';
 import { useGroupDnd } from './useGroupDnd.js';
 import { RowIconButton } from './RowIconButton.js';
+import { useRowLook } from './RowLookContext.js';
+import { isQuietRow, nameClasses } from '../logic/rowLook.js';
 import { RowMenuButton } from './RowMenuButton.js';
 import { useRowMenu } from './useRowMenu.js';
 import { TIP_FIT } from '../ui/tipWrap.js';
@@ -51,6 +53,7 @@ function wantsYou(session: AgentRow): boolean {
  * sub-agents under it. They are listed, not selectable: the sub-agent logs are not served.
  */
 export function TreeList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups, marks, rowActions }: ListProps) {
+  const rowLook = useRowLook();
   const { grouping, expansion } = options.tree;
   // The view option "Show sub-agents under each agent": off, no row has a chevron, children or expansion state (the count chip stays).
   const showSubagents = options.subagents.show;
@@ -196,13 +199,13 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     const open = hasChildren && agentsOpen(session);
     const herdr = isHerdrDensity(density);
     const selected = id === selectedId;
-    const tint = herdrTint(density, session.state, selected, session.flagged, session.unread);
-    const idleTint = herdrTint(density, session.state, false, session.flagged, session.unread);
+    const tint = herdrTint(density, session.state, selected, session.flagged, session.unread, rowLook);
+    const idleTint = herdrTint(density, session.state, false, session.flagged, session.unread, rowLook);
     const nameLine = showFolder ? (
-      <ProjectLabel session={session} terms={query.terms} line={line} />
+      <ProjectLabel session={session} selected={selected} terms={query.terms} line={line} />
     ) : (
       <RowTip session={session} line={line} fit>
-        <span data-tip-fit="" className="block truncate text-content">
+        <span data-tip-fit="" className={`block truncate ${nameClasses(rowLook, selected, isQuietRow(session, selected), 'regular')}`}>
           <Highlight text={session.displayName} terms={query.terms} />
         </span>
       </RowTip>

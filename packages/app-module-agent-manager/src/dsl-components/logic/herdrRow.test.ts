@@ -19,12 +19,12 @@ describe('the state tint', () => {
   it('red for needs you, blue for finished and unseen, orange for a flag, nothing for the quiet states; needs you wins over flagged over unseen (the order of the Herdr WAgents mod)', () => {
     expect(stateTint('needs-you', false)).toContain('--am-herdr-needs-bg');
     expect(stateTint('done', false)).toContain('--am-herdr-unseen-bg');
-    expect(stateTint('idle', true)).toBe('bg-hue-orange-bg');
-    expect(stateTint('working', true)).toBe('bg-hue-orange-bg');
+    expect(stateTint('idle', true)).toBe('bg-[color:var(--am-herdr-flag-bg)]');
+    expect(stateTint('working', true)).toBe('bg-[color:var(--am-herdr-flag-bg)]');
     expect(stateTint('idle', false, true)).toContain('--am-herdr-unseen-bg');
     expect(stateTint('working', false, true)).toBeUndefined();
     expect(stateTint('needs-you', true)).toContain('--am-herdr-needs-bg');
-    expect(stateTint('done', true)).toBe('bg-hue-orange-bg');
+    expect(stateTint('done', true)).toBe('bg-[color:var(--am-herdr-flag-bg)]');
     for (const state of ['idle', 'working', 'other', 'ended'] as const) {
       expect(stateTint(state, false)).toBeUndefined();
     }
@@ -36,7 +36,7 @@ describe('the Herdr tint', () => {
     for (const density of ['compact', 'herdr-name', 'herdr-tinted'] as const) {
       expect(herdrTint(density, 'needs-you', false)).toContain('--am-herdr-needs-bg');
       expect(herdrTint(density, 'done', false)).toContain('--am-herdr-unseen-bg');
-      expect(herdrTint(density, 'idle', false, true)).toBe('bg-hue-orange-bg');
+      expect(herdrTint(density, 'idle', false, true)).toBe('bg-[color:var(--am-herdr-flag-bg)]');
       expect(herdrTint(density, 'idle', false)).toBeUndefined();
       expect(herdrTint(density, 'working', false)).toBeUndefined();
     }
@@ -51,7 +51,7 @@ describe('the Herdr tint', () => {
       }
     }
     expect(herdrTint('herdr-tinted', 'needs-you', true)).toContain('--am-herdr-needs-bg');
-    expect(herdrTint('herdr-tinted', 'idle', true, true)).toContain('bg-hue-orange-bg');
+    expect(herdrTint('herdr-tinted', 'idle', true, true)).toContain('bg-[color:var(--am-herdr-flag-bg)]');
     // The compact row keeps its own open look (the list gives it).
     expect(herdrTint('compact', 'idle', true)).toBeUndefined();
     expect(herdrTint('compact', 'needs-you', true)).toBeUndefined();
@@ -69,10 +69,10 @@ describe('the shape of a Herdr row', () => {
 
 describe('stateRing (Q36)', () => {
   it('outlines the state tints with their hue, and has nothing for a row without a tint', () => {
-    expect(stateRing('needs-you', false)).toContain('ring-hue-red');
-    expect(stateRing('working', true)).toContain('ring-hue-orange');
-    expect(stateRing('done', false)).toContain('ring-primary');
-    expect(stateRing('idle', false, true)).toContain('ring-primary');
+    expect(stateRing('needs-you', false)).toContain('--am-herdr-needs-ring');
+    expect(stateRing('working', true)).toContain('--am-herdr-flag-ring');
+    expect(stateRing('done', false)).toContain('--am-herdr-unseen-ring');
+    expect(stateRing('idle', false, true)).toContain('--am-herdr-unseen-ring');
     expect(stateRing('idle', false)).toBeUndefined();
   });
 });

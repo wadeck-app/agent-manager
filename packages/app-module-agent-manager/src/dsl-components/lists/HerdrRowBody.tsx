@@ -13,6 +13,8 @@ import { RowMenuButton } from './RowMenuButton.js';
 import { InlineSecondary, isStacked, secondaryBox } from './RowSecondary.js';
 import { SrComma } from './SrComma.js';
 import { useUiVariant } from '../ui/UiVariants.js';
+import { isQuietRow, nameClasses } from '../logic/rowLook.js';
+import { useRowLook } from './RowLookContext.js';
 
 const ROW_LINE = 'flex h-5 min-w-0 flex-1 flex-wrap items-center gap-x-2 overflow-hidden leading-5';
 
@@ -41,14 +43,13 @@ export interface HerdrRowBodyProps {
  * (host, pin, sub-agents) then the age and the state light on the right. 31 px high, one line, like the Herdr panel. The row click and keyboard are the Tree's.
  */
 export function HerdrRowBody({ session, density, hideFolder = false, selected = false, now, terms, showSlot, subagents, onMenu }: HerdrRowBodyProps) {
-  // Herdr: a quiet agent (idle, not open, not marked unread) has a grey name; every other one is white.
-  const quiet = session.state === 'idle' && !selected && !session.unread;
   const showFolder = !hideFolder && herdrRowShape(density).folder && session.folder !== session.displayName;
   const variant = useUiVariant('rowSeparator');
   const stacked = isStacked(variant);
   // Never 'stacked' where it is used (the one-line branch); the narrowing keeps the switch of InlineSecondary exhaustive.
   const separator = variant === 'stacked' ? 'space' : variant;
-  const nameClass = `${selected ? 'font-semibold text-content' : 'font-normal'} ${quiet ? 'text-muted-tint' : 'text-content'}`;
+  // The row look (logic/rowLook.ts): a plain name for every agent by default; the Herdr look (a bold open name, a grey quiet one) is the settings boldActive and dimIdle.
+  const nameClass = nameClasses(useRowLook(), selected, isQuietRow(session, selected), 'regular');
   return (
     <div className="flex h-full items-center gap-[9px] text-[13px] leading-5">
       {/* The slot is on every row of a list that shows sub-agents, with or without any: the state icon and the name start at the same x on every row. A list that does not show them has no slot on any row. It is 20 px wide (the 28 px button overflows it evenly) so that the name keeps the room. */}

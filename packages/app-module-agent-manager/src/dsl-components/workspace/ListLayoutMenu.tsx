@@ -9,6 +9,7 @@ import { OptionChoice } from './OptionChoice.js';
 import { OptionGroup } from './OptionGroup.js';
 import { OptionToggle } from './OptionToggle.js';
 import { RowButton } from '../ui/RowButton.js';
+import { RowLookSection } from './RowLookSection.js';
 
 const MODE_ICON: Record<ModeId, LucideIcon> = { tree: ListTree, groups: LayoutList, inbox: Inbox, custom: FolderKanban };
 
@@ -30,7 +31,7 @@ export interface ListLayoutMenuProps {
 
 /**
  * The ONE configuration control of the list, behind ONE fixed icon (it never changes with the mode: the current layout is the checked item inside). The popup has
- * two sections, with a divider and a title each: "Layout" (how to list the agents: Tree, Groups, Inbox, Custom) and "View" (the options of that layout, remembered
+ * three sections, with a divider and a title each (the last one, "Rows", is the look of the state of the rows, see RowLookSection; it scrolls with the popup): "Layout" (how to list the agents: Tree, Groups, Inbox, Custom) and "View" (the options of that layout, remembered
  * per layout). Layout: the focus enters on the current one; arrows, Home and End move it, Enter or Space picks and closes, Escape closes with the focus back on the
  * button. The mode is in the URL (?mode=) and remembered, see logic/mode.ts. View: Tree has grouping and expansion, Tree and Custom the sub-agents, Groups the
  * last activity line, Inbox auto-next (off by default: it can be disturbing, so it says what it does). The text size and the shortcuts are not list options:
@@ -157,6 +158,7 @@ export function ListLayoutMenu({ mode, onMode, options, onOptions }: ListLayoutM
               <OptionToggle checked={options.inbox.autoNext} onToggle={(autoNext) => onOptions({ ...options, inbox: { autoNext } })} label="Open the next agent after a reply" hint="When the agent you are on stops needing you, the next one that does opens by itself" />
             ) : null}
           </div>
+          <RowLookSection />
         </div>
       ) : null}
     </div>

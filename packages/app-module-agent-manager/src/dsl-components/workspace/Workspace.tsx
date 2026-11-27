@@ -15,6 +15,8 @@ import { readSavedMode, resolveMode, saveMode } from '../logic/mode.js';
 import { navTarget } from '../logic/nav.js';
 import { orderedSessionIds } from '../logic/order.js';
 import { agentId } from '../logic/states.js';
+import { RowLookProvider } from '../lists/RowLookContext.js';
+import { readRowLook, rowLookProblemText, saveRowLook, type RowLook } from '../logic/rowLook.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
 import { MODE_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
@@ -137,6 +139,14 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
   const changeOptions = useCallback((next: ViewOptions) => {
     setOptionsSaveError(saveViewOptions(next) ?? '');
     setOptions(next);
+  }, []);
+  // The look of the state of the rows (colors, open row, names): saved in this browser; what was not valid in the saved text is said on the page (never replaced in silence).
+  const [savedRowLook] = useState(readRowLook);
+  const [rowLook, setRowLook] = useState<RowLook>(savedRowLook.look);
+  const [rowLookError, setRowLookError] = useState(savedRowLook.problems.length === 0 ? '' : rowLookProblemText(savedRowLook.problems));
+  const changeRowLook = useCallback((next: RowLook) => {
+    setRowLookError(saveRowLook(next) ?? '');
+    setRowLook(next);
   }, []);
   // The search is the same in every mode: it filters the rows before the mode draws them.
   const [searchText, setSearchText] = useState('');
@@ -362,6 +372,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     ...(resolvedMode.note === '' ? [] : [{ key: 'mode', tone: 'warning' as const, summary: 'Unknown mode in the address', details: resolvedMode.note, action: { label: 'Remove it from the address', run: () => setModeParam('') } }]),
     ...(searchNote === '' ? [] : [{ key: 'search', tone: 'warning' as const, summary: 'The search could not open an agent', details: searchNote, onDismiss: () => setSearchNote('') }]),
     ...(optionsSaveError === '' ? [] : [{ key: 'view-options', tone: 'warning' as const, summary: 'The view options were not saved', details: optionsSaveError, onDismiss: () => setOptionsSaveError('') }]),
+    ...(rowLookError === '' ? [] : [{ key: 'row-look', tone: 'warning' as const, summary: 'The row look has a problem', details: rowLookError, onDismiss: () => setRowLookError('') }]),
     ...workspaceNotices({ ownedDownText, ownedStateErrorText, unreadableText, guardrailsErrorText, userStateError }),
     ...(actionError === '' ? [] : [{ key: 'action', tone: 'error' as const, summary: actionSummary(actionError), details: actionError, onDismiss: () => setActionError('') }]),
   ];
@@ -395,6 +406,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     <SelectionKeys />
     <DaemonStateProvider down={ownedError?.code === 'daemon-not-running'}>
     <LiveThreadsProvider count={liveThreads}>
+    <RowLookProvider look={rowLook} setLook={changeRowLook}>
     <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
       <Toolbar
         count={rows.length}
@@ -429,6 +441,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
           detailOpen={selectedId !== undefined} />
       </div>
     </div>
+    </RowLookProvider>
     </LiveThreadsProvider>
     </DaemonStateProvider>
     </SelectionProvider>

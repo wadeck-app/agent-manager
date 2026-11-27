@@ -10,6 +10,7 @@ import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { useCollapsed } from '../ui/useCollapsed.js';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
 import { detailLine, type ListProps } from './common.js';
+import { useRowLook } from './RowLookContext.js';
 import { EmptyNote } from './EmptyNote.js';
 import { Highlight } from './Highlight.js';
 import { GroupSelectBox } from './GroupSelectBox.js';
@@ -33,6 +34,7 @@ import { TIP_FIT } from '../ui/tipWrap.js';
 const COLLAPSED_BY_DEFAULT = { other: true, ended: true } as const;
 
 export function GroupsList({ sessions, selectedId, onSelect, now, query, searching, options, marks, rowActions }: ListProps) {
+  const rowLook = useRowLook();
   const prefix = useId();
   // The "..." menu of every row: flag, unread, pin, mark seen (no groups here: no Move).
   const rowMenu = useRowMenu({ marks, rowActions, onMove: undefined });
@@ -73,7 +75,7 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline look={herdrLook(session.state, session.flagged, session.unread)} {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className={`${HERDR_ROW_BOX_MULTILINE} ${preview ? 'min-h-am-row py-2' : 'min-h-am-hit py-1.5'} my-0.5`}>
+                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline look={herdrLook(session.state, session.flagged, session.unread, rowLook)} {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className={`${HERDR_ROW_BOX_MULTILINE} ${preview ? 'min-h-am-row py-2' : 'min-h-am-hit py-1.5'} my-0.5`}>
                   <div className="flex items-start gap-2.5">
                     <span className={preview ? 'mt-0.5' : ''}>
                       <StateIconTip session={session} />
@@ -81,7 +83,7 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
                     <div className="min-w-0 flex-1">
                       {/* One line, never wrapping: name (takes the room), marks as icons, then the age and the "..." button in their fixed columns, so the ages and the buttons of all the rows are vertical axes. */}
                       <div className="flex items-center gap-2">
-                        <ProjectLabel session={session} className="min-w-0 flex-1" terms={query.terms} line={line} />
+                        <ProjectLabel session={session} selected={id === selectedId} className="min-w-0 flex-1" terms={query.terms} line={line} />
                         <RowMarks session={session} iconOnly />
                         <TimeInState session={session} now={now} />
                         {rowMenu.available ? (

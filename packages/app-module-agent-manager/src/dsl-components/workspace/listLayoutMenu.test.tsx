@@ -29,11 +29,11 @@ describe('ListLayoutMenu: the one configuration control of the list', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('opens a popup with two titled sections cut by a divider: Layout, then View', () => {
+  it('opens a popup with three titled sections cut by a divider: Layout, View, then Rows', () => {
     menu('tree');
     fireEvent.click(button());
     const panel = screen.getByRole('dialog', { name: TRIGGER });
-    expect([...panel.querySelectorAll('[data-section-title]')].map((title) => title.textContent)).toEqual(['Layout', 'View']);
+    expect([...panel.querySelectorAll('[data-section-title]')].map((title) => title.textContent)).toEqual(['Layout', 'View', 'Rows']);
     expect(panel.querySelector('[data-section="view"]')?.className).toContain('border-t');
     expect(button()).toHaveAttribute('aria-expanded', 'true');
   });

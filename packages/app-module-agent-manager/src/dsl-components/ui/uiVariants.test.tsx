@@ -171,7 +171,8 @@ describe('the Tree rows (settled Herdr look)', () => {
     tree({});
     const row = document.querySelector('[data-session-id]') as HTMLElement;
     expect(row.className).toContain('h-[30px]');
-    expect(within(row).getByText('agent-one').className).toContain('text-muted-tint');
+    // The default look: the same name color for every agent (the dimIdle setting brings the grey of a quiet agent back).
+    expect(within(row).getByText('agent-one').className).toContain('text-content');
     expect(within(row).getByText(/shop/, { selector: 'span.text-muted-tint' })).toBeInTheDocument();
     expect(row.querySelector('[data-herdr-age]')?.className).toContain('text-[11px]');
     expect(document.querySelector('[data-herdr-light="ring"]')).not.toBeNull();
@@ -193,7 +194,8 @@ describe('the Tree rows (settled Herdr look)', () => {
     expect(byId('i1').className).toContain('--am-herdr-active-edge');
     expect(byId('i1').className).toContain('bg-[image:var(--am-herdr-active-bg)]');
     expect(byId('n1').className).not.toContain('--am-herdr-active-bg');
-    expect(within(byId('i1')).getByText('quiet').className).toContain('font-semibold');
+    // The default look: the open name is not bold (the boldActive setting brings the semibold back).
+    expect(within(byId('i1')).getByText('quiet').className).toContain('font-normal');
     expect(within(byId('i1')).getByText('quiet').className).toContain('text-content');
     // No pill with words in a row (the names keep the room); the light column holds the compact "!" box, named for assistive technology.
     expect(document.querySelector('[data-needs-you-pill]')).toBeNull();

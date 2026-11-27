@@ -19,6 +19,7 @@ import { isStacked } from './RowSecondary.js';
 import { ListScroll } from './ListScroll.js';
 import { MoveToGroupDialog } from './MoveToGroupDialog.js';
 import { OptionShell } from './OptionShell.js';
+import { useRowLook } from './RowLookContext.js';
 import { useRowMenu } from './useRowMenu.js';
 import { SubagentRows } from './SubagentRows.js';
 import { useCustomDnd } from './useCustomDnd.js';
@@ -34,6 +35,7 @@ type Anchor = { x: number; y: number };
  * a right-click (or the kebab button) flags an agent or marks it unread. Nothing is created for you: with no group the list says to use New group.
  */
 export function CustomList({ sessions: shown, selectedId, onSelect, now, query, searching, options, groups, marks, rowActions }: ListProps) {
+  const rowLook = useRowLook();
   // The view option "Show sub-agents under each agent": off, no row has a chevron, children or expansion state (the count chip stays).
   const showSubagents = options.subagents.show;
   const sections = useMemo(() => customSections(shown, groups?.groups ?? []), [shown, groups]);
@@ -138,7 +140,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
   const renderRow = (session: AgentRow, groupId: string | null, bodyClass: string) => {
     const id = agentId(session);
     const selected = id === selectedId;
-    const tint = herdrTint(density, session.state, selected, session.flagged, session.unread);
+    const tint = herdrTint(density, session.state, selected, session.flagged, session.unread, rowLook);
     const over = dnd.over?.target.kind === 'row' && dnd.over.target.id === id && dnd.over.outcome.kind === 'move' ? dnd.over.outcome : undefined;
     // Before the target when the drop lands before it; after it when the dragged one comes from above and takes its place.
     const edge = over === undefined ? undefined : over.beforeId === id ? 'before' : 'after';
@@ -146,7 +148,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
     const hasChildren = showSubagents && session.subagentCount > 0;
     const open = hasChildren && openAgents[id] === true;
     // The background of an agent: its open look, its state tint (needs you, unseen, flagged), then the body color of its group.
-    const base = herdrTint(density, session.state, false, session.flagged, session.unread) ?? bodyClass;
+    const base = herdrTint(density, session.state, false, session.flagged, session.unread, rowLook) ?? bodyClass;
     return (
       <Fragment key={id}>
           <OptionShell
@@ -156,7 +158,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
             selected={selected}
             tabbable={id === tabbable}
             onSelect={onSelect}
-            look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread) === undefined ? bodyClass : ''}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} ${bodyClass === '' ? '' : (stateRing(session.state, session.flagged, session.unread) ?? '')} hover:brightness-95` }}
+            look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread, rowLook) === undefined ? bodyClass : ''}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} ${bodyClass === '' ? '' : (stateRing(session.state, session.flagged, session.unread, rowLook) ?? '')} hover:brightness-95` }}
             className={`group relative ${stackedRows ? HERDR_ROW_BOX_STACKED : HERDR_ROW_BOX} ${dragged ? 'opacity-50' : ''}`}
             expanded={hasChildren ? open : undefined}
             rowProps={dnd.row(id, groupId)}

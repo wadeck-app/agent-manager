@@ -2,7 +2,9 @@ import { Folder } from 'lucide-react';
 import type { AgentRow } from '../data/types.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { sessionName } from './common.js';
+import { isQuietRow, nameClasses } from '../logic/rowLook.js';
 import { Highlight } from './Highlight.js';
+import { useRowLook } from './RowLookContext.js';
 import { InlineSecondary, isStacked } from './RowSecondary.js';
 import { RowTip } from './RowTip.js';
 
@@ -11,14 +13,15 @@ import { RowTip } from './RowTip.js';
  * the A/B question `ui-row-separator` (colour and gap, a rule, a chip, a folder icon, or two lines).
  * `terms` (the free words of a search) light up the letters that matched.
  */
-export function ProjectLabel({ session, className = '', terms, line = '' }: { session: AgentRow; className?: string; terms?: readonly string[]; line?: string }) {
+export function ProjectLabel({ session, selected, className = '', terms, line = '' }: { session: AgentRow; selected: boolean; className?: string; terms?: readonly string[]; line?: string }) {
+  const strong = nameClasses(useRowLook(), selected, isQuietRow(session, selected), 'strong');
   const name = sessionName(session);
   const variant = useUiVariant('rowSeparator');
   if (variant === 'stacked') {
     return (
       <RowTip session={session} line={line}>
         <span data-tip-fill="" data-herdr-stack="" className={`flex min-w-0 flex-col ${className}`}>
-          <span className="min-w-0 max-w-full truncate font-semibold leading-4 text-content">
+          <span className={`min-w-0 max-w-full truncate leading-4 ${strong}`}>
             <Highlight text={session.folder} terms={terms} />
           </span>
           {name !== '' ? (
@@ -36,7 +39,7 @@ export function ProjectLabel({ session, className = '', terms, line = '' }: { se
       <span data-tip-fill="" className={`flex min-w-0 items-center gap-2 ${className}`}>
         {/* Here the folder is the first text and the session name the secondary one: the folder icon (variant D) goes before the folder, the name is plain muted text. */}
         {variant === 'folder' ? <Folder aria-hidden="true" data-row-folder-icon="" className="-mr-1 h-3 w-3 shrink-0 text-muted-tint" /> : null}
-        <span className="max-w-[65%] shrink-0 truncate font-semibold text-content">
+        <span className={`max-w-[65%] shrink-0 truncate ${strong}`}>
           <Highlight text={session.folder} terms={terms} />
         </span>
         {name !== '' ? (

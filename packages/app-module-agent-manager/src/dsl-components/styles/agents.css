@@ -12,6 +12,10 @@
 .agents-scope {
   --am-herdr-needs-bg: color-mix(in srgb, var(--color-hue-red-text, #b91c1c) 20%, transparent);
   --am-herdr-unseen-bg: color-mix(in srgb, var(--color-primary, #2563eb) 12%, transparent);
+  --am-herdr-flag-bg: var(--color-hue-orange-bg);
+  --am-herdr-needs-ring: var(--color-hue-red-text);
+  --am-herdr-flag-ring: var(--color-hue-orange-text);
+  --am-herdr-unseen-ring: var(--color-primary);
   --am-herdr-active-edge: #d4a017;
   --am-herdr-active-bg: linear-gradient(90deg, rgb(212 160 23 / 0.30), rgb(212 160 23 / 0.02));
 }

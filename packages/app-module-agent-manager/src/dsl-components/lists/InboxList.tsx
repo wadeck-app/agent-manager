@@ -6,6 +6,7 @@ import { agentId } from '../logic/states.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { RowButton } from '../ui/RowButton.js';
 import { detailLine, type ListProps } from './common.js';
+import { useRowLook } from './RowLookContext.js';
 import { EmptyNote } from './EmptyNote.js';
 import { Highlight } from './Highlight.js';
 import { ListScroll } from './ListScroll.js';
@@ -36,6 +37,7 @@ const EMPTY_TEXT: Record<InboxTab, { title: string; hint: string }> = {
  * Option `autoNext` (off by default): when the agent you are on stops needing you (you replied), the next one that needs you opens by itself.
  */
 export function InboxList({ sessions, selectedId, onSelect, now, query, searching, options, marks, rowActions }: ListProps) {
+  const rowLook = useRowLook();
   const autoNext = options.inbox.autoNext;
   // The "..." menu of every row: flag, unread, pin, mark seen (no groups here: no Move).
   const rowMenu = useRowMenu({ marks, rowActions, onMove: undefined });
@@ -116,7 +118,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline look={herdrLook(session.state, session.flagged, session.unread)} {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className={`${HERDR_ROW_BOX_MULTILINE} my-0.5 min-h-am-row py-2`}>
+                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline look={herdrLook(session.state, session.flagged, session.unread, rowLook)} {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className={`${HERDR_ROW_BOX_MULTILINE} my-0.5 min-h-am-row py-2`}>
                   <div className="flex items-start gap-2.5">
                     <span className="mt-0.5">
                       <StateIconTip session={session} />
@@ -124,7 +126,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
                     <div className="min-w-0 flex-1">
                       {/* One line, never wrapping: name (takes the room), marks as icons, then the age and the "..." button in their fixed columns, so the ages and the buttons of all the rows are vertical axes. */}
                       <div className="flex items-center gap-2">
-                        <ProjectLabel session={session} className="min-w-0 flex-1" terms={query.terms} line={line} />
+                        <ProjectLabel session={session} selected={id === selectedId} className="min-w-0 flex-1" terms={query.terms} line={line} />
                         <RowMarks session={session} iconOnly />
                         <TimeInState session={session} now={now} />
                         {rowMenu.available ? (

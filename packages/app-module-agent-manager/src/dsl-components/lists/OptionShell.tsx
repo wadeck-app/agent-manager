@@ -5,6 +5,7 @@ import { agentId } from '../logic/states.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { visibleSessionIds } from '../workspace/usePageShortcuts.js';
 import { RowCheckbox } from './RowCheckbox.js';
+import { useRowLook } from './RowLookContext.js';
 import { useSelection } from './selection.js';
 
 export interface OptionShellProps {
@@ -34,7 +35,7 @@ export function OptionShell({ session, selected, tabbable, onSelect, role = 'opt
   const id = agentId(session);
   const selection = useSelection();
   // The open row keeps the primary look; any other row has the tint of its state (needs you, finished and unseen, flagged), the same in every list mode.
-  const tint = stateTint(session.state, session.flagged, session.unread);
+  const tint = stateTint(session.state, session.flagged, session.unread, useRowLook());
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {
     // Space selects like a click (Enter is the list's: select and go to the composer).
     if (event.key === ' ' && event.target === event.currentTarget) {
