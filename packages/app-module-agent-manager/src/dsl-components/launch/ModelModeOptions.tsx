@@ -26,7 +26,7 @@ function withValue(options: readonly ChoiceOption[], value: string): ChoiceOptio
 export function ModelModeOptions({ model, mode, onModel, onMode, known, changed, busy, hint }: ModelModeOptionsProps) {
   return (
     <Tooltip content={hint}>
-    <span data-model-mode-options="" data-tip-fill="" className="block">
+    <span data-model-mode-options="" data-tip-fill="" className="-mx-3 block">
       <Collapsible title={modelModeSummary({ known, changed })}>
         <div className="grid gap-3 sm:grid-cols-2">
           <FieldSelect label="Model" value={model} onChange={onModel} options={withValue(MODEL_OPTIONS, model)} disabled={busy} />

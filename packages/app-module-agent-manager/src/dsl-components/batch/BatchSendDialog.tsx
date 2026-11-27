@@ -1,4 +1,4 @@
-import { ButtonAction, Checkbox, FieldTextarea, Tooltip } from '@wadeck-app/dsl-ui';
+import { ButtonAction, FieldTextarea, Tooltip } from '@wadeck-app/dsl-ui';
 import { CircleAlert, CircleCheck, CircleHelp, CircleX, Clock, Send } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { requestJson } from '../data/http.js';
@@ -8,7 +8,9 @@ import { agentId } from '../logic/states.js';
 import type { BatchRecipientResult, BatchRecipientState, BatchReplyResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { DialogActions } from '../ui/DialogActions.js';
+import { prose } from '../logic/prose.js';
 import { Modal } from '../ui/Modal.js';
+import { StyledCheckbox } from '../ui/StyledCheckbox.js';
 import { MAX_BATCH_RECIPIENTS, previewText, resultsText, retryableIds, sendBlockText, STATE_WORDS, summaryText } from './batchModel.js';
 import { useRecipientChecks } from './useRecipientChecks.js';
 
@@ -114,7 +116,7 @@ export function BatchSendDialog({ rows, onClose }: BatchSendDialogProps) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-content">{result.name}</p>
                     <p className={`text-xs ${look.tone}`}>{STATE_WORDS[result.state]}</p>
-                    {result.reason === '' ? null : <p className="break-words text-xs text-muted">{result.reason}</p>}
+                    {result.reason === '' ? null : <p className="break-words text-xs text-muted">{prose(result.reason)}</p>}
                   </div>
                 </li>
               );
@@ -144,7 +146,7 @@ export function BatchSendDialog({ rows, onClose }: BatchSendDialogProps) {
               const ticked = eligibility.state === 'ok' && !unticked.has(id);
               return (
                 <li key={id} data-recipient={id} data-eligibility={eligibility.state} className="flex items-start gap-2 px-3 py-2 text-sm">
-                  <Checkbox
+                  <StyledCheckbox
                     aria-label={`Send to ${row.displayName}`}
                     checked={ticked}
                     disabled={eligibility.state !== 'ok' || sending}
@@ -157,7 +159,7 @@ export function BatchSendDialog({ rows, onClose }: BatchSendDialogProps) {
                     {eligibility.state === 'skipped' ? (
                       <p className="break-words text-xs text-warning-text">
                         <span className="font-medium">Skipped. </span>
-                        {eligibility.reason}
+                        {prose(eligibility.reason)}
                       </p>
                     ) : null}
                   </div>

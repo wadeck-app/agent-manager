@@ -20,9 +20,9 @@ export interface BannerProps {
 export function Banner({ tone, children, action }: BannerProps) {
   const Icon = tone === 'info' ? Info : TriangleAlert;
   return (
-    <div role={tone === 'error' ? 'alert' : 'status'} className={`flex items-start gap-2 rounded border px-3 py-2 text-sm ${TONE_CLASS[tone]}`}>
+    <div role={tone === 'error' ? 'alert' : 'status'} className={`flex flex-wrap items-start gap-x-2 gap-y-1 rounded border px-3 py-2 text-sm ${TONE_CLASS[tone]}`}>
       <Icon aria-hidden="true" className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0" />
-      <div className="min-w-0 flex-1 break-words">{children}</div>
+      <div className="min-w-[10rem] flex-1 break-words">{children}</div>
       {action}
     </div>
   );

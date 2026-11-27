@@ -1,6 +1,7 @@
 import { Tooltip } from '@wadeck-app/dsl-ui';
 import { useId, useMemo } from 'react';
 import { flatten, groupSessions } from '../logic/grouping.js';
+import { HERDR_ROW_BOX_MULTILINE, herdrLook } from '../logic/herdrRow.js';
 import { agentId } from '../logic/states.js';
 import { groupText } from '../ui/stateLook.js';
 import { GROUP_STATE_EDGE, GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
@@ -71,7 +72,7 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className={preview ? 'min-h-am-row px-3.5 py-2' : 'min-h-am-hit px-3.5 py-2'}>
+                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline look={herdrLook(session.state, session.flagged, session.unread)} {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className={`${HERDR_ROW_BOX_MULTILINE} ${preview ? 'min-h-am-row py-2' : 'min-h-am-hit py-1.5'} my-0.5`}>
                   <div className="flex items-start gap-2.5">
                     <span className={preview ? 'mt-0.5' : ''}>
                       <StateIconTip session={session} />

@@ -20,10 +20,10 @@ export function SubagentTip({ item, now, children }: { item: SubagentItem; now: 
     label: fact.label,
     value: (
       <Scope>
-        <span data-subagent-fact="" className={`block min-w-0 break-words font-medium tabular-nums ${fact.missing === true ? 'text-white/70' : ''}`}>
+        <span data-subagent-fact="" className={`block min-w-0 break-words text-left font-medium tabular-nums ${fact.missing === true ? 'text-white/70' : ''}`}>
           {fact.value}
         </span>
-        {fact.note === undefined ? null : <span className="block min-w-0 break-words font-normal text-white/70">{fact.note}</span>}
+        {fact.note === undefined ? null : <span className="block min-w-0 break-words text-left font-normal text-white/70">{fact.note}</span>}
       </Scope>
     ),
   }));

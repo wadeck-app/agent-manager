@@ -6,6 +6,9 @@ export const SUBAGENT_PREFS_KEY = 'agent-manager.subagents.v1';
 /** Window width (px) under which the panel starts collapsed (until the user opens it once): the log keeps its room on a small window. */
 export const PANEL_OPEN_MIN_PX = 1500;
 
+/** Window width (px) under which the panel is collapsed even when the user left it open on a wider window. */
+export const PANEL_COLLAPSE_BELOW_PX = 900;
+
 /** What the user chose for the sub-agent panel. Absent field: nothing chosen, the default applies. */
 export interface SubagentPrefs {
   /** Undefined: collapsed under PANEL_OPEN_MIN_PX, open above. */

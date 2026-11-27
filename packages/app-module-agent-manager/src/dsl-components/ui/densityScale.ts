@@ -17,7 +17,7 @@ export interface DensityScale {
 }
 
 /**
- * The one table of the sizes per density. The popover hints are written from it (DensityControl), and a test (build/scopedCss.test.ts) checks that the built
+ * The one table of the sizes per density. The popover hints (text, icons, buttons) are written from it (DensityControl), and a test (build/scopedCss.test.ts) checks that the built
  * stylesheet (styles/agents.css, the \`--am-*\` variables) holds exactly these numbers, so the words the user reads and the sizes the page uses cannot drift apart.
  */
 export const DENSITY_SCALE: Record<Density, DensityScale> = {
@@ -45,7 +45,8 @@ export const SCALE_VARIABLES: Record<keyof DensityScale, string> = {
 /** The hint of a density in the popover: the same three facts for each. */
 export function densityHint(density: Density): string {
   const scale = DENSITY_SCALE[density];
-  return `${scale.fsSm} px text, ${scale.icon} px icons, rows from ${scale.row} px`;
+  // Not the row height: the rows of the lists keep their own height at every size, so the hint only promises what the size changes (text, icons, buttons).
+  return `${scale.fsSm} px text, ${scale.icon} px icons, ${scale.hit} px buttons`;
 }
 
 /** The hint of the `auto` choice: what it does, with the thresholds of density.ts. */

@@ -6,7 +6,7 @@
  * Background) is in the action icons at the right of the line, not in the line. A chip that does not fit never blocks a narrower, less important one: the
  * old fit dropped chips from the end until the row stopped overflowing, so a folder wider than the free space took everything after it away.
  */
-export const LINE_PRIORITY = ['folder', 'context', 'move', 'model', 'role', 'harness', 'tokens', 'duration', 'session', 'pid'] as const;
+export const LINE_PRIORITY = ['folder', 'context', 'model', 'role', 'harness', 'tokens', 'duration', 'session', 'pid'] as const;
 
 export interface FitInput {
   /** Room for the chips: the width of the line minus the name, the state and the age with their gaps. */
@@ -55,4 +55,39 @@ export function hiddenSummary(entries: readonly HiddenEntry[]): string {
   return usableEntries(entries)
     .map((entry) => `${entry.label} ${entry.value}`)
     .join('; ');
+}
+
+export interface FitRowsInput extends FitInput {
+  /** Width of the second row (the whole header, the actions are not on it); 0 or less when it is not known: there is no second row then. */
+  secondAvailable: number;
+}
+
+export interface FitRows {
+  first: ReadonlySet<string>;
+  second: ReadonlySet<string>;
+}
+
+/**
+ * Two rows instead of a "+N" chip right away: the chips that do not fit next to the name, the state and the age (the actions share that row) go to a second row
+ * as wide as the whole header; only what does not fit there either is left to the "+N" chip, which ends the second row. Without a width for the second row
+ * (no layout), it is `fitItems` on the first row alone.
+ */
+export function fitRows(input: FitRowsInput): FitRows {
+  const { available, secondAvailable, widths, order, gap, moreWidth } = input;
+  const known = order.filter((key) => widths[key] !== undefined);
+  if (secondAvailable <= 0 || (known.length === order.length && known.reduce((sum, key) => sum + gap + (widths[key] ?? 0), 0) <= available)) {
+    return { first: fitItems(input), second: new Set() };
+  }
+  let left = available;
+  const first = new Set<string>();
+  for (const key of known) {
+    const cost = gap + (widths[key] ?? 0);
+    if (cost <= left) {
+      first.add(key);
+      left -= cost;
+    }
+  }
+  const rest = order.filter((key) => !first.has(key));
+  // The second row has no leading gap: one gap is given back.
+  return { first, second: fitItems({ available: secondAvailable + gap, widths, order: rest, gap, moreWidth }) };
 }

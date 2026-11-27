@@ -208,6 +208,11 @@ describe('ShortcutsHelp', () => {
     fireEvent.click(button);
     const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
     expect(dialog).toHaveTextContent('Pin or unpin the selected agent');
+    // Q4: the panel scrolls inside the window and the key column does not let two keycaps run into the text.
+    expect(dialog.className).toContain('overflow-y-auto');
+    expect(dialog.className).toContain('max-h-');
+    expect(dialog.querySelector('dt')?.className).toContain('flex-wrap');
+    expect(dialog.querySelector('kbd')?.className).toContain('whitespace-nowrap');
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(button).toHaveFocus();

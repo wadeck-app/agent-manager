@@ -1,4 +1,5 @@
-import { ButtonAction, FieldText, Radio } from '@wadeck-app/dsl-ui';
+import { ButtonAction, FieldText } from '@wadeck-app/dsl-ui';
+import { StyledRadio } from '../ui/StyledRadio.js';
 import { Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { checkGroupName, GROUP_SORTS, type CustomGroupDto } from '../shared.js';
@@ -41,7 +42,7 @@ export function GroupConfigPanel({ group, anchor, groups, onClose, onMore }: { g
           <legend className="text-xs font-medium text-muted">Order of the agents</legend>
           {GROUP_SORTS.map((sort) => (
             <label key={sort} className={SORT_OPTION}>
-              <Radio name={`group-sort-${group.id}`} checked={group.sort === sort} onChange={() => groups.update(group.id, { sort })} />
+              <StyledRadio name={`group-sort-${group.id}`} checked={group.sort === sort} onChange={() => groups.update(group.id, { sort })} />
               {SORT_LABEL[sort]}
             </label>
           ))}

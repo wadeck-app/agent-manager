@@ -159,6 +159,9 @@ describe('the batch send dialog', () => {
     expect(dead).toBeDisabled();
     expect(within(dialog).getByText(/The session is not running/)).toBeInTheDocument();
     expect(within(dialog).getByText(/The socket transport is not available: no token file. Fix: create the token file/)).toBeInTheDocument();
+    // The tickboxes are the module's own (the same as the rows), never the browser's blue ones.
+    expect(dialog.querySelectorAll('[data-styled-checkbox]').length).toBeGreaterThan(0);
+    expect(dialog.querySelector('input[type="checkbox"]:not(.peer)')).toBeNull();
     expect(within(dialog).getByText(/1 will receive it, 2 skipped/)).toBeInTheDocument();
   });
 

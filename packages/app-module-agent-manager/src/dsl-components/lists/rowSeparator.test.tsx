@@ -22,11 +22,14 @@ const sessions = [
   row({ folder: 'task', cwd: '/a/task', displayName: 'task-owner', state: 'working', statusUpdatedAt: NOW - 180_000 }),
 ];
 
-function show(List: (props: ListProps) => React.ReactNode, variant: RowSeparatorVariant) {
+// The Tree under its folder headers does not repeat the folder on the row (Q37): these tests are about the row text, so the Tree is the flat one here.
+const FLAT = { ...DEFAULT_VIEW_OPTIONS, tree: { ...DEFAULT_VIEW_OPTIONS.tree, grouping: 'none' as const } };
+
+function show(List: (props: ListProps) => React.ReactNode, variant: RowSeparatorVariant, options = List === TreeList ? FLAT : DEFAULT_VIEW_OPTIONS) {
   return render(
     <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, rowSeparator: variant }}>
       <UrlParamContext.Provider value={service}>
-        <List sessions={sessions} selectedId={undefined} onSelect={vi.fn()} now={NOW} query={parseQuery('')} searching={false} options={DEFAULT_VIEW_OPTIONS} marks={{ setMarks: vi.fn() }} />
+        <List sessions={sessions} selectedId={undefined} onSelect={vi.fn()} now={NOW} query={parseQuery('')} searching={false} options={options} marks={{ setMarks: vi.fn() }} />
       </UrlParamContext.Provider>
     </UiVariantsContext.Provider>,
   );
@@ -56,6 +59,17 @@ describe.each([
     expect(container.textContent ?? '').not.toMatch(LOOK_ALIKES);
     // A comma for a screen reader between the name and the folder, whatever the look.
     expect(container.textContent ?? '').toMatch(/, (shop|billing-owner)/);
+  });
+});
+
+describe('the folder text of the Tree rows (Q37)', () => {
+  it('is not repeated under the header of its own folder, and is written in the flat tree', () => {
+    const grouped = show(TreeList, 'space', DEFAULT_VIEW_OPTIONS);
+    expect(grouped.container.querySelectorAll('[data-session-id]').length).toBeGreaterThan(0);
+    expect(grouped.container.querySelector('[data-herdr-folder]')).toBeNull();
+    grouped.unmount();
+    const flat = show(TreeList, 'space');
+    expect(flat.container.querySelector('[data-herdr-folder]')).not.toBeNull();
   });
 });
 

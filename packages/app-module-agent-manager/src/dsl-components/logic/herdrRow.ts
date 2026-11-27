@@ -80,3 +80,29 @@ export function herdrTint(density: TreeDensityVariant, state: AgentState, select
 export function herdrRowShape(density: HerdrDensity): { folder: boolean } {
   return { folder: density !== 'herdr-name' };
 }
+
+/**
+ * The open and idle looks of a row of the multi-line lists (Groups, Inbox): the very look of the Tree rows (an inset rounded box, the gold outline when open, the
+ * tint of the state otherwise), so that the three lists are one family of rows (QA finding Q7).
+ */
+export function herdrLook(state: AgentState, flagged: boolean, unread: boolean): { selected: string; idle: string } {
+  const idle = herdrTint('herdr-tinted', state, false, flagged, unread);
+  return { selected: herdrTint('herdr-tinted', state, true, flagged, unread) ?? '', idle: idle === undefined ? 'hover:bg-muted-bg' : `${idle} hover:brightness-95` };
+}
+
+/** The inset rounded box of a multi-line row (Groups, Inbox): the margin and radius of the Tree rows, the height grows with the lines. */
+export const HERDR_ROW_BOX_MULTILINE = 'mx-2 rounded-lg px-2';
+
+/**
+ * A 1 px outline in the hue of the state tint, for a row that sits on the colored body of a custom group: the group color (cyan) and the unseen tint (blue) are two
+ * soft backgrounds that look alike, the outline tells them apart (QA finding Q36). Classes written in full; undefined when the row has no state tint.
+ */
+export function stateRing(state: AgentState, flagged: boolean, unread = false): string | undefined {
+  if (state === 'needs-you') {
+    return 'ring-1 ring-inset ring-hue-red';
+  }
+  if (flagged) {
+    return 'ring-1 ring-inset ring-hue-orange';
+  }
+  return state === 'done' || (unread && state === 'idle') ? 'ring-1 ring-inset ring-primary' : undefined;
+}

@@ -1,5 +1,5 @@
 import { ButtonAction, Tooltip } from '@wadeck-app/dsl-ui';
-import { ListChecks, ListX } from 'lucide-react';
+import { CheckCheck, ListX } from 'lucide-react';
 import { useSelection } from '../lists/selection.js';
 import { groupCheck } from '../logic/selection.js';
 
@@ -20,7 +20,7 @@ export function SelectAllBox({ ids }: { ids: readonly string[] }) {
         <ButtonAction
         variant="secondary"
         size="sm"
-        icon={all ? <ListX aria-hidden="true" className="h-3.5 w-3.5" /> : <ListChecks aria-hidden="true" className="h-3.5 w-3.5" />}
+        icon={all ? <ListX aria-hidden="true" className="h-3.5 w-3.5" /> : <CheckCheck aria-hidden="true" className="h-3.5 w-3.5" />}
         label={all ? 'Select none' : 'Select all'}
         onClick={() => selection.setMany(ids, !all)}
       />

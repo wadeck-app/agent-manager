@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_UI_VARIANTS, type UiVariantValues } from '../logic/uiVariants.js';
+import { DEFAULT_UI_VARIANTS, SWITCH_READINESS, type UiVariantValues } from '../logic/uiVariants.js';
 import { ownedDto, ownedRow, row } from '../logic/fixtures.js';
 import { DaemonStateProvider } from '../owned/DaemonState.js';
 import { stubFetch } from '../owned/testFetch.js';
@@ -49,68 +49,53 @@ describe('the one-line header (the default)', () => {
     expect(container.querySelector('header')?.children).toHaveLength(1);
   });
 
-  it('every session says what runs in it (Move readiness) in the line, with the reason it cannot move in its tooltip text', () => {
+  it('a session that cannot be handed over says nothing about it in the line (no readiness badge: a hand-over is a possible action, not an alert)', () => {
     const { container } = header(row({ adoptReadiness: { state: 'busy', reasons: ['A turn is running', 'Tool Bash is running'] } }));
-    expect(container.querySelector('[data-line-item="move"]')).toHaveTextContent('Busy: 2 running');
+    expect(container.querySelector('[data-line-item="move"]')).toBeNull();
+    expect(container).not.toHaveTextContent(/Busy: 2 running/);
   });
 
-  it('an owned Web session draws its controls as icons at the right of the line (Stop, Move) and the mode in a thin row', async () => {
+  it('an owned Web session draws its controls as icons at the right of the line (Stop, hand over) and the mode in a thin row', async () => {
     const { container } = header(ownedRow({ sessionId: ID, displayName: 'web', state: 'idle', adoptReadiness: { state: 'free', reasons: [] } }));
     const top = container.querySelector('header > div') as HTMLElement;
     expect(await within(top).findByRole('button', { name: /Stop/ })).toBeInTheDocument();
-    const move = within(top).getByRole('button', { name: 'Move to Terminal' });
+    const move = within(top).getByRole('button', { name: 'Hand over to Terminal: nothing is running' });
     expect(move.closest('[data-adopt-button]')).toHaveAttribute('data-readiness', 'free');
     expect(await screen.findByLabelText('Permission mode')).toBeInTheDocument();
   });
 
   const BUSY = { state: 'busy' as const, reasons: ['A turn is running'] };
-  const MOVE_NAME = 'Move to Terminal (interrupts 1 running item)';
+  const MOVE_NAME = 'Hand over to Terminal (interrupts 1 running item)';
 
-  it('readiness look A (default): the Move icon is tinted by the state with a 10 px dot and says what runs in its name, the amber badge is in the line', async () => {
+  it('the hand-over icon is plain: its glyph carries the readiness, its name says it in words, and the line has no readiness badge, pill, dot or banner', async () => {
     const { container } = header(ownedRow({ sessionId: ID, adoptReadiness: BUSY }));
     const move = await within(container as HTMLElement).findByRole('button', { name: MOVE_NAME });
-    expect(move.closest('[data-adopt-button]')).toHaveAttribute('data-tone', 'neutral');
+    expect(move.closest('[data-adopt-button]')).toHaveAttribute('data-readiness', 'busy');
     expect(move.textContent).toBe('');
-    expect(container.querySelector('[data-readiness-dot="busy"]')?.className).toContain('bg-warning');
-    // The dot is 10 px with a ring that cuts it from the header, and the whole icon sits in an amber tint (not the words of look B, not the plain grey of look C).
-    expect(container.querySelector('[data-readiness-dot="busy"]')?.className).toContain('h-2.5');
-    expect(container.querySelector('[data-readiness-tint="busy"]')?.className).toContain('bg-warning-bg');
-    expect(container.querySelector('[data-line-item="move"] [data-adopt-badge="busy"]')).toHaveTextContent('Busy: 1 running');
-    expect(container.querySelector('[data-adopt-banner]')).toBeNull();
+    expect(move.querySelector('[data-handover-glyph]')).toHaveAttribute('data-handover-state', 'busy');
+    expect(container.querySelector('[data-line-item="move"], [data-adopt-badge], [data-adopt-banner], [data-readiness-dot], [data-readiness-tint]')).toBeNull();
+    expect(container).not.toHaveTextContent(/Busy: 1 running|Free to move/);
   });
 
-  it('readiness look B: a coloured pill with words (amber busy, green free), no badge in the line', async () => {
-    const busy = header(ownedRow({ sessionId: ID, adoptReadiness: BUSY }), { switchReadiness: 'button' });
-    const move = await within(busy.container as HTMLElement).findByRole('button', { name: MOVE_NAME });
-    expect(move).toHaveTextContent('Move: 1 running');
-    expect(move.className).toContain('bg-warning-bg');
-    expect(move.closest('[data-adopt-button]')).toHaveAttribute('data-tone', 'warning');
-    expect(busy.container.querySelector('[data-line-item="move"]')).toBeNull();
-    busy.unmount();
-    const free = header(ownedRow({ sessionId: ID, adoptReadiness: { state: 'free', reasons: [] } }), { switchReadiness: 'button' });
-    const freeMove = await within(free.container as HTMLElement).findByRole('button', { name: 'Move to Terminal' });
-    expect(freeMove).toHaveTextContent('Move: free');
-    expect(freeMove.className).toContain('bg-hue-green-bg');
+  it('every look draws the three states differently (free, busy, unknown are three distinct glyphs)', async () => {
+    for (const look of SWITCH_READINESS) {
+      const drawn = new Set<string>();
+      for (const state of [{ state: 'free' as const, reasons: [] }, BUSY, { state: 'unknown' as const, reasons: ['Cannot tell'] }]) {
+        const { container, unmount } = header(ownedRow({ sessionId: ID, adoptReadiness: state }), { switchReadiness: look });
+        const button = await within(container as HTMLElement).findByRole('button', { name: /^Hand over to Terminal/ });
+        drawn.add(button.querySelector('[data-handover-glyph]')?.innerHTML ?? '');
+        unmount();
+      }
+      expect(drawn.size, look).toBe(3);
+    }
   });
 
-  it('readiness look C: a plain grey icon, no badge, and a full-width row under the line that says what moving does (amber busy, green free)', async () => {
-    const busy = header(ownedRow({ sessionId: ID, adoptReadiness: BUSY }), { switchReadiness: 'banner' });
-    const move = await within(busy.container as HTMLElement).findByRole('button', { name: MOVE_NAME });
-    expect(move.textContent).toBe('');
-    expect(busy.container.querySelector('[data-line-item="move"]')).toBeNull();
-    expect(busy.container.querySelector('[data-adopt-banner="busy"]')).toHaveTextContent('Moving interrupts 1 running item: A turn is running');
-    busy.unmount();
-    const free = header(ownedRow({ sessionId: ID, adoptReadiness: { state: 'free', reasons: [] } }), { switchReadiness: 'banner' });
-    await within(free.container as HTMLElement).findByRole('button', { name: 'Move to Terminal' });
-    expect(free.container.querySelector('[data-adopt-banner="free"]')).toHaveTextContent('Nothing runs: moving keeps the whole conversation.');
-  });
-
-  it('with the daemon down the owned icons are off and the line says why Move is unavailable', async () => {
+  it('with the daemon down the owned icons are off, the hand-over icon too', async () => {
     const { container } = header(ownedRow({ sessionId: ID, adoptReadiness: { state: 'free', reasons: [] } }), {}, true);
     const stop = await within(container as HTMLElement).findByRole('button', { name: /Stop/ });
     expect(stop).toBeDisabled();
-    expect(container.querySelector('[data-line-item="move"]')).toHaveTextContent('Free to move');
-    expect(container.querySelector('[data-line-item="move"] [data-adopt-badge]')).toHaveAttribute('data-adopt-badge', 'free');
+    expect(container.querySelector('[data-line-item="move"]')).toBeNull();
+    expect(await within(container as HTMLElement).findByRole('button', { name: /^Hand over to Terminal/ })).toBeDisabled();
   });
 });
 
@@ -180,6 +165,40 @@ describe('the one-line header: everything the three rows said', () => {
     expect(more.getAttribute('aria-label')).toContain('folder /work/agent-manager');
   });
 
+  it('what does not fit next to the actions goes to a second row under the header, and only what does not fit there either is in the +N chip', () => {
+    // The line (name, state, age, actions share its row) is 240 px; the header is 600 px wide: the second row.
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute('data-header-line') ? 240 : this.querySelector(':scope > [data-header-line]') !== null ? 600 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const key = this.getAttribute('data-line-item');
+      const width = key === null ? (this.hasAttribute('data-line-more') ? 36 : 50) : key === 'folder' ? 200 : 60;
+      return { width, height: 20, top: 0, left: 0, right: width, bottom: 20, x: 0, y: 0, toJSON: () => ({}) };
+    });
+    const session = row({ cwd: '/work/agent-manager', pid: 4242 });
+    publishLogStatus(session.sessionId, FULL);
+    const { container } = header(session);
+    const second = container.querySelector('[data-header-second-line]') as HTMLElement;
+    expect(second).not.toBeNull();
+    // The folder (200 px) cannot sit next to the name (90 px free) and is the first one on the second row, in the priority order.
+    expect(second.querySelector('[data-line-item="folder"]')).not.toBeNull();
+    expect(container.querySelector('[data-header-line] [data-line-item="folder"]')).toBeNull();
+    // Every item is in exactly one place: the first row, the second row, or the +N chip.
+    const placed = container.querySelectorAll('[data-line-item]').length;
+    const more = container.querySelector('[data-line-more]');
+    const hidden = more === null ? 0 : Number(more.getAttribute('aria-label')?.split(' more')[0]);
+    expect(placed + hidden).toBe(9);
+    // The second row sits after the actions in the wrapping row of the header (order-last), never between the line and its actions.
+    expect(second.className).toContain('order-last');
+  });
+
+  it('the action icons wrap onto a second row on a narrow screen instead of leaving the viewport', () => {
+    const { container } = header(row());
+    const actions = container.querySelector('[data-header-line]')?.nextElementSibling as HTMLElement;
+    expect(actions.className).toContain('flex-wrap');
+    expect(actions.className).toContain('max-w-full');
+  });
+
   it('every entry of the +N tooltip carries a value: never "context used" alone', () => {
     fakeLayout(150, 10);
     const session = row({ pid: 4242, cwd: '/work/agent-manager' });
@@ -188,11 +207,12 @@ describe('the one-line header: everything the three rows said', () => {
     const more = container.querySelector('[data-line-more]') as HTMLElement;
     focusByKeyboard(more);
     const tip = liveTooltip()?.textContent ?? '';
-    expect(tip).toContain('context 38% of the way to auto-compact');
-    expect(tip).not.toMatch(/context used/);
-    const entries = tip.replace(/^Not enough room for: /, '').replace(/\.$/, '').split('; ');
+    // Structured rows (label, value), the context one with its value.
+    expect(tip).toContain('Context38% of the way to auto-compact');
+    expect(tip).not.toMatch(/context used/i);
+    // Each entry of the accessible name is "label value": at least two words.
+    const entries = (more.getAttribute('aria-label') ?? '').replace(/^\d+ more: /, '').split(', ');
     expect(entries.length).toBeGreaterThan(1);
-    // Each entry is "label value": at least two words.
     for (const entry of entries) {
       expect(entry.trim().split(/\s+/).length, entry).toBeGreaterThanOrEqual(2);
     }
@@ -208,7 +228,7 @@ describe('the one-line header: everything the three rows said', () => {
     expect(more).toHaveTextContent('+1');
     expect(more.getAttribute('aria-label')).toMatch(/^1 more: pid 4242/);
     focusByKeyboard(more);
-    expect(liveTooltip()).toHaveTextContent('Not enough room for: pid 4242.');
+    expect(liveTooltip()).toHaveTextContent('Pid4242');
     expect(screen.queryByText('pid 4242')).toBeNull();
     expect(within(container as HTMLElement).getByLabelText('Model Sonnet 5.5')).toBeInTheDocument();
   });

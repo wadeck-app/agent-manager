@@ -160,8 +160,8 @@ describe('OwnedBar: a Terminal session', () => {
     const { calls } = stubFetch({});
     bar(ownedRow({ sessionId: ID, host: 'hc', ownedState: 'unobserved' }));
     expect(document.querySelector('[data-host-badge="hc"]')).toHaveTextContent('Terminal');
-    // The only action is the Move button (back to Web): no stop, interrupt or resume.
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Move to Web']);
+    // The only action is the hand-over button (back to Web): no stop, interrupt or resume.
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Hand over to Web']);
     expect(calls).toHaveLength(0);
   });
 });
@@ -269,5 +269,16 @@ describe('OwnedBar: the daemon is not running', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Resume/ })).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Forget' })).toBeDisabled();
     expect(document.querySelector('[data-daemon-down]')).toHaveTextContent('Daemon not running: agent-manager start --detach');
+  });
+});
+
+describe('OwnedBar: the one-line header mode row', () => {
+  it('does not cap the select width (the label "default: ask before each tool" was cut) and is as high as an icon button', async () => {
+    stubFetch({ 'GET /owned': listed(ownedDto({ id: ID, permissionMode: 'default' })) });
+    render(<OwnedBar session={ownedRow({ sessionId: ID })} onChange={vi.fn()} onForgotten={vi.fn()} inline={{ slot: null }} />);
+    await screen.findByLabelText('Permission mode');
+    const row = document.querySelector<HTMLElement>('[data-owned-mode]');
+    expect(row?.className).not.toContain('max-w-[11rem]');
+    expect(row?.style.getPropertyValue('--am-lh-sm')).toContain('--am-hit');
   });
 });

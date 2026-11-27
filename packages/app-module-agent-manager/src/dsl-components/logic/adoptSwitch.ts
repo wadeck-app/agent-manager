@@ -2,15 +2,16 @@ import type { OwnedHostKind, SessionRowDto } from '../shared.js';
 import { isLiveWeb, isOwned } from './owned.js';
 
 /*
- * The Move button of a session (#71): where it moves, and how it looks. The look is the readiness of the row, and the words say the same (the label counts what
- * is interrupted, the title lists it): the colour is never the only signal. The row's readiness is a hint; the daemon computes it again when the switch is asked.
+ * The hand-over button of a session (#71): the session is taken over by the other host (Web <-> herdr-core terminal), same session id and same conversation, what runs
+ * is interrupted. Its words say the readiness (the label counts what is interrupted, the tooltip lists it by kind) and its glyph changes in a part only: no colour is the
+ * signal. The row's readiness is a hint; the daemon computes it again when the switch is asked. ("Adopt" stays the word of the deferred import of an external session.)
  */
 
 export type SwitchTarget = Extract<OwnedHostKind, 'stream-json' | 'hc'>;
 
 export interface SwitchView {
   target: SwitchTarget;
-  /** What the button says. Busy and unknown say so in the label: "Move to Terminal (interrupts 2 running items)". */
+  /** What the button says. Busy and unknown say so in the label: "Hand over to Terminal (interrupts 2 running items)". */
   label: string;
   /** The tooltip: nothing runs, or every reason on its own line. */
   title: string;
@@ -20,30 +21,30 @@ export interface SwitchView {
   /** Busy and unknown need the user's confirmation (a dialog with the reasons) before anything is sent with force. */
   needsConfirm: boolean;
   reasons: string[];
-  /** The session is stopped after a move that failed: the button starts it on the target (no process to interrupt), and the page shows why it failed. */
+  /** The session is stopped after a hand-over that failed: the button starts it on the target (no process to interrupt), and the page shows why it failed. */
   recovery?: boolean;
 }
 
 const NO_READINESS = 'This page has no readiness for the session (an older module answered the list): the session is treated as busy.';
 
-/** Where the session can move to, and the label of that move; undefined when it cannot move (a discovered, background or ended session). */
+/** Where the session can be handed over to, and the label of that action; undefined when it cannot be (a discovered, background or ended session). */
 function targetOf(session: SessionRowDto): { target: SwitchTarget; base: string } | undefined {
   if (!isOwned(session)) {
     return undefined;
   }
   if (isLiveWeb(session)) {
-    return { target: 'hc', base: 'Move to Terminal' };
+    return { target: 'hc', base: 'Hand over to Terminal' };
   }
   // A terminal the daemon started: its state comes from the registry, so "alive" is the registry's.
   if (session.host === 'hc' && session.alive) {
-    return { target: 'stream-json', base: 'Move to Web' };
+    return { target: 'stream-json', base: 'Hand over to Web' };
   }
   return undefined;
 }
 
 const TARGET_LABEL: Record<SwitchTarget, string> = { hc: 'Terminal', 'stream-json': 'Web' };
 
-/** A stopped owned session whose last move failed: nothing runs, so there is nothing to interrupt; the start is the same switch route. */
+/** A stopped owned session whose last hand-over failed: nothing runs, so there is nothing to interrupt; the start is the same switch route. */
 function recoveryOf(session: SessionRowDto): SwitchView | undefined {
   const failure = session.switchFailure;
   if (failure === undefined || !isOwned(session) || session.alive || (session.host !== 'stream-json' && session.host !== 'hc') || (failure.target !== 'stream-json' && failure.target !== 'hc') || failure.target === session.host) {
@@ -52,7 +53,7 @@ function recoveryOf(session: SessionRowDto): SwitchView | undefined {
   return {
     target: failure.target,
     label: `Start on ${TARGET_LABEL[failure.target]}`,
-    title: `The last move to ${TARGET_LABEL[failure.target]} failed: ${failure.reason}\nNothing runs now: this starts the same conversation there.`,
+    title: `The last hand-over to ${TARGET_LABEL[failure.target]} failed: ${failure.reason}\nNothing runs now: this starts the same conversation there.`,
     readiness: 'free',
     tone: 'warning',
     needsConfirm: false,
@@ -72,7 +73,7 @@ export function switchViewOf(session: SessionRowDto): SwitchView | undefined {
   }
   const readiness = (session as Partial<SessionRowDto>).adoptReadiness ?? { state: 'unknown' as const, reasons: [NO_READINESS] };
   if (readiness.state === 'free') {
-    return { target: where.target, label: where.base, title: 'Nothing is running. The conversation moves as is.', readiness: 'free', tone: 'neutral', needsConfirm: false, reasons: [] };
+    return { target: where.target, label: where.base, title: 'Nothing is running. The conversation is handed over as it is.', readiness: 'free', tone: 'neutral', needsConfirm: false, reasons: [] };
   }
   const count = readiness.reasons.length;
   const label = readiness.state === 'busy' ? `${where.base} (interrupts ${count} running item${count === 1 ? '' : 's'})` : `${where.base} (cannot tell what runs)`;
@@ -84,13 +85,13 @@ export type ReasonKind = 'turn' | 'waiting' | 'subagent' | 'tool' | 'queued' | '
 export interface ReasonGroup {
   kind: ReasonKind;
   title: string;
-  /** One line: what the move does to this kind of thing. */
+  /** One line: what the hand-over does to this kind of thing. */
   consequence: string;
   reasons: string[];
 }
 
 const KINDS: { kind: ReasonKind; title: string; consequence: string; test: RegExp }[] = [
-  { kind: 'waiting', title: 'Waiting for an answer', consequence: 'The question or permission request is not replayed after the move.', test: /^Waiting on |permission request/ },
+  { kind: 'waiting', title: 'Waiting for an answer', consequence: 'The question or permission request is not replayed after the hand-over.', test: /^Waiting on |permission request/ },
   { kind: 'turn', title: 'A turn is running', consequence: 'Its partial answer is lost; your message stays as an unanswered line.', test: /^A turn is running|shell command/ },
   { kind: 'subagent', title: 'Sub-agents', consequence: 'They are reported as not finished and their results are lost.', test: /sub-agent/i },
   { kind: 'tool', title: 'Tools and background tasks', consequence: 'Their processes may keep running unseen; their results never reach the conversation.', test: /^Tool |^Background / },
@@ -111,46 +112,9 @@ export function groupReasons(reasons: readonly string[]): ReasonGroup[] {
   return [...groups.values()];
 }
 
-export interface MoveBadge {
-  tone: 'free' | 'busy' | 'unknown';
-  /** Short words: "Free to move", "Busy: 2 running", "Unknown: cannot tell what runs". */
-  label: string;
-  /** The tooltip: nothing runs, or every reason on its own line. */
-  title: string;
-}
-
-export interface MoveStatus {
-  /** What runs in the session, for every live session (it is derived from the transcript and the registry, not from the daemon). */
-  badge?: MoveBadge;
-  /** Why there is no Move button (or why it does not work now), in one muted line with its fix. */
-  unavailable?: string;
-}
-
 export const MOVE_DAEMON_DOWN = 'Daemon not running: agent-manager start --detach';
 
-/**
- * What the header says about moving a session, for EVERY session: the readiness badge of a live one, and when the Move button is not there (or cannot work) a
- * line that says why. An ended session says nothing (nothing runs, and Resume is its action).
- */
-export function moveStatusOf(session: SessionRowDto, daemonDown: boolean): MoveStatus {
-  if (!session.alive) {
-    return {};
-  }
-  const readiness = (session as Partial<SessionRowDto>).adoptReadiness ?? { state: 'unknown' as const, reasons: [NO_READINESS] };
-  const badge: MoveBadge =
-    readiness.state === 'free'
-      ? { tone: 'free', label: 'Free to move', title: 'Nothing is running. The conversation moves as is.' }
-      : readiness.state === 'busy'
-        ? { tone: 'busy', label: `Busy: ${readiness.reasons.length} running`, title: readiness.reasons.join('\n') }
-        : { tone: 'unknown', label: 'Unknown: cannot tell what runs', title: readiness.reasons.join('\n') };
-  if (switchViewOf(session) !== undefined) {
-    return daemonDown ? { badge, unavailable: MOVE_DAEMON_DOWN } : { badge };
-  }
-  if (!isOwned(session)) {
-    return { badge, unavailable: 'Not launched by agent-manager: moving needs adoption (not built yet)' };
-  }
-  if (session.host === 'bg') {
-    return { badge, unavailable: 'Background session: the Claude Code supervisor hosts it, so it cannot move between hosts.' };
-  }
-  return { badge, unavailable: `Moving is not available for this ${session.host === null ? '' : `${session.host} `}session now.` };
+/** One short row per kind of thing a hand-over would interrupt (the title of the kind and how many), for a tooltip: the whole reasons are in the confirmation dialog, not in a hover card. */
+export function moveTipRows(reasons: readonly string[]): { label: string; value: string }[] {
+  return groupReasons(reasons).map((group) => ({ label: group.title, value: String(group.reasons.length) }));
 }

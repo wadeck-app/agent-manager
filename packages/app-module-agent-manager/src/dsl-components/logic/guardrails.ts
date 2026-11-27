@@ -82,3 +82,14 @@ export function subagentOf(session: string): string {
   const parts = session.split(':');
   return parts[1] === 'A' ? (parts[3] ?? parts[2] ?? 'sub-agent') : '';
 }
+
+/**
+ * The two counts of the Blocked heading of the Permissions tab: "37 in total, 2 in the last 30 min". When the plugin counters hold less than the denial log (a total of 0
+ * next to 6 recent blocks: the counters are missing for the session), the total is not told: it would contradict the recent count.
+ */
+export function blockedCountsText(blocks: GuardrailBlocksDto | undefined): string {
+  const total = blocks?.total ?? 0;
+  const recent = blocks?.recent.total ?? 0;
+  const recentText = `${recent} in the last ${RECENT_WINDOW_TEXT}`;
+  return total < recent ? recentText : `${total} in total, ${recentText}`;
+}

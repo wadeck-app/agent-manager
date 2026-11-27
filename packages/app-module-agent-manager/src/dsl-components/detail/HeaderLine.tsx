@@ -2,14 +2,11 @@ import type { ReactNode } from 'react';
 import { Folder, GitBranch, TriangleAlert } from 'lucide-react';
 import type { AgentRow, SessionStatusDto } from './deps.js';
 import { Tooltip } from './deps.js';
-import { moveStatusOf } from '../logic/adoptSwitch.js';
 import { shortenPath } from '../logic/shortenPath.js';
 import { STATE_MEANING } from '../logic/states.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
-import { MoveBadgeView } from '../owned/MoveBadgeView.js';
-import { useDaemonDown } from '../owned/DaemonState.js';
 import { Chip } from '../ui/Chip.js';
-import { useUiVariant } from '../ui/UiVariants.js';
+import { PathText } from '../ui/PathText.js';
 import { STATE_LOOK, STATE_VARIANT } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { BypassChips } from './status/BypassChips.js';
@@ -30,12 +27,15 @@ import { CopyButton } from './log/CopyButton.js';
 /** One droppable item of the line: what it draws, and the facts (label and value) the "+N" tooltip lists when it does not fit. An entry without a value is not listed. */
 type Droppable = { key: string; node: ReactNode; entries: HiddenEntry[] };
 
+/** The second row of chips: as wide as the header, after the actions in the wrapping row of the header (order-last). */
+const SECOND_ROW = 'order-last flex basis-full flex-nowrap items-center gap-x-2 overflow-x-clip whitespace-nowrap';
+
 /** The characters of the folder path shown on the line (the middle is dots, the full path is the tooltip). */
 const PATH_CHARS = 26;
 
 /**
  * The whole identity and status of the open agent on ONE line: name, state, time in state, then the chips in the priority of LINE_PRIORITY (folder with its
- * branch, context, what runs (Move readiness), model, role and bypasses, program, tokens, duration, session id, pid). Each chip is measured on the real row
+ * branch, context, model, role and bypasses, program, tokens, duration, session id, pid). Each chip is measured on the real row
  * (useItemFit): the ones that fit stay, the others are listed with their value in the tooltip of a "+N" chip (the name keeps up to 26 characters before anything leaves);
  * only when even the bare line does not fit does the name shrink and the state become an icon. A field that is not available is not drawn; a branch error or a broken bypass file stays visible as a warning. The actions are the caller's, at
  * the right of this line.
@@ -43,14 +43,13 @@ const PATH_CHARS = 26;
 export function HeaderLine({ session, status, now }: { session: AgentRow; status: SessionStatusDto; now: number }) {
   const look = STATE_LOOK[session.state];
   const since = timeInState(session.statusUpdatedAt, now);
-  const daemonDown = useDaemonDown();
-  const move = moveStatusOf(session, daemonDown);
-  // The badge is the look A of the A/B question ui-switch-readiness; the other looks say it on the button or in a row, except for an agent that cannot move (nothing else says why).
-  const readinessStyle = useUiVariant('switchReadiness');
   const droppable: Droppable[] = [];
   droppable.push({
     key: 'folder',
-    entries: [{ label: 'folder', value: `${session.cwd}${status.gitBranch === undefined ? '' : ` (branch ${status.gitBranch})`}` }],
+    entries: [
+      { label: 'folder', value: session.cwd },
+      { label: 'branch', value: status.gitBranch ?? '' },
+    ],
     node: (
       <span className="inline-flex min-w-0 items-center gap-1 text-xs text-muted">
         <Folder aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
@@ -86,11 +85,6 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
   if (status.contextUsedPct !== undefined) {
     droppable.push({ key: 'context', node: <ContextMeter context={status.contextUsedPct} />, entries: [{ label: 'context', value: `${status.contextUsedPct.value}% of the way to auto-compact` }] });
   }
-  if (move.badge !== undefined && (readinessStyle === 'badge' || move.unavailable !== undefined)) {
-    const title = move.unavailable === undefined ? move.badge.title : `${move.badge.title}
-${move.unavailable}`;
-    droppable.push({ key: 'move', node: <MoveBadgeView badge={{ ...move.badge, title }} />, entries: [{ label: 'activity', value: move.unavailable === undefined ? move.badge.label : `${move.badge.label} (${move.unavailable})` }] });
-  }
   if (status.role !== undefined || (status.bypasses?.length ?? 0) > 0 || status.bypassError !== undefined) {
     droppable.push({
       key: 'role',
@@ -123,43 +117,64 @@ ${move.unavailable}`;
   }
   // Measured on the real row: every chip that fits stays, in the priority of LINE_PRIORITY (a wide one that does not fit never takes the narrow ones with it).
   // `tight` is true when even the bare line (name, state, age) does not fit: the name may then shrink and the state is an icon (the words are the tooltip).
-  const { ref, shown: shownKeys, tight } = useItemFit(
+  const { ref, shown: shownKeys, second: secondKeys, tight } = useItemFit(
     droppable.map((item) => item.key),
     LINE_PRIORITY,
     droppable.map((item) => `${item.key}:${hiddenSummary(item.entries)}`).join('\n'),
   );
   const shown = droppable.filter((item) => shownKeys.has(item.key));
-  const gone = droppable.filter((item) => !shownKeys.has(item.key));
+  const onSecondRow = droppable.filter((item) => secondKeys.has(item.key));
+  const gone = droppable.filter((item) => !shownKeys.has(item.key) && !secondKeys.has(item.key));
   const goneEntries = gone.flatMap((item) => usableEntries(item.entries));
-  return (
-    <div ref={ref} data-header-line="" className={`flex min-w-[15rem] flex-1 flex-nowrap items-center gap-x-2 overflow-x-clip whitespace-nowrap ${tight ? '' : '[&>*]:shrink-0'}`}>
-      <Tooltip content={session.displayName} describe={false}>
-        <h2 data-tip-fit="" className={`max-w-[min(26ch,100%)] truncate text-base font-semibold text-content ${tight ? 'min-w-[8ch] shrink' : 'shrink-0'}`}>
-          {session.displayName}
-        </h2>
-      </Tooltip>
-      <Tooltip content={STATE_MEANING[session.state]}>
-        <Chip variant={STATE_VARIANT[session.state]} icon={<StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />}>
-                    {tight ? <span className="sr-only">{look.label}</span> : look.label}
-        </Chip>
-      </Tooltip>
-      {since === '' ? null : (
-        <Tooltip content={describeTimeInState(session.statusUpdatedAt, now)}>
-          <span className="shrink-0 text-xs tabular-nums text-muted">{since}</span>
-        </Tooltip>
-      )}
-      {shown.map((item) => (
-        <span key={item.key} data-line-item={item.key} className="inline-flex shrink-0 items-center text-xs text-muted">
-          {item.node}
+  const moreChip =
+    gone.length === 0 ? null : (
+      <Tooltip rows={goneEntries.map((entry) => ({ label: rowLabel(entry.label), value: entry.label === 'folder' ? <PathText text={entry.value} /> : entry.value }))} describe={false}>
+        <span tabIndex={0} data-line-more="" aria-label={`${gone.length} more: ${goneEntries.map((entry) => `${entry.label} ${entry.value}`).join(', ')}`} className={`${CHIP} shrink-0 tabular-nums`}>
+          +{gone.length}
         </span>
-      ))}
-      {gone.length === 0 ? null : (
-        <Tooltip content={`Not enough room for: ${hiddenSummary(goneEntries)}.`}>
-          <span tabIndex={0} data-line-more="" aria-label={`${gone.length} more: ${goneEntries.map((entry) => `${entry.label} ${entry.value}`).join(', ')}`} className={`${CHIP} shrink-0 tabular-nums`}>
-            +{gone.length}
-          </span>
+      </Tooltip>
+    );
+  return (
+    <>
+      <div ref={ref} data-header-line="" className={`flex min-w-[15rem] flex-1 flex-nowrap items-center gap-x-2 overflow-x-clip whitespace-nowrap ${tight ? '' : '[&>*]:shrink-0'}`}>
+        <Tooltip content={session.displayName} describe={false}>
+          <h2 data-tip-fit="" className={`max-w-[min(26ch,100%)] truncate text-base font-semibold text-content ${tight ? 'min-w-[8ch] shrink' : 'shrink-0'}`}>
+            {session.displayName}
+          </h2>
         </Tooltip>
+        <Tooltip content={STATE_MEANING[session.state]}>
+          <Chip variant={STATE_VARIANT[session.state]} icon={<StatusIcon state={session.state} sizeClass="h-am-icon-sm w-am-icon-sm" labelled={false} />}>
+            {tight ? <span className="sr-only">{look.label}</span> : look.label}
+          </Chip>
+        </Tooltip>
+        {since === '' ? null : (
+          <Tooltip content={describeTimeInState(session.statusUpdatedAt, now)}>
+            <span className="shrink-0 text-xs tabular-nums text-muted">{since}</span>
+          </Tooltip>
+        )}
+        {shown.map((item) => (
+          <span key={item.key} data-line-item={item.key} className="inline-flex shrink-0 items-center text-xs text-muted">
+            {item.node}
+          </span>
+        ))}
+        {onSecondRow.length === 0 ? moreChip : null}
+      </div>
+      {onSecondRow.length === 0 ? null : (
+        // The chips that did not fit next to the actions: a second row as wide as the header, below it (order-last in the wrapping row of the header).
+        <div data-header-second-line="" className={SECOND_ROW}>
+          {onSecondRow.map((item) => (
+            <span key={item.key} data-line-item={item.key} className="inline-flex shrink-0 items-center text-xs text-muted">
+              {item.node}
+            </span>
+          ))}
+          {moreChip}
+        </div>
       )}
-    </div>
+    </>
   );
+}
+
+/** "folder" becomes "Folder": the labels of the tooltip rows start with a capital, the aria label keeps the plain words. */
+function rowLabel(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }

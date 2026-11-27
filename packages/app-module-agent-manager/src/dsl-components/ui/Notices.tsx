@@ -106,8 +106,8 @@ export function NoticesButton({ items }: { items: readonly NoticeItem[] }) {
         icon={
           <>
             <TriangleAlert aria-hidden="true" className="h-4 w-4" />
-            {/* On the top right corner, half outside the 28 px button so the triangle stays readable (the toolbar has room above and beside it, nothing clips it). */}
-            <CountBadge data-notice-count="" aria-hidden="true" tone={BADGE_TONE[tone]} className="pointer-events-none absolute -right-1 -top-1 ring-2 ring-surface">
+            {/* On the top right corner, mostly outside the 28 px button so it never covers the triangle (the toolbar has room above and beside it, nothing clips it). */}
+            <CountBadge data-notice-count="" aria-hidden="true" tone={BADGE_TONE[tone]} className="pointer-events-none absolute -right-2 -top-2 ring-2 ring-surface">
               {badgeText(visible.length)}
             </CountBadge>
           </>
@@ -133,7 +133,7 @@ export function NoticesButton({ items }: { items: readonly NoticeItem[] }) {
             </p>
           ) : null}
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div role="list" className="flex flex-col divide-y divide-border">
+            <div role="list" className="flex flex-col">
               {visible.map((item) => (
                 <NoticeRow key={item.key} item={item} onDismiss={dismiss} />
               ))}

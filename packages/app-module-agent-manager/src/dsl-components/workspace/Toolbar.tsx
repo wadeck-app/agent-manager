@@ -1,7 +1,6 @@
 import { CompactSelect, HorizontalStack, Tooltip } from '@wadeck-app/dsl-ui';
 import type { CSSProperties, ReactNode } from 'react';
 import { SelectionEntry } from '../batch/SelectionEntry.js';
-import { useSelection } from '../lists/selection.js';
 import { useMediaQuery } from '../ui/hooks.js';
 import { SHOW_ALIVE_LABEL, SHOW_ALL_LABEL, type ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
@@ -33,21 +32,20 @@ export interface ToolbarProps {
 }
 
 /**
- * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the list layout and view options (ONE fixed icon, one popup), the
- * search, then the notices, the selection entry, which sessions to show and the icon buttons that are not list options (text size, shortcut help). New session and New group are
+ * The one slim line at the top of the workspace (inside its box, not above it): what the page is, the selection mode toggle (with the Select all slot), the list layout and view options (ONE fixed icon, one popup), the
+ * search, then the notices, which sessions to show and the icon buttons that are not list options (text size, shortcut help). New session and New group are
  * not here: they are the action bar of the list pane (ListFooter), always visible under the list.
  */
 export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options, onOptions, search, helpOpen, onHelpOpenChange, detailOpen = false, selectableIds, notices = null }: ToolbarProps) {
   // Under 1280 px (the shell menu takes 240 px of it) the toolbar keeps one row: a number for the count, short labels.
   const countText = `${count} ${count === 1 ? 'session' : 'sessions'}${show === 'alive' && hiddenDead > 0 ? `, ${hiddenDead} ended hidden` : ''}`;
   const tight = useMediaQuery('(max-width: 1279px)');
-  // The selection mode adds a Select all button to the line: the count gives it room (a number, the sentence in its tooltip) so the toolbar keeps one row at 1280 px.
-  const selecting = useSelection()?.mode === true;
-  const shortCount = tight || selecting;
+  // The Select all button of the selection mode has a reserved slot next to the toggle (SelectionEntry): turning the mode on moves nothing in the toolbar.
+  const shortCount = tight;
   return (
     <div data-toolbar="" className={`${detailOpen ? 'hidden lg:flex' : 'flex'} min-h-am-hit flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1`}>
       <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
-      {selectableIds === undefined ? null : <SelectionEntry slot="title" ids={selectableIds} />}
+      {selectableIds === undefined ? null : <SelectionEntry ids={selectableIds} />}
       <Tooltip content={shortCount ? countText : undefined} describe={false}>
         <span className="text-sm text-muted">
           {shortCount ? (
@@ -69,7 +67,6 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
           <div data-notices-slot="" className="empty:hidden">
             {notices}
           </div>
-          {selectableIds === undefined ? null : <SelectionEntry slot="actions" ids={selectableIds} />}
           {/* The base select has no size prop: it is as high as a text-sm line plus its padding. The line height of this one box is the text-xs one (the line height of a small ButtonAction), so the select and the icon buttons are all 28 px at every density. */}
           <span data-show-select="" className="inline-flex" style={{ '--am-lh-sm': 'var(--am-lh-xs)' } as CSSProperties}>
             <CompactSelect

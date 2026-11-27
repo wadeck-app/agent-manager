@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow, row } from '../logic/fixtures.js';
+import { threadNameOf } from '../shared.js';
 import { shortMessage } from '../logic/threadForm.js';
 import { stubFetch } from '../owned/testFetch.js';
 import { DaemonStateProvider } from '../owned/DaemonState.js';
@@ -44,7 +45,7 @@ describe('Thread dialog', () => {
     stubFetch({});
     open(row({ sessionId: SOURCE, displayName: 'shop', cwd: '/work/shop' }));
     expect(screen.getByRole('dialog', { name: 'Start a side thread' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Name')).toHaveValue(`thread: ${MESSAGE.slice(0, 40).trim()}`);
+    expect(screen.getByLabelText('Name')).toHaveValue(threadNameOf(MESSAGE));
     expect(screen.getByText('Opens a new Web session that knows this conversation up to this message. The original is not changed.')).toBeInTheDocument();
     expect(screen.getByText('Folder: /work/shop')).toHaveClass('text-muted');
     expect(screen.queryByText(/Not known for this session/)).toBeNull();
@@ -86,7 +87,7 @@ describe('Thread dialog', () => {
     await waitFor(() => expect(onStarted).toHaveBeenCalledTimes(1));
     expect(onStarted.mock.calls[0]?.[0]).toMatchObject({ id: THREAD, forkedAtMessage: ANCHOR });
     expect(onClose).toHaveBeenCalled();
-    expect(calls.find((call) => call.path === '/owned/fork')?.body).toEqual({ sourceSessionId: SOURCE, atMessageId: ANCHOR, atMessageQuote: shortMessage(MESSAGE), name: `thread: ${MESSAGE.slice(0, 40).trim()}` });
+    expect(calls.find((call) => call.path === '/owned/fork')?.body).toEqual({ sourceSessionId: SOURCE, atMessageId: ANCHOR, atMessageQuote: shortMessage(MESSAGE), name: threadNameOf(MESSAGE) });
   });
 
   it('an owned source gives its model and mode, shown as inherited and waited for before the button works; the body carries them', async () => {

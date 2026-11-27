@@ -183,7 +183,7 @@ export interface SessionsOk {
   ownedError: ApiError | null;
   /** `ownedError` message and hint in one line; empty when there is none. */
   ownedErrorText: string;
-  /** Set only when the daemon cannot be asked AND owned-sessions.json lists at least one session: those owned sessions turned into plain rows (no Stop, Resume, Move). null otherwise (never for a user who never used the daemon). */
+  /** Set only when the daemon cannot be asked AND owned-sessions.json lists at least one session: those owned sessions turned into plain rows (no Stop, Resume, Hand over). null otherwise (never for a user who never used the daemon). */
   ownedDown: OwnedDown | null;
   /** The banner text of `ownedDown` (count, why the actions are missing, the fix); empty when null. */
   ownedDownText: string;

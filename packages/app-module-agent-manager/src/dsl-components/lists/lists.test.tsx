@@ -265,11 +265,14 @@ describe('row highlight by state (the same variables in every mode, see styles/a
     expect(rowOf('flag-row').className).toContain('bg-hue-orange-bg');
   });
 
-  it('the open row keeps its own look over the state tint (the open row stays readable as the open one)', () => {
+  it('the open row has the gold outline of the Tree rows over the state tint (Groups and Inbox rows are the Tree rows look, Q7)', () => {
     render(<Harness sessions={rows} List={GroupsList} initial={agentId(rows[0]!)} />);
     const open = rowOf('needs-row').className;
-    expect(open).toContain('bg-primary-light');
-    expect(open).not.toContain(NEEDS);
+    expect(open).toContain('--am-herdr-active-edge');
+    expect(open).toContain('--am-herdr-active-bg');
+    // The same inset rounded box as the Tree rows, not a full-bleed band.
+    expect(open).toContain('mx-2');
+    expect(open).toContain('rounded-lg');
   });
 
   it('a flagged row says so in words for a screen reader, not by colour only', () => {

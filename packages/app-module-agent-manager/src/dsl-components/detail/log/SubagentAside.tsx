@@ -112,7 +112,7 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
       <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border pl-3">
         <h3 className="min-w-0 flex-1">
           {tab === 'subagents' ? (
-            <SubagentsTitle counts={counts} />
+            <SubagentsTitle counts={counts} icon={false} />
           ) : (
             <span className="flex items-center gap-2 text-xs font-medium text-content">
               <ShieldCheck aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />

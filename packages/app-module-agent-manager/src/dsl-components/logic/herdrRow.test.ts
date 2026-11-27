@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { herdrLight, herdrRowShape, herdrTint, isHerdrDensity, stateTint } from './herdrRow.js';
+import { herdrLight, herdrRowShape, herdrTint, isHerdrDensity, stateRing, stateTint } from './herdrRow.js';
 
 describe('the Herdr light of a state', () => {
   it('finished and unseen is a blue dot, working a spinner, needs you a red pill with words, idle a grey ring', () => {
@@ -64,5 +64,15 @@ describe('the shape of a Herdr row', () => {
     expect(isHerdrDensity('herdr-tinted')).toBe(true);
     expect(herdrRowShape('herdr-tinted')).toEqual({ folder: true });
     expect(herdrRowShape('herdr-name')).toEqual({ folder: false });
+  });
+});
+
+describe('stateRing (Q36)', () => {
+  it('outlines the state tints with their hue, and has nothing for a row without a tint', () => {
+    expect(stateRing('needs-you', false)).toContain('ring-hue-red');
+    expect(stateRing('working', true)).toContain('ring-hue-orange');
+    expect(stateRing('done', false)).toContain('ring-primary');
+    expect(stateRing('idle', false, true)).toContain('ring-primary');
+    expect(stateRing('idle', false)).toBeUndefined();
   });
 });

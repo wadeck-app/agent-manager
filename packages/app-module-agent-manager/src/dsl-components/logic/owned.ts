@@ -167,7 +167,7 @@ export function applyOwnedDto(row: SessionRowDto, dto: OwnedSessionDto): Session
     ...rest,
     ...(dto.switchFailure === undefined ? {} : { switchFailure: dto.switchFailure }),
     // A switch changes the host: the new one shows at once, and the readiness of the old one is forgotten (the next refresh reads the new process).
-    ...(moved ? { host: dto.hostKind, adoptReadiness: { state: 'unknown' as const, reasons: ['The session just moved to another host: its state is read again at the next refresh. Treated as busy.'] } } : {}),
+    ...(moved ? { host: dto.hostKind, adoptReadiness: { state: 'unknown' as const, reasons: ['The session was just handed over to another host: its state is read again at the next refresh. Treated as busy.'] } } : {}),
     alive: live,
     ownedState: dto.state,
     ...(dto.rawState === undefined ? {} : { ownedRawState: dto.rawState }),

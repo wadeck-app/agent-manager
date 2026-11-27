@@ -94,7 +94,7 @@ echo after-the-rule`;
   it('a dialog too long to show whole is a warning with the fix, no buttons', async () => {
     stubFetch({ [GET]: { body: { ok: true, sessionId: ID, state: 'unsupported', terminal: 't21', code: 'dialog-too-long', reason: 'the dialog of t21 shows 30000 characters, more than the 20000 this page shows whole', fix: 'read and answer it in its terminal' } } });
     render(<HcPermissionCard session={waitingRow()} />);
-    expect(await screen.findByRole('status')).toHaveTextContent(/more than the 20000 this page shows whole. read and answer it in its terminal/);
+    expect(await screen.findByRole('status')).toHaveTextContent(/more than the 20000 this page shows whole. read and answer it in its terminal/i);
     expect(screen.queryByRole('button', { name: 'Allow once' })).toBeNull();
   });
 
@@ -131,7 +131,7 @@ describe('HcPermissionCard: refusals say why', () => {
   it('a dialog that is not a tool permission (trust, question) is shown as a warning with the fix, no buttons', async () => {
     stubFetch({ [GET]: { body: { ok: true, sessionId: ID, state: 'unsupported', terminal: 't21', code: 'dialog-not-recognized', reason: 'the terminal t21 is blocked on a permission dialog this module cannot answer safely', fix: 'answer it in its terminal' } } });
     render(<HcPermissionCard session={waitingRow()} />);
-    expect(await screen.findByRole('status')).toHaveTextContent(/cannot answer safely\. answer it in its terminal/);
+    expect(await screen.findByRole('status')).toHaveTextContent(/cannot answer safely\. answer it in its terminal/i);
     expect(screen.queryByRole('button', { name: 'Allow once' })).toBeNull();
   });
 
@@ -176,7 +176,7 @@ describe('HcPermissionCard: answering', () => {
     stubFetch({ [GET]: shown(), [POST]: decided('allow', { effect: 'unchanged', statusAfter: 'blocked' }) });
     render(<HcPermissionCard session={waitingRow()} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Allow once' }));
-    expect(await screen.findByRole('status')).toHaveTextContent(/enter was typed into t21, but the dialog is still displayed after a few seconds\. Look at the terminal t21/);
+    expect(await screen.findByRole('status')).toHaveTextContent(/enter was typed into t21, but the dialog is still displayed after a few seconds\. Look at the terminal t21/i);
   });
 
   it('shows the text the dialog prints between the command and its question, as its own block labelled as such', async () => {
@@ -201,7 +201,7 @@ describe('HcPermissionCard: answering', () => {
     render(<HcPermissionCard session={waitingRow()} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Allow once' }));
     const note = await screen.findByRole('status');
-    expect(note).toHaveTextContent(/enter was typed into t21, or may have been: the key was sent, check the terminal t21/);
+    expect(note).toHaveTextContent(/enter was typed into t21, or may have been: the key was sent, check the terminal t21/i);
     expect(note).not.toHaveTextContent(/nothing was typed/);
   });
 
@@ -216,7 +216,7 @@ describe('HcPermissionCard: answering', () => {
     });
     render(<HcPermissionCard session={waitingRow()} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Allow once' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/was not allowed from this page\. the dialog of t21 is not the one that was shown.*read the dialog again/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/was not allowed from this page\. the dialog of t21 is not the one that was shown.*read the dialog again/i);
     await waitFor(() => expect(document.querySelector('[data-permission-input] pre')?.textContent).toBe('rm -rf build'));
     expect(document.querySelector('[data-hc-permission]')?.getAttribute('data-hc-permission')).toBe('fedcba9876543210');
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
@@ -226,7 +226,7 @@ describe('HcPermissionCard: answering', () => {
     stubFetch({ [GET]: shown(), [POST]: { status: 502, body: { ok: false, error: { code: 'hc-keys-failed', message: 'hc keys refused (invalid): bad key', hint: 'look at the terminal (hc read), answer it there if needed' } } } });
     render(<HcPermissionCard session={waitingRow()} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Deny' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/was not denied from this page\. hc keys refused \(invalid\): bad key.*look at the terminal/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/was not denied from this page\. hc keys refused \(invalid\): bad key.*look at the terminal/i);
     // The dialog stays: the user can try again or answer in the terminal.
     expect(screen.getByRole('button', { name: 'Deny' })).toBeEnabled();
   });

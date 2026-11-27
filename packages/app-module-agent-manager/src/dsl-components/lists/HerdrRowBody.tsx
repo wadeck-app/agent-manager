@@ -22,6 +22,8 @@ const ROW_STACK = 'flex min-w-0 flex-1 flex-col justify-center overflow-hidden';
 export interface HerdrRowBodyProps {
   session: AgentRow;
   density: HerdrDensity;
+  /** The row sits under the header of its own folder: the folder text would repeat the header, so it is not written. */
+  hideFolder?: boolean;
   /** The open row: its name is semibold and never grey (the Herdr WAgents mod). */
   selected?: boolean;
   now: number;
@@ -38,10 +40,10 @@ export interface HerdrRowBodyProps {
  * The content of an agent row in the Herdr variants of the A/B question `ui-tree-density`: program icon, bold name, the folder (its separator is the A/B question `ui-row-separator`), the marks
  * (host, pin, sub-agents) then the age and the state light on the right. 31 px high, one line, like the Herdr panel. The row click and keyboard are the Tree's.
  */
-export function HerdrRowBody({ session, density, selected = false, now, terms, showSlot, subagents, onMenu }: HerdrRowBodyProps) {
+export function HerdrRowBody({ session, density, hideFolder = false, selected = false, now, terms, showSlot, subagents, onMenu }: HerdrRowBodyProps) {
   // Herdr: a quiet agent (idle, not open, not marked unread) has a grey name; every other one is white.
   const quiet = session.state === 'idle' && !selected && !session.unread;
-  const showFolder = herdrRowShape(density).folder && session.folder !== session.displayName;
+  const showFolder = !hideFolder && herdrRowShape(density).folder && session.folder !== session.displayName;
   const variant = useUiVariant('rowSeparator');
   const stacked = isStacked(variant);
   // Never 'stacked' where it is used (the one-line branch); the narrowing keeps the switch of InlineSecondary exhaustive.

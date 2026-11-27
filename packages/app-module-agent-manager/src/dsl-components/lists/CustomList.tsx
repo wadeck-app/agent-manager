@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } fr
 import type { AgentRow } from '../data/types.js';
 import { customSections, UNGROUPED_ID, type DropContext } from '../logic/customMode.js';
 import { stepGroupIds } from '../logic/customGroups.js';
-import { HERDR_ROW_BOX, HERDR_ROW_BOX_STACKED, herdrTint, isHerdrDensity, type HerdrDensity, stateTint } from '../logic/herdrRow.js';
+import { HERDR_ROW_BOX, HERDR_ROW_BOX_STACKED, herdrTint, isHerdrDensity, type HerdrDensity, stateRing, stateTint } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
@@ -156,7 +156,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
             selected={selected}
             tabbable={id === tabbable}
             onSelect={onSelect}
-            look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread) === undefined ? bodyClass : ''}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} hover:brightness-95` }}
+            look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread) === undefined ? bodyClass : ''}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} ${bodyClass === '' ? '' : (stateRing(session.state, session.flagged, session.unread) ?? '')} hover:brightness-95` }}
             className={`group relative ${stackedRows ? HERDR_ROW_BOX_STACKED : HERDR_ROW_BOX} ${dragged ? 'opacity-50' : ''}`}
             expanded={hasChildren ? open : undefined}
             rowProps={dnd.row(id, groupId)}

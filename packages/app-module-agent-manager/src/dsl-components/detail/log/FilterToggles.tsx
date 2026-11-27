@@ -16,8 +16,8 @@ export function FilterToggles({ feed, filtered }: { feed: LogFiltersFeed; filter
           <Tooltip key={category} content={`${on ? 'Hide' : 'Show'} ${NAME[category].plural}: ${count} in the loaded entries`}>
             <TabButton
               size="sm"
-              // A filled button when shown, a plain one when hidden: the underline of an active tab alone is too faint to read a switch by.
-              variant={on ? 'secondary' : 'ghost'}
+              // A filled button when shown (the muted fill of the base neutral button, with the underline of an active tab), a plain one when hidden: a 1 px border alone is too faint to read a switch by (QA finding Q32).
+              variant={on ? 'neutral' : 'ghost'}
               active={on}
               aria-pressed={on}
               data-filter={category}

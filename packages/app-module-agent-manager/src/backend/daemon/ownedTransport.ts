@@ -70,7 +70,7 @@ export function createOwnedTransport(source: OwnedSource): ReplyTransport {
       }
       if (view.state === 'exited' || view.state === 'interrupted') {
         checks.push({ name: 'live', ok: false, detail: stateText(view) });
-        return { available: false, reason: view.state === 'interrupted' ? 'the daemon that owned this session ended while it was live: its claude process ended with it' : 'the claude process of this owned session ended', fix: 'resume the session (POST /owned/:id/resume); the conversation continues, the lost turn is not replayed', details: { checks, ownedState: view.state } };
+        return { available: false, reason: view.state === 'interrupted' ? 'the daemon that owned this session ended while it was live: its claude process ended with it' : 'the claude process of this owned session ended', fix: 'Click the Resume button of this session: the conversation continues, the lost turn is not replayed', details: { checks, ownedState: view.state } };
       }
       checks.push({ name: 'live', ok: true, detail: stateText(view) });
       const warnings: string[] = [];

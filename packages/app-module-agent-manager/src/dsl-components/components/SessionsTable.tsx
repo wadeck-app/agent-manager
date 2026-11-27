@@ -62,14 +62,14 @@ export function SessionsTable({ rows, hiddenText, emptyText }: SessionsTableProp
                 {rows.map((row) => {
                   return (
                     <tr key={row.sessionId} className="border-b border-border last:border-b-0">
-                      <td className={`${TD} max-w-52 font-medium`}>
+                      <td className={`${TD} max-w-40 font-medium`}>
                         <Tooltip content={`${row.displayName} (${row.sessionId})`} describe={false}>
                           <a data-tip-fit="" href={`${PAGE_BASE}/agents?session=${encodeURIComponent(row.sessionId)}`} className="block truncate text-primary underline">
                             {row.displayName}
                           </a>
                         </Tooltip>
                       </td>
-                      <td className={`${TD} max-w-36`}>
+                      <td className={`${TD} max-w-24`}>
                         <Tooltip content={row.cwd} describe={false}>
                           <span data-tip-fit="" className="block truncate">
                             {row.folder}
@@ -83,7 +83,7 @@ export function SessionsTable({ rows, hiddenText, emptyText }: SessionsTableProp
                           </span>
                         </Tooltip>
                       </td>
-                      <td className={`${TD} max-w-64 text-muted`}>
+                      <td className={`${TD} max-w-32 text-muted`}>
                         <Tooltip content={detailOf(row)} describe={false}>
                           <span data-tip-fit="" className="block truncate">
                             {detailOf(row)}

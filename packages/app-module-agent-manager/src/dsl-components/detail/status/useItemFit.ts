@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { fitItems } from './lineFit.js';
+import { fitRows } from './lineFit.js';
 
 /** Width reserved for the "+N" chip when it is not drawn yet. */
 const MORE_FALLBACK = 40;
@@ -7,6 +7,7 @@ const MORE_FALLBACK = 40;
 interface Fit {
   key: string;
   shown: ReadonlySet<string>;
+  second: ReadonlySet<string>;
   tight: boolean;
 }
 
@@ -38,7 +39,7 @@ function useFontsReady(): number {
  * does not fit (the name may then shrink and the state become an icon). It measures again when the row width, the fonts or the `signature` change.
  * Without a layout (a test DOM, a row of width 0) every chip is shown: nothing is guessed.
  */
-export function useItemFit(keys: readonly string[], order: readonly string[], signature: string): { ref: RefObject<HTMLDivElement | null>; shown: ReadonlySet<string>; tight: boolean } {
+export function useItemFit(keys: readonly string[], order: readonly string[], signature: string): { ref: RefObject<HTMLDivElement | null>; shown: ReadonlySet<string>; second: ReadonlySet<string>; tight: boolean } {
   const ref = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState(0);
   const fonts = useFontsReady();
@@ -62,7 +63,7 @@ export function useItemFit(keys: readonly string[], order: readonly string[], si
     }
     const element = ref.current;
     if (element === null || element.clientWidth === 0) {
-      setFit({ key, shown: new Set(keys), tight: false });
+      setFit({ key, shown: new Set(keys), second: new Set(), tight: false });
       return;
     }
     const gap = Number.parseFloat(getComputedStyle(element).columnGap) || 0;
@@ -88,12 +89,15 @@ export function useItemFit(keys: readonly string[], order: readonly string[], si
       }
     }
     const baseTotal = base + gap * Math.max(0, baseCount - 1);
+    // The second row is as wide as the header (the parent of the line): the actions are not on it.
+    const secondAvailable = element.parentElement?.clientWidth ?? 0;
     if (baseTotal > element.clientWidth + 1) {
-      setFit({ key, shown: new Set(), tight: true });
+      setFit({ key, shown: new Set(), second: fitRows({ available: 0, secondAvailable, widths, order, gap, moreWidth: more }).second, tight: true });
       return;
     }
-    setFit({ key, shown: fitItems({ available: element.clientWidth - baseTotal, widths, order, gap, moreWidth: more }), tight: false });
+    const rows = fitRows({ available: element.clientWidth - baseTotal, secondAvailable, widths, order, gap, moreWidth: more });
+    setFit({ key, shown: rows.first, second: rows.second, tight: false });
   });
 
-  return { ref, shown: current === null ? new Set(keys) : current.shown, tight: current?.tight ?? false };
+  return { ref, shown: current === null ? new Set(keys) : current.shown, second: current === null ? new Set<string>() : current.second, tight: current?.tight ?? false };
 }

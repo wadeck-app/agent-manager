@@ -156,3 +156,14 @@ describe('log filter bar: one row that scrolls', () => {
     expect(group.className).toContain('[&>*]:shrink-0');
   });
 });
+
+describe('the toggles of the filter bar read as on or off by their fill (Q32)', () => {
+  it('a shown family is the filled neutral button, a hidden one is the plain ghost button', async () => {
+    render(<LogViewer session={session} />);
+    expect(await screen.findByText('run the tests')).toBeInTheDocument();
+    // Hooks start hidden, tools and agent messages shown.
+    // The class token itself: the ghost button only has hover:bg-muted-bg.
+    expect(filter('tools').classList.contains('bg-muted-bg')).toBe(true);
+    expect(filter('hooks').classList.contains('bg-muted-bg')).toBe(false);
+  });
+});

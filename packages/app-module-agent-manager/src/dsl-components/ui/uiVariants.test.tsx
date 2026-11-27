@@ -11,7 +11,7 @@ import { THREAD_TOOLTIP, ThreadButton } from '../detail/log/ThreadButton.js';
 import { parseQuery } from '../logic/fuzzy.js';
 import { ownedRow, row } from '../logic/fixtures.js';
 import { DEFAULT_UI_VARIANTS, UI_QUESTIONS, type UiVariantValues } from '../logic/uiVariants.js';
-import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
+import { DEFAULT_VIEW_OPTIONS, type ViewOptions } from '../logic/viewOptions.js';
 import { TreeList } from '../lists/TreeList.js';
 import { OwnedStateChip } from '../owned/OwnedStateChip.js';
 import { stubFetch } from '../owned/testFetch.js';
@@ -151,14 +151,17 @@ describe('the Toolbar on a narrow screen', () => {
   });
 });
 
+// The flat tree: the row writes its folder (under a folder header it does not, Q37).
+const FLAT_TREE: ViewOptions = { ...DEFAULT_VIEW_OPTIONS, tree: { ...DEFAULT_VIEW_OPTIONS.tree, grouping: 'none' as const } };
+
 describe('the Tree rows (settled Herdr look)', () => {
-  function tree(values: Partial<UiVariantValues>, sessions = [ownedRow({ sessionId: 'a1', displayName: 'agent-one', cwd: '/w/shop', folder: 'shop' })], selectedId?: string) {
+  function tree(values: Partial<UiVariantValues>, sessions = [ownedRow({ sessionId: 'a1', displayName: 'agent-one', cwd: '/w/shop', folder: 'shop' })], selectedId?: string, options: ViewOptions = FLAT_TREE) {
     const service: UrlParamService = { get: () => null, set: () => undefined };
     return render(
       withVariants(
         values,
         <UrlParamContext.Provider value={service}>
-          <TreeList sessions={sessions} selectedId={selectedId} onSelect={vi.fn()} now={2_000_000} query={parseQuery('')} searching={false} options={DEFAULT_VIEW_OPTIONS} />
+          <TreeList sessions={sessions} selectedId={selectedId} onSelect={vi.fn()} now={2_000_000} query={parseQuery('')} searching={false} options={options} />
         </UrlParamContext.Provider>,
       ),
     );
@@ -204,7 +207,7 @@ describe('the Tree rows (settled Herdr look)', () => {
       ownedRow({ sessionId: 'd1', displayName: 'done', folder: 'a', state: 'done' }),
       ownedRow({ sessionId: 'i1', displayName: 'quiet', folder: 'a', state: 'idle' }),
     ];
-    const { container } = tree({}, sessions);
+    const { container } = tree({}, sessions, undefined, DEFAULT_VIEW_OPTIONS);
     const columns = Array.from(container.querySelectorAll<HTMLElement>('[data-status-column="icon"]'));
     // Three rows and one folder header.
     expect(columns).toHaveLength(4);

@@ -416,6 +416,14 @@ describe('V4 explorer', () => {
 });
 
 describe('V5 palette', () => {
+  it('lists the folders in one column: every group is a column, never two rows side by side', async () => {
+    stubFetch({ ...rootsRoute(), ...listRoutes(TREE) });
+    render(<Host variant="palette" />);
+    await userEvent.type(field(), '/work/');
+    const option = await screen.findByRole('option', { name: /alpha/ });
+    expect(option.closest('[role="group"]')?.className).toContain('flex-col');
+  });
+
   it('lists the folders under the typed path that start with the last segment, Tab completes the highlighted one and adds the separator', async () => {
     stubFetch({ ...rootsRoute(), ...listRoutes(TREE) });
     const onPick = vi.fn();

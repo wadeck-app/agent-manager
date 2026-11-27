@@ -503,7 +503,7 @@ export function registerReplyRoutes(kit: RouteKit, options: ModuleOptions, owned
       const ownedFound = await owned.find(session.sessionId);
       if (ownedFound.ok && (ownedFound.view?.hostKind === 'stream-json' || ownedFound.view?.hostKind === 'bg') && (ownedFound.view.state === 'exited' || ownedFound.view.state === 'interrupted')) {
         const { view } = ownedFound;
-        return { session, answer: fail(409, 'owned-session-ended', `The owned session ${session.sessionId} is ${view.state}: ${view.state === 'interrupted' ? 'the daemon that owned it ended while it was live and its claude process ended with it' : 'its claude process ended'}`, 'Resume it (POST /owned/:id/resume): the conversation continues, the turn that was lost is not replayed. Then send the reply again.') };
+        return { session, answer: fail(409, 'owned-session-ended', `The owned session ${session.sessionId} is ${view.state}: ${view.state === 'interrupted' ? 'the daemon that owned it ended while it was live and its claude process ended with it' : 'its claude process ended'}`, 'Resume it with the Resume button of the session: the conversation continues, the turn that was lost is not replayed. Then send the reply again.') };
       }
       try {
         const record = await service.send({

@@ -4,7 +4,7 @@ import { folderName } from '../logic/folderPicker.js';
 import { clockText, remainingText } from '../logic/guardrails.js';
 import type { GrantDto } from '../shared.js';
 import { Empty } from './Empty.js';
-import { TD, TH } from './parts.js';
+import { TD, TD_SHORT, TH } from './parts.js';
 import { Section } from './Section.js';
 import { ScrollTable } from '../ui/ScrollTable.js';
 import { SessionCell } from './SessionCell.js';
@@ -34,9 +34,9 @@ export function GrantsSection({ grants, hiddenEntries, now, scanned }: { grants:
                 const left = Math.max(0, grant.expiresAt - now);
                 return (
                   <tr key={`${grant.project}|${grant.id}`} className="border-b border-border last:border-b-0">
-                    <td className={`${TD} font-medium`}>{grant.category}</td>
-                    <td className={TD}>{grant.mode === 'once' ? 'Once' : 'Time-boxed'}</td>
-                    <td className={`${TD} tabular-nums`}>
+                    <td className={`${TD_SHORT} font-medium`}>{grant.category}</td>
+                    <td className={TD_SHORT}>{grant.mode === 'once' ? 'Once' : 'Time-boxed'}</td>
+                    <td className={`${TD_SHORT} tabular-nums`}>
                       <Tooltip content={`Expires at ${clockText(grant.expiresAt)}`}>
                         <span>{remainingText(left)}</span>
                       </Tooltip>
@@ -44,13 +44,13 @@ export function GrantsSection({ grants, hiddenEntries, now, scanned }: { grants:
                     <td className={TD}>
                       <SessionCell sessionId={grant.sessionId} name={grant.sessionName} />
                     </td>
-                    <td className={TD}>
+                    <td className={TD_SHORT}>
                       <Tooltip content={grant.project}>
                         <span>{folderName(grant.project)}</span>
                       </Tooltip>
                     </td>
                     <td className={`${TD} max-w-xl break-words`}>{grant.rationale === '' ? <span className="text-muted">none given</span> : grant.rationale}</td>
-                    <td className={`${TD} tabular-nums`}>{grant.maxUses === null ? `${grant.used}` : `${grant.used} of ${grant.maxUses}`}</td>
+                    <td className={`${TD_SHORT} tabular-nums`}>{grant.maxUses === null ? `${grant.used}` : `${grant.used} of ${grant.maxUses}`}</td>
                   </tr>
                 );
               })}

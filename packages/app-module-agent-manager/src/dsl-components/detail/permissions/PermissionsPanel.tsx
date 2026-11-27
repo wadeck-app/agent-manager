@@ -1,7 +1,7 @@
 import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { Plus, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
-import { bypassCommand, failureText, MODE_CHOICES, PAGE_BASE, RECENT_WINDOW_TEXT, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantAddedDto, type GrantRevokedDto } from '../deps.js';
+import { blockedCountsText, bypassCommand, failureText, MODE_CHOICES, PAGE_BASE, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantAddedDto, type GrantRevokedDto } from '../deps.js';
 import { CopyButton } from '../log/CopyButton.js';
 import { CliGrantList } from './CliGrantList.js';
 import { AddBypassDialog } from './AddBypassDialog.js';
@@ -117,7 +117,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
         <h4 className="flex items-center gap-1.5 text-xs font-medium text-content">
           <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm text-muted" />
           Blocked
-          <span className="tabular-nums text-muted">{`${blocks?.total ?? 0} in total, ${blocks?.recent.total ?? 0} in the last ${RECENT_WINDOW_TEXT}`}</span>
+          <span className="tabular-nums text-muted">{blockedCountsText(blocks)}</span>
         </h4>
         {blocks === undefined ? (
           <p className={`mt-1 ${NOTE}`}>No guardrail blocked this session (the plugin has no counter for it).</p>

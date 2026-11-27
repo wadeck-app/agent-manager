@@ -128,6 +128,8 @@ describe('threadNameOf and the fork name prefix', () => {
     expect(threadNameOf('why is the build red?')).toBe('thread: why is the build red?');
     expect(threadNameOf('x'.repeat(100))).toBe(`thread: ${'x'.repeat(40)}`);
     expect(threadNameOf('two\nlines\there')).toBe('thread: two lines here');
+    // Cut at a word boundary, never inside a word.
+    expect(threadNameOf('Now explore the repo with sub-agents, then run the full build.')).toBe('thread: Now explore the repo with sub-agents,');
     expect(threadNameOf('  \n ')).toBe('thread: message');
     expect(threadNameOf('x'.repeat(100)).length).toBeLessThanOrEqual(FORK_NAME_MAX);
   });

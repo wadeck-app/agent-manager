@@ -3,7 +3,7 @@ import { ArrowDown, ChevronUp, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Banner, ThreadDialog } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
-import { useMinWidth, useNow } from '../deps.js';
+import { useMediaQuery, useMinWidth, useNow } from '../deps.js';
 import { settlePending, useDelivery, usePending } from '../pending.js';
 import { RowFrame } from './frames.js';
 import { buildRows, toggleOpen, type Row } from './grouping.js';
@@ -19,7 +19,7 @@ import { LocateBanner, locateAnnouncement } from './LocateBanner.js';
 import { publishLogStatus } from '../status/useSessionStatus.js';
 import { SubagentAside, type RailTab } from './SubagentAside.js';
 import { useSessionGrants } from '../permissions/useSessionGrants.js';
-import { PANEL_OPEN_MIN_PX, useSubagentPrefs } from './subagentPrefs.js';
+import { PANEL_COLLAPSE_BELOW_PX, PANEL_OPEN_MIN_PX, useSubagentPrefs } from './subagentPrefs.js';
 import { flattenSubagents } from './subagentModel.js';
 import { useLocateCall } from './useLocateCall.js';
 import { useLog } from './useLog.js';
@@ -62,6 +62,8 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
   useEffect(() => () => publishLogStatus(sessionId, undefined), [sessionId]);
   // The panel starts collapsed on a window narrower than PANEL_OPEN_MIN_PX (the log keeps its room) until the user chooses; the choice is remembered.
   const roomy = useMinWidth(PANEL_OPEN_MIN_PX);
+  // Under PANEL_COLLAPSE_BELOW_PX the panel is collapsed whatever was saved on a wider window (it would leave the log a sliver): opening it there is for this view only and is not saved.
+  const narrow = useMediaQuery(`(max-width: ${PANEL_COLLAPSE_BELOW_PX - 1}px)`);
   const { prefs, change: changePrefs, problem: prefsProblem, dismissProblem } = useSubagentPrefs();
   // A selection (a click on a sub-agent, a search for its call) must be seen: a collapsed panel opens for it WITHOUT touching the saved preference. Collapsing or
   // opening it by hand is the user's choice and is saved.
@@ -372,8 +374,12 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
           grants={grants}
           tab={chosenTab ?? (items.length > 0 ? 'subagents' : 'permissions')}
           onTab={setChosenTab}
-          collapsed={(prefs.collapsed ?? (items.length === 0 || !roomy)) && !forcedOpen}
+          collapsed={(narrow || (prefs.collapsed ?? (items.length === 0 || !roomy))) && !forcedOpen}
           onCollapsed={(collapsed) => {
+            if (narrow) {
+              setForcedOpen(!collapsed);
+              return;
+            }
             setForcedOpen(false);
             changePrefs({ collapsed });
           }}

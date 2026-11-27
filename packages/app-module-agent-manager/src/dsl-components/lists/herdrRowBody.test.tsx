@@ -139,3 +139,13 @@ describe('the fixed columns on the right of a Herdr row', () => {
     expect(container.querySelector('[data-row-menu-column]')?.className).toContain('w-6');
   });
 });
+
+describe('the folder text of a Herdr row', () => {
+  it('is written where the header does not say it, and left out under the header of its own folder (Q37)', () => {
+    const shown = body();
+    expect(shown.container.querySelector('[data-herdr-folder]')).toHaveTextContent('shop');
+    shown.unmount();
+    const hidden = body({ hideFolder: true });
+    expect(hidden.container.querySelector('[data-herdr-folder]')).toBeNull();
+  });
+});

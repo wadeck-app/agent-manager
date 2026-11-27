@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { groupReasons } from '../logic/adoptSwitch.js';
+import { prose } from '../logic/prose.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { RowButton } from '../ui/RowButton.js';
 
@@ -7,7 +8,7 @@ import { RowButton } from '../ui/RowButton.js';
 export const VISIBLE_REASONS = 3;
 
 /**
- * The reasons a move is not free, grouped by kind: a title with a count and one line saying what the move does to that kind, then the details (at most
+ * The reasons a hand-over is not free, grouped by kind: a title with a count and one line saying what the hand-over does to that kind, then the details (at most
  * VISIBLE_REASONS in all until the user asks for the rest).
  */
 export function ReasonList({ reasons }: { reasons: readonly string[] }) {
@@ -27,7 +28,7 @@ export function ReasonList({ reasons }: { reasons: readonly string[] }) {
             {shown.length > 0 ? (
               <ul className="mt-1 list-disc pl-5">
                 {shown.map((reason) => (
-                  <li key={reason}>{reason}</li>
+                  <li key={reason}>{prose(reason)}</li>
                 ))}
               </ul>
             ) : null}

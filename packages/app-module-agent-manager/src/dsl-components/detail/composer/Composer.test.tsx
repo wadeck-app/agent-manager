@@ -363,7 +363,7 @@ describe('Composer disabled', () => {
   it('shows the reason and the fix of an unavailable transport', async () => {
     status = statusFixture({ transportAvailable: false });
     render(<Composer session={session} />);
-    await screen.findByText(/socket transport cannot reach this session: no token file\. create the token file/);
+    await screen.findByText(/socket transport cannot reach this session: no token file\. create the token file/i);
     expect(screen.getByRole('textbox')).toBeDisabled();
   });
 
@@ -391,6 +391,13 @@ describe('Composer for a Background session', () => {
   it('says nothing of the kind for another session', async () => {
     await ready();
     expect(screen.queryByText(/peer message \(a background session/)).toBeNull();
+  });
+});
+
+describe('Composer placeholder under 900 px', () => {
+  it('is the short text when the hint would wrap to a second line that the field clips (a tablet, 768 px)', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('899px'), media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    expect(await ready()).toHaveAttribute('placeholder', 'Message the agent');
   });
 });
 

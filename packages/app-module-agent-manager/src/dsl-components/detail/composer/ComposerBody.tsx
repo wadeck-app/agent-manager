@@ -1,7 +1,7 @@
 import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { Keyboard, Paperclip, SendHorizontal, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
-import { Banner, CountBadge, useMediaQuery } from '../deps.js';
+import { Banner, CountBadge, FoldedBanner, useMediaQuery } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
 import { Tooltip, TipIconButton } from '../deps.js';
 import { getPending } from '../pending.js';
@@ -43,6 +43,8 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   const sessionId = session.sessionId;
   // A phone: the hint of the keys would wrap to a second line of the one-line box and be cut.
   const narrow = useMediaQuery('(max-width: 639px)');
+  // The long hint (Enter sends, Shift+Enter adds a line) wraps to a second line that the one-line field clips under about 900 px: the short text there.
+  const shortHint = useMediaQuery('(max-width: 899px)');
   const [text, setText] = useState(() => getDraft(sessionId).text);
   const [images, setImages] = useState<AttachedImage[]>(() => getDraft(sessionId).images);
   const [priority, setPriority] = useState<'next' | 'now'>('next');
@@ -187,16 +189,15 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   return (
     <div data-composer className="flex shrink-0 flex-col gap-2 border-t border-border bg-surface px-4 py-3">
       {block !== undefined ? (
-        <Banner
+        <FoldedBanner
           tone={block.kind === 'checking' ? 'info' : 'warning'}
+          text={block.text}
           action={
             block.kind === 'blocked' && status === undefined ? (
 <ButtonAction variant="secondary" size="sm" label="Retry" onClick={live.refresh} />
             ) : undefined
           }
-        >
-          {block.text}
-        </Banner>
+        />
       ) : null}
       {problems.map((problem) => (
         <Banner key={problem} tone="error">
@@ -256,7 +257,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           readOnly={sending}
           disabled={inactive}
           aria-label={`Message to ${session.displayName}`}
-          placeholder={inactive ? 'Sending is not possible, see the message above' : priority === 'now' ? 'Interrupt now is armed: Enter sends and aborts the running tool call' : narrow ? 'Message the agent' : 'Message the agent (Enter sends, Shift+Enter adds a line)'}
+          placeholder={inactive ? 'Sending is not possible, see the message above' : priority === 'now' ? 'Interrupt now is armed: Enter sends and aborts the running tool call' : narrow || shortHint ? 'Message the agent' : 'Message the agent (Enter sends, Shift+Enter adds a line)'}
           onChange={(event) => change(event.target.value, current.current.images)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}

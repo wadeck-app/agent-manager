@@ -195,10 +195,10 @@ describe('density across tabs', () => {
 
 describe('popover hints', () => {
   it('are written from the table of sizes, the same three facts for every scale', () => {
-    expect(densityHint('s')).toBe('14 px text, 18 px icons, rows from 44 px');
-    expect(densityHint('m')).toBe('15 px text, 20 px icons, rows from 52 px');
-    expect(densityHint('ml')).toBe('16 px text, 22 px icons, rows from 56 px');
-    expect(densityHint('l')).toBe('17 px text, 24 px icons, rows from 60 px');
+    expect(densityHint('s')).toBe('14 px text, 18 px icons, 32 px buttons');
+    expect(densityHint('m')).toBe('15 px text, 20 px icons, 36 px buttons');
+    expect(densityHint('ml')).toBe('16 px text, 22 px icons, 38 px buttons');
+    expect(densityHint('l')).toBe('17 px text, 24 px icons, 40 px buttons');
     expect(autoHint()).toBe('Follows the window: Medium plus from 1700 px wide, Large from 2200 px');
     render(
       <Scope>

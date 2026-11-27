@@ -34,7 +34,7 @@ describe('GET /sessions: owned sessions whose daemon is down', () => {
     const { body } = await mod().call('GET', '/sessions');
     expect(body.ownedDown).toEqual({ count: 2, fix: START });
     expect(body.ownedDownText).toContain('2 owned sessions');
-    expect(body.ownedDownText).toContain('Stop, Resume and Move');
+    expect(body.ownedDownText).toContain('Stop, Resume and Hand over');
     expect(body.ownedDownText).toContain(START);
     expect(body.ownedStateErrorText).toBe('');
   });

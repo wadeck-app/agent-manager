@@ -18,7 +18,18 @@ export const THREAD_NAME_CHARS = 40;
 /** The default name of a thread opened on a message, "thread: <first 40 characters of the message>" (one line, never empty): the dialog's default. */
 export function threadNameOf(messageText: string): string {
   const clean = oneLineOf(messageText);
-  return `thread: ${clean === '' ? 'message' : clean.slice(0, THREAD_NAME_CHARS).trim()}`;
+  return `thread: ${clean === '' ? 'message' : cutAtWord(clean, THREAD_NAME_CHARS)}`;
+}
+
+/** The first `max` characters of a line, ended at a word boundary when that keeps at least half of them (a text with no space is cut at `max`): never a word cut in two. */
+function cutAtWord(line: string, max: number): string {
+  if (line.length <= max) {
+    return line;
+  }
+  const cut = line.slice(0, max);
+  const atBoundary = /\s/.test(line.charAt(max));
+  const lastSpace = cut.lastIndexOf(' ');
+  return (atBoundary || lastSpace < max / 2 ? cut : cut.slice(0, lastSpace)).trim();
 }
 
 function oneLineOf(text: string): string {

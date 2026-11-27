@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { Tooltip, useUrlParam } from '@wadeck-app/dsl-ui';
 import { firstNonEmptyTab, INBOX_TABS, nextNeedingYou, parseTab, tabCounts, tabSessions, type InboxTab } from '../logic/inbox.js';
+import { HERDR_ROW_BOX_MULTILINE, herdrLook } from '../logic/herdrRow.js';
 import { agentId } from '../logic/states.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
 import { RowButton } from '../ui/RowButton.js';
@@ -16,6 +17,10 @@ import { TimeInState } from './TimeInState.js';
 import { RowMenuButton } from './RowMenuButton.js';
 import { useRowMenu } from './useRowMenu.js';
 
+
+// The four tabs share the strip (no sideways scroll that hides "All 38"): a tab shrinks under its content and, when its label and its count no longer fit side by side, the count goes under the label.
+const TAB_STRIP = 'flex';
+const TAB = 'flex min-w-0 flex-auto flex-wrap items-center justify-center gap-x-1 border-b-2 px-1 py-1.5 text-sm';
 
 const EMPTY_TEXT: Record<InboxTab, { title: string; hint: string }> = {
   'needs-you': { title: 'Nothing needs you', hint: 'No agent is waiting for a permission or an answer.' },
@@ -76,7 +81,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
     <>
       {rowMenu.element}
       <div className="border-b border-border">
-        <div role="tablist" aria-label="Inbox" onKeyDown={onTabKeys} className="flex overflow-x-auto">
+        <div role="tablist" aria-label="Inbox" onKeyDown={onTabKeys} className={TAB_STRIP}>
           {INBOX_TABS.map((entry) => {
             const active = entry.id === tab;
             return (
@@ -88,7 +93,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
                 aria-controls="inbox-panel"
                 tabIndex={active ? 0 : -1}
                 onClick={() => setTabParam(entry.id)}
-                className={`flex shrink-0 items-center gap-1 whitespace-nowrap border-b-2 px-2 py-2 text-sm ${active ? 'border-primary font-medium text-content' : 'border-transparent text-muted hover:text-content'}`}
+                className={`${TAB} ${active ? 'border-primary font-medium text-content' : 'border-transparent text-muted hover:text-content'}`}
               >
                 {entry.label}
                 <span className={`tabular-nums text-xs ${entry.id === 'needs-you' && counts['needs-you'] > 0 ? 'rounded-full bg-hue-red-bg px-1.5 text-hue-red' : counts[entry.id] === 0 ? 'text-muted opacity-60' : 'text-muted'}`}>{counts[entry.id]}</span>
@@ -110,7 +115,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
               const id = agentId(session);
               const line = detailLine(session);
               return (
-                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className="min-h-am-row border-b border-border px-3.5 py-2.5">
+                <OptionShell key={id} session={session} selected={id === selectedId} tabbable={id === tabbable} onSelect={onSelect} multiline look={herdrLook(session.state, session.flagged, session.unread)} {...(rowMenu.available ? { onMenu: (anchor: { x: number; y: number }) => rowMenu.open(session, anchor) } : {})} className={`${HERDR_ROW_BOX_MULTILINE} my-0.5 min-h-am-row py-2`}>
                   <div className="flex items-start gap-2.5">
                     <span className="mt-0.5">
                       <StateIconTip session={session} />

@@ -39,6 +39,6 @@ export async function ownedDownOf(ownedError: ApiError | null, env: NodeJS.Proce
   const fix = notRunning ? START_COMMAND : ownedError.hint;
   const noun = count === 1 ? '1 owned session' : `${count} owned sessions`;
   const why = notRunning ? 'the daemon is not running' : `the daemon cannot be asked (${ownedError.message})`;
-  const ownedDownText = `${noun} ${count === 1 ? 'is' : 'are'} listed in ${path} but ${why}: Stop, Resume and Move are unavailable and ${count === 1 ? 'it shows' : 'they show'} as plain rows. Fix: ${notRunning ? `run \`${START_COMMAND}\`` : fix}`;
+  const ownedDownText = `${noun} ${count === 1 ? 'is' : 'are'} listed in ${path} but ${why}: Stop, Resume and Hand over are unavailable and ${count === 1 ? 'it shows' : 'they show'} as plain rows. Fix: ${notRunning ? `run \`${START_COMMAND}\`` : fix}`;
   return { ownedDown: { count, fix }, ownedDownText, ownedStateErrorText: '' };
 }

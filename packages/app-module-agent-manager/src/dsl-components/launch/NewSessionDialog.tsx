@@ -19,6 +19,7 @@ import { Banner } from '../ui/Banner.js';
 import { ButtonAction, FieldSelect, FieldText, FieldWrapper } from '@wadeck-app/dsl-ui';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
+import { StyledRadio } from '../ui/StyledRadio.js';
 import { DaemonNotRunning } from './DaemonNotRunning.js';
 import { FolderPicker } from '../folders/FolderPicker.js';
 
@@ -121,7 +122,7 @@ export function NewSessionDialog({ ownedError, ownedErrorText, onClose, onLaunch
                   key={choice.id}
                   className={`flex cursor-pointer items-start gap-2 rounded border px-3 py-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${selected ? 'border-primary bg-primary-light' : 'border-border hover:bg-muted-bg'}`}
                 >
-                  <input type="radio" name="host" value={choice.id} checked={selected} onChange={() => change({ hostKind: choice.id })} className="mt-1.5 shrink-0" />
+                  <StyledRadio name="host" value={choice.id} checked={selected} onChange={() => change({ hostKind: choice.id })} className="mt-1.5 shrink-0" />
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="flex items-center gap-1.5 text-sm font-medium text-content">
                       <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />

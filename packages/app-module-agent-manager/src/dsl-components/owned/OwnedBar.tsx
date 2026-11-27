@@ -1,6 +1,6 @@
 import { ButtonAction, CompactSelect, IconButton } from '@wadeck-app/dsl-ui';
 import { CircleStop, RotateCcw, Square, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Scope } from '../ui/Scope.js';
 import { failureText, requestJson } from '../data/http.js';
@@ -17,13 +17,16 @@ import { BG_NO_INTERRUPT, BG_NO_MODE, BgLimits } from './BgLimits.js';
 import { HostBadge } from './OwnedChips.js';
 import { OwnedStateChip } from './OwnedStateChip.js';
 import { DAEMON_DOWN_REASON, useDaemonDown } from './DaemonState.js';
-import { useUiVariant } from '../ui/UiVariants.js';
-import { MoveBanner } from './MoveBanner.js';
 import { SwitchAction } from './SwitchAction.js';
 import { useOwnedSession } from './useOwnedSession.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 
 const STDERR_TAIL = 'mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-am-mono';
+
+// The longest mode label ("default: ask before each tool") fits whole; on a phone the select shrinks to the row instead of overflowing.
+const MODE_ROW = 'max-w-full [&_select]:max-w-full';
+// The base select has no size prop: its height is a text-sm line plus 10 px. A line of (hit - 10) px makes it as high as the 36 px icon buttons above it.
+const MODE_ROW_STYLE = { '--am-lh-sm': 'calc(var(--am-hit) - 10px)' } as CSSProperties;
 
 export interface OwnedBarProps {
   session: AgentRow;
@@ -59,9 +62,10 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
   const [note, setNote] = useState('');
   // The daemon is known to be down: Stop, Resume, Interrupt and Forget are off with the reason and the fix, instead of a click that fails.
   const daemonDown = useDaemonDown();
-  const readinessStyle = useUiVariant('switchReadiness');
   // A phone: the attach card and the explanations of a background session become one row with a details toggle.
   const narrow = useMediaQuery('(max-width: 639px)');
+  // The one-line header (inline) and a narrow screen both show the terminal command as one row; the wide stand-alone bar keeps the card.
+  const bgCompact = narrow || inline !== undefined;
   if (!owned) {
     return null;
   }
@@ -194,9 +198,9 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
   const iconControls = (
     <>
       <HostBadge session={session} iconOnly />
-      <OwnedStateChip session={session} iconOnly />
+      {/* The header line already says Working or Needs you: the chip only adds what it does not say. */}
+      <OwnedStateChip session={session} iconOnly compact />
       {liveWeb && session.ownedState === 'running' ? <IconButton aria-label="Interrupt" icon={<Square aria-hidden="true" className="h-4 w-4" />} disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => void interrupt()} /> : null}
-      {liveBg ? <IconButton aria-label="Interrupt" icon={<Square aria-hidden="true" className="h-4 w-4" />} disabled disabledReason={BG_NO_INTERRUPT} /> : null}
       {live ? <IconButton variant="danger-outline" aria-label="Stop" icon={<CircleStop aria-hidden="true" className="h-4 w-4" />} disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => setPending('stop')} /> : null}
       <SwitchAction session={session} disabled={busy} onChange={onChange} onNote={setNote} onError={setError} compact />
       {ended && resumable ? <IconButton variant="primary" aria-label={leftover === undefined ? (bg ? 'Resume (claude respawn)' : 'Resume') : 'Resume anyway'} icon={<RotateCcw aria-hidden="true" className="h-4 w-4" />} disabled={busy || daemonDown} {...(daemonDown ? { disabledReason: DAEMON_DOWN_REASON } : {})} onClick={() => (leftover === undefined ? void resume() : setPending('resume'))} /> : null}
@@ -215,7 +219,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       ) : null}
       {session.switchFailure !== undefined && !session.alive ? (
         <Banner tone="warning">
-          <p className="font-medium">{`The last move to ${session.switchFailure.target === 'hc' ? 'Terminal' : 'Web'} failed after the old host was stopped.`}</p>
+          <p className="font-medium">{`The last hand-over to ${session.switchFailure.target === 'hc' ? 'Terminal' : 'Web'} failed after the old host was stopped.`}</p>
           <p>{session.switchFailure.reason}</p>
           <p>Nothing runs now. Use the Start button to try again on that host.</p>
         </Banner>
@@ -230,7 +234,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       {readError !== '' && (session.host === 'stream-json' || bg) ? <Banner tone="warning">{`The daemon record of this session could not be read, so some actions may be missing. ${readError}`}</Banner> : null}
 
       {bg && dto?.observeError !== undefined ? <Banner tone="warning">{`The daemon could not read the state of background sessions (claude agents --json), so the state shown may be stale: ${dto.observeError}`}</Banner> : null}
-      {liveBg ? <BgAttach command={dto?.attachCommand} waitingFor={session.ownedState === 'requires_action' ? (dto?.waitingFor ?? 'prompt') : undefined} permissionMode={dto?.permissionMode} compact={narrow} /> : null}
+      {liveBg ? <BgAttach command={dto?.attachCommand} waitingFor={session.ownedState === 'requires_action' ? (dto?.waitingFor ?? 'prompt') : undefined} permissionMode={dto?.permissionMode} compact={bgCompact} /> : null}
 
       {inline === undefined ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
@@ -264,8 +268,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       ) : (
         <>
           {inline.slot === null ? null : createPortal(<Scope>{iconControls}</Scope>, inline.slot)}
-          {readinessStyle === 'banner' ? <MoveBanner session={session} /> : null}
-          {liveWeb ? <div data-owned-mode="" className="max-w-full [&_select]:max-w-[11rem]">{modeSelect}</div> : null}
+          {liveWeb ? <div data-owned-mode="" className={MODE_ROW} style={MODE_ROW_STYLE}>{modeSelect}</div> : null}
         </>
       )}
 
@@ -275,7 +278,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
         </p>
       ) : null}
 
-      {liveBg && !narrow ? <BgLimits permissionMode={dto?.permissionMode} /> : null}
+      {liveBg && !bgCompact ? <BgLimits permissionMode={dto?.permissionMode} /> : null}
 
       {note !== '' ? (
         <p role="status" className="text-sm text-muted">

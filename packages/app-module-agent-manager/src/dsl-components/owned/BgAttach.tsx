@@ -59,6 +59,7 @@ export function BgAttach({ command, waitingFor, permissionMode, compact = false 
     return (
       <div data-bg-attach="" data-bg-compact="" className={`flex flex-col gap-1 rounded border px-2 py-1 text-xs ${tone}`}>
         <div className="flex flex-nowrap items-center gap-1">
+          {waitingFor === undefined ? <span className="shrink-0 text-muted">In a terminal:</span> : null}
           {command === undefined ? (
             <span className="min-w-0 flex-1 truncate text-muted">The attach command is not known yet.</span>
           ) : (

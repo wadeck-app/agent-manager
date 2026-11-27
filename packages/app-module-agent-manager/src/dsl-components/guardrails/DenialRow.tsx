@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { folderName } from '../logic/folderPicker.js';
 import { clockText, previewOf, subagentOf } from '../logic/guardrails.js';
 import type { DenialDto } from '../shared.js';
-import { MONO, TD } from './parts.js';
+import { MONO, TD, TD_SHORT } from './parts.js';
 import { RowButton } from '../ui/RowButton.js';
 
 /** One denial or ask of the timeline: time, decision, category, session, tool, project, and the command (when the PIN route gave it, cut with "Show full") or the file. */
@@ -24,7 +24,7 @@ export function DenialRow({ denial, withCommands }: { denial: DenialDto; withCom
           </span>
         </Tooltip>
       </td>
-      <td className={`${TD} font-medium`}>{denial.category}</td>
+      <td className={`${TD_SHORT} font-medium`}>{denial.category}</td>
       <td className={TD}>
         <span className="flex flex-col">
           <Tooltip content={denial.session}>
@@ -34,7 +34,7 @@ export function DenialRow({ denial, withCommands }: { denial: DenialDto; withCom
           {sub !== '' ? <span className="text-xs text-muted">sub-agent {sub}</span> : null}
         </span>
       </td>
-      <td className={TD}>{denial.tool}</td>
+      <td className={TD_SHORT}>{denial.tool}</td>
       <td className={TD}>
         <Tooltip content={denial.project}>
           <span>{folderName(denial.project)}</span>

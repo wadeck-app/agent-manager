@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow } from '../logic/fixtures.js';
+import { prose } from '../logic/prose.js';
 import type { AdoptReadinessDto, SessionRowDto } from '../shared.js';
 import { DEFAULT_UI_VARIANTS, type SwitchReadinessVariant } from '../logic/uiVariants.js';
 import { UiVariantsContext } from '../ui/UiVariants.js';
@@ -45,7 +46,7 @@ const button = (): HTMLElement => {
   return found;
 };
 
-describe('the Move button: the daemon is not running', () => {
+describe('the hand-over button: the daemon is not running', () => {
   it('is disabled and its title says the daemon is down and how to start it', () => {
     stubFetch({ ...LIST });
     render(
@@ -58,20 +59,17 @@ describe('the Move button: the daemon is not running', () => {
     expect(liveTooltip().textContent).toMatch(/daemon is not running.*agent-manager start --detach/s);
     // A muted line says the same under the button, and the readiness (which does not need the daemon) stays in words.
     expect(document.querySelector('[data-move-unavailable]')).toHaveTextContent('Daemon not running: agent-manager start --detach');
-    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('Free to move');
   });
 });
 
-describe('the Move button: free', () => {
+describe('the hand-over button: free', () => {
   it('is neutral, says where it moves, and moves at once without a dialog', async () => {
     const { calls } = stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     const { onChange } = bar({ adoptReadiness: FREE });
     await screen.findByLabelText('Permission mode');
-    expect(wrapper()).toHaveTextContent('Move to Terminal');
+    expect(wrapper()).toHaveTextContent('Hand over to Terminal');
     expect(wrapper()).toHaveAttribute('data-readiness', 'free');
-    expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
     // The readiness is in words even when it is good news.
-    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('Free to move');
     await userEvent.click(button());
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: expect.objectContaining({ id: ID, hostKind: 'hc' }) }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -90,23 +88,19 @@ describe('the Move button: free', () => {
   });
 });
 
-describe('the Move button: busy', () => {
+describe('the hand-over button: busy', () => {
   it('is amber, its LABEL says what it interrupts (not the colour alone), and a click lists the reasons and sends nothing', async () => {
     const { calls } = stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     bar({ adoptReadiness: BUSY });
     await screen.findByLabelText('Permission mode');
-    expect(wrapper()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
+    expect(wrapper()).toHaveTextContent('Hand over to Terminal (interrupts 2 running items)');
     expect(wrapper()).toHaveAttribute('data-readiness', 'busy');
-    // The default look (badge): a neutral button, and the warning is a badge that says how many things run (the button keeps the full words for a screen reader).
-    expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
-    const badge = document.querySelector('[data-adopt-badge]');
-    expect(badge).toHaveTextContent('Busy: 2 running');
-    expect(badge?.className).toMatch(/warning/);
     expect(button().querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     await userEvent.click(button());
-    const dialog = screen.getByRole('dialog', { name: 'Move to Terminal while something runs?' });
+    const dialog = screen.getByRole('dialog', { name: 'Hand over to Terminal while something runs?' });
     for (const reason of BUSY.reasons) {
-      expect(within(dialog).getByText(reason)).toBeInTheDocument();
+      // The words of the daemon are shown as a sentence: no backticks.
+      expect(within(dialog).getByText(prose(reason))).toBeInTheDocument();
     }
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toHaveFocus();
     expect(calls.some((call) => call.method === 'POST')).toBe(false);
@@ -120,7 +114,7 @@ describe('the Move button: busy', () => {
     const { onChange } = bar({ adoptReadiness: BUSY });
     await screen.findByLabelText('Permission mode');
     await userEvent.click(button());
-    await userEvent.click(screen.getByRole('button', { name: 'Move anyway' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hand over anyway' }));
     await waitFor(() => expect(onChange).toHaveBeenCalled());
     const posts = calls.filter((call) => call.method === 'POST' && call.path === `/owned/${ID}/switch`);
     expect(posts).toHaveLength(1);
@@ -133,23 +127,22 @@ describe('the Move button: busy', () => {
     const { onChange } = bar({ adoptReadiness: BUSY });
     await screen.findByLabelText('Permission mode');
     await userEvent.click(button());
-    await userEvent.click(screen.getByRole('button', { name: 'Move anyway' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Hand over anyway' }));
     expect(await screen.findByText(/could not be started on hc.*Resume it by hand/)).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(onChange).not.toHaveBeenCalled();
   });
 });
 
-describe('the Move button: unknown', () => {
+describe('the hand-over button: unknown', () => {
   it('is amber as well (never free), says it cannot tell, and asks for the confirmation', async () => {
     stubFetch({ ...LIST, [SWITCH]: switched('hc') });
     bar({ adoptReadiness: UNKNOWN });
     await screen.findByLabelText('Permission mode');
-    expect(wrapper()).toHaveTextContent('Move to Terminal (cannot tell what runs)');
+    expect(wrapper()).toHaveTextContent('Hand over to Terminal (cannot tell what runs)');
     expect(wrapper()).toHaveAttribute('data-readiness', 'unknown');
-    expect(document.querySelector('[data-adopt-badge]')).toHaveTextContent('Unknown: cannot tell what runs');
     await userEvent.click(button());
-    const dialog = screen.getByRole('dialog', { name: 'Move to Terminal without knowing what runs?' });
+    const dialog = screen.getByRole('dialog', { name: 'Hand over to Terminal without knowing what runs?' });
     expect(within(dialog).getByText(UNKNOWN.reasons[0] as string)).toBeInTheDocument();
   });
 });
@@ -169,10 +162,10 @@ describe('the server recomputes: its answer wins over the colour of the page', (
     const { onChange } = bar({ adoptReadiness: FREE });
     await screen.findByLabelText('Permission mode');
     await userEvent.click(button());
-    const dialog = await screen.findByRole('dialog', { name: 'Move to Terminal while something runs?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Hand over to Terminal while something runs?' });
     expect(dialog).toHaveTextContent('A turn is running: its partial answer is lost');
     expect(onChange).not.toHaveBeenCalled();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Move anyway' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Hand over anyway' }));
     await waitFor(() => expect(onChange).toHaveBeenCalled());
     expect(calls.filter((call) => call.method === 'POST' && call.path === `/owned/${ID}/switch`).map((call) => call.body)).toEqual([
       { target: 'hc', force: false },
@@ -191,11 +184,11 @@ describe('the server recomputes: its answer wins over the colour of the page', (
   });
 });
 
-describe('the Move button on a terminal session', () => {
-  it('moves it to Web', async () => {
+describe('the hand-over button on a terminal session', () => {
+  it('hands it over to Web', async () => {
     const { calls } = stubFetch({ [SWITCH]: switched('stream-json') });
     const { onChange } = bar({ host: 'hc', ownedState: 'unobserved', alive: true, adoptReadiness: FREE });
-    expect(wrapper()).toHaveTextContent('Move to Web');
+    expect(wrapper()).toHaveTextContent('Hand over to Web');
     await userEvent.click(button());
     await waitFor(() => expect(onChange).toHaveBeenCalled());
     expect(calls.find((call) => call.method === 'POST')?.body).toEqual({ target: 'stream-json', force: false });
@@ -212,14 +205,14 @@ describe('the Move button on a terminal session', () => {
   });
 });
 
-describe('the Start button after a failed move', () => {
+describe('the Start button after a failed hand-over', () => {
   const FAILURE = { at: 1, target: 'hc' as const, reason: 'hc run refused (busy)' };
 
   it('a stopped hc record shows the failure and a "Start on Web" button that sends the same switch route, without force', async () => {
     const { calls } = stubFetch({ [SWITCH]: switched('stream-json') });
     const { onChange } = bar({ host: 'hc', ownedState: 'unobserved', alive: false, switchFailure: { ...FAILURE, target: 'stream-json' } });
     expect(wrapper()).toHaveTextContent('Start on Web');
-    expect(screen.getAllByText(/The last move to Web failed/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/The last hand-over to Web failed/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/hc run refused \(busy\)/).length).toBeGreaterThan(0);
     await userEvent.click(button());
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ kind: 'updated', session: expect.objectContaining({ id: ID, hostKind: 'stream-json' }) }));
@@ -251,37 +244,66 @@ describe('a draft in the terminal', () => {
     await userEvent.click(button());
     expect(await screen.findByRole('dialog')).toHaveTextContent(/half typed/);
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Move anyway' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Hand over anyway' }));
     await waitFor(() => expect(calls.filter((call) => call.method === 'POST')).toHaveLength(2));
     expect(calls.filter((call) => call.method === 'POST')[1]?.body).toMatchObject({ force: true });
   });
 });
 
-describe('the Move readiness looks of the A/B test', () => {
-  function barWith(look: SwitchReadinessVariant): void {
-    render(
+describe('the hand-over icon of the one-line header: plain, structured tooltip, state in a part of the glyph', () => {
+  function compactBar(adoptReadiness: AdoptReadinessDto, look: SwitchReadinessVariant = 'corner') {
+    return render(
       <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, switchReadiness: look }}>
-        <OwnedBar session={ownedRow({ sessionId: ID, adoptReadiness: BUSY })} onChange={vi.fn()} onForgotten={vi.fn()} />
+        <OwnedBar session={ownedRow({ sessionId: ID, adoptReadiness })} onChange={vi.fn()} onForgotten={vi.fn()} inline={{ slot: document.body }} />
       </UiVariantsContext.Provider>,
     );
   }
 
-  it('button: the button itself is amber and carries the count in its label, no badge', async () => {
+  it('the tooltip lists one row per kind of thing that is interrupted with its count, never the whole reasons, and says a click shows the details', async () => {
     stubFetch({ ...LIST });
-    barWith('button');
+    compactBar(BUSY);
     await screen.findByLabelText('Permission mode');
-    expect(wrapper()).toHaveTextContent('Move to Terminal (interrupts 2 running items)');
-    expect(wrapper()).toHaveAttribute('data-tone', 'warning');
-    expect(document.querySelector('[data-adopt-badge]')).toBeNull();
+    hoverTip(button());
+    const text = liveTooltip().textContent ?? '';
+    expect(text).toContain('Tools and background tasks');
+    expect(text).toContain('Queued messages');
+    expect(text).toContain('click to review what it interrupts');
+    // The whole sentences (and their backticks) are for the confirmation of the hand-over button.
+    expect(text).not.toContain('node wait.mjs');
+    expect(text).not.toContain('`');
+    expect(text.length).toBeLessThan(200);
   });
 
-  it('banner: a neutral button and a warning line with the first reason, still the dialog on click', async () => {
-    stubFetch({ ...LIST });
-    barWith('banner');
-    await screen.findByLabelText('Permission mode');
-    expect(wrapper()).toHaveAttribute('data-tone', 'neutral');
-    expect(document.querySelector('[data-adopt-banner]')).toHaveTextContent('Moving interrupts 2 running items: Tool Bash');
-    await userEvent.click(button());
-    expect(screen.getByRole('dialog', { name: 'Move to Terminal while something runs?' })).toBeInTheDocument();
+  it('is a plain ghost icon: no text, no pill, no coloured tint, and the name says the state in words', async () => {
+    for (const [readiness, words] of [
+      [FREE, 'Hand over to Terminal: nothing is running'],
+      [BUSY, 'Hand over to Terminal (interrupts 2 running items)'],
+      [UNKNOWN, 'Hand over to Terminal (cannot tell what runs)'],
+    ] as const) {
+      stubFetch({ ...LIST });
+      const { unmount } = render(
+        <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS }}>
+          <OwnedBar session={ownedRow({ sessionId: ID, adoptReadiness: readiness })} onChange={vi.fn()} onForgotten={vi.fn()} inline={{ slot: document.body }} />
+        </UiVariantsContext.Provider>,
+      );
+      await screen.findByLabelText('Permission mode');
+      const found = screen.getByRole('button', { name: words });
+      expect(found.textContent).toBe('');
+      expect(found.closest('[data-adopt-button]')?.innerHTML).not.toMatch(/hue-green|bg-warning|text-warning|rounded-full border/);
+      unmount();
+    }
+  });
+
+  it('a click on a busy session still asks for the confirmation first, whatever the look', async () => {
+    for (const look of ['corner', 'dashed', 'faded', 'filled', 'bar'] as const) {
+      const { calls } = stubFetch({ ...LIST });
+      const { unmount } = compactBar(BUSY, look);
+      await screen.findByLabelText('Permission mode');
+      await userEvent.click(button());
+      expect(screen.getByRole('dialog', { name: 'Hand over to Terminal while something runs?' })).toBeInTheDocument();
+      expect(calls.some((call) => call.method === 'POST')).toBe(false);
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+      unmount();
+    }
   });
 });

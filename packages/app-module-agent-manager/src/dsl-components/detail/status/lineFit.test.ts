@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitItems, hiddenSummary, LINE_PRIORITY } from './lineFit.js';
+import { fitItems, fitRows, hiddenSummary, LINE_PRIORITY } from './lineFit.js';
 
 const widths = { folder: 196, model: 124, context: 39, move: 132, tokens: 104, pid: 50 };
 const base = { widths, order: ['folder', 'context', 'move', 'model', 'tokens', 'pid'], gap: 8, moreWidth: 36 };
@@ -30,8 +30,8 @@ describe('which chips of the header line fit', () => {
     expect(fitItems({ ...base, widths: { folder: 100 }, order: ['folder', 'ghost'], available: 1000 }).has('ghost')).toBe(false);
   });
 
-  it('has one documented priority: folder, context, what runs, model, role, program, tokens, duration, session id, pid', () => {
-    expect(LINE_PRIORITY).toEqual(['folder', 'context', 'move', 'model', 'role', 'harness', 'tokens', 'duration', 'session', 'pid']);
+  it('has one documented priority: folder, context, model, role, program, tokens, duration, session id, pid', () => {
+    expect(LINE_PRIORITY).toEqual(['folder', 'context', 'model', 'role', 'harness', 'tokens', 'duration', 'session', 'pid']);
   });
 });
 
@@ -53,5 +53,31 @@ describe('what the +N tooltip lists', () => {
     ]);
     expect(text).toBe('pid 7');
     expect(text).not.toContain('context used');
+  });
+});
+
+describe('the second row of the header line', () => {
+  it('keeps what fits next to the name on the first row and puts the rest on a second row, as wide as the header, before any +N chip', () => {
+    // 100 px free next to the name: the context (39) fits, the wide folder (196) does not; the second row (400 px, minus the +N chip) takes the folder and the move chip, in the priority order.
+    const rows = fitRows({ ...base, available: 100, secondAvailable: 400 });
+    expect([...rows.first]).toEqual(['context']);
+    expect([...rows.second]).toEqual(['folder', 'move']);
+  });
+
+  it('leaves only what does not fit on the second row either to the +N chip (the second row reserves its room)', () => {
+    const rows = fitRows({ ...base, available: 100, secondAvailable: 250 });
+    expect([...rows.first, ...rows.second].length).toBeLessThan(Object.keys(widths).length);
+    expect(rows.second.size).toBeGreaterThan(0);
+  });
+
+  it('draws no second row when everything fits on the first one', () => {
+    const rows = fitRows({ ...base, available: 2000, secondAvailable: 400 });
+    expect(rows.second.size).toBe(0);
+    expect(rows.first.size).toBe(Object.keys(widths).length);
+  });
+
+  it('without a width for the second row (no layout) it is the first row alone with its +N chip, as before', () => {
+    expect([...fitRows({ ...base, available: 87 + 8 + 36, secondAvailable: 0 }).first]).toEqual(['context']);
+    expect(fitRows({ ...base, available: 87 + 8 + 36, secondAvailable: 0 }).second.size).toBe(0);
   });
 });

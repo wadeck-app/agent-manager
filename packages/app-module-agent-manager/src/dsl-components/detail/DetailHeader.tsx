@@ -56,7 +56,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
   const forkBlocked = forkBlockedReason(session);
   // The element of the header line the controls of an owned session are drawn into (the one-line looks).
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  // The test helper of the A/B dock (never active without the dock): what the header says about moving is forced, on any agent.
+  // The test helper of the A/B dock (never active without the dock): what the header says about handing over is forced, on any agent.
   const previewState = useUiVariant('readinessPreview');
   const preview = applyReadinessPreview(session, previewState);
   const actions = <HeaderActions busy={busy} onFork={() => setForkFor(forkId)} forkBlocked={forkBlocked} forkMeaning={FORK_MEANING} pinned={session.pinned} onTogglePin={() => onTogglePin(!session.pinned)} canMarkSeen={canMarkSeen} onMarkSeen={onMarkSeen} />;
@@ -100,7 +100,8 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
           <IconButton icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />} aria-label="Back to the list" onClick={onBack} />
         </span>
         <HeaderLine session={preview.session} status={status} now={now} />
-        <div className="ml-auto flex shrink-0 items-center gap-1">
+        {/* The action icons wrap onto a second row on a narrow screen instead of leaving the viewport. */}
+        <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1">
           {/* The controls of an owned session are drawn here by its bar (a portal), as icons. */}
           <span ref={setSlot} className="contents" />
           <BlockedChip sessionId={session.sessionId} blocks={session.guardrailBlocks} />

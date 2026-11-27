@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeItem } from '../logic/notices.js';
+import { detailsText } from './NoticeRow.js';
 import { NoticesButton } from './Notices.js';
 
 const A: NoticeItem = { key: 'a', tone: 'warning', summary: 'Daemon off: 1 owned session unavailable', details: 'full text A in C:\\cfg\\owned-sessions.json. Fix: run `agent-manager start --detach`', fix: 'agent-manager start --detach' };
@@ -46,10 +47,10 @@ describe('NoticesButton', () => {
     expect(badge).not.toBeNull();
     expect(badge.textContent).toBe('2');
     expect(badge).toHaveAttribute('aria-hidden', 'true');
-    for (const wanted of [/\babsolute\b/, /-right-1\b/, /-top-1\b/, /\bh-4\b/, /\bmin-w-4\b/, /text-\[11px\]/, /\btabular-nums\b/, /\bleading-none\b/, /\bring-2\b/, /\bring-surface\b/, /\brounded-full\b/]) {
+    for (const wanted of [/\babsolute\b/, /-right-2\b/, /-top-2\b/, /\bh-4\b/, /\bmin-w-4\b/, /text-\[11px\]/, /\btabular-nums\b/, /\bleading-none\b/, /\bring-2\b/, /\bring-surface\b/, /\brounded-full\b/]) {
       expect(badge.className).toMatch(wanted);
     }
-    // Only the top right corner is offset, and only by 4 px: it never goes over the neighbour (the toolbar gap is 8 px).
+    // Only the top right corner is offset, by 8 px: the badge sits outside the triangle, and never goes over the neighbour (the toolbar gap is 8 px).
     expect(badge.className).not.toMatch(/(^|\s)-(left|bottom|m[trbl]?)-/);
   });
 
@@ -86,7 +87,10 @@ describe('NoticesButton', () => {
     const panel = screen.getByRole('dialog', { name: 'Notices' });
     expect(panel).toBeInTheDocument();
     expect(screen.getByText(A.summary)).toBeInTheDocument();
-    expect(screen.getByText(A.details)).toBeInTheDocument();
+    // The fix sentence is left out of the text (the row shows the command with Copy fix): it is said once.
+    expect(screen.getByText(detailsText(A))).toBeInTheDocument();
+    expect(detailsText(A)).not.toContain('Fix: run');
+    expect(detailsText(A)).not.toContain('`');
     expect(screen.getByText(B.summary)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Copy fix' })).toHaveLength(1);
     expect(screen.getByRole('button', { name: `Dismiss: ${A.summary}` })).toBeInTheDocument();
@@ -97,7 +101,7 @@ describe('NoticesButton', () => {
     render(<NoticesButton items={[LONG]} />);
     open();
     expect(screen.getByText(/THE-END/)).toBeInTheDocument();
-    const text = screen.getByText(LONG.details);
+    const text = screen.getByText(detailsText(LONG));
     expect(screen.queryByRole('button', { name: /^(More|Less)$/ })).toBeNull();
     expect(text.className).not.toMatch(/line-clamp|truncate|text-ellipsis/);
     expect(text.className).toMatch(/\bbreak-words\b/);
@@ -114,14 +118,17 @@ describe('NoticesButton', () => {
     expect(screen.getByText(B.summary).closest('[data-notice]')!.querySelector('svg')!.getAttribute('class')).toMatch(/text-danger-text/);
   });
 
-  it('is a flat list with dividers, not boxes inside a box', () => {
+  it('is a flat list with a divider above every row but the first, and the same left edge on each row, not boxes inside a box', () => {
     render(<NoticesButton items={[A, B]} />);
     open();
-    expect(screen.getByRole('list').className).toMatch(/\bdivide-y\b/);
+    // Per-side colours: a divide-y on the list would paint the left edge of the second row in the divider colour.
+    expect(screen.getByRole('list').className).not.toMatch(/\bdivide-y\b/);
     for (const row of screen.getAllByRole('listitem')) {
       // No full border and no rounding (the 2 px left edge in the tone of the severity is the only line).
       expect(row.className).not.toMatch(/(^|\s)(border|border-2|rounded(-\w+)?)(\s|$)/);
       expect(row.className).toMatch(/\bborder-l-2\b/);
+      expect(row.className).toMatch(/\bborder-l-(warning|danger|info-text)\b/);
+      expect(row.className).toMatch(/\bborder-t-border\b/);
     }
   });
 

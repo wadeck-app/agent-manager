@@ -50,7 +50,8 @@ function serve(routes: Routes): void {
 }
 
 function setWide(wide: boolean): void {
-  vi.stubGlobal('matchMedia', (query: string) => ({ matches: wide, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
+  // A wide window matches the min-width queries; a small one matches the "under 900 px" query (the panel is then collapsed whatever was saved) and nothing else.
+  vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('min-width') ? wide : query.includes('899px') ? !wide : false, media: query, addEventListener: () => undefined, removeEventListener: () => undefined }));
 }
 
 function show(mode: 'summary' | 'timeline' = 'summary') {
@@ -118,6 +119,17 @@ describe('the sub-agent side panel', () => {
     show();
     expect(await screen.findByRole('button', { name: /^Show the sub-agents panel/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /builder/ })).toBeNull();
+  });
+
+  it('under 900 px the panel is collapsed even when it was left open on a wider window, and opening it there is not saved', async () => {
+    window.localStorage.setItem(SUBAGENT_PREFS_KEY, JSON.stringify({ collapsed: false }));
+    setWide(false);
+    serve({ tail: answer([assistantText('a', 'text')], { subagents: fleet }) });
+    show();
+    fireEvent.click(await screen.findByRole('button', { name: /^Show the sub-agents panel/ }));
+    expect(within(screen.getByRole('complementary', { name: 'Sub-agents' })).getByRole('button', { name: /builder/ })).toBeInTheDocument();
+    // The choice made on the wide window is untouched.
+    expect(JSON.parse(window.localStorage.getItem(SUBAGENT_PREFS_KEY) ?? '{}')).toEqual({ collapsed: false });
   });
 
   it('shows the note about the sub-agents folder even when there is no sub-agent', async () => {

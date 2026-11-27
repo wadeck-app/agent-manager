@@ -183,7 +183,8 @@ export function FolderPalette({ inputId, value, onChange, onPick, onKnow, disabl
         {notice === undefined && options.length === 0 ? <EmptyLine>{typed === undefined && word === undefined ? 'No recent folder or root yet. Type the absolute path of the folder.' : typed !== undefined && typed.partial === '' ? 'No subfolder here. The path is used as typed.' : 'Nothing matches. The path is used as typed.'}</EmptyLine> : null}
         <div id={listboxId} role="listbox" aria-label="Folder suggestions">
           {kinds.map((kind) => (
-            <div key={kind} role="group" aria-label={CAPTION[kind]}>
+            // One column: each tooltip wrapper is a block of its own, never two rows side by side.
+            <div key={kind} role="group" aria-label={CAPTION[kind]} className="flex flex-col">
               <ListCaption>{CAPTION[kind]}</ListCaption>
               {options.map((option, index) =>
                 option.kind !== kind ? null : (

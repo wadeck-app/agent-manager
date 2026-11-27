@@ -6,6 +6,8 @@ import { BareInput, SEARCH_ICON } from '../ui/BareInput.js';
 
 const PROBLEMS_NOTE = 'absolute left-0 top-full z-20 mt-1 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text shadow';
 
+const SEARCH_BOX = 'relative flex min-w-40 max-w-lg flex-1';
+
 export interface SearchBoxProps {
   text: string;
   onText: (text: string) => void;
@@ -44,7 +46,8 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
     }
   };
   return (
-    <div className="relative min-w-40 max-w-lg flex-1">
+    // A flex box: the Tooltip wrapper span has an inline display style, so only a flex parent lets its flex-basis (styles/agents.css, data-tip-fill) fill the field.
+    <div className={SEARCH_BOX}>
       <Search aria-hidden="true" className={SEARCH_ICON} />
       <Tooltip content="Search by name, folder, path or last activity. Filters: state:done, project:shop, !state:idle. Press / to focus." describe={false}>
       <BareInput
@@ -67,8 +70,7 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
         <span className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
           <span role="status" className="text-xs tabular-nums text-muted">
             {shown} of {total}
-          </span>
-<IconButton size="icon-xs" aria-label="Clear the search box" onClick={() => onText('')} icon={<X aria-hidden="true" className="h-3 w-3" />} />
+          </span>          <IconButton size="icon-xs" aria-label="Clear the search box" onClick={() => onText('')} icon={<X aria-hidden="true" className="h-3 w-3" />} />
         </span>
       ) : null}
       {problems.length > 0 ? (

@@ -185,7 +185,8 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     }
   };
 
-  const agentRow = (session: AgentRow, level: 1 | 2, showFolder: boolean, members?: readonly string[]) => {
+  // `underFolder`: the row sits under the header of its own folder (the workspace tree), so the folder text on the row would only repeat that header.
+  const agentRow = (session: AgentRow, level: 1 | 2, showFolder: boolean, members?: readonly string[], underFolder = false) => {
     const id = agentId(session);
     const edge = dnd.over?.kind === 'row' && dnd.over.id === id ? (dnd.over.after ? 'after' : 'before') : undefined;
     const dragged = dnd.dragging?.kind === 'agent' && dnd.dragging.id === id;
@@ -225,6 +226,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
             <HerdrRowBody
               session={session}
               density={density}
+              hideFolder={underFolder}
               selected={selected}
               now={now}
               terms={query.terms}
@@ -312,7 +314,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                   <RollupLight state={node.rollup} subject="folder" />
                 </span>
               </div>
-              {open ? <div role="group">{node.sessions.map((session) => agentRow(session, 2, false))}</div> : null}
+              {open ? <div role="group">{node.sessions.map((session) => agentRow(session, 2, false, undefined, true))}</div> : null}
             </div>
           );
         });

@@ -3,8 +3,8 @@ import { switchViewOf } from './adoptSwitch.js';
 import type { ReadinessPreviewValue } from './uiVariants.js';
 
 /*
- * The test helper of the A/B dock "Preview Move readiness" (dev dock only, see ui/UiVariants.tsx): it forces what the header of the open agent says about moving, so
- * that the three looks of the Move readiness can be seen on any agent, whatever state it really has. It never reaches a request: the preview Move button of a
+ * The test helper of the A/B dock "Preview hand-over" (dev dock only, see ui/UiVariants.tsx): it forces what the header of the open agent says about handing over, so
+ * that the looks of the hand-over icon can be seen on any agent, whatever state it really has. It never reaches a request: the preview hand-over button of a
  * synthetic agent sends nothing (SwitchAction `previewOnly`).
  */
 
@@ -15,9 +15,9 @@ const FORCED = {
 } as const;
 
 export interface ReadinessPreview {
-  /** What the header line (and the Move button) show: the session with the forced readiness. */
+  /** What the header line (and the hand-over button) show: the session with the forced readiness. */
   session: AgentRow;
-  /** The agent cannot move by itself: the header draws a preview Move button for `session`, and the real controls keep the real session. */
+  /** The agent cannot be handed over by itself: the header draws a preview hand-over button for `session`, and the real controls keep the real session. */
   synthetic: boolean;
 }
 
@@ -30,6 +30,6 @@ export function applyReadinessPreview(session: AgentRow, state: ReadinessPreview
   if (switchViewOf(forced) !== undefined) {
     return { session: forced, synthetic: false };
   }
-  // A live Web session started here: the one shape that has a Move button in every look.
+  // A live Web session started here: the one shape that has a hand-over button in every look.
   return { session: { ...forced, alive: true, launchedBy: 'agent-manager', host: 'stream-json', ownedState: 'idle', switchFailure: undefined }, synthetic: true };
 }

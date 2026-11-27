@@ -21,7 +21,7 @@ export interface UiQuestion<T extends string> {
 export const TREE_DENSITY = ['herdr-tinted', 'compact', 'herdr-name'] as const;
 export type TreeDensityVariant = (typeof TREE_DENSITY)[number];
 
-export const SWITCH_READINESS = ['badge', 'button', 'banner'] as const;
+export const SWITCH_READINESS = ['corner', 'dashed', 'faded', 'filled', 'bar'] as const;
 export type SwitchReadinessVariant = (typeof SWITCH_READINESS)[number];
 
 export const READINESS_PREVIEW = ['real', 'free', 'busy', 'unknown'] as const;
@@ -33,33 +33,25 @@ export type GroupHeaderVariant = (typeof GROUP_HEADER)[number];
 export const UI_QUESTIONS = {
   switchReadiness: {
     id: 'ui-switch-readiness',
-    label: 'Move readiness',
-    initial: 'badge',
+    label: 'Hand-over icon',
+    initial: 'corner',
     options: {
-      badge: { label: 'A Badge in the line', hint: 'Recommended. A coloured badge in the header line says "Free to move", "Busy: N running" or "Unknown" (when the line has room), and the Move icon is tinted green (free) or amber (busy, unknown) with a 10 px dot on its corner. No text on the button, no extra row. Shows on the header of the open agent. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview Move readiness" (next row of this dock); it also works on an agent that is not started here.' },
-      button: { label: 'B Coloured button', hint: 'No badge in the line: the Move button itself is a coloured pill with words, green "Move: free", amber "Move: N running" or "Move: unknown". Shows on the header of the open agent. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview Move readiness" (next row of this dock); it also works on an agent that is not started here.' },
-      banner: { label: 'C Banner row', hint: 'No badge, a plain grey Move icon, and a full-width coloured row under the header says in a sentence what moving does (green: nothing runs; amber: what would be interrupted). Shows on the header of the open agent. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview Move readiness" (next row of this dock); it also works on an agent that is not started here.' },
+      corner: { label: 'A Corner mark', hint: 'A plain muted icon of two arrows. Free: the arrows alone. Busy: a small filled dot in the free corner. Unknown: a small ring in that corner. No colour, no text, no extra row; the tooltip lists what a hand-over interrupts. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview hand-over" (next row of this dock); it also works on an agent that is not started here.' },
+      dashed: { label: 'B Dashed arrow', hint: 'A plain muted icon of two arrows. Free: both solid. Busy: the return arrow is dashed. Unknown: both arrows are dashed. No colour, no text, no extra row; the tooltip lists what a hand-over interrupts. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview hand-over" (next row of this dock); it also works on an agent that is not started here.' },
+      faded: { label: 'C Faded arrow', hint: 'A plain muted icon of two arrows. Free: both at full strength. Busy: the return arrow is drawn light. Unknown: both arrows are light. No colour, no text, no extra row; the tooltip lists what a hand-over interrupts. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview hand-over" (next row of this dock); it also works on an agent that is not started here.' },
+      filled: { label: 'D Filled heads', hint: 'A plain muted icon of two arrows. Free: outlined arrowheads. Busy: both arrowheads filled. Unknown: only the upper arrowhead filled. No colour, no text, no extra row; the tooltip lists what a hand-over interrupts. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview hand-over" (next row of this dock); it also works on an agent that is not started here.' },
+      bar: { label: 'E Line under', hint: 'A plain muted icon of two arrows. Free: the arrows alone. Busy: a solid line under them. Unknown: a dotted line under them. No colour, no text, no extra row; the tooltip lists what a hand-over interrupts. HOW TO SEE IT: select any agent in the list, then pick Free, Busy or Unknown in "Preview hand-over" (next row of this dock); it also works on an agent that is not started here.' },
     },
   },
   readinessPreview: {
     id: 'ui-readiness-preview',
-    label: 'Preview Move readiness',
+    label: 'Preview hand-over',
     initial: 'real',
     options: {
-      real: { label: 'Real', hint: 'No preview: the header shows the real state of the agent, and the Move readiness looks above only show for an agent started here (Web or Terminal) in the state it really has.' },
-      free: { label: 'Free', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if the agent were free to move (nothing runs), in the look chosen above in Move readiness. The Move button of an agent that is not started here is a preview: clicking it moves nothing.' },
-      busy: { label: 'Busy: 2 running', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if two items were running (a turn and a tool), in the look chosen above in Move readiness. Nothing is moved by clicking.' },
-      unknown: { label: 'Unknown', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if agent-manager could not tell what runs, in the look chosen above in Move readiness. Nothing is moved by clicking.' },
-    },
-  },
-  selectionEntry: {
-    id: 'ui-selection-entry',
-    label: 'Selection mode entry',
-    initial: 'checkbox',
-    options: {
-      checkbox: { label: 'A Checkbox by the title', hint: 'A checkbox-style toggle right after the "Agents" title turns the selection mode on (checkboxes appear at the left of every row and group header, and a Select all box appears next to it). Click it again, press Escape or clear to leave. Shows in the toolbar above the list.' },
-      button: { label: 'B Select button', hint: 'A "Select" button with an icon and a label in the toolbar, before New session, toggles the selection mode (pressed while it is on); Select all appears next to it. Shows in the toolbar above the list.' },
-      icon: { label: 'C Icon toggle', hint: 'An icon-only toggle button (a list with checks) in the toolbar icons, with a tooltip, toggles the selection mode; Select all appears next to it. The quietest entry. Shows in the toolbar above the list.' },
+      real: { label: 'Real', hint: 'No preview: the header shows the real state of the agent, and the hand-over icon above only shows for an agent started here (Web or Terminal) in the state it really has.' },
+      free: { label: 'Free', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if the agent were free to hand over (nothing runs), in the look chosen above in Hand-over icon. The hand-over icon of an agent that is not started here is a preview: clicking it hands nothing over.' },
+      busy: { label: 'Busy: 2 running', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if two items were running (a turn and a tool), in the look chosen above in Hand-over icon. Nothing is handed over by clicking.' },
+      unknown: { label: 'Unknown', hint: 'Test helper of this dock. Select ANY agent in the list, then pick this: its header behaves as if agent-manager could not tell what runs, in the look chosen above in Hand-over icon. Nothing is handed over by clicking.' },
     },
   },
   rowSeparator: {
@@ -79,9 +71,6 @@ export const UI_QUESTIONS = {
 export const ROW_SEPARATOR = ['space', 'rule', 'chip', 'folder', 'stacked'] as const;
 export type RowSeparatorVariant = (typeof ROW_SEPARATOR)[number];
 
-export const SELECTION_ENTRY = ['checkbox', 'button', 'icon'] as const;
-export type SelectionEntryVariant = (typeof SELECTION_ENTRY)[number];
-
 export type UiQuestionKey = keyof typeof UI_QUESTIONS;
 export type UiVariantValues = {
   /** Settled, not a dock question (see TREE_DENSITY). */
@@ -90,7 +79,6 @@ export type UiVariantValues = {
   /** Settled, not a dock question (see TREE_DENSITY). */
   groupHeader: GroupHeaderVariant;
   readinessPreview: ReadinessPreviewValue;
-  selectionEntry: SelectionEntryVariant;
   rowSeparator: RowSeparatorVariant;
 };
 
@@ -100,6 +88,5 @@ export const DEFAULT_UI_VARIANTS: UiVariantValues = {
   switchReadiness: UI_QUESTIONS.switchReadiness.initial,
   groupHeader: 'herdr',
   readinessPreview: UI_QUESTIONS.readinessPreview.initial,
-  selectionEntry: UI_QUESTIONS.selectionEntry.initial,
   rowSeparator: UI_QUESTIONS.rowSeparator.initial,
 };

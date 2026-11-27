@@ -1,9 +1,11 @@
 import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
-import type { ComponentProps } from 'react';
+import type { ComponentProps, ReactNode } from 'react';
 
 export type TipIconButtonProps = Omit<ComponentProps<typeof IconButton>, 'title'> & {
   /** What the tooltip says, when it says more than the accessible name (limits, shortcut, why the button is off). Same text as the name: use IconButton alone. */
-  tip: string;
+  tip: ReactNode;
+  /** Labelled rows under the tip (label left, value right), for a structured tooltip. */
+  tipRows?: ComponentProps<typeof Tooltip>['rows'];
 };
 
 /**
@@ -11,9 +13,9 @@ export type TipIconButtonProps = Omit<ComponentProps<typeof IconButton>, 'title'
  * (then it renders the bare button and leaves the browser's native tooltip). An EMPTY title is the way to say "my own tooltip is around me": no native tooltip, no second dsl-ui one.
  * This is the one place of the module that passes a title to an IconButton (ui/noNativeTitle.test.ts); it goes away when the dsl-ui IconButton has a tooltip prop.
  */
-export function TipIconButton({ tip, ...rest }: TipIconButtonProps) {
+export function TipIconButton({ tip, tipRows, ...rest }: TipIconButtonProps) {
   return (
-    <Tooltip content={tip}>
+    <Tooltip content={tip} {...(tipRows === undefined ? {} : { rows: tipRows })}>
       <IconButton {...rest} title="" />
     </Tooltip>
   );

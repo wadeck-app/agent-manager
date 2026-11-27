@@ -35,6 +35,11 @@ describe('the blocked chip of the detail header', () => {
     expect(chip).toHaveTextContent('14 blocked');
   });
 
+  it('has the warning tone of the mark of the list rows (one tone for the same fact), not the neutral grey', () => {
+    render(<BlockedChip sessionId={ID} blocks={BLOCKS} />);
+    expect(screen.getByRole('button', { name: /blocked in the last 30 min/ }).className).toContain('bg-warning-bg');
+  });
+
   it.each([['no counters at all', undefined], ['blocks in total but none in the last 30 min', { ...BLOCKS, recent: { total: 0, categories: [] } }]])('%s: no chip', (_name, blocks) => {
     const { container } = render(<BlockedChip sessionId={ID} blocks={blocks} />);
     expect(container).toBeEmptyDOMElement();

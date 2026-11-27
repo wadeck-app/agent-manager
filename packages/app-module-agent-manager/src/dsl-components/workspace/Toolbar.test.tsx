@@ -76,3 +76,14 @@ describe('Toolbar notices button', () => {
     }
   });
 });
+
+describe('Toolbar search box', () => {
+  it('is a flex box and the counter and the clear button live inside it, over the field', () => {
+    show({ search: { text: 'zz', onText: vi.fn(), shown: 0, total: 39, problems: [], onMove: vi.fn(), onEnter: vi.fn() } });
+    const field = screen.getByRole('textbox', { name: 'Search agents' });
+    const box = field.closest('.relative');
+    expect(box?.className).toContain('flex');
+    expect(box).toContainElement(screen.getByText('0 of 39'));
+    expect(box).toContainElement(screen.getByRole('button', { name: 'Clear the search box' }));
+  });
+});

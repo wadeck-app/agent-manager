@@ -140,7 +140,7 @@ describe('the owned transport', () => {
     expect(answer.status).toBe(409);
     expect(answer.body.error).toMatchObject({ code: 'owned-session-ended', message: expect.stringContaining('interrupted'), hint: expect.stringContaining('Resume it') });
     const status = await m.call('GET', `/sessions/${PENDING}/reply/status`);
-    expect(status.body.transports.find((entry: { transportId: string }) => entry.transportId === 'owned')).toMatchObject({ available: false, fix: expect.stringContaining('resume') });
+    expect(status.body.transports.find((entry: { transportId: string }) => entry.transportId === 'owned')).toMatchObject({ available: false, fix: expect.stringContaining('Resume button') });
     expect(sends(fake)).toEqual([]);
   });
 

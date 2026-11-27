@@ -389,6 +389,11 @@ describe('the listing mode', () => {
     expect(screen.getByTestId('mode').textContent).toBe('inbox');
     expect(window.localStorage.getItem(MODE_STORAGE_KEY)).toBe('inbox');
     expect(screen.getByRole('tablist', { name: 'Inbox' })).toBeInTheDocument();
+    // Q6: the four tabs share the strip; none is cut by a hidden sideways scroll.
+    expect(screen.getByRole('tablist', { name: 'Inbox' }).className).not.toContain('overflow-x');
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab.className).toContain('flex-wrap');
+    }
     pickMode('Groups');
     expect(screen.getByRole('listbox', { name: 'Agents' })).toBeInTheDocument();
   });

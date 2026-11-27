@@ -18,7 +18,7 @@ export function BlockedChip({ sessionId, blocks }: { sessionId: string; blocks: 
   }
   return (
     <Tooltip side="bottom" content={recentChipTooltip(blocks)} rows={recentChipRows(blocks)}>
-      <RowButton type="button" data-blocked-chip="" aria-label={`${label} in the last 30 min. Open the Permissions tab`} onClick={() => requestRailTab(sessionId, 'permissions')} className={`${chipClass('neutral')} cursor-pointer hover:bg-border ${FOCUS_RING}`}>
+      <RowButton type="button" data-blocked-chip="" aria-label={`${label} in the last 30 min. Open the Permissions tab`} onClick={() => requestRailTab(sessionId, 'permissions')} className={`${chipClass('warning')} cursor-pointer hover:brightness-95 ${FOCUS_RING}`}>
         <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
         {label}
       </RowButton>

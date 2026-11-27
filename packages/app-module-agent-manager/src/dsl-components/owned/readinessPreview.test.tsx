@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DetailHeader } from '../detail/DetailHeader.js';
 import { row } from '../logic/fixtures.js';
-import { DEFAULT_UI_VARIANTS, UI_QUESTIONS, type UiVariantValues } from '../logic/uiVariants.js';
+import { DEFAULT_UI_VARIANTS, SWITCH_READINESS, UI_QUESTIONS, type UiVariantValues } from '../logic/uiVariants.js';
 import { UiVariants, UiVariantsContext } from '../ui/UiVariants.js';
 import { stubFetch } from './testFetch.js';
 
@@ -22,45 +22,36 @@ function header(values: Partial<UiVariantValues>, fetches = stubFetch({})) {
   return { ...view, fetches };
 }
 
-describe('the Move readiness preview of the dock, on an agent that was not started here', () => {
-  it('real (default): no Move button, no preview chip', () => {
+describe('the hand-over preview of the dock, on an agent that was not started here', () => {
+  it('real (default): no hand-over button, no preview chip', () => {
     const { container } = header({});
     expect(container.querySelector('[data-readiness-preview]')).toBeNull();
-    expect(screen.queryByRole('button', { name: /^Move to/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Hand over to/ })).toBeNull();
   });
 
-  for (const [state, words] of [
-    ['free', 'Free to move'],
-    ['busy', 'Busy: 2 running'],
-    ['unknown', 'Unknown: cannot tell what runs'],
-  ] as const) {
-    it(`look A (badge) with ${state}: a preview chip, a tinted Move icon and the badge "${words}" in the line`, async () => {
-      const { container } = header({ readinessPreview: state, switchReadiness: 'badge' });
-      await waitFor(() => expect(container.querySelector('[data-readiness-preview]')).not.toBeNull());
-      expect(container.querySelector('[data-readiness-preview]')).toHaveTextContent(`Preview: ${state}`);
-      expect(container.querySelector('[data-adopt-button]')).toHaveAttribute('data-readiness', state);
-      expect(container.querySelector('[data-readiness-tint]')).toHaveAttribute('data-readiness-tint', state);
-      expect(container.querySelector('[data-line-item="move"]')).toHaveTextContent(words);
-    });
-
-    it(`look B (button) with ${state}: a coloured pill with words, no badge in the line`, async () => {
-      const { container } = header({ readinessPreview: state, switchReadiness: 'button' });
-      await waitFor(() => expect(container.querySelector('[data-adopt-button]')).not.toBeNull());
-      expect(container.querySelector('[data-adopt-button]')).toHaveAttribute('data-readiness', state);
-      expect(within(container.querySelector('[data-adopt-button]') as HTMLElement).getByRole('button')).toHaveTextContent(state === 'free' ? 'Move: free' : state === 'busy' ? 'Move: 2 running' : 'Move: unknown');
-      expect(container.querySelector('[data-line-item="move"]')).toBeNull();
-    });
-
-    it(`look C (banner) with ${state}: a plain icon and the banner row under the line`, async () => {
-      const { container } = header({ readinessPreview: state, switchReadiness: 'banner' });
-      await waitFor(() => expect(container.querySelector('[data-adopt-banner]')).not.toBeNull());
-      expect(container.querySelector('[data-adopt-banner]')).toHaveAttribute('data-adopt-banner', state);
-      expect(container.querySelector('[data-adopt-button]')).toHaveAttribute('data-tone', 'neutral');
-    });
+  for (const state of ['free', 'busy', 'unknown'] as const) {
+    for (const look of SWITCH_READINESS) {
+      it(`look ${look} with ${state}: a preview chip and a plain icon whose glyph carries the state, no colour, no pill, no badge, no banner`, async () => {
+        const { container } = header({ readinessPreview: state, switchReadiness: look });
+        await waitFor(() => expect(container.querySelector('[data-readiness-preview]')).not.toBeNull());
+        expect(container.querySelector('[data-readiness-preview]')).toHaveTextContent(`Preview: ${state}`);
+        const wrapper = container.querySelector('[data-adopt-button]') as HTMLElement;
+        expect(wrapper).toHaveAttribute('data-readiness', state);
+        const button = within(wrapper).getByRole('button');
+        // The state is said in words by the accessible name, and drawn in a part of the glyph.
+        expect(button.getAttribute('aria-label')).toMatch(state === 'free' ? /nothing is running/ : state === 'busy' ? /interrupts 2 running items/ : /cannot tell what runs/);
+        expect(button.textContent).toBe('');
+        expect(button.querySelector('[data-handover-glyph]')).toHaveAttribute('data-handover-glyph', look);
+        expect(button.querySelector('[data-handover-glyph]')).toHaveAttribute('data-handover-state', state);
+        expect(container.querySelector('[data-line-item="move"]')).toBeNull();
+        expect(container.querySelector('[data-adopt-banner], [data-adopt-badge], [data-readiness-dot], [data-readiness-tint]')).toBeNull();
+        expect(wrapper.innerHTML).not.toMatch(/hue-green|bg-warning|text-warning/);
+      });
+    }
   }
 
-  it('the preview Move button sends nothing: a click says it is a preview (even with the daemon known down)', async () => {
-    const { container, fetches } = header({ readinessPreview: 'busy', switchReadiness: 'button' });
+  it('the preview hand-over button sends nothing: a click says it is a preview (even with the daemon known down)', async () => {
+    const { container, fetches } = header({ readinessPreview: 'busy' });
     const button = await waitFor(() => {
       const found = container.querySelector('[data-adopt-button] button');
       expect(found).not.toBeNull();
@@ -70,7 +61,7 @@ describe('the Move readiness preview of the dock, on an agent that was not start
     const before = fetches.calls.length;
     await userEvent.click(button);
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.getByText(/Preview only \(A\/B dock\): nothing was moved/)).toBeInTheDocument();
+    expect(screen.getByText(/Preview only \(A\/B dock\): nothing was handed over/)).toBeInTheDocument();
     expect(fetches.calls.length).toBe(before);
   });
 });
@@ -88,6 +79,11 @@ describe('the preview question in the dock', () => {
     expect(Object.keys(UI_QUESTIONS.readinessPreview.options)).toEqual(['real', 'free', 'busy', 'unknown']);
     for (const option of Object.values(UI_QUESTIONS.switchReadiness.options)) {
       expect(option.hint).toContain('select any agent in the list, then pick Free, Busy or Unknown');
+    }
+    expect(Object.keys(UI_QUESTIONS.switchReadiness.options)).toEqual([...SWITCH_READINESS]);
+    expect(SWITCH_READINESS).toHaveLength(5);
+    for (const option of Object.values(UI_QUESTIONS.switchReadiness.options)) {
+      expect(option.hint).toMatch(/No colour, no text, no extra row/);
     }
     expect(UI_QUESTIONS.readinessPreview.options.busy.hint).toContain('Select ANY agent');
   });

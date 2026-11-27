@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { blockedText, bypassCommand, recentBlockedText, recentChipLabel, recentChipRows, recentChipTooltip, clockText, COMMAND_PREVIEW, previewOf, remainingText, subagentOf } from '../logic/guardrails.js';
+import { blockedCountsText, blockedText, bypassCommand, recentBlockedText, recentChipLabel, recentChipRows, recentChipTooltip, clockText, COMMAND_PREVIEW, previewOf, remainingText, subagentOf } from '../logic/guardrails.js';
 import { row } from '../logic/fixtures.js';
 import { folderName } from '../logic/folderPicker.js';
 import { RowMarks } from '../lists/RowMarks.js';
-import type { DenialDto, DenialsDto, GuardrailsOverviewDto } from '../shared.js';
+import type { GuardrailBlocksDto, DenialDto, DenialsDto, GuardrailsOverviewDto } from '../shared.js';
 import { GuardrailsPage } from '../components/GuardrailsPage.js';
 import { PageTitle } from '../components/PageTitle.js';
 
@@ -124,6 +124,11 @@ describe('GuardrailsPage', () => {
     expect(within(grants).getByText('clean the build folder')).toBeInTheDocument();
     expect(within(grants).getByRole('link', { name: 'shop agent' })).toHaveAttribute('href', '/modules/agent-manager/agents?session=287760ca-77b9-418b-bd68-c242d65b4d67');
     expect(within(grants).getByText('0 of 1')).toBeInTheDocument();
+    // Q21: the short columns stay on one line while the reason column wraps.
+    expect(within(grants).getByText('rm').closest('td')).toHaveClass('whitespace-nowrap');
+    expect(within(grants).getByText('Once').closest('td')).toHaveClass('whitespace-nowrap');
+    expect(within(grants).getByText('29 min').closest('td')).toHaveClass('whitespace-nowrap');
+    expect(within(grants).getByText('clean the build folder').closest('td')).not.toHaveClass('whitespace-nowrap');
     const blocked = screen.getByRole('table', { name: 'Blocked sessions' });
     expect(within(blocked).getByText('37')).toBeInTheDocument();
     // The page keeps the full history and says so in the column title.
@@ -294,10 +299,11 @@ describe('GuardrailsPage', () => {
 });
 
 describe('the chip of a session row', () => {
-  it('shows the RECENT count and says the window for a session blocked in the last 30 min, nothing for another', () => {
+  it('shows a shield with the RECENT count and the window in its name (no number beside it: the name keeps the room), nothing for another', () => {
     const blocked = row({ guardrailBlocks: { total: 37, categories: [{ category: 'interpreter-exec', count: 37 }], timeout: false, recent: { total: 2, categories: [{ category: 'interpreter-exec', count: 2 }] } } });
     const { container, rerender } = render(<RowMarks session={blocked} />);
-    expect(screen.getByLabelText('Blocked 2 times in the last 30 min on interpreter-exec')).toHaveTextContent('2');
+    expect(screen.getByLabelText('Blocked 2 times in the last 30 min on interpreter-exec')).toBeInTheDocument();
+    expect(container.querySelector('svg')).not.toBeNull();
     expect(container.textContent).not.toContain('37');
     rerender(<RowMarks session={row()} />);
     expect(container.querySelector('svg')).toBeNull();
@@ -313,6 +319,20 @@ describe('the chip of a session row', () => {
   it('a bypass timeout is said in the tooltip text of a recent badge', () => {
     const blocked = row({ guardrailBlocks: { total: 3, categories: [{ category: 'rm', count: 3 }], timeout: true, recent: { total: 1, categories: [{ category: 'rm', count: 1 }] } } });
     render(<RowMarks session={blocked} />);
-    expect(screen.getByLabelText('Blocked 1 time in the last 30 min on rm. Bypass requests are timed out')).toHaveTextContent('1');
+    expect(screen.getByLabelText('Blocked 1 time in the last 30 min on rm. Bypass requests are timed out')).toBeInTheDocument();
+  });
+});
+
+describe('the counts of the Blocked heading of the Permissions tab', () => {
+  const some = (total: number, recent: number): GuardrailBlocksDto => ({ total, categories: [], timeout: false, recent: { total: recent, categories: [] } });
+
+  it('says both counts when the history holds at least the recent ones', () => {
+    expect(blockedCountsText(some(37, 2))).toBe('37 in total, 2 in the last 30 min');
+    expect(blockedCountsText(some(0, 0))).toBe('0 in total, 0 in the last 30 min');
+    expect(blockedCountsText(undefined)).toBe('0 in total, 0 in the last 30 min');
+  });
+
+  it('never says "0 in total, 6 in the last 30 min": a total below the recent count is left out (the plugin counters hold nothing for the session)', () => {
+    expect(blockedCountsText(some(0, 6))).toBe('6 in the last 30 min');
   });
 });
