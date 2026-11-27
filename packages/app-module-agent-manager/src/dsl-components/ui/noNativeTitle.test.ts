@@ -6,8 +6,8 @@ import { SRC_DIR } from '../build/paths.js';
 
 /** The components of the dsl-ui that render a button: a `title` on them would be a second, browser made tooltip (the label of an IconButton is already its tooltip). */
 const BUTTONS = new Set(['IconButton', 'ButtonAction', 'TabButton', 'ChipButton', 'RefreshButton', 'DeleteButton']);
-/** The one file that passes an empty title on purpose, to switch the dsl-ui IconButton tooltip off around its own (ui/TipIconButton.tsx says why). */
-const ALLOWED = path.join('ui', 'TipIconButton.tsx');
+/** The one file that passes an empty title on purpose, to switch the dsl-ui IconButton tooltip off around its own (owned/SwitchAction.tsx says why). */
+const ALLOWED = path.join('owned', 'SwitchAction.tsx');
 
 function sourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

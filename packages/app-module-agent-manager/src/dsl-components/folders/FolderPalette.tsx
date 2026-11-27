@@ -12,6 +12,7 @@ import { ListCaption } from './ListCaption.js';
 import { LoadingLine } from './LoadingLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
 import { BareInput } from '../ui/BareInput.js';
+import { TIP_FILL } from '../ui/tipWrap.js';
 
 export interface PaletteProps {
   inputId: string;
@@ -188,7 +189,7 @@ export function FolderPalette({ inputId, value, onChange, onPick, onKnow, disabl
               <ListCaption>{CAPTION[kind]}</ListCaption>
               {options.map((option, index) =>
                 option.kind !== kind ? null : (
-                  <Tooltip key={option.id} content={option.path}>
+                  <Tooltip className={TIP_FILL} key={option.id} content={option.path}>
                     <div
                       data-tip-fill=""
                       id={`${inputId}-option-${index}`}

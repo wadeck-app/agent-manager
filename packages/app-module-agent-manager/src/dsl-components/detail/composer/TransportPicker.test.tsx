@@ -180,7 +180,9 @@ describe('the transport selector', () => {
     status.transports[0] = { ...status.transports[0]!, marker: null };
     render(<Composer session={session} />);
     const send = await screen.findByRole('button', { name: 'Send' });
-    expect(send.getAttribute('title')).not.toMatch(/marker/i);
+    focusByKeyboard(send);
+    expect(liveTooltip().textContent).toMatch(/Enter or Ctrl\+Enter/);
+    expect(liveTooltip().textContent).not.toMatch(/marker/i);
   });
 
   it('no cue for a peer transport', async () => {

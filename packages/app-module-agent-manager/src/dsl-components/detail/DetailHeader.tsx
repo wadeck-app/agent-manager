@@ -6,7 +6,7 @@ import { FORK_MEANING, forkBlockedReason } from '../logic/forkForm.js';
 import { applyReadinessPreview } from '../logic/readinessPreview.js';
 import { threadChipText } from '../logic/threadForm.js';
 import type { OwnedSessionDto } from '../shared.js';
-import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
+import { ButtonAction, IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { BlockedChip } from './BlockedChip.js';
 import { LogFilterMenu } from './log/LogFilterMenu.js';
 import { OwnedBar } from '../owned/OwnedBar.js';
@@ -16,10 +16,7 @@ import type { OwnedChange } from '../workspace/useOwnedRows.js';
 import { HeaderActions } from './HeaderActions.js';
 import { HeaderLine } from './HeaderLine.js';
 import { useSessionStatus } from './status/useSessionStatus.js';
-import { RowButton } from '../ui/RowButton.js';
 
-const LOCATE_LINK = 'shrink-0 text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
-const SOURCE_LINK = 'text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 const HEADER_BOX = 'flex max-h-[50vh] shrink-0 flex-col gap-1 overflow-x-hidden overflow-y-auto border-b border-border px-4 py-2';
 
 export interface DetailHeaderProps {
@@ -70,9 +67,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
               {threadChipText(forkedFrom?.name, session.threadOf.quote, session.threadOf.messageId)}
             </span>
             {onLocateAnchor !== undefined ? (
-              <RowButton type="button" aria-label="Go to the message in the original" onClick={() => onLocateAnchor(session.threadOf!.sessionId, session.threadOf!.messageId)} className={LOCATE_LINK}>
-                Go to the message
-              </RowButton>
+              <ButtonAction variant="link" size="xs" label="Go to the message" ariaLabel="Go to the message in the original" onClick={() => onLocateAnchor(session.threadOf!.sessionId, session.threadOf!.messageId)} />
             ) : null}
           </p>
         ) : forkedFrom === undefined ? null : (
@@ -84,9 +79,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
                 <span>{`${forkedFrom.id.slice(0, 8)} (not in the list)`}</span>
               </Tooltip>
             ) : (
-              <RowButton type="button" onClick={() => onOpenSource(forkedFrom.id)} className={SOURCE_LINK}>
-                {forkedFrom.name}
-              </RowButton>
+              <ButtonAction variant="link" size="xs" label={forkedFrom.name} onClick={() => onOpenSource(forkedFrom.id)} />
             )}
           </p>
         );

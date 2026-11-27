@@ -8,6 +8,7 @@ import { Chip } from '../ui/Chip.js';
 import { Scope } from '../ui/Scope.js';
 import { ScrollTable } from '../ui/ScrollTable.js';
 import { StateChip } from '../ui/StateChip.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 export interface SessionsTableProps {
   /** `$sources.sessions.sessions`: the rows of the page source (the page owns the poll). Absent while the first answer is awaited. */
@@ -63,14 +64,14 @@ export function SessionsTable({ rows, hiddenText, emptyText }: SessionsTableProp
                   return (
                     <tr key={row.sessionId} className="border-b border-border last:border-b-0">
                       <td className={`${TD} max-w-40 font-medium`}>
-                        <Tooltip content={`${row.displayName} (${row.sessionId})`} describe={false}>
+                        <Tooltip className={TIP_FIT} content={`${row.displayName} (${row.sessionId})`} describe={false}>
                           <a data-tip-fit="" href={`${PAGE_BASE}/agents?session=${encodeURIComponent(row.sessionId)}`} className="block truncate text-primary underline">
                             {row.displayName}
                           </a>
                         </Tooltip>
                       </td>
                       <td className={`${TD} max-w-24`}>
-                        <Tooltip content={row.cwd} describe={false}>
+                        <Tooltip className={TIP_FIT} content={row.cwd} describe={false}>
                           <span data-tip-fit="" className="block truncate">
                             {row.folder}
                           </span>
@@ -84,7 +85,7 @@ export function SessionsTable({ rows, hiddenText, emptyText }: SessionsTableProp
                         </Tooltip>
                       </td>
                       <td className={`${TD} max-w-32 text-muted`}>
-                        <Tooltip content={detailOf(row)} describe={false}>
+                        <Tooltip className={TIP_FIT} content={detailOf(row)} describe={false}>
                           <span data-tip-fit="" className="block truncate">
                             {detailOf(row)}
                           </span>

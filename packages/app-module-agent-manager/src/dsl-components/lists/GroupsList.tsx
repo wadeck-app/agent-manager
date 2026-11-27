@@ -22,6 +22,7 @@ import { TimeInState } from './TimeInState.js';
 import { RowMenuButton } from './RowMenuButton.js';
 import { useRowMenu } from './useRowMenu.js';
 import { RowButton } from '../ui/RowButton.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 /**
  * Herdr-style groups: Pinned, Needs you, Done, Working, Idle (then Other and Ended when they exist), each with its count; a group without a row is not shown
@@ -90,7 +91,7 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
                         ) : null}
                       </div>
                       {preview && line !== '' ? (
-                        <Tooltip content={line} describe={false}>
+                        <Tooltip className={TIP_FIT} content={line} describe={false}>
                           <p data-tip-fit="" className="truncate text-xs text-muted-tint">
                             <Highlight text={line} terms={query.terms} />
                           </p>

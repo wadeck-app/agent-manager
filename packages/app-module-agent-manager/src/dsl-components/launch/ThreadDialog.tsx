@@ -13,11 +13,12 @@ import { ModelModeOptions } from './ModelModeOptions.js';
 import { threadNameOf } from '../shared.js';
 import type { OwnedSessionDto, OwnedSessionResponse } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
+import { FOCUS_RING } from '../ui/focusRing.js';
+import { RowButton } from '../ui/RowButton.js';
 import { ButtonAction, FieldText, Tooltip } from '@wadeck-app/dsl-ui';
 import { DialogActions } from '../ui/DialogActions.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { Modal } from '../ui/Modal.js';
-import { RowButton } from '../ui/RowButton.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 export interface ThreadDialogProps {
   /** The session the thread branches from (owned or discovered). */
@@ -112,7 +113,7 @@ export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDial
           hint={known ? 'The thread starts with the model and permission mode this session was launched with (or the last mode you set). Open to change them.' : 'This session does not tell its model or permission mode, so Claude Code decides unless you choose one. Open to choose.'}
         />
 
-        <Tooltip content={`Folder: ${session.cwd}`} describe={false}>
+        <Tooltip className={TIP_FIT} content={`Folder: ${session.cwd}`} describe={false}>
           <p data-tip-fit="" className="truncate text-xs text-muted">{`Folder: ${session.cwd}`}</p>
         </Tooltip>
         {limit === undefined ? null : limit.tone === 'caption' ? (

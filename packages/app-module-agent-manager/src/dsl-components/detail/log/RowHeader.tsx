@@ -5,6 +5,7 @@ import { TooltipLines } from './TooltipLines.js';
 import { TONE_TEXT } from './frameStyles.js';
 import type { RowModel } from './rowModel.js';
 import { LOG_ICON, LOG_MONO } from './sizes.js';
+import { TIP_FILL } from '../deps.js';
 
 /** The clickable (or static) title line of a row. */
 export function RowHeader({ model, expandable, open, onToggle }: { model: RowModel; expandable: boolean; open: boolean; onToggle: () => void }) {
@@ -22,7 +23,7 @@ export function RowHeader({ model, expandable, open, onToggle }: { model: RowMod
   // Wraps: on a narrow pane the chips and the duration drop to their own line under the title (right aligned), never over the title or the age.
   const row = 'flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-left';
   return expandable ? (
-    <Tooltip content={model.tooltip === undefined ? undefined : <TooltipLines text={model.tooltip} />}>
+    <Tooltip className={TIP_FILL} content={model.tooltip === undefined ? undefined : <TooltipLines text={model.tooltip} />}>
       <RowButton type="button" data-tip-fill="" aria-expanded={open} onClick={onToggle} className={`${row} rounded px-1 py-0.5 hover:bg-muted-bg ${FOCUS_RING}`}>
         {content}
       </RowButton>

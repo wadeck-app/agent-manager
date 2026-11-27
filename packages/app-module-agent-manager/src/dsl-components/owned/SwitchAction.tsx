@@ -1,4 +1,4 @@
-import { ButtonAction, Tooltip } from '@wadeck-app/dsl-ui';
+import { ButtonAction, IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { useState } from 'react';
 import { requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
@@ -6,7 +6,6 @@ import { MOVE_DAEMON_DOWN, moveTipRows, switchViewOf } from '../logic/adoptSwitc
 import type { SwitchView } from '../logic/adoptSwitch.js';
 import type { OwnedSessionDto, OwnedSwitchResponse } from '../shared.js';
 import { prose } from '../logic/prose.js';
-import { TipIconButton } from '../ui/TipIconButton.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { useDaemonDown } from './DaemonState.js';
 import { HandOverIcon } from './HandOverIcon.js';
@@ -132,7 +131,14 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
     return (
       <>
         <span data-adopt-button="" data-readiness={view.readiness} className="inline-flex shrink-0">
-          <TipIconButton variant="ghost" aria-label={name} tip={title} tipRows={tipRows} disabled={off} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} />} />
+          {tipRows.length === 0 ? (
+            <IconButton variant="ghost" aria-label={name} tooltip={title} disabled={off} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} />} />
+          ) : (
+            // The IconButton tooltip is a text: the structured rows need our own Tooltip, and an EMPTY title tells the IconButton not to add its own (the only title passed to a button, ui/noNativeTitle.test.ts). The dsl-ui IconButton has no `tooltipRows` yet.
+            <Tooltip content={title} rows={tipRows} maxWidth="sm">
+              <IconButton variant="ghost" aria-label={name} title="" disabled={off} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} />} />
+            </Tooltip>
+          )}
         </span>
         {dialog}
       </>

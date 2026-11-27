@@ -1,6 +1,6 @@
 import { ButtonAction, CompactSelect, IconButton } from '@wadeck-app/dsl-ui';
 import { CircleStop, RotateCcw, Square, Trash2 } from 'lucide-react';
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Scope } from '../ui/Scope.js';
 import { failureText, requestJson } from '../data/http.js';
@@ -27,8 +27,6 @@ const STDERR_TAIL = 'mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words
 const MODE_ROW = 'max-w-full [&_select]:max-w-full';
 // The label is a flex row that may shrink below its content (min-w-0), and so is the span of the select: without it the select keeps its full width and leaves the row.
 const MODE_LABEL = 'flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted [&>span]:min-w-0 [&>span]:shrink';
-// The base select has no size prop: its height is a text-sm line plus 10 px. A line of (hit - 10) px makes it as high as the 36 px icon buttons above it.
-const MODE_ROW_STYLE = { '--am-lh-sm': 'calc(var(--am-hit) - 10px)' } as CSSProperties;
 
 export interface OwnedBarProps {
   session: AgentRow;
@@ -185,6 +183,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       Mode
       <CompactSelect
         ariaLabel="Permission mode"
+        size="sm"
         value={mode}
         disabled={busy || dto === undefined || daemonDown}
         onChange={(next) => void setMode(next)}
@@ -270,7 +269,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       ) : (
         <>
           {inline.slot === null ? null : createPortal(<Scope>{iconControls}</Scope>, inline.slot)}
-          {liveWeb ? <div data-owned-mode="" className={MODE_ROW} style={MODE_ROW_STYLE}>{modeSelect}</div> : null}
+          {liveWeb ? <div data-owned-mode="" className={MODE_ROW}>{modeSelect}</div> : null}
         </>
       )}
 

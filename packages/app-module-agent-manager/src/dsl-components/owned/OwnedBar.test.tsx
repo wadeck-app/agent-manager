@@ -273,12 +273,12 @@ describe('OwnedBar: the daemon is not running', () => {
 });
 
 describe('OwnedBar: the one-line header mode row', () => {
-  it('does not cap the select width (the label "default: ask before each tool" was cut) and is as high as an icon button', async () => {
+  it('does not cap the select width (the label "default: ask before each tool" was cut) and is the small (toolbar) size of the base select', async () => {
     stubFetch({ 'GET /owned': listed(ownedDto({ id: ID, permissionMode: 'default' })) });
     render(<OwnedBar session={ownedRow({ sessionId: ID })} onChange={vi.fn()} onForgotten={vi.fn()} inline={{ slot: null }} />);
     await screen.findByLabelText('Permission mode');
     const row = document.querySelector<HTMLElement>('[data-owned-mode]');
     expect(row?.className).not.toContain('max-w-[11rem]');
-    expect(row?.style.getPropertyValue('--am-lh-sm')).toContain('--am-hit');
+    expect(row?.querySelector('select')?.className).toContain('py-0.5');
   });
 });

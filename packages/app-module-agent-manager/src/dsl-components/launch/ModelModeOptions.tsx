@@ -1,6 +1,7 @@
 import { Collapsible, FieldSelect, Tooltip } from '@wadeck-app/dsl-ui';
 import { MODEL_OPTIONS, PERMISSION_MODE_OPTIONS, type ChoiceOption } from '../logic/launchForm.js';
 import { modelModeSummary } from '../logic/modelMode.js';
+import { TIP_FILL } from '../ui/tipWrap.js';
 
 export interface ModelModeOptionsProps {
   model: string;
@@ -25,7 +26,7 @@ function withValue(options: readonly ChoiceOption[], value: string): ChoiceOptio
 /** The Model and Permission mode of the Fork and Thread dialogs, folded behind one line that says what they are now (the hint is its tooltip). */
 export function ModelModeOptions({ model, mode, onModel, onMode, known, changed, busy, hint }: ModelModeOptionsProps) {
   return (
-    <Tooltip content={hint}>
+    <Tooltip className={TIP_FILL} content={hint}>
     <span data-model-mode-options="" data-tip-fill="" className="-mx-3 block">
       <Collapsible title={modelModeSummary({ known, changed })}>
         <div className="grid gap-3 sm:grid-cols-2">

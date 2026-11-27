@@ -1,6 +1,7 @@
 import { Tooltip } from '@wadeck-app/dsl-ui';
 import type { GroupHeaderVariant } from '../logic/uiVariants.js';
 import type { GroupId } from '../logic/states.js';
+import { TIP_FIT } from './tipWrap.js';
 
 /**
  * The three looks of the A/B question `ui-group-header`, shared by every group header of the page: the folders and custom groups of the Tree, the state groups of the Groups mode
@@ -54,7 +55,7 @@ export function groupHeaderCount(variant: GroupHeaderVariant): string {
 export function GroupHeaderName({ variant, text, textClass, title }: { variant: GroupHeaderVariant; text: string; textClass: string; title?: string }) {
   const look = variant === 'pill' ? `rounded-full border border-current px-2 py-0.5 text-xs font-semibold ${textClass}` : variant === 'bar' ? 'text-sm font-semibold text-content' : `text-[11px] font-medium ${textClass}`;
   return (
-    <Tooltip content={title ?? text} describe={false}>
+    <Tooltip className={TIP_FIT} content={title ?? text} describe={false}>
       <span data-tip-fit="" className={`truncate ${look}`}>
         {text}
       </span>

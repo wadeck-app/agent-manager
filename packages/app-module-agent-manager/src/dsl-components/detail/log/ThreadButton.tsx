@@ -1,5 +1,6 @@
 import { MessageSquareShare } from 'lucide-react';
-import { TipIconButton, type ThreadAnchor } from '../deps.js';
+import { IconButton } from '@wadeck-app/dsl-ui';
+import type { ThreadAnchor } from '../deps.js';
 
 export const THREAD_TOOLTIP = 'Start a thread from this message';
 
@@ -12,10 +13,10 @@ export function ThreadButton({ anchor, onThread }: { anchor: ThreadAnchor; onThr
   const blocked = anchor.kind === 'blocked';
   return (
     <span data-thread-action="" className="ml-auto inline-flex shrink-0">
-      <TipIconButton
+      <IconButton
         size="icon-sm"
         aria-label="Thread"
-        tip={blocked ? `Thread: ${anchor.reason}` : THREAD_TOOLTIP}
+        tooltip={blocked ? `Thread: ${anchor.reason}` : THREAD_TOOLTIP}
         disabled={blocked}
         onClick={() => anchor.kind === 'ok' && onThread(anchor)}
         icon={<MessageSquareShare aria-hidden="true" className="h-3.5 w-3.5" />}

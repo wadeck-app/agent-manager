@@ -14,6 +14,7 @@ import { Banner } from '../ui/Banner.js';
 import { ButtonAction, FieldText, Tooltip } from '@wadeck-app/dsl-ui';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 export interface ForkDialogProps {
   /** The session to fork (owned or discovered). */
@@ -95,7 +96,7 @@ export function ForkDialog({ session, onClose, onForked }: ForkDialogProps) {
 
         <ModelModeOptions model={model} mode={mode} onModel={setChosenModel} onMode={setChosenMode} known={known} changed={chosenModel !== undefined || chosenMode !== undefined} busy={forking} hint={hint} />
 
-        <Tooltip content={`Folder: ${session.cwd}`} describe={false}>
+        <Tooltip className={TIP_FIT} content={`Folder: ${session.cwd}`} describe={false}>
           <p data-tip-fit="" className="truncate text-xs text-muted">{`Folder: ${session.cwd}`}</p>
         </Tooltip>
         {error !== '' ? <Banner tone="error">{error}</Banner> : null}

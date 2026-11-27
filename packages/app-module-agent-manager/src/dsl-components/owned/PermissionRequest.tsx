@@ -5,6 +5,7 @@ import type { OwnedPermissionDto } from '../shared.js';
 import { Chip } from '../ui/Chip.js';
 import { PermissionInput } from './PermissionInput.js';
 import { inputBlocks } from './permissionBlocks.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 // Shorter than the label: the full sentence is wider than the field on a phone (about 288 px) and was cut. The label keeps the whole sentence for screen readers.
 export const REASON_PLACEHOLDER = 'Reason if you deny (optional)';
@@ -29,7 +30,7 @@ export function PermissionRequest({ request, total, inFlight, onDecide }: Permis
         {title !== request.toolName ? <span className="text-xs text-muted-tint">{request.toolName}</span> : null}
         {total > 1 ? <Chip variant="danger">{`1 of ${total}`}</Chip> : null}
       </div>
-      {request.description !== undefined && request.description !== '' ? <Tooltip content={request.description} describe={false}>
+      {request.description !== undefined && request.description !== '' ? <Tooltip className={TIP_FIT} content={request.description} describe={false}>
           <p data-tip-fit="" className="line-clamp-2 text-sm text-content">{request.description}</p>
         </Tooltip> : null}
       {request.blockedPath !== undefined && request.blockedPath !== '' ? (

@@ -1,5 +1,5 @@
 import { CompactSelect, HeaderActions, HorizontalStack, Tooltip } from '@wadeck-app/dsl-ui';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { SelectionEntry } from '../batch/SelectionEntry.js';
 import { useMediaQuery } from '../ui/hooks.js';
 import { SHOW_ALIVE_LABEL, SHOW_ALL_LABEL, type ModeId } from '../shared.js';
@@ -73,18 +73,16 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
           <div data-notices-slot="" className="empty:hidden">
             {notices}
           </div>
-          {/* The base select has no size prop: it is as high as a text-sm line plus its padding. The line height of this one box is the text-xs one (the line height of a small ButtonAction), so the select and the icon buttons are all 28 px at every density. */}
-          <span data-show-select="" className="inline-flex" style={{ '--am-lh-sm': 'var(--am-lh-xs)' } as CSSProperties}>
-            <CompactSelect
-              ariaLabel="Sessions to show"
-              value={show}
-              onChange={(next) => onShow(next === 'all' ? 'all' : 'alive')}
-              options={[
-                { value: 'alive', label: tight ? 'Alive' : SHOW_ALIVE_LABEL },
-                { value: 'all', label: tight ? 'Alive + ended' : SHOW_ALL_LABEL },
-              ]}
-            />
-          </span>
+          <CompactSelect
+            ariaLabel="Sessions to show"
+            size="sm"
+            value={show}
+            onChange={(next) => onShow(next === 'all' ? 'all' : 'alive')}
+            options={[
+              { value: 'alive', label: tight ? 'Alive' : SHOW_ALIVE_LABEL },
+              { value: 'all', label: tight ? 'Alive + ended' : SHOW_ALL_LABEL },
+            ]}
+          />
           <DensityControl />
           <ShortcutsHelp open={helpOpen} onOpenChange={onHelpOpenChange} />
         </HorizontalStack>

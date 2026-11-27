@@ -15,6 +15,7 @@ import { LoadingLine } from './LoadingLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
 import { BareInput, SEARCH_ICON } from '../ui/BareInput.js';
 import { RowButton } from '../ui/RowButton.js';
+import { TIP_FILL } from '../ui/tipWrap.js';
 
 export interface SmartListProps {
   value: string;
@@ -137,7 +138,7 @@ export function FolderSmartList({ value, onPick, disabled }: SmartListProps) {
     const dir = parentText(item.path);
     return (
       <li key={item.path} className="flex items-center gap-0.5 pr-1">
-        <Tooltip content={item.missing ? `${item.path} no longer exists` : item.path}>
+        <Tooltip className={TIP_FILL} content={item.missing ? `${item.path} no longer exists` : item.path}>
           <RowButton
             data-tip-fill=""
             type="button"

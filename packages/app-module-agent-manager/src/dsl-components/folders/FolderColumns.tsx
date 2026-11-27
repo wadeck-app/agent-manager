@@ -12,6 +12,7 @@ import { LoadingLine } from './LoadingLine.js';
 import { RootsNote } from './RootsNote.js';
 import { TruncatedLine } from './TruncatedLine.js';
 import { PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
+import { TIP_FILL } from '../ui/tipWrap.js';
 
 const COLUMNS_SCROLLER = 'flex h-72 overflow-x-auto overflow-y-hidden rounded border border-border bg-surface';
 const COLUMN = 'flex w-60 shrink-0 flex-col overflow-y-auto border-r border-border last:border-r-0';
@@ -155,7 +156,7 @@ export function FolderColumns({ value, onPick, disabled }: ColumnsProps) {
                     const open = column.selected === entry.path;
                     const picked = samePath(value, entry.path);
                     return (
-                      <Tooltip key={entry.path} content={entry.path}>
+                      <Tooltip className={TIP_FILL} key={entry.path} content={entry.path}>
                         <div
                           data-tip-fill=""
                           role="option"

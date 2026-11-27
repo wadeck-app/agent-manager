@@ -1,7 +1,7 @@
-import { ButtonAction, Switch, Tooltip } from '@wadeck-app/dsl-ui';
+import { ButtonAction, IconButton, Switch, Tooltip } from '@wadeck-app/dsl-ui';
 import { ListFilter } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { CountBadge, FloatingPanel, POPUP_SECTION, TipIconButton } from '../deps.js';
+import { CountBadge, FloatingPanel, POPUP_SECTION } from '../deps.js';
 import { useFilterSummary } from './filterSummary.js';
 import { hiddenSentence, NAME } from './filterNames.js';
 import { LOG_CATEGORIES, useLogFilters } from './logFilters.js';
@@ -27,8 +27,8 @@ export function LogFilterMenu({ sessionId }: { sessionId: string }) {
   return (
     <>
       <span className="relative inline-flex">
-        <TipIconButton
-          tip={tip}
+        <IconButton
+          tooltip={tip}
           icon={<ListFilter aria-hidden="true" className="h-4 w-4" />}
           aria-label={label}
           aria-haspopup="dialog"

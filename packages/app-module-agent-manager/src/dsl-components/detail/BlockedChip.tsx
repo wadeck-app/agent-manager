@@ -2,7 +2,7 @@ import { ShieldAlert } from 'lucide-react';
 import type { GuardrailBlocksDto } from '../shared.js';
 import { recentChipLabel, recentChipRows, recentChipTooltip } from '../logic/guardrails.js';
 import { chipClass } from '../ui/Chip.js';
-import { FOCUS_RING, TipRows, Tooltip } from './deps.js';
+import { FOCUS_RING, Tooltip } from './deps.js';
 import { requestRailTab } from './railRequest.js';
 import { RowButton } from '../ui/RowButton.js';
 
@@ -17,7 +17,7 @@ export function BlockedChip({ sessionId, blocks }: { sessionId: string; blocks: 
     return null;
   }
   return (
-    <Tooltip side="bottom" content={<TipRows rows={recentChipRows(blocks)} note={recentChipTooltip(blocks)} />}>
+    <Tooltip side="bottom" rows={recentChipRows(blocks)} content={recentChipTooltip(blocks)} maxWidth="sm">
       <RowButton type="button" data-blocked-chip="" aria-label={`${label} in the last 30 min. Open the Permissions tab`} onClick={() => requestRailTab(sessionId, 'permissions')} className={`${chipClass('warning')} cursor-pointer hover:brightness-95 ${FOCUS_RING}`}>
         <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
         {label}

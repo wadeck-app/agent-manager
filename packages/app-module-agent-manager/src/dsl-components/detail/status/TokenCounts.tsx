@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowUp } from 'lucide-react';
-import { TipRows, Tooltip } from '../deps.js';
+import { Scope, Tooltip } from '../deps.js';
 import type { SessionCostDto } from '../deps.js';
 import { CHIP, CHIP_ICON } from './chipStyle.js';
 import { costEstimateNote, sessionCostLines } from './costText.js';
@@ -17,14 +17,16 @@ export function TokenCounts({ tokensIn, tokensOut, cost }: { tokensIn: number | 
       : sessionCostLines(cost).map((line) => ({
           label: line.label,
           value: (
-            <span data-cost-line="" className={`font-medium tabular-nums ${line.missing ? 'text-white/70' : ''}`}>
-              {line.value}
-            </span>
+            <Scope>
+              <span data-cost-line="" className={`font-medium tabular-nums ${line.missing ? 'text-white/70' : ''}`}>
+                {line.value}
+              </span>
+            </Scope>
           ),
         }));
   const note = cost === undefined ? '' : ` ${costEstimateNote(cost.total)} Cost covers every message of the session and of its sub-agents, not only the last call.`;
   return (
-    <Tooltip content={<TipRows rows={rows ?? []} note={`${parts.join('; ')}. Same numbers as the Claude Code status line (they are the last call, not running totals).${note}`} />}>
+    <Tooltip rows={rows ?? []} maxWidth="sm" content={`${parts.join('; ')}. Same numbers as the Claude Code status line (they are the last call, not running totals).${note}`}>
       <span tabIndex={0} aria-label={`Tokens: ${parts.join(', ')}`} className={CHIP}>
         {tokensIn === undefined ? null : (
           <span aria-hidden="true" className="inline-flex items-center gap-0.5 tabular-nums">

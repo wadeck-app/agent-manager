@@ -6,7 +6,6 @@ import { shortenPath } from '../logic/shortenPath.js';
 import { STATE_MEANING } from '../logic/states.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
 import { Chip } from '../ui/Chip.js';
-import { TipRows } from '../ui/TipRows.js';
 import { STATE_LOOK, STATE_VARIANT } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { BypassChips } from './status/BypassChips.js';
@@ -23,6 +22,7 @@ import { TokenCounts } from './status/TokenCounts.js';
 import { hiddenSummary, LINE_PRIORITY, usableEntries, type HiddenEntry } from './status/lineFit.js';
 import { useItemFit } from './status/useItemFit.js';
 import { CopyButton } from './log/CopyButton.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 /** One droppable item of the line: what it draws, and the facts (label and value) the "+N" tooltip lists when it does not fit. An entry without a value is not listed. */
 type Droppable = { key: string; node: ReactNode; entries: HiddenEntry[] };
@@ -53,7 +53,7 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
     node: (
       <span className="inline-flex min-w-0 items-center gap-1 text-xs text-muted">
         <Folder aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
-        <Tooltip content={session.cwd} describe={false}>
+        <Tooltip className={TIP_FIT} content={session.cwd} describe={false}>
           <span data-tip-fit="" className="truncate">
             {shortenPath(session.cwd, PATH_CHARS)}
           </span>
@@ -128,7 +128,7 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
   const goneEntries = gone.flatMap((item) => usableEntries(item.entries));
   const moreChip =
     gone.length === 0 ? null : (
-      <Tooltip content={<TipRows rows={goneEntries.map((entry) => ({ label: rowLabel(entry.label), value: entry.value }))} />} describe={false}>
+      <Tooltip rows={goneEntries.map((entry) => ({ label: rowLabel(entry.label), value: entry.value }))} maxWidth="sm" describe={false}>
         <span tabIndex={0} data-line-more="" aria-label={`${gone.length} more: ${goneEntries.map((entry) => `${entry.label} ${entry.value}`).join(', ')}`} className={`${CHIP} shrink-0 tabular-nums`}>
           +{gone.length}
         </span>
@@ -137,7 +137,7 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
   return (
     <>
       <div ref={ref} data-header-line="" className={`flex min-w-[15rem] flex-1 flex-nowrap items-center gap-x-2 overflow-x-clip whitespace-nowrap ${tight ? '' : '[&>*]:shrink-0'}`}>
-        <Tooltip content={session.displayName} describe={false}>
+        <Tooltip className={TIP_FIT} content={session.displayName} describe={false}>
           <h2 data-tip-fit="" className={`max-w-[min(26ch,100%)] truncate text-base font-semibold text-content ${tight ? 'min-w-[8ch] shrink' : 'shrink-0'}`}>
             {session.displayName}
           </h2>

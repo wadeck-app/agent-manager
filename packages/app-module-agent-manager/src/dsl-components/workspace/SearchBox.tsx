@@ -3,6 +3,7 @@ import { useId, type KeyboardEvent } from 'react';
 import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { BareInput, SEARCH_ICON } from '../ui/BareInput.js';
+import { TIP_FILL } from '../ui/tipWrap.js';
 
 const PROBLEMS_NOTE = 'absolute left-0 top-full z-20 mt-1 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text shadow';
 
@@ -46,10 +47,10 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
     }
   };
   return (
-    // A flex box: the Tooltip wrapper span has an inline display style, so only a flex parent lets its flex-basis (styles/agents.css, data-tip-fill) fill the field.
+    // A flex box: the wrapper of the Tooltip (TIP_FILL) fills the field through its flex-basis.
     <div className={SEARCH_BOX}>
       <Search aria-hidden="true" className={SEARCH_ICON} />
-      <Tooltip content="Search by name, folder, path or last activity. Filters: state:done, project:shop, !state:idle. Press / to focus." describe={false}>
+      <Tooltip className={TIP_FILL} content="Search by name, folder, path or last activity. Filters: state:done, project:shop, !state:idle. Press / to focus." describe={false}>
       <BareInput
         data-tip-fill=""
         data-agent-search=""

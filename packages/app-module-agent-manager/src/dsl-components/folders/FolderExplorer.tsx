@@ -14,6 +14,7 @@ import { RootsNote } from './RootsNote.js';
 import { TruncatedLine } from './TruncatedLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
 import { RowButton } from '../ui/RowButton.js';
+import { TIP_FILL } from '../ui/tipWrap.js';
 
 const PATH_NAV = 'flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded border border-border bg-surface px-1.5 py-0.5';
 
@@ -162,7 +163,7 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
           <ul ref={box} aria-label={`Folders in ${here.path}`} onKeyDown={onKeyDown}>
             {here.entries.map((entry, index) => (
               <li key={entry.path} className="flex items-center pr-1">
-                <Tooltip content={entry.path}>
+                <Tooltip className={TIP_FILL} content={entry.path}>
                   <RowButton
                     type="button"
                     data-tip-fill=""

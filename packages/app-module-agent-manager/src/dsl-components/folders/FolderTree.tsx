@@ -15,6 +15,7 @@ import { RootsNote } from './RootsNote.js';
 import { TruncatedLine } from './TruncatedLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
 import { BareInput, SEARCH_ICON } from '../ui/BareInput.js';
+import { TIP_FILL } from '../ui/tipWrap.js';
 
 export interface TreeProps {
   /** The text of the Folder field: the row of that folder is highlighted. */
@@ -212,7 +213,7 @@ export function FolderTree({ value, onPick, disabled }: TreeProps) {
                 const Chevron = row.expanded ? ChevronDown : ChevronRight;
                 return (
                   <li key={row.path} role="none">
-                    <Tooltip content={row.path}>
+                    <Tooltip className={TIP_FILL} content={row.path}>
                       <div
                         data-tip-fill=""
                         role="treeitem"

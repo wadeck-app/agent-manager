@@ -35,6 +35,7 @@ import { useGroupDnd } from './useGroupDnd.js';
 import { RowIconButton } from './RowIconButton.js';
 import { RowMenuButton } from './RowMenuButton.js';
 import { useRowMenu } from './useRowMenu.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 /** The agents that want you: the ones whose sub-agents open by themselves in the `attention` expansion. */
 function wantsYou(session: AgentRow): boolean {
@@ -200,7 +201,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
     const nameLine = showFolder ? (
       <ProjectLabel session={session} terms={query.terms} line={line} />
     ) : (
-      <RowTip session={session} line={line}>
+      <RowTip session={session} line={line} fit>
         <span data-tip-fit="" className="block truncate text-content">
           <Highlight text={session.displayName} terms={query.terms} />
         </span>
@@ -304,7 +305,7 @@ export function TreeList({ sessions: shown, selectedId, onSelect, now, query, se
                 <GroupHeaderName variant={headerStyle} text={node.folder} textClass={GROUP_LOOK.none.text} title={node.cwd} />
                 <span className={groupHeaderCount(headerStyle)}>{node.sessions.length}</span>
                 {node.disambiguation !== '' ? (
-                  <Tooltip content={node.disambiguation} describe={false}>
+                  <Tooltip className={TIP_FIT} content={node.disambiguation} describe={false}>
                     <span data-tip-fit="" className="truncate text-xs text-muted">
                       {node.disambiguation}
                     </span>

@@ -16,6 +16,7 @@ import { StateIconTip } from './StateIconTip.js';
 import { TimeInState } from './TimeInState.js';
 import { RowMenuButton } from './RowMenuButton.js';
 import { useRowMenu } from './useRowMenu.js';
+import { TIP_FIT } from '../ui/tipWrap.js';
 
 
 // The four tabs share the strip (no sideways scroll that hides "All 38"): a tab shrinks under its content and, when its label and its count no longer fit side by side, the count goes under the label.
@@ -133,7 +134,7 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
                         ) : null}
                       </div>
                       {line !== '' ? (
-                        <Tooltip content={line} describe={false}>
+                        <Tooltip className={TIP_FIT} content={line} describe={false}>
                           <p data-tip-fit="" className={`truncate text-xs ${session.state === 'needs-you' ? 'text-hue-red' : 'text-muted-tint'}`}>
                             <Highlight text={line} terms={query.terms} />
                           </p>

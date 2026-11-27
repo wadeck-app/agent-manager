@@ -1,9 +1,9 @@
-import { ButtonAction } from '@wadeck-app/dsl-ui';
+import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { Keyboard, Paperclip, SendHorizontal, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
 import { Banner, CountBadge, FoldedBanner, useMediaQuery } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
-import { Tooltip, TipIconButton } from '../deps.js';
+import { Tooltip } from '../deps.js';
 import { getPending } from '../pending.js';
 import { composerBlock } from './composerBlock.js';
 import { needsPolling } from './deliveryItems.js';
@@ -231,11 +231,11 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             event.target.value = '';
           }}
         />
-        <TipIconButton
+        <IconButton
           variant="ghost"
           className="relative"
           aria-label={attachName}
-          tip={attachTip}
+          tooltip={attachTip}
           disabled={inactive || sending}
           onClick={() => picker.current?.click()}
           icon={
@@ -271,10 +271,10 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           </Tooltip>
         ) : null}
         {/* The base primary icon button, like every other primary button of the shell (danger while the interrupt is armed). */}
-        <TipIconButton
+        <IconButton
           variant={priority === 'now' ? 'danger' : 'primary'}
           aria-label={sendLabel}
-          tip={attaching > 0 ? 'Waiting for the image to be prepared' : `${priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter.'}${markerTip === '' ? '' : ` ${markerTip}`}`}
+          tooltip={attaching > 0 ? 'Waiting for the image to be prepared' : `${priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter.'}${markerTip === '' ? '' : ` ${markerTip}`}`}
           disabled={inactive || sending || attaching > 0}
           loading={sending}
           onClick={requestSend}
