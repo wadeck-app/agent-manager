@@ -3,6 +3,7 @@ import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { describe, expect, it } from 'vitest';
 import { stubFetch } from '../owned/testFetch.js';
 import { expectNoticeDetails } from '../ui/noticeTestKit.js';
+import { TrailSlot } from '../ui/TrailSlot.js';
 import { Workspace } from './Workspace.js';
 
 const TEXT = '2 owned sessions are listed in owned-sessions.json but the daemon is not running: their Stop, Resume and Move actions are unavailable. Run `agent-manager start --detach`.';
@@ -12,7 +13,9 @@ function show(props: { ownedDownText?: string; ownedStateErrorText?: string }) {
   stubFetch({ 'GET /owned': { body: { ok: true, generatedAt: 'now', daemon: {}, sessions: [] } } });
   return render(
     <UrlParamContext.Provider value={service}>
-      <Workspace sessions={[]} userStateError="" hiddenDead={0} ownedError={null} ownedErrorText="" {...props} />
+      <TrailSlot>
+        <Workspace sessions={[]} userStateError="" hiddenDead={0} ownedError={null} ownedErrorText="" {...props} />
+      </TrailSlot>
     </UrlParamContext.Provider>,
   );
 }

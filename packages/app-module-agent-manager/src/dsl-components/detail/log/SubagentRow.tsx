@@ -2,7 +2,7 @@ import { CircleAlert, LoaderCircle, Target } from 'lucide-react';
 import { RowButton, FOCUS_RING } from '../deps.js';
 import { SubagentTip } from './SubagentTip.js';
 import type { LocatePhase } from './useLocateCall.js';
-import { elapsedMs, formatElapsed, lastActivityText, STATUS_LOOK, type SubagentItem } from './subagentModel.js';
+import { elapsedMs, endedText, formatElapsed, idleText, lastActivityText, STATUS_LOOK, type SubagentItem } from './subagentModel.js';
 
 /** Left padding per nesting level (written in full for Tailwind). */
 const INDENT = ['pl-2', 'pl-5', 'pl-8', 'pl-11'] as const;
@@ -56,13 +56,15 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-2">
             <span className="min-w-0 flex-1 truncate font-medium text-content">{item.title}</span>
-            {elapsed !== undefined ? <span className="shrink-0 text-xs tabular-nums text-muted">{formatElapsed(elapsed)}</span> : null}
+            {elapsed !== undefined ? <span className="shrink-0 text-xs tabular-nums text-muted">{item.status === 'idle' || item.status === 'failed' ? `ran ${formatElapsed(elapsed)}` : formatElapsed(elapsed)}</span> : null}
           </span>
           <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
             <span className={look.text}>{look.label}</span>
             {item.status === 'active' && dto.lastActivityAt !== undefined ? <span className="whitespace-nowrap">{lastActivityText(dto.lastActivityAt, now)}</span> : null}
             {item.status === 'unknown' && dto.readError !== undefined ? <span className="min-w-0 break-words">{dto.readError}</span> : null}
             {item.status === 'failed' && dto.failureReason !== undefined ? <span className="min-w-0 break-words">{dto.failureReason}</span> : null}
+            {item.status === 'failed' && (dto.endedAt ?? dto.lastActivityAt) !== undefined ? <span className="whitespace-nowrap">{endedText(dto.endedAt ?? dto.lastActivityAt ?? now, now)}</span> : null}
+            {item.status === 'idle' && dto.lastActivityAt !== undefined ? <span className="min-w-0 break-words">{idleText(dto.lastActivityAt, now)}</span> : null}
             {detail !== '' ? <span className="min-w-0 break-words">{detail}</span> : null}
           </span>
           {words !== undefined ? (

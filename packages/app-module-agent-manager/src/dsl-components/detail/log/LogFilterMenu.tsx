@@ -9,7 +9,7 @@ import { LOG_CATEGORIES, useLogFilters } from './logFilters.js';
 const WIDTH = 288;
 
 /**
- * The filter button of the header (top right, next to the other actions of the open agent) and its popup: one switch per family of the log (hooks, tool calls,
+ * The filter button of the header (top right, next to the other actions of the open agent) and its popup: one switch per family of the log (hooks, tool calls, thinking, queue lines,
  * agent messages) with the number of entries among the loaded ones, "Reset filters", and "Show the filter bar" (the same switches as a bar above the log, off by
  * default). The button carries the number of entries the filters hide, so a log that looks short is never a silent filter. It shares its choices with the log
  * (useLogFilters): a switch here changes the log at once.
@@ -63,6 +63,13 @@ export function LogFilterMenu({ sessionId }: { sessionId: string }) {
                 </Tooltip>
               </div>
             ))}
+          </div>
+          <div className={`mt-1 flex flex-col gap-0.5 ${POPUP_SECTION} pt-2`}>
+            <p className="px-1 pb-0.5 text-xs font-semibold text-muted">Tool calls</p>
+            <div data-grouping-row="" className="flex flex-col gap-0.5 rounded px-1 py-1 hover:bg-muted-bg">
+              <Switch size="sm" label="Group consecutive calls" checked={feed.grouped} onChange={feed.setGrouped} />
+              <span className="pl-11 text-xs text-muted">{feed.grouped ? 'On: a run of tool calls or agent calls is one row' : 'Off: one row per tool call or agent call'}</span>
+            </div>
           </div>
           <div className={`mt-1 flex flex-col gap-1 ${POPUP_SECTION} pt-2`}>
             <div className="px-1">

@@ -31,7 +31,7 @@ describe('the hand-over preview of the dock, on an agent that was not started he
 
   for (const state of ['free', 'busy', 'unknown'] as const) {
     for (const look of SWITCH_READINESS) {
-      it(`look ${look} with ${state}: a preview chip and a plain icon whose glyph carries the state, no colour, no pill, no badge, no banner`, async () => {
+      it(`look ${look} with ${state}: a preview chip and an icon whose glyph carries the state, no coloured button, no pill, no badge, no banner`, async () => {
         const { container } = header({ readinessPreview: state, switchReadiness: look });
         await waitFor(() => expect(container.querySelector('[data-readiness-preview]')).not.toBeNull());
         expect(container.querySelector('[data-readiness-preview]')).toHaveTextContent(`Preview: ${state}`);
@@ -82,8 +82,13 @@ describe('the preview question in the dock', () => {
     }
     expect(Object.keys(UI_QUESTIONS.switchReadiness.options)).toEqual([...SWITCH_READINESS]);
     expect(SWITCH_READINESS).toHaveLength(5);
+    expect(UI_QUESTIONS.switchReadiness.initial).toBe('window');
+    expect(DEFAULT_UI_VARIANTS.switchReadiness).toBe('window');
     for (const option of Object.values(UI_QUESTIONS.switchReadiness.options)) {
-      expect(option.hint).toMatch(/No colour, no text, no extra row/);
+      expect(option.hint).toMatch(/No text, no extra row, no banner/);
+      expect(option.hint).toContain('Free:');
+      expect(option.hint).toContain('Busy:');
+      expect(option.hint).toContain('Unknown:');
     }
     expect(UI_QUESTIONS.readinessPreview.options.busy.hint).toContain('Select ANY agent');
   });

@@ -37,12 +37,39 @@ describe('categoryOf', () => {
     expect(categoryOf(queue('q2', 'task-notification'))).toBe('agents');
   });
 
-  it('never filtered: what the person and Claude say, a message the person sent from here, plain queue lines, the harness notes', () => {
+  it('never filtered: what the person and Claude say, a message the person sent from here, the harness notes', () => {
     expect(categoryOf(userPrompt('u', 'hi'))).toBeUndefined();
     expect(categoryOf(assistantText('a', 'hi'))).toBeUndefined();
     expect(categoryOf(prompt('w', { source: 'peer', webReply: { messageId: 'm', text: 'x' } }))).toBeUndefined();
-    expect(categoryOf(queue('q3', 'text'))).toBeUndefined();
+    expect(categoryOf(queue('q3', 'text'))).toBe('queue');
     expect(categoryOf(prompt('i', { source: 'injected' }))).toBeUndefined();
+  });
+});
+
+describe('thinking and queue lines', () => {
+  const thinking = (key: string): LogEntry => ({ key, offset: 0, kind: 'thinking', collapsible: true, text: 'hmm', textTruncated: false, textBytes: 3 });
+  const plainQueue = (key: string): LogEntry => ({ key, offset: 0, kind: 'queue-operation', operation: 'dequeue' });
+  const entries = [userPrompt('u', 'hi'), thinking('t1'), plainQueue('q1'), thinking('t2'), plainQueue('q2'), assistantText('a', 'ok')];
+
+  it('categoryOf: a thinking block is "thinking", a queue line that is not a message between agents is "queue"', () => {
+    expect(categoryOf(thinking('t'))).toBe('thinking');
+    expect(categoryOf(plainQueue('q'))).toBe('queue');
+  });
+
+  it('shown by default (nothing changes until the person turns them off)', () => {
+    const result = applyFilters(entries, DEFAULT_FILTERS);
+    expect(result.entries).toHaveLength(entries.length);
+    expect(result.counts).toMatchObject({ thinking: 2, queue: 2 });
+    expect(result.hiddenTotal).toBe(0);
+  });
+
+  it('hiding is a view filter: the entries given are untouched, hidden counts them, the conversation stays', () => {
+    const before = [...entries];
+    const result = applyFilters(entries, { ...DEFAULT_FILTERS, thinking: false, queue: false });
+    expect(result.entries.map((entry) => entry.key)).toEqual(['u', 'a']);
+    expect(result.hidden).toMatchObject({ thinking: 2, queue: 2 });
+    expect(result.hiddenTotal).toBe(4);
+    expect(entries).toEqual(before);
   });
 });
 
@@ -52,25 +79,25 @@ describe('applyFilters', () => {
   it('defaults: hooks hidden, tools and agent messages shown; counts are over every loaded entry, hidden over the ones left out', () => {
     const result = applyFilters(entries, DEFAULT_FILTERS);
     expect(result.entries.map((entry) => entry.key)).toEqual(['u', 'call:1', 'call:2', 'p', 'a']);
-    expect(result.counts).toEqual({ hooks: 2, tools: 1, agents: 2 });
-    expect(result.hidden).toEqual({ hooks: 2, tools: 0, agents: 0 });
+    expect(result.counts).toEqual({ hooks: 2, tools: 1, agents: 2, thinking: 0, queue: 0 });
+    expect(result.hidden).toEqual({ hooks: 2, tools: 0, agents: 0, thinking: 0, queue: 0 });
     expect(result.hiddenTotal).toBe(2);
   });
 
   it('everything shown: nothing hidden, same list', () => {
-    const result = applyFilters(entries, { hooks: true, tools: true, agents: true });
+    const result = applyFilters(entries, { hooks: true, tools: true, agents: true, thinking: true, queue: true });
     expect(result.entries).toHaveLength(entries.length);
     expect(result.hiddenTotal).toBe(0);
   });
 
   it('everything off: only the conversation stays', () => {
-    const result = applyFilters(entries, { hooks: false, tools: false, agents: false });
+    const result = applyFilters(entries, { hooks: false, tools: false, agents: false, thinking: false, queue: false });
     expect(result.entries.map((entry) => entry.key)).toEqual(['u', 'a']);
     expect(result.hiddenTotal).toBe(5);
   });
 
   it('keep: an entry the page needs stays visible whatever the filter says, and is not counted as hidden', () => {
-    const result = applyFilters(entries, { hooks: false, tools: false, agents: false }, (entry) => entry.key === 'call:2');
+    const result = applyFilters(entries, { hooks: false, tools: false, agents: false, thinking: false, queue: false }, (entry) => entry.key === 'call:2');
     expect(result.entries.map((entry) => entry.key)).toEqual(['u', 'call:2', 'a']);
     expect(result.hidden.agents).toBe(1);
   });
@@ -83,7 +110,7 @@ describe('readFilterPrefs', () => {
 
   it('reads what was saved', () => {
     window.localStorage.setItem(FILTER_PREFS_KEY, JSON.stringify({ hooks: true, tools: false }));
-    expect(readFilterPrefs()).toEqual({ prefs: { hooks: true, tools: false, agents: true }, problem: '' });
+    expect(readFilterPrefs()).toEqual({ prefs: { ...DEFAULT_FILTERS, hooks: true, tools: false }, problem: '' });
   });
 
   it.each([['text that is not JSON', '{nope'], ['JSON that is not an object', '[1]'], ['a value that is not a boolean', '{"hooks":"yes"}']])('%s: the defaults and a sentence', (_name, raw) => {
@@ -105,7 +132,7 @@ describe('useLogFilters', () => {
   it('a toggle is saved per field and read back', () => {
     const { result } = renderHook(() => useLogFilters());
     act(() => result.current.change({ hooks: true }));
-    expect(result.current.prefs).toEqual({ hooks: true, tools: true, agents: true });
+    expect(result.current.prefs).toEqual({ ...DEFAULT_FILTERS, hooks: true });
     expect(JSON.parse(window.localStorage.getItem(FILTER_PREFS_KEY) ?? '{}')).toEqual({ hooks: true });
     const second = renderHook(() => useLogFilters());
     expect(second.result.current.prefs.hooks).toBe(true);
@@ -122,6 +149,20 @@ describe('useLogFilters', () => {
     expect(result.current.problem).toBe(FILTER_WRITE_PROBLEM);
     act(() => result.current.dismissProblem());
     expect(result.current.problem).toBe('');
+  });
+
+  it('the grouping of tool calls is on by default, saved on its own field, kept by Reset, and an unreadable value is a problem', () => {
+    const { result } = renderHook(() => useLogFilters());
+    expect(result.current.grouped).toBe(true);
+    act(() => result.current.setGrouped(false));
+    expect(result.current.grouped).toBe(false);
+    expect(JSON.parse(window.localStorage.getItem(FILTER_PREFS_KEY) ?? '{}')).toEqual({ group: false });
+    act(() => result.current.reset());
+    expect(result.current.grouped).toBe(false);
+    expect(renderHook(() => useLogFilters()).result.current.grouped).toBe(false);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    window.localStorage.setItem(FILTER_PREFS_KEY, '{"group":"no"}');
+    expect(readFilterPrefs().problem).toBe(FILTER_READ_PROBLEM);
   });
 
   it('follows another tab (storage event)', () => {

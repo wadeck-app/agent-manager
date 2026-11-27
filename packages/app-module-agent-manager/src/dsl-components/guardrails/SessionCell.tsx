@@ -1,5 +1,6 @@
 import { Tooltip } from '@wadeck-app/dsl-ui';
 import { PAGE_BASE } from '../data/http.js';
+import { PageLink } from '../ui/PageLink.js';
 
 /** A session of the plugin's files: its name and a link to the Agents page when the registry knows it, else the id (full when known, else the 8 characters). */
 export function SessionCell({ sessionId, name }: { sessionId: string; name: string }) {
@@ -14,9 +15,7 @@ export function SessionCell({ sessionId, name }: { sessionId: string; name: stri
   return (
     <span className="flex flex-col">
       <Tooltip content={`Open ${name} in the Agents page`}>
-        <a href={`${PAGE_BASE}/agents?session=${encodeURIComponent(sessionId)}`} className="text-primary underline">
-          {name}
-        </a>
+        <PageLink to={`${PAGE_BASE}/agents?session=${encodeURIComponent(sessionId)}`} label={name} />
       </Tooltip>
       <Tooltip content={sessionId}>
         <span className="font-mono text-xs text-muted">{shortId}</span>

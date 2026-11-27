@@ -11,7 +11,9 @@ import {
   resolveDensity,
   setDensity,
 } from './density.js';
+import { DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
 import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
+import { UiVariantsContext } from './UiVariants.js';
 import { DensityControl } from './DensityControl.js';
 import { autoHint, densityHint } from './densityScale.js';
 import { Scope } from './Scope.js';
@@ -147,6 +149,7 @@ describe('toolbar', () => {
   it('holds the text size button and the shortcut help as icon buttons, inside the workspace box', async () => {
     const { Toolbar } = await import('../workspace/Toolbar.js');
     render(
+      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerPlacement: 'in-page' }}>
       <Scope>
         <Toolbar
           count={3}
@@ -161,7 +164,8 @@ describe('toolbar', () => {
           helpOpen={false}
           onHelpOpenChange={() => undefined}
         />
-      </Scope>,
+      </Scope>
+      </UiVariantsContext.Provider>,
     );
     expect(screen.getByRole('button', { name: 'Text size' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Keyboard shortcuts' })).toBeInTheDocument();

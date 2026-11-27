@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeItem } from '../logic/notices.js';
 import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
 import { NoticesButton } from '../ui/Notices.js';
-import { DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
+import { DEFAULT_UI_VARIANTS, UI_QUESTIONS } from '../logic/uiVariants.js';
 import { UiVariantsContext } from '../ui/UiVariants.js';
 import { Toolbar, type ToolbarProps } from './Toolbar.js';
 
@@ -29,10 +29,15 @@ function props(extra: Partial<ToolbarProps>): ToolbarProps {
   };
 }
 
+// The tests of the controls render the in-page header (the default is the breadcrumb row, tested below with its own slot).
+const IN_PAGE = { ...DEFAULT_UI_VARIANTS, headerPlacement: 'in-page' as const };
+
 const show = (extra: Partial<ToolbarProps>) =>
   render(
     <UrlParamContext.Provider value={service}>
-      <Toolbar {...props(extra)} />
+      <UiVariantsContext.Provider value={IN_PAGE}>
+        <Toolbar {...props(extra)} />
+      </UiVariantsContext.Provider>
     </UrlParamContext.Provider>,
   );
 
@@ -94,12 +99,15 @@ describe('Toolbar search box', () => {
 describe('Toolbar header placement (A/B question ui-header-placement)', () => {
   const inPage = (extra: Partial<ToolbarProps> = {}) => (
     <UrlParamContext.Provider value={service}>
-      <Toolbar {...props(extra)} />
+      <UiVariantsContext.Provider value={IN_PAGE}>
+        <Toolbar {...props(extra)} />
+      </UiVariantsContext.Provider>
     </UrlParamContext.Provider>
   );
+  // The default of the question: no override of the variants.
   const inTrail = (extra: Partial<ToolbarProps> = {}) => (
     <UrlParamContext.Provider value={service}>
-      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerPlacement: 'in-trail' }}>
+      <UiVariantsContext.Provider value={DEFAULT_UI_VARIANTS}>
         <HeaderActionsProvider>
           <header data-testid="trail">
             <HeaderActionsSlot />
@@ -112,7 +120,15 @@ describe('Toolbar header placement (A/B question ui-header-placement)', () => {
     </UrlParamContext.Provider>
   );
 
-  it('in-page (the default) renders one h1 and the bordered row in the page', () => {
+  it('the default is in-trail (the breadcrumb row), the other option is in-page', () => {
+    expect(UI_QUESTIONS.headerPlacement.initial).toBe('in-trail');
+    expect(DEFAULT_UI_VARIANTS.headerPlacement).toBe('in-trail');
+    expect(Object.keys(UI_QUESTIONS.headerPlacement.options)).toEqual(['in-trail', 'in-page']);
+    expect(UI_QUESTIONS.headerPlacement.options['in-trail'].hint).toContain('The default');
+    expect(UI_QUESTIONS.headerPlacement.options['in-page'].hint).not.toContain('Today');
+  });
+
+  it('in-page renders one h1 and the bordered row in the page', () => {
     render(inPage());
     expect(screen.getAllByRole('heading', { level: 1, name: 'Agents' })).toHaveLength(1);
     const row = document.querySelector('[data-toolbar]') as HTMLElement;
@@ -120,7 +136,7 @@ describe('Toolbar header placement (A/B question ui-header-placement)', () => {
     expect(row.hasAttribute('data-placement')).toBe(false);
   });
 
-  it('in-trail renders one h1 through HeaderActions, in the trail slot and not in the page', () => {
+  it('in-trail (the default) renders one h1 through HeaderActions, in the trail slot and not in the page', () => {
     render(inTrail());
     const heading = screen.getByRole('heading', { level: 1, name: 'Agents' });
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);

@@ -27,7 +27,7 @@ function statusReason(item: SubagentItem): string {
     case 'active':
       return dto.lastActivityAt === undefined ? 'no transcript yet (just started?), probably running' : 'no end marker and written lately: probably running';
     case 'idle':
-      return 'no end marker and silent for a while: it may be done or stuck';
+      return 'no finish marker and no write for over 10 minutes: it may be done or stuck';
     case 'finished':
       return 'marked finished in its meta';
   }
@@ -57,11 +57,11 @@ export function subagentFacts(item: SubagentItem, now: number, clock: (at: numbe
   facts.push({ label: 'Status', value: look.label, note: statusReason(item), tone: look.text });
   facts.push(dto.startedAt === undefined ? missing('Started', 'no transcript yet') : { label: 'Started', value: clock(dto.startedAt) });
   const elapsed = elapsedMs(item, now);
-  facts.push(elapsed === undefined ? missing('Duration', 'its start is unknown') : { label: 'Duration', value: formatElapsed(elapsed), live: item.status === 'active' });
+  facts.push(elapsed === undefined ? missing('Duration', 'its start is unknown') : { label: item.status === 'idle' || item.status === 'failed' ? 'Ran for' : 'Duration', value: formatElapsed(elapsed), live: item.status === 'active' });
   facts.push(
     dto.lastActivityAt === undefined
-      ? missing('Last activity', 'no transcript yet')
-      : { label: 'Last activity', value: item.status === 'active' ? `${formatElapsed(Math.max(0, now - dto.lastActivityAt))} ago` : clock(dto.lastActivityAt), live: item.status === 'active' },
+      ? missing(item.status === 'failed' ? 'Ended' : 'Last activity', 'no transcript yet')
+      : { label: item.status === 'failed' ? 'Ended' : 'Last activity', value: item.status === 'active' ? `${formatElapsed(Math.max(0, now - dto.lastActivityAt))} ago` : clock(dto.lastActivityAt), live: item.status === 'active' },
   );
   if (usage?.tokensIn !== undefined || usage?.tokensOut !== undefined) {
     const parts = [usage.tokensIn === undefined ? undefined : `${formatTokens(usage.tokensIn)} in`, usage.tokensOut === undefined ? undefined : `${formatTokens(usage.tokensOut)} out`].filter((part) => part !== undefined);

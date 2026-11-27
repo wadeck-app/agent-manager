@@ -41,7 +41,7 @@ function movedText(dto: OwnedSessionDto, target: SwitchView['target'], notes: re
  * The hand-over button of an owned session: Web <-> herdr-core terminal, same session id and conversation. Free = it hands over at once; busy or unknown = its name says
  * what is interrupted, and a click opens a dialog that lists the reasons (the "Hand over anyway" button is the only thing that sends `force`). The daemon
  * recomputes the readiness: when it finds the session not free after all, the dialog opens with ITS reasons, whatever the page showed. The button is a plain muted icon: its
- * glyph changes in a part with the readiness (the A/B question ui-switch-readiness), never its colour.
+ * glyph changes in a part with the readiness (the A/B question ui-switch-readiness); at most a small part of it takes a tone, never the button, never a pill.
  */
 export function SwitchAction({ session, disabled, onChange, onNote, onError, compact = false, previewOnly = false }: SwitchActionProps) {
   const view = switchViewOf(session);
@@ -132,11 +132,11 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
       <>
         <span data-adopt-button="" data-readiness={view.readiness} className="inline-flex shrink-0">
           {tipRows.length === 0 ? (
-            <IconButton variant="ghost" aria-label={name} tooltip={title} disabled={off} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} />} />
+            <IconButton variant="ghost" aria-label={name} tooltip={title} disabled={off} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} target={view.target} />} />
           ) : (
             // The IconButton tooltip is a text: the structured rows need our own Tooltip, and an EMPTY title tells the IconButton not to add its own (the only title passed to a button, ui/noNativeTitle.test.ts). The dsl-ui IconButton has no `tooltipRows` yet.
             <Tooltip content={title} rows={tipRows} maxWidth="sm">
-              <IconButton variant="ghost" aria-label={name} title="" disabled={off} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} />} />
+              <IconButton variant="ghost" aria-label={name} title="" disabled={off} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} target={view.target} />} />
             </Tooltip>
           )}
         </span>
@@ -149,7 +149,7 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
       {/* The base button takes no data attribute and no title: the wrapper carries them (the tests and the tooltip read them there). */}
       <Tooltip content={daemonDown ? DAEMON_DOWN_TITLE : view.title}>
         <span data-adopt-button="" data-readiness={view.readiness} className="inline-flex shrink-0">
-          <ButtonAction variant="secondary" size="sm" disabled={disabled || sending || daemonDown} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} className="h-3.5 w-3.5" />} label={view.label} />
+          <ButtonAction variant="secondary" size="sm" disabled={disabled || sending || daemonDown} onClick={click} icon={<HandOverIcon variant={readinessStyle} state={view.readiness} target={view.target} className="h-3.5 w-3.5" />} label={view.label} />
         </span>
       </Tooltip>
       {daemonDown ? (

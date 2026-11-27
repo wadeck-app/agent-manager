@@ -9,6 +9,7 @@ import { MODE_STORAGE_KEY } from '../logic/mode.js';
 import { VIEW_OPTIONS_STORAGE_KEY } from '../logic/viewOptions.js';
 import { clampWidth, DEFAULT_LIST_WIDTH, MAX_LIST_WIDTH, MIN_LIST_WIDTH, SplitPane } from '../ui/SplitPane.js';
 import { tabbableId } from '../ui/hooks.js';
+import { TrailSlot } from '../ui/TrailSlot.js';
 import { expectNoticeDetails } from '../ui/noticeTestKit.js';
 import { AgentWorkspace } from './AgentWorkspace.js';
 
@@ -18,7 +19,7 @@ function Page({ children, initial = {} }: { children: ReactNode; initial?: Recor
   const service: UrlParamService = { get: (key) => params[key] ?? null, set: (key, value) => setParams((current) => ({ ...current, [key]: value })) };
   return (
     <UrlParamContext.Provider value={service}>
-      {children}
+      <TrailSlot>{children}</TrailSlot>
       <div data-testid="url">{params['session'] ?? ''}</div>
       <div data-testid="show">{params['show'] ?? ''}</div>
       <div data-testid="mode">{params['mode'] ?? ''}</div>

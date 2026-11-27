@@ -122,7 +122,7 @@ describe('GuardrailsPage', () => {
     expect(within(grants).getByText('Once')).toBeInTheDocument();
     expect(within(grants).getByText('29 min')).toBeInTheDocument();
     expect(within(grants).getByText('clean the build folder')).toBeInTheDocument();
-    expect(within(grants).getByRole('link', { name: 'shop agent' })).toHaveAttribute('href', '/modules/agent-manager/agents?session=287760ca-77b9-418b-bd68-c242d65b4d67');
+    expect(within(grants).getByRole('button', { name: 'shop agent' })).toBeInTheDocument();
     expect(within(grants).getByText('0 of 1')).toBeInTheDocument();
     // Q21: the short columns stay on one line while the reason column wraps.
     expect(within(grants).getByText('rm').closest('td')).toHaveClass('whitespace-nowrap');

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } fr
 import type { AgentRow } from '../data/types.js';
 import { customSections, UNGROUPED_ID, type DropContext } from '../logic/customMode.js';
 import { stepGroupIds } from '../logic/customGroups.js';
-import { HERDR_ROW_BOX, HERDR_ROW_BOX_STACKED, herdrTint, isHerdrDensity, type HerdrDensity, STATE_TINT_UNDERLAY, stateRing, stateTint } from '../logic/herdrRow.js';
+import { HERDR_ROW_BOX, herdrTint, isHerdrDensity, type HerdrDensity, STATE_TINT_UNDERLAY, stateRing, stateTint } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
@@ -15,7 +15,6 @@ import { EmptyNote } from './EmptyNote.js';
 import { GroupConfigPanel } from './GroupConfigPanel.js';
 import { GroupDialog } from './GroupDialog.js';
 import { HerdrRowBody } from './HerdrRowBody.js';
-import { isStacked } from './RowSecondary.js';
 import { ListScroll } from './ListScroll.js';
 import { MoveToGroupDialog } from './MoveToGroupDialog.js';
 import { OptionShell } from './OptionShell.js';
@@ -42,7 +41,6 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
   const rowsById = useMemo(() => new Map(sections.flatMap((section) => section.sessions).map((row) => [agentId(row), row])), [sections]);
   const hasGroups = (groups?.groups.length ?? 0) > 0;
   const variant = useUiVariant('treeDensity');
-  const stackedRows = isStacked(useUiVariant('rowSeparator'));
   // Herdr rows in this mode: the compact Tree choice reads as the tinted Herdr row.
   const density: HerdrDensity = isHerdrDensity(variant) ? variant : 'herdr-tinted';
   const context = useMemo<DropContext>(
@@ -161,7 +159,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
             tabbable={id === tabbable}
             onSelect={onSelect}
             look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread, rowLook) === undefined ? bodyClass : ''} ${underlay}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} ${underlay} ${bodyClass === '' ? '' : (stateRing(session.state, session.flagged, session.unread, rowLook) ?? '')} hover:brightness-95` }}
-            className={`group relative ${stackedRows ? HERDR_ROW_BOX_STACKED : HERDR_ROW_BOX} ${dragged ? 'opacity-50' : ''}`}
+            className={`group relative ${HERDR_ROW_BOX} ${dragged ? 'opacity-50' : ''}`}
             expanded={hasChildren ? open : undefined}
             rowProps={dnd.row(id, groupId)}
             {...(rowMenu.available ? { onMenu: (anchor: Anchor) => rowMenu.open(session, anchor) } : {})}

@@ -144,9 +144,15 @@ describe('the Toolbar on a narrow screen', () => {
       onHelpOpenChange: vi.fn(),
       onNewSession: vi.fn(),
     };
-    const { container, rerender } = render(<Toolbar {...props} />);
+    // The header of the page (not the breadcrumb row, the default): the in-page placement.
+    const inPage = (extra: { detailOpen?: boolean }) => (
+      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerPlacement: 'in-page' }}>
+        <Toolbar {...props} {...extra} />
+      </UiVariantsContext.Provider>
+    );
+    const { container, rerender } = render(inPage({}));
     expect(container.querySelector('[data-toolbar]')?.className).not.toContain('hidden');
-    rerender(<Toolbar {...props} detailOpen />);
+    rerender(inPage({ detailOpen: true }));
     expect(container.querySelector('[data-toolbar]')?.className).toContain('hidden lg:flex');
   });
 });

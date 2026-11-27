@@ -32,12 +32,13 @@ describe('the Permissions panel', () => {
     render(<PermissionsPanel session={session} feed={feedOf([grant('g1', SID), grant('g2', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', { sessionName: 'billing-owner', category: 'interpreter-exec', mode: 'once', maxUses: 1, used: 0, rationale: 'run the migration' })])} />);
     const mine = screen.getByRole('region', { name: 'This session' });
     expect(within(mine).getByText('rm')).toBeInTheDocument();
-    expect(within(mine).getByText('time-boxed')).toBeInTheDocument();
-    expect(within(mine).getByText((_, element) => element?.tagName === 'P' && /^10 min left.*, 1 use, no limit$/.test(element.textContent ?? ''))).toBeInTheDocument();
-    expect(within(mine).getByText('clean the build folder')).toBeInTheDocument();
+    expect(mine.querySelector('[data-grant-left]')).toHaveTextContent('10 min left');
+    // No use limit: no use text on the row.
+    expect(mine.querySelector('[data-grant-uses]')).toBeNull();
+    expect(mine.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
     const project = screen.getByRole('region', { name: 'Other sessions of this project' });
-    expect(within(project).getByText('Session billing-owner')).toBeInTheDocument();
-    expect(within(project).getByText(/0 of 1 uses/)).toBeInTheDocument();
+    expect(within(project).getAllByText('billing-owner')[0]).toBeInTheDocument();
+    expect(project.querySelector('[data-grant-uses]')).toHaveTextContent('0 of 1 use');
   });
 
   it('says so when there is no bypass: an explicit sentence per section, never an empty panel', () => {
@@ -75,7 +76,7 @@ describe('the Permissions panel', () => {
     expect(blocked).toHaveTextContent('5 in total');
     expect(blocked).toHaveTextContent('2 in the last 30 min');
     expect(within(blocked).getByRole('button', { name: /Copy \/w-guardrails:request-bypass rm once/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Guardrails page' })).toHaveAttribute('href', '/modules/agent-manager/guardrails');
+    expect(screen.getByRole('button', { name: 'Guardrails page' })).toBeInTheDocument();
   });
 
   it('a session with no counters says it was not blocked', () => {
@@ -88,7 +89,7 @@ describe('the Permissions panel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('The bypasses could not be read: Cannot reach the app-core server.');
     rerender(<PermissionsPanel session={session} feed={feedOf([grant('g1', SID)], { error: 'Cannot reach the app-core server.' })} />);
     expect(screen.getByRole('alert')).toHaveTextContent('the list is the last one read');
-    expect(screen.getByText('clean the build folder')).toBeInTheDocument();
+    expect(document.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
   });
 
   it('says it is reading before the first answer, and warns about unreadable files and the emergency switch', () => {
@@ -104,7 +105,7 @@ describe('the Permissions panel', () => {
 });
 
 describe('the rail with its two tabs', () => {
-  const base = { items: [], mode: 'summary' as const, onMode: vi.fn(), order: 'recent' as const, onOrder: vi.fn(), selectedId: undefined, phase: 'idle' as const, onSelect: vi.fn(), note: '', problem: '', onDismissProblem: vi.fn() };
+  const base = { items: [], mode: 'summary' as const, onMode: vi.fn(), order: 'recent' as const, onOrder: vi.fn(), keep: '1h' as const, onKeep: vi.fn(), selectedId: undefined, phase: 'idle' as const, onSelect: vi.fn(), note: '', problem: '', onDismissProblem: vi.fn() };
 
   function RailHost({ initial, collapsed, grants }: { initial: RailTab; collapsed: boolean; grants: SessionGrantsFeed }) {
     const [tab, setTab] = useState(initial);
@@ -119,7 +120,7 @@ describe('the rail with its two tabs', () => {
     fireEvent.click(button);
     const panel = screen.getByRole('complementary', { name: 'Permissions' });
     expect(within(panel).getByRole('heading', { name: 'Permissions' })).toBeInTheDocument();
-    expect(within(panel).getByText('clean the build folder')).toBeInTheDocument();
+    expect(panel.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
   });
 
   it('no badge for zero bypasses (the label says it), and no sub-agents is said on the Sub-agents tab', () => {

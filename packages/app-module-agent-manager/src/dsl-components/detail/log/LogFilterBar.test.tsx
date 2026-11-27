@@ -115,7 +115,7 @@ describe('log filters', () => {
     render(<LogViewer session={session} />);
     await screen.findByText('run the tests');
     const group = screen.getByRole('group', { name: 'Show in the log' });
-    expect(within(group).getAllByRole('button')).toHaveLength(3);
+    expect(within(group).getAllByRole('button')).toHaveLength(5);
   });
 });
 

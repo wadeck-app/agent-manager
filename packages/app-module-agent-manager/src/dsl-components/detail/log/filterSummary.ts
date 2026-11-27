@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import type { Filtered } from './logFilters.js';
+import { LOG_CATEGORIES, type Filtered } from './logFilters.js';
 
 /** What the header needs of the filtering of the open log: the loaded entries of each family and what the filters hide. */
 export type FilterSummary = Pick<Filtered, 'counts' | 'hidden' | 'hiddenTotal'>;
@@ -15,7 +15,7 @@ const key = (sessionId: string): string => sessionId.toLowerCase();
 
 const same = (a: FilterSummary | undefined, b: FilterSummary | undefined): boolean =>
   a === b ||
-  (a !== undefined && b !== undefined && a.hiddenTotal === b.hiddenTotal && (['hooks', 'tools', 'agents'] as const).every((category) => a.counts[category] === b.counts[category] && a.hidden[category] === b.hidden[category]));
+  (a !== undefined && b !== undefined && a.hiddenTotal === b.hiddenTotal && LOG_CATEGORIES.every((category) => a.counts[category] === b.counts[category] && a.hidden[category] === b.hidden[category]));
 
 /** Called by the log viewer after each filtering (and with undefined when it unmounts). A summary equal to the published one changes nothing. */
 export function publishFilterSummary(sessionId: string, summary: FilterSummary | undefined): void {

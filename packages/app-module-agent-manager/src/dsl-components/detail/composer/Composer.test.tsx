@@ -6,6 +6,7 @@ import { row } from '../deps.js';
 import type { ReplyRequest } from '../deps.js';
 import { getPending, resetPending } from '../pending.js';
 import { Composer } from './Composer.js';
+import { COMPOSER_ONE_LINE } from './ComposerBody.js';
 import { resetDrafts } from './draftStore.js';
 import { statusFixture } from './fixtures.js';
 
@@ -270,6 +271,26 @@ describe('Composer limits', () => {
     const wrapper = document.querySelector('[data-composer-transport]');
     expect(wrapper).not.toBeNull();
     expect(wrapper).toHaveTextContent('socket');
+  });
+
+  // The class contract of the vertical alignment (measured in a browser: with the ml and l text scales the field is 38 and 40 px high, the icon buttons stay at 36 px,
+  // so bare buttons bottom-aligned left 2 and 4 px more above than below). jsdom has no layout: the contract is that each button sits in a slot as tall as one line
+  // of the field (the same class as the field), the row bottom-aligns its children, and the field does not use a fixed hit height of its own.
+  it('puts each icon button in a slot as tall as one line of the field, the row aligned at the bottom', async () => {
+    const box = await ready();
+    const row = box.parentElement as HTMLElement;
+    expect(row.className).toContain('items-end');
+    const slots = Array.from(row.querySelectorAll('[data-composer-slot]'));
+    expect(slots).toHaveLength(2);
+    expect(slots[0]).toContainElement(screen.getByRole('button', { name: 'Attach images' }));
+    expect(slots[1]).toContainElement(screen.getByRole('button', { name: 'Send' }));
+    expect(box.className).toContain(COMPOSER_ONE_LINE);
+    for (const slot of slots) {
+      expect(slot.className).toContain(COMPOSER_ONE_LINE);
+      expect(slot.className).toContain('items-center');
+      expect(slot.parentElement).toBe(row);
+    }
+    expect(box.className).not.toContain('min-h-am-hit');
   });
 });
 

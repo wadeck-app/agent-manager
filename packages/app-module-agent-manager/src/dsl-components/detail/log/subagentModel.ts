@@ -14,10 +14,10 @@ export interface SubagentItem {
   title: string;
 }
 
-export type StatusFilter = 'all' | 'active' | 'failed' | 'finished';
-export const STATUS_FILTERS: readonly StatusFilter[] = ['all', 'active', 'failed', 'finished'];
+export type StatusFilter = 'all' | 'active' | 'failed' | 'idle' | 'finished';
+export const STATUS_FILTERS: readonly StatusFilter[] = ['all', 'active', 'failed', 'idle', 'finished'];
 // 'Active', not 'Running': the server only knows that the transcript was written lately and no end marker exists (see SubagentDto.status).
-export const FILTER_LABEL: Record<StatusFilter, string> = { all: 'All', active: 'Active', failed: 'Failed', finished: 'Finished' };
+export const FILTER_LABEL: Record<StatusFilter, string> = { all: 'All', active: 'Active', failed: 'Failed', idle: 'Idle', finished: 'Finished' };
 
 export interface StatusLook {
   label: string;
@@ -93,6 +93,25 @@ export function describeCounts(counts: SubagentCounts): string {
   return parts.join(', ');
 }
 
+/** How long a failed or idle sub-agent stays among the rows that need the eye, after its last activity. Older ones fold into the collapsed line (counts and filters keep them). */
+export type KeepAge = '10m' | '1h' | '8h' | 'always';
+export const KEEP_AGES: readonly KeepAge[] = ['10m', '1h', '8h', 'always'];
+export const DEFAULT_KEEP_AGE: KeepAge = '1h';
+export const KEEP_LABEL: Record<KeepAge, string> = { '10m': '10 min', '1h': '1 h', '8h': '8 h', always: 'Always' };
+const KEEP_MS: Record<KeepAge, number> = { '10m': 10 * 60_000, '1h': 3_600_000, '8h': 8 * 3_600_000, always: Number.POSITIVE_INFINITY };
+
+/**
+ * True for a failed or idle sub-agent whose last activity (its end for a failed one) is older than the chosen age. Never for the other statuses (an unknown one
+ * stays in view: it is a read problem to fix), and never when no time is known (nothing says it is old).
+ */
+export function isStale(item: SubagentItem, now: number, keep: KeepAge): boolean {
+  if (item.status !== 'failed' && item.status !== 'idle') {
+    return false;
+  }
+  const at = item.dto.endedAt ?? item.dto.lastActivityAt;
+  return at !== undefined && now - at > KEEP_MS[keep];
+}
+
 export function filterItems(items: readonly SubagentItem[], filter: StatusFilter): SubagentItem[] {
   return filter === 'all' ? [...items] : items.filter((item) => item.status === filter);
 }
@@ -130,6 +149,30 @@ export function elapsedMs(item: SubagentItem, now: number): number | undefined {
 /** "last activity 12s ago", from the time of the last write and the CLIENT clock (the same clock as the live durations). */
 export function lastActivityText(lastActivityAt: number, now: number): string {
   return `last activity ${formatElapsed(Math.max(0, now - lastActivityAt))} ago`;
+}
+
+/** A time since: "42s", "5m", "2h 03m", "2d 1h" (coarser than formatElapsed: a long-dead sub-agent is not worth its seconds). */
+export function formatAge(ms: number): string {
+  const clamped = Math.max(0, ms);
+  const minutes = Math.floor(clamped / 60_000);
+  if (minutes < 1) {
+    return `${Math.floor(clamped / 1000)}s`;
+  }
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours}h ${String(minutes % 60).padStart(2, '0')}m` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
+/** What is known of an idle sub-agent: no end marker was written, and when it last wrote. */
+export function idleText(lastActivityAt: number, now: number): string {
+  return `no finish marker, last activity ${formatAge(now - lastActivityAt)} ago`;
+}
+
+/** "ended 2d 1h ago", from the end time of a failed sub-agent. */
+export function endedText(endedAt: number, now: number): string {
+  return `ended ${formatAge(now - endedAt)} ago`;
 }
 
 /** "42s", "3m 05s", "1h 12m": exact enough to compare sub-agents, short enough for a row. */

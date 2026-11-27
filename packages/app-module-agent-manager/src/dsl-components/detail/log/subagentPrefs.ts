@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DEFAULT_KEEP_AGE, KEEP_AGES, type KeepAge } from './subagentModel.js';
 import type { SubagentsMode, TimelineOrder } from './subagentTypes.js';
 
 export const SUBAGENT_PREFS_KEY = 'agent-manager.subagents.v1';
@@ -15,9 +16,11 @@ export interface SubagentPrefs {
   collapsed?: boolean;
   mode: SubagentsMode;
   order: TimelineOrder;
+  /** How long a failed or idle sub-agent stays among the rows that need the eye (older ones fold into the finished line). */
+  keep: KeepAge;
 }
 
-export const DEFAULT_PREFS: SubagentPrefs = { mode: 'summary', order: 'recent' };
+export const DEFAULT_PREFS: SubagentPrefs = { mode: 'summary', order: 'recent', keep: DEFAULT_KEEP_AGE };
 
 export const READ_PROBLEM = 'Your sub-agent panel settings could not be read: the defaults are used.';
 export const WRITE_PROBLEM = 'Your sub-agent panel settings could not be saved: they hold until the page is reloaded.';
@@ -65,8 +68,9 @@ export function readPrefs(): ReadPrefs {
     warnOnce(READ_PROBLEM, raw);
     return { prefs: DEFAULT_PREFS, problem: READ_PROBLEM };
   }
-  const { collapsed, mode, order } = stored;
-  const known = (collapsed === undefined || typeof collapsed === 'boolean') && (mode === undefined || mode === 'summary' || mode === 'timeline') && (order === undefined || order === 'recent' || order === 'oldest');
+  const { collapsed, mode, order, keep } = stored;
+  const keepKnown = keep === undefined || KEEP_AGES.some((age) => age === keep);
+  const known = (collapsed === undefined || typeof collapsed === 'boolean') && (mode === undefined || mode === 'summary' || mode === 'timeline') && (order === undefined || order === 'recent' || order === 'oldest') && keepKnown;
   if (!known) {
     warnOnce(READ_PROBLEM, raw);
   }
@@ -75,6 +79,7 @@ export function readPrefs(): ReadPrefs {
       ...(typeof collapsed === 'boolean' ? { collapsed } : {}),
       mode: mode === 'timeline' ? 'timeline' : 'summary',
       order: order === 'oldest' ? 'oldest' : 'recent',
+      keep: KEEP_AGES.find((age) => age === keep) ?? DEFAULT_KEEP_AGE,
     },
     problem: known ? '' : READ_PROBLEM,
   };

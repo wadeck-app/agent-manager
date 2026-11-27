@@ -22,7 +22,18 @@ import { useSyncDelivery } from './useSyncDelivery.js';
 import type { ReplyMarkerMode } from '../deps.js';
 import type { ComposerProps } from './types.js';
 
-const COMPOSER_TEXTAREA = 'max-h-64 min-h-am-hit min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60';
+// Height of ONE line of the field: the line of the text size plus the 0.75rem of padding, never below the hit size of the scale. The textarea grows from it
+// with the density (s: 36, m: 36, ml: 38, l: 40 px), whereas the icon buttons are a fixed 36 px: each button sits in a slot of exactly this height (COMPOSER_SLOT),
+// so with one line it is centred (equal space above and below), with several lines the slot, hence the button, stays at the bottom of the box (items-end).
+export const COMPOSER_ONE_LINE = 'min-h-[max(var(--am-hit),calc(var(--am-lh-base)_+_0.75rem))]';
+
+/** Holds one button of the row: as tall as one line of the field, the button centred in it. */
+export const COMPOSER_SLOT = `flex shrink-0 items-center ${COMPOSER_ONE_LINE}`;
+
+export const COMPOSER_TEXTAREA = `max-h-64 ${COMPOSER_ONE_LINE} min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60`;
+
+/** The typed cue: the same height as a slot, the icon centred. */
+export const COMPOSER_TYPED_CUE = `inline-flex ${COMPOSER_ONE_LINE} shrink-0 items-center text-muted ${FOCUS_RING}`;
 
 /** Height of the field in pixels: 8 lines of 20 px plus padding. Beyond it the field scrolls. */
 const MAX_FIELD_PX = 172;
@@ -228,24 +239,26 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
             event.target.value = '';
           }}
         />
-        <IconButton
-          variant="ghost"
-          className="relative"
-          aria-label={attachName}
-          tooltip={attachTip}
-          disabled={inactive || sending}
-          onClick={() => picker.current?.click()}
-          icon={
-            <>
-              <Paperclip aria-hidden="true" className="h-4 w-4" />
-              {images.length > 0 && limits !== undefined ? (
-                <CountBadge aria-hidden="true" className="absolute -right-0.5 -top-0.5">
-                  {images.length}/{limits.maxImages}
-                </CountBadge>
-              ) : null}
-            </>
-          }
-        />
+        <div data-composer-slot="" className={COMPOSER_SLOT}>
+          <IconButton
+            variant="ghost"
+            className="relative"
+            aria-label={attachName}
+            tooltip={attachTip}
+            disabled={inactive || sending}
+            onClick={() => picker.current?.click()}
+            icon={
+              <>
+                <Paperclip aria-hidden="true" className="h-4 w-4" />
+                {images.length > 0 && limits !== undefined ? (
+                  <CountBadge aria-hidden="true" className="absolute -right-0.5 -top-0.5">
+                    {images.length}/{limits.maxImages}
+                  </CountBadge>
+                ) : null}
+              </>
+            }
+          />
+        </div>
         <textarea
           ref={field}
           data-agent-composer
@@ -262,21 +275,23 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
         />
         {typed ? (
           <Tooltip content={`Sends as typed by you. ${typedWarning(selectedTransport?.transportId ?? '')}`}>
-            <span data-typed-cue="" tabIndex={0} aria-label="Sends as typed by you" className={`inline-flex h-am-hit shrink-0 items-center text-muted ${FOCUS_RING}`}>
+            <span data-typed-cue="" tabIndex={0} aria-label="Sends as typed by you" className={COMPOSER_TYPED_CUE}>
               <Keyboard aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
             </span>
           </Tooltip>
         ) : null}
         {/* The base primary icon button, like every other primary button of the shell (danger while the interrupt is armed). */}
-        <IconButton
-          variant={priority === 'now' ? 'danger' : 'primary'}
-          aria-label={sendLabel}
-          tooltip={attaching > 0 ? 'Waiting for the image to be prepared' : `${priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter.'}${markerTip === '' ? '' : ` ${markerTip}`}`}
-          disabled={inactive || sending || attaching > 0}
-          loading={sending}
-          onClick={requestSend}
-          icon={priority === 'now' ? <Zap aria-hidden="true" className="h-4 w-4" /> : <SendHorizontal aria-hidden="true" className="h-4 w-4" />}
-        />
+        <div data-composer-slot="" className={COMPOSER_SLOT}>
+          <IconButton
+            variant={priority === 'now' ? 'danger' : 'primary'}
+            aria-label={sendLabel}
+            tooltip={attaching > 0 ? 'Waiting for the image to be prepared' : `${priority === 'now' ? 'Interrupts the running tool call right away, no further question. Enter or Ctrl+Enter.' : 'Enter or Ctrl+Enter.'}${markerTip === '' ? '' : ` ${markerTip}`}`}
+            disabled={inactive || sending || attaching > 0}
+            loading={sending}
+            onClick={requestSend}
+            icon={priority === 'now' ? <Zap aria-hidden="true" className="h-4 w-4" /> : <SendHorizontal aria-hidden="true" className="h-4 w-4" />}
+          />
+        </div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <PriorityControl priority={priority} onChange={setPriority} disabled={inactive || sending} />

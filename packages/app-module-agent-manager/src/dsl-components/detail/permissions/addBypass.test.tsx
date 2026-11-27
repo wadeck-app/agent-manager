@@ -210,12 +210,15 @@ describe('the list of the session shows origin and uses left', () => {
     stubFetch({ ...CSRF, [RULES]: { body: rules() } });
     render(<PermissionsPanel session={session} feed={feed(okCli([cliGrant('a1b2c3d4', { origin: 'ui', usesLeft: 1 }), cliGrant('b2c3d4e5', { origin: 'dialog', usesLeft: null, mode: 'ttl' }), cliGrant('c3d4e5f6', { origin: null })]))} />);
     const first = document.querySelector('[data-cli-grant="a1b2c3d4"]') as HTMLElement;
-    expect(first).toHaveTextContent('added from this page');
-    expect(first).toHaveTextContent('1 use left');
+    // The origin and the id are in the tooltip of the row (not in the row itself).
+    expect(first).toHaveTextContent('Added from this page, with your PIN');
+    expect(first.querySelector('[data-grant-uses]')).toHaveTextContent('1 use left');
     const second = document.querySelector('[data-cli-grant="b2c3d4e5"]') as HTMLElement;
-    expect(second).toHaveTextContent('origin: dialog');
-    expect(second).toHaveTextContent('no use limit');
+    expect(second).toHaveTextContent('dialog');
+    // No use limit: nothing is said about uses.
+    expect(second.querySelector('[data-grant-uses]')).toBeNull();
+    expect(second).not.toHaveTextContent('no use limit');
     const third = document.querySelector('[data-cli-grant="c3d4e5f6"]') as HTMLElement;
-    expect(third.querySelector('[data-origin]')).toBeNull();
+    expect(third).not.toHaveTextContent('Origin');
   });
 });

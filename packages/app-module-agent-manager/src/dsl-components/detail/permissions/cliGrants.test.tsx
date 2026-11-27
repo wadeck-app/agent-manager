@@ -29,28 +29,30 @@ const CSRF = { 'GET /csrf': { body: { header: 'x-agent-manager-csrf', token: 't'
 const REVOKE = 'POST /guardrails/grants/a1b2c3d4/revoke';
 
 describe('the bypasses of the session from the admin CLI', () => {
-  it('lists category, mode, uses left, time left, reason and the full-session indicator; no "read from files" label', () => {
+  it('lists category, time left, the use limit (only when there is one) and the reason; the full id is in the tooltip, no "read from files" label', () => {
     render(<PermissionsPanel session={session} feed={feed({ kind: 'ok', data: data([cliGrant('a1b2c3d4'), cliGrant('b2c3d4e5', { category: 'interpreter-exec', mode: 'ttl', usesLeft: null, reason: '' })]) })} />);
     const mine = screen.getByRole('region', { name: 'This session' });
     const first = mine.querySelector('[data-cli-grant="a1b2c3d4"]') as HTMLElement;
     expect(within(first).getByText('rm')).toBeInTheDocument();
-    expect(within(first).getByText('once')).toBeInTheDocument();
-    expect(first).toHaveTextContent('1 use left');
-    expect(first).toHaveTextContent('10 min left');
-    expect(within(first).getByText('clean the build folder')).toBeInTheDocument();
-    hoverTip(first.querySelector('[data-full-session]') as HTMLElement);
-    expect(liveTooltip()).toHaveTextContent(`Matched on the full session id ${SID}`);
+    expect(first.querySelector('[data-grant-uses]')).toHaveTextContent('1 use left');
+    expect(first.querySelector('[data-grant-left]')).toHaveTextContent('10 min left');
+    expect(first.querySelector('[data-grant-reason]')).toHaveTextContent('clean the build folder');
+    // No key link on the row any more: the ids are in the tooltip of the reason.
+    expect(first.querySelector('[data-full-session]')).toBeNull();
+    hoverTip(first.querySelector('[data-grant-reason]') as HTMLElement);
+    expect(liveTooltip()).toHaveTextContent(`Session id${SID}`);
+    expect(liveTooltip()).toHaveTextContent('Bypass ida1b2c3d4');
     const second = mine.querySelector('[data-cli-grant="b2c3d4e5"]') as HTMLElement;
-    expect(second).toHaveTextContent('time-boxed');
-    expect(second).toHaveTextContent('no use limit');
-    expect(second).toHaveTextContent('No reason given');
+    expect(second.querySelector('[data-grant-uses]')).toBeNull();
+    expect(second).not.toHaveTextContent('no use limit');
+    expect(second.querySelector('[data-grant-reason]')).toHaveTextContent('No reason given');
     expect(screen.queryByText('read from files (admin CLI not found)')).toBeNull();
   });
 
   it('counts down every second without a new request, and a grant that ran out cannot be revoked', () => {
     vi.useFakeTimers();
     render(<PermissionsPanel session={session} feed={feed({ kind: 'ok', data: data([cliGrant('a1b2c3d4', { expiresAt: Date.now() + 65_000 })]) })} />);
-    const text = (): string => document.querySelector('[data-cli-grant]')?.textContent ?? '';
+    const text = (): string => document.querySelector('[data-grant-left]')?.textContent ?? '';
     expect(text()).toContain('1 min left');
     act(() => {
       vi.advanceTimersByTime(10_000);

@@ -1,12 +1,25 @@
-import type { LogEntry } from '../deps.js';
+import type { HookRowsVariant, LogEntry } from '../deps.js';
 import { toolLabel } from './toolChips.js';
 
 export type ToolCall = Extract<LogEntry, { kind: 'tool-call' }>;
 
-export type Row = { type: 'entry'; key: string; entry: LogEntry } | { type: 'group'; key: string; calls: ToolCall[] };
+/** What the "Hook rows" look condenses (see mergeSystemRows). */
+export type SystemEntry = Extract<LogEntry, { kind: 'hook' | 'system-notice' }>;
 
-/** Consecutive tool calls (two or more) become one collapsed group "N tool calls". The group key is the key of its first call: stable while calls are added. */
-export function buildRows(entries: readonly LogEntry[]): Row[] {
+export type Row =
+  | { type: 'entry'; key: string; entry: LogEntry }
+  | { type: 'group'; key: string; calls: ToolCall[] }
+  /** Consecutive hook and turn rows condensed by the "Hook rows" look of the dock (never built by buildRows). */
+  | { type: 'system'; key: string; entries: SystemEntry[]; look: Exclude<HookRowsVariant, 'rows'> };
+
+/**
+ * Consecutive tool calls (two or more) become one collapsed group "N tool calls". The group key is the key of its first call: stable while calls are added.
+ * `grouped: false` (the view option "Group consecutive calls" off): every call is its own row, in the order of the transcript.
+ */
+export function buildRows(entries: readonly LogEntry[], grouped = true): Row[] {
+  if (!grouped) {
+    return entries.map((entry) => ({ type: 'entry', key: entry.key, entry }));
+  }
   const rows: Row[] = [];
   let run: ToolCall[] = [];
   // Hook entries met inside a run (a hook is written between a call and its result): they do not split the group, they follow it.
@@ -65,4 +78,37 @@ export function toggleOpen(open: ReadonlySet<string>, key: string): Set<string> 
     next.add(key);
   }
   return next;
+}
+
+/** The entries the "Hook rows" look condenses: the hooks of Claude Code, the Stop hook summary and the turn duration. Other notices (commands, compaction) keep their rows. */
+export function isSystemEntry(entry: LogEntry): entry is SystemEntry {
+  return entry.kind === 'hook' || (entry.kind === 'system-notice' && (entry.noticeKind === 'stop-hook' || entry.noticeKind === 'turn-duration'));
+}
+
+/**
+ * Condenses every run of consecutive hook / stop-hook / turn-duration rows into ONE row (rows of the other kinds in between end the run, so a run never
+ * crosses a message). The key is the key of the first entry: stable while entries are added after it. `rows` look: the rows stay as they are.
+ */
+export function mergeSystemRows(rows: readonly Row[], look: HookRowsVariant): Row[] {
+  if (look === 'rows') {
+    return [...rows];
+  }
+  const out: Row[] = [];
+  let run: SystemEntry[] = [];
+  const flush = (): void => {
+    if (run.length > 0) {
+      out.push({ type: 'system', key: `system:${run[0]!.key}`, entries: run, look });
+      run = [];
+    }
+  };
+  for (const row of rows) {
+    if (row.type === 'entry' && isSystemEntry(row.entry)) {
+      run.push(row.entry);
+    } else {
+      flush();
+      out.push(row);
+    }
+  }
+  flush();
+  return out;
 }

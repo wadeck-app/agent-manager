@@ -1,12 +1,13 @@
 import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { ArrowDown, ChevronUp, LoaderCircle, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Banner, ThreadDialog } from '../deps.js';
+import { Banner, ThreadDialog, useUiVariant } from '../deps.js';
+import { CHAT_LAYOUTS } from './chatLayouts.js';
 import { FOCUS_RING } from '../deps.js';
 import { useMediaQuery, useMinWidth, useNow } from '../deps.js';
 import { settlePending, useDelivery, usePending } from '../pending.js';
 import { RowFrame } from './frames.js';
-import { buildRows, toggleOpen, type Row } from './grouping.js';
+import { buildRows, mergeSystemRows, toggleOpen, type Row } from './grouping.js';
 import { drawable, reconcilePending } from './reconcile.js';
 import { hideWebQueueLines } from './webQueue.js';
 import { applyFilters, useLogFilters } from './logFilters.js';
@@ -31,7 +32,7 @@ function rowMatches(row: Row, agent: { agentId: string; toolUseId?: string | und
   if (row.type === 'group') {
     return row.calls.some(hit);
   }
-  return row.entry.kind === 'tool-call' && hit(row.entry);
+  return row.type === 'entry' && row.entry.kind === 'tool-call' && hit(row.entry);
 }
 
 export const ANCHOR_NOT_IN_LOG =
@@ -108,7 +109,9 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
     () => applyFilters(hideWebQueueLines(state.entries), filters.prefs, (entry) => agent !== undefined && entry.kind === 'tool-call' && (entry.id === agent.toolUseId || entry.subagentId === agent.agentId)),
     [state.entries, filters.prefs, agent],
   );
-  const rows = useMemo(() => buildRows(filtered.entries), [filtered.entries]);
+  const hookLook = useUiVariant('hookRows');
+  const rows = useMemo(() => mergeSystemRows(buildRows(filtered.entries, filters.grouped), hookLook), [filtered.entries, filters.grouped, hookLook]);
+  const chatLayout = CHAT_LAYOUTS[useUiVariant('chatLayout')];
   // The header owns the filter button: it counts with what this log loaded.
   const { counts, hidden, hiddenTotal } = filtered;
   useEffect(() => {
@@ -255,6 +258,8 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
     }
   };
 
+  // One model per row, built once: a row needs the one before it (a following message of the same sender).
+  const models = rows.map((row) => describeRow(row, deliveryOf));
   const unseen = Math.max(0, state.appended - seenMark);
   const retryButton = (
 <ButtonAction variant="secondary" size="sm" icon={<RefreshCw aria-hidden="true" className="h-3.5 w-3.5" />} label="Retry" onClick={retry} />
@@ -268,6 +273,8 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
     onMode: (mode: typeof prefs.mode) => changePrefs({ mode }),
     order: prefs.order,
     onOrder: (order: typeof prefs.order) => changePrefs({ order }),
+    keep: prefs.keep,
+    onKeep: (keep: typeof prefs.keep) => changePrefs({ keep }),
     selectedId: locate.selectedId,
     phase: locate.phase,
     onSelect: locate.select,
@@ -318,8 +325,11 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
             {state.loaded && rows.length === 0 && state.entries.length > 0 && filtered.hiddenTotal > 0 && shownPending.length === 0 ? (
               <p className={`py-8 text-center ${LOG_META} text-muted`}>Every loaded entry is hidden by the filters ({filtered.hiddenTotal} hidden).</p>
             ) : null}
-            <div className={`mx-auto flex w-full max-w-am-log flex-col gap-2`}>
-              {rows.map((row) => (
+            <div className={`mx-auto flex w-full max-w-am-log flex-col ${chatLayout.gap}`}>
+              {rows.map((row, index) => {
+                const model = models[index]!;
+                const before = models[index - 1];
+                return (
                 // A new key at each "shown" event restarts the pulse animation on the same row.
                 <div
                   key={hot.has(row.key) ? `${row.key}:${locate.pulse}:${focusPulse}` : row.key}
@@ -329,8 +339,9 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
                   className={hot.has(row.key) ? 'animate-am-pulse rounded-lg motion-reduce:animate-none' : undefined}
                 >
                   <RowFrame
-                    model={describeRow(row, deliveryOf)}
-                    sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.entry.kind === 'user-prompt' && row.entry.webReply !== undefined ? [row.entry, delivery.get(row.entry.webReply.messageId)] : row.entry}
+                    model={model}
+                    continued={before !== undefined && before.role === model.role}
+                    sig={row.type === 'group' ? [...row.calls, ...row.calls.map((call) => open.has(call.key))] : row.type === 'system' ? [...row.entries, row.look, ...row.entries.map((entry) => open.has(entry.key))] : row.entry.kind === 'user-prompt' && row.entry.webReply !== undefined ? [row.entry, delivery.get(row.entry.webReply.messageId)] : row.entry}
                       open={open.has(row.key)}
                     onToggle={toggle}
                     context={context}
@@ -339,7 +350,8 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
                     {...(onThreadStarted === undefined ? {} : { onThread: openThread })}
                   />
                 </div>
-              ))}
+                );
+              })}
               {shownPending.map((message) => (
                 <div key={`pending:${message.messageId}`} data-pending="true">
                   <RowFrame model={describePending(message, now)} sig={[message, Math.floor(now / 30_000)]} open={true} onToggle={toggle} context={context} now={now} highlighted={false} />

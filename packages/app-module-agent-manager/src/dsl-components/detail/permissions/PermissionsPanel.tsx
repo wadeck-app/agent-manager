@@ -1,8 +1,8 @@
 import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
-import { Plus, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Plus, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
-import { blockedCountsText, bypassCommand, RECENT_WINDOW_TEXT, failureText, MODE_CHOICES, PAGE_BASE, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantAddedDto, type GrantRevokedDto } from '../deps.js';
-import { CopyButton } from '../log/CopyButton.js';
+import { failureText, MODE_CHOICES, PAGE_BASE, PageLink, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantAddedDto, type GrantRevokedDto } from '../deps.js';
+import { BlockedSection } from './BlockedSection.js';
 import { CliGrantList } from './CliGrantList.js';
 import { AddBypassDialog } from './AddBypassDialog.js';
 import { GrantList } from './GrantList.js';
@@ -12,12 +12,6 @@ import { useSessionRules } from './useSessionRules.js';
 
 const NOTE = 'text-xs text-muted';
 
-const NO_BREAK_SPACE = String.fromCharCode(160);
-
-/** "30 min" never breaks between the number and the unit (a no-break space): "min" alone on a second line says nothing. */
-function keepMinutesTogether(text: string): string {
-  return text.replaceAll(RECENT_WINDOW_TEXT, RECENT_WINDOW_TEXT.replaceAll(' ', NO_BREAK_SPACE));
-}
 const WARN = 'border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text';
 
 /**
@@ -30,7 +24,6 @@ const WARN = 'border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-war
 export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: SessionGrantsFeed }) {
   const now = useNow(15_000);
   const { overview, view, error, loading, reload, cli } = feed;
-  const blocks = session.guardrailBlocks;
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
   const [rulesTick, setRulesTick] = useState(0);
@@ -47,24 +40,25 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
     setOutcome({ done: `Added a ${result.category} bypass ${length} (${result.id}). It is listed below.`, warning: result.auditError, failed: '' });
     refresh();
   };
-  const revoke = async (grant: CliGrantDto): Promise<void> => {
+  // True when the PIN-gated request went through (a group of bypasses stops at the first one that did not).
+  const revoke = async (grant: CliGrantDto): Promise<boolean> => {
     setBusy(true);
     setOutcome({ done: '', warning: '', failed: '' });
     const result = await requestJson<GrantRevokedDto>(`/guardrails/grants/${grant.id}/revoke`, { method: 'POST', body: { sessionId: session.sessionId } });
     setBusy(false);
     if (!result.ok || !result.value.ok) {
       setOutcome({ done: '', warning: '', failed: `The ${grant.category} bypass ${grant.id} was not revoked. ${result.ok ? failureText(result.value, 200) : result.text}` });
-    } else {
-      setOutcome({ done: `Revoked the ${grant.category} bypass (${grant.id}). The guardrail applies again to this session.`, warning: result.value.auditError, failed: '' });
+      reload();
+      return false;
     }
+    setOutcome({ done: `Revoked the ${grant.category} bypass (${grant.id}). The guardrail applies again to this session.`, warning: result.value.auditError, failed: '' });
     reload();
+    return true;
   };
   return (
     <div data-permissions-panel="" className="flex flex-col">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5">
-        <a href={`${PAGE_BASE}/guardrails`} className="text-xs text-primary underline">
-          Guardrails page
-        </a>
+        <PageLink to={`${PAGE_BASE}/guardrails`} label="Guardrails page" />
         <IconButton size="icon-xs" aria-label="Refresh the permissions" disabled={loading} onClick={refresh} icon={<RefreshCw aria-hidden="true" className={`h-3 w-3 ${loading ? 'animate-spin motion-reduce:animate-none' : ''}`} />} />
       </div>
       {error !== '' ? (
@@ -93,7 +87,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
         </p>
       )}
       {cli.kind === 'loading' ? <p className={`px-3 py-2 ${NOTE}`}>Reading the bypasses of this session from the plugin...</p> : null}
-      {cli.kind === 'ok' ? <CliGrantList grants={cli.data.grants} cwdNote={cli.data.cwdNote} busy={busy} onRevoke={(grant) => void revoke(grant)} /> : null}
+      {cli.kind === 'ok' ? <CliGrantList grants={cli.data.grants} cwdNote={cli.data.cwdNote} busy={busy} onRevoke={revoke} /> : null}
       {cli.kind === 'error' ? (
         <section aria-label="This session" className="border-b border-border">
           <p role="alert" className={WARN}>
@@ -120,28 +114,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
           />
         </>
       ) : null}
-      <section aria-label="Blocked" className="border-b border-border px-3 py-2">
-        <h4 className="flex items-center gap-1.5 text-xs font-medium text-content">
-          <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm text-muted" />
-          Blocked
-          <span className="tabular-nums text-muted">{keepMinutesTogether(blockedCountsText(blocks))}</span>
-        </h4>
-        {blocks === undefined ? (
-          <p className={`mt-1 ${NOTE}`}>No guardrail blocked this session (the plugin has no counter for it).</p>
-        ) : (
-          <ul aria-label="Blocked by category" className="mt-1 flex flex-col gap-0.5">
-            {blocks.categories.map((item) => (
-              <li key={item.category} className="flex items-center gap-1 text-xs">
-                <span className="min-w-0 flex-1 truncate text-content">{item.category}</span>
-                <span className="tabular-nums text-muted">{item.count}</span>
-                <CopyButton text={bypassCommand(item.category)} label={`Copy ${bypassCommand(item.category)}: run it in this session yourself, the module grants nothing`} />
-              </li>
-            ))}
-          </ul>
-        )}
-        {view?.session !== undefined && view.session.refusedCount > 0 ? <p className={`mt-1 ${NOTE}`}>{`${view.session.refusedCount} bypass request${view.session.refusedCount === 1 ? ' was' : 's were'} refused or ignored.`}</p> : null}
-        {blocks?.timeout === true ? <p className="mt-1 text-xs text-warning-text">Bypass requests are timed out for this session.</p> : null}
-      </section>
+      <BlockedSection session={session} view={view} />
       <section aria-label="Request a bypass" className="flex flex-col gap-2 px-3 py-2">
         <p className={NOTE}>Add a bypass for this session here (your PIN is asked), or copy a command above and run it in the session: you then answer the plugin dialog there.</p>
         <div>

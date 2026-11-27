@@ -14,6 +14,7 @@ import { Markdown } from './markdown.js';
 import { LOG_ICON, LOG_META, LOG_MONO } from './sizes.js';
 import { ToolBody, durationText } from './ToolBody.js';
 import { ToolStatusIcon } from './ToolStatusIcon.js';
+import { describeSystem, type SystemModel } from './systemModel.js';
 
 const TOOL_LINE_BUTTON = 'flex w-full items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-muted-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
@@ -49,6 +50,8 @@ export interface RowModel {
   /** The id of the tool call, for the highlight of its sub-agent. */
   callId?: string;
   subagentId?: string;
+  /** A run of hooks and turn rows condensed by the "Hook rows" look: the frame draws it as a footer or a chip strip when the look says so. */
+  system?: SystemModel;
 }
 
 function truncatedNote(truncated: boolean, bytes: number, shownChars: number): ReactNode {
@@ -382,6 +385,9 @@ export function describeGroup(row: Extract<Row, { type: 'group' }>): RowModel {
 }
 
 export function describeRow(row: Row, deliveryOf?: DeliveryLookup): RowModel {
+  if (row.type === 'system') {
+    return describeSystem(row, (entry) => describeEntry(entry, deliveryOf));
+  }
   return row.type === 'group' ? describeGroup(row) : describeEntry(row.entry, deliveryOf);
 }
 

@@ -10,16 +10,11 @@ import { GuardrailChip } from '../guardrails/GuardrailChip.js';
 import { TimeInState } from './TimeInState.js';
 import { RowIconButton } from './RowIconButton.js';
 import { RowMenuButton } from './RowMenuButton.js';
-import { InlineSecondary, isStacked, secondaryBox } from './RowSecondary.js';
-import { SrComma } from './SrComma.js';
-import { useUiVariant } from '../ui/UiVariants.js';
+import { InlineSecondary, SECONDARY_BOX } from './RowSecondary.js';
 import { isQuietRow, nameClasses } from '../logic/rowLook.js';
 import { useRowLook } from './RowLookContext.js';
 
 const ROW_LINE = 'flex h-5 min-w-0 flex-1 flex-wrap items-center gap-x-2 overflow-hidden leading-5';
-
-/** The stacked look (variant E of `ui-row-separator`): the name above the folder, each cut by its own ellipsis. */
-const ROW_STACK = 'flex min-w-0 flex-1 flex-col justify-center overflow-hidden';
 
 export interface HerdrRowBodyProps {
   session: AgentRow;
@@ -42,15 +37,11 @@ export interface HerdrRowBodyProps {
 export const BOLD_NAME_RESERVE = '-mr-1.5';
 
 /**
- * The content of an agent row in the Herdr variants of the A/B question `ui-tree-density`: program icon, bold name, the folder (its separator is the A/B question `ui-row-separator`), the marks
+ * The content of an agent row in the Herdr variants of the A/B question `ui-tree-density`: program icon, bold name, the folder (colour and gap, lists/RowSecondary.tsx), the marks
  * (host, pin, sub-agents) then the age and the state light on the right. 31 px high, one line, like the Herdr panel. The row click and keyboard are the Tree's.
  */
 export function HerdrRowBody({ session, density, hideFolder = false, selected = false, now, terms, showSlot, subagents, onMenu }: HerdrRowBodyProps) {
   const showFolder = !hideFolder && herdrRowShape(density).folder && session.folder !== session.displayName;
-  const variant = useUiVariant('rowSeparator');
-  const stacked = isStacked(variant);
-  // Never 'stacked' where it is used (the one-line branch); the narrowing keeps the switch of InlineSecondary exhaustive.
-  const separator = variant === 'stacked' ? 'space' : variant;
   // The row look (logic/rowLook.ts): a plain name for every agent by default; the Herdr look (a bold open name, a grey quiet one) is the settings boldActive and dimIdle.
   const look = useRowLook();
   // A bold name is wider than the same name in the regular weight (measured: 139.4 px against 133.5 px for "agent-manager-owner"), and the open row would cut a name
@@ -76,32 +67,18 @@ export function HerdrRowBody({ session, density, hideFolder = false, selected = 
       {/* The name comes first: it takes what it needs up to the whole box. The folder wraps out of the one-line clipped box (never squeezes the name) when less than its minimum is left. */}
       <span data-name-box="" className={`flex min-w-0 flex-1 ${reserve}`}>
       <RowTip session={session} line={detailLine(session)}>
-        {stacked ? (
-          <span data-tip-fill="" data-herdr-stack="" className={ROW_STACK}>
-            <span data-herdr-name="" className={`min-w-0 max-w-full truncate leading-4 ${nameClass}`}>
-              <Highlight text={session.displayName} terms={terms} />
-            </span>
-            {showFolder ? (
-              <span data-herdr-folder="" className="min-w-0 max-w-full truncate text-[11px] leading-4 text-muted-tint">
-                <SrComma />
+        <span data-tip-fill="" className={ROW_LINE}>
+          <span data-herdr-name="" className={`min-w-0 max-w-full truncate ${nameClass}`}>
+            <Highlight text={session.displayName} terms={terms} />
+          </span>
+          {showFolder ? (
+            <span data-herdr-folder="" className={`flex shrink grow items-center overflow-hidden text-[13px] ${SECONDARY_BOX}`}>
+              <InlineSecondary textClass="text-[13px]">
                 <Highlight text={session.folder} terms={terms} />
-              </span>
-            ) : null}
-          </span>
-        ) : (
-          <span data-tip-fill="" className={ROW_LINE}>
-            <span data-herdr-name="" className={`min-w-0 max-w-full truncate ${nameClass}`}>
-              <Highlight text={session.displayName} terms={terms} />
+              </InlineSecondary>
             </span>
-            {showFolder ? (
-              <span data-herdr-folder="" className={`flex shrink grow items-center overflow-hidden text-[13px] ${secondaryBox(separator)}`}>
-                <InlineSecondary variant={separator} textClass="text-[13px]">
-                  <Highlight text={session.folder} terms={terms} />
-                </InlineSecondary>
-              </span>
-            ) : null}
-          </span>
-        )}
+          ) : null}
+        </span>
       </RowTip>
       </span>
       {session.flagged ? (

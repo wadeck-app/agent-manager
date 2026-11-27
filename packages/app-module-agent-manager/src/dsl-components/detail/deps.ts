@@ -35,3 +35,11 @@ export { THREAD_MEANING, threadAnchorOf, threadChipText } from '../logic/threadF
 export type { ThreadAnchor } from '../logic/threadForm.js';
 export type { OwnedSessionDto } from '../shared.js';
 export { TIP_FILL } from '../ui/tipWrap.js';
+export { PageLink } from '../ui/PageLink.js';
+export { BLOCKED_RANKINGS, BLOCKED_RANKING_KEY, BLOCKED_RANKING_LABEL, isBlockedRanking, rankBlocks, readBlockedRanking, saveBlockedRanking } from '../logic/blockedRanking.js';
+export type { BlockedRanking } from '../logic/blockedRanking.js';
+export type { ChatLayoutVariant } from '../logic/uiVariants.js';
+export { GRANT_ROW, DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
+export type { GrantRowVariant } from '../logic/uiVariants.js';
+export type { HookRowsVariant } from '../logic/uiVariants.js';
+export { UiVariantsContext } from '../ui/UiVariants.js';

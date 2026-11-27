@@ -8,9 +8,13 @@ import type { LogEntry } from '../deps.js';
  *   (source peer) or from a finished background task or sub-agent (task-notification: the origin does not say which of the two), and the queue lines of those.
  *   A message the person sent from here (webReply) is the person's, not an agent's.
  * - tools: every other tool call.
+ * - thinking: the collapsed "Thinking" blocks of Claude (kind `thinking`).
+ * - queue: the harness queue lines (enqueue, dequeue, remove...) that are not messages between agents (those are in "agents").
  */
-export type LogCategory = 'hooks' | 'tools' | 'agents';
-export const LOG_CATEGORIES: readonly LogCategory[] = ['hooks', 'tools', 'agents'];
+export type LogCategory = 'hooks' | 'tools' | 'agents' | 'thinking' | 'queue';
+export const LOG_CATEGORIES: readonly LogCategory[] = ['hooks', 'tools', 'agents', 'thinking', 'queue'];
+
+const zeroCounts = (): Record<LogCategory, number> => ({ hooks: 0, tools: 0, agents: 0, thinking: 0, queue: 0 });
 
 const AGENT_TOOLS: ReadonlySet<string> = new Set(['SendMessage', 'Agent', 'Task']);
 
@@ -24,8 +28,10 @@ export function categoryOf(entry: LogEntry): LogCategory | undefined {
       return AGENT_TOOLS.has(entry.name) ? 'agents' : 'tools';
     case 'user-prompt':
       return entry.webReply === undefined && (entry.source === 'peer' || entry.source === 'task-notification') ? 'agents' : undefined;
+    case 'thinking':
+      return 'thinking';
     case 'queue-operation':
-      return entry.contentKind === 'cross-session-message' || entry.contentKind === 'task-notification' ? 'agents' : undefined;
+      return entry.contentKind === 'cross-session-message' || entry.contentKind === 'task-notification' ? 'agents' : 'queue';
   }
   // Every other kind (what the person and Claude say, the notices, the model rows): never filtered.
   return undefined;
@@ -33,8 +39,8 @@ export function categoryOf(entry: LogEntry): LogCategory | undefined {
 
 export type FilterPrefs = Record<LogCategory, boolean>;
 
-/** Hooks are noise for most readings (two per tool call): off. */
-export const DEFAULT_FILTERS: FilterPrefs = { hooks: false, tools: true, agents: true };
+/** Hooks are noise for most readings (two per tool call): off. Thinking and queue lines are shown, as before the filters existed for them. */
+export const DEFAULT_FILTERS: FilterPrefs = { hooks: false, tools: true, agents: true, thinking: true, queue: true };
 
 export interface Filtered {
   entries: LogEntry[];
@@ -47,8 +53,8 @@ export interface Filtered {
 
 /** `keep`: an entry the page needs on screen (the call of the selected sub-agent) stays whatever the filter says. */
 export function applyFilters(entries: readonly LogEntry[], prefs: FilterPrefs, keep?: (entry: LogEntry) => boolean): Filtered {
-  const counts: Record<LogCategory, number> = { hooks: 0, tools: 0, agents: 0 };
-  const hidden: Record<LogCategory, number> = { hooks: 0, tools: 0, agents: 0 };
+  const counts = zeroCounts();
+  const hidden = zeroCounts();
   const shown: LogEntry[] = [];
   for (const entry of entries) {
     const category = categoryOf(entry);
@@ -63,7 +69,7 @@ export function applyFilters(entries: readonly LogEntry[], prefs: FilterPrefs, k
       hidden[category] += 1;
     }
   }
-  return { entries: shown, counts, hidden, hiddenTotal: hidden.hooks + hidden.tools + hidden.agents };
+  return { entries: shown, counts, hidden, hiddenTotal: LOG_CATEGORIES.reduce((total, category) => total + hidden[category], 0) };
 }
 
 export const FILTER_PREFS_KEY = 'agent-manager.log-filters.v1';
@@ -85,6 +91,19 @@ function asObject(value: unknown): Record<string, unknown> | undefined {
 
 /** The field of the stored object that says whether the full filter bar is shown above the log (hidden by default: the header popup holds the same options). */
 const BAR_FIELD = 'bar';
+
+/** The field of the stored object that says whether consecutive tool calls are folded into one row (true, the default) or each call has its own row. */
+const GROUP_FIELD = 'group';
+
+/** Whether the saved choice groups consecutive tool calls. Anything unreadable is "grouped" (the default): readFilterPrefs already said so. */
+export function readGroupPref(): boolean {
+  try {
+    const raw = window.localStorage.getItem(FILTER_PREFS_KEY);
+    return raw === null || asObject(JSON.parse(raw))?.[GROUP_FIELD] !== false;
+  } catch {
+    return true;
+  }
+}
 
 /** Whether the saved choice shows the filter bar. Anything unreadable is "hidden": readFilterPrefs already said so. */
 export function readBarPref(): boolean {
@@ -122,15 +141,15 @@ export function readFilterPrefs(): ReadFilters {
   } catch (error) {
     return fail(error);
   }
-  if (stored === undefined || LOG_CATEGORIES.some((category) => stored[category] !== undefined && typeof stored[category] !== 'boolean') || (stored[BAR_FIELD] !== undefined && typeof stored[BAR_FIELD] !== 'boolean')) {
+  if (stored === undefined || LOG_CATEGORIES.some((category) => stored[category] !== undefined && typeof stored[category] !== 'boolean') || (stored[BAR_FIELD] !== undefined && typeof stored[BAR_FIELD] !== 'boolean') || (stored[GROUP_FIELD] !== undefined && typeof stored[GROUP_FIELD] !== 'boolean')) {
     return fail(raw);
   }
   const value = (category: LogCategory): boolean => (typeof stored[category] === 'boolean' ? stored[category] : DEFAULT_FILTERS[category]);
-  return { prefs: { hooks: value('hooks'), tools: value('tools'), agents: value('agents') }, problem: '' };
+  return { prefs: { hooks: value('hooks'), tools: value('tools'), agents: value('agents'), thinking: value('thinking'), queue: value('queue') }, problem: '' };
 }
 
 /** Writes ONLY the changed fields (merged with what is stored now, so another tab's choice for another field is kept). A sentence when the storage refused. */
-function writeMerged(patch: Partial<FilterPrefs> & { bar?: boolean }): string {
+function writeMerged(patch: Partial<FilterPrefs> & { bar?: boolean; group?: boolean }): string {
   try {
     const raw = window.localStorage.getItem(FILTER_PREFS_KEY);
     let stored: Record<string, unknown> = {};
@@ -158,33 +177,37 @@ export interface LogFiltersFeed {
   /** The full filter bar is shown above the log (off by default: the popup of the header holds the same options). */
   showBar: boolean;
   setShowBar: (show: boolean) => void;
-  /** Back to the defaults (hooks hidden, tool calls and agent messages shown). The "show the bar" choice is a display option, not a filter: kept. */
+  /** Consecutive tool calls (and agent calls) are one grouped row (true, the default) or one row per call (false). A display option, not a filter: nothing is hidden either way. */
+  grouped: boolean;
+  setGrouped: (grouped: boolean) => void;
+  /** Back to the defaults (hooks hidden, everything else shown). The "show the bar" and "group tool calls" choices are display options, not filters: kept. */
   reset: () => void;
-  /** The three toggles are at their defaults. */
+  /** The toggles are at their defaults. */
   isDefault: boolean;
 }
 
 interface FeedState extends ReadFilters {
   bar: boolean;
+  grouped: boolean;
 }
 
-type Change = Partial<FilterPrefs> & { bar?: boolean };
+type Change = Partial<FilterPrefs> & { bar?: boolean; group?: boolean };
 
 /** Every hook instance of this page (the log and the popup of the header): a change made in one reaches the others at once (the storage event only reaches other tabs). */
 const peers = new Set<(patch: Change, problem: string) => void>();
 
 const applyChange = (current: FeedState, patch: Change, problem: string): FeedState => {
-  const { bar, ...categories } = patch;
-  return { prefs: { ...current.prefs, ...categories }, bar: bar ?? current.bar, problem: problem !== '' ? problem : current.problem };
+  const { bar, group, ...categories } = patch;
+  return { prefs: { ...current.prefs, ...categories }, bar: bar ?? current.bar, grouped: group ?? current.grouped, problem: problem !== '' ? problem : current.problem };
 };
 
 /** The choices of the filter bar, a setter that remembers them (localStorage), and the follow-up of the other tabs and of the other users of this hook in the page. */
 export function useLogFilters(): LogFiltersFeed {
-  const [state, setState] = useState<FeedState>(() => ({ ...readFilterPrefs(), bar: readBarPref() }));
+  const [state, setState] = useState<FeedState>(() => ({ ...readFilterPrefs(), bar: readBarPref(), grouped: readGroupPref() }));
   useEffect(() => {
     const onStorage = (event: StorageEvent): void => {
       if (event.key === null || event.key === FILTER_PREFS_KEY) {
-        setState({ ...readFilterPrefs(), bar: readBarPref() });
+        setState({ ...readFilterPrefs(), bar: readBarPref(), grouped: readGroupPref() });
       }
     };
     const onPeer = (patch: Change, problem: string): void => setState((current) => applyChange(current, patch, problem));
@@ -203,8 +226,9 @@ export function useLogFilters(): LogFiltersFeed {
   }, []);
   const change = useCallback((patch: Partial<FilterPrefs>) => apply(patch), [apply]);
   const setShowBar = useCallback((show: boolean) => apply({ bar: show }), [apply]);
+  const setGrouped = useCallback((grouped: boolean) => apply({ group: grouped }), [apply]);
   const reset = useCallback(() => apply({ ...DEFAULT_FILTERS }), [apply]);
   const dismissProblem = useCallback(() => setState((current) => ({ ...current, problem: '' })), []);
   const isDefault = LOG_CATEGORIES.every((category) => state.prefs[category] === DEFAULT_FILTERS[category]);
-  return { prefs: state.prefs, problem: state.problem, change, dismissProblem, showBar: state.bar, setShowBar, reset, isDefault };
+  return { prefs: state.prefs, problem: state.problem, change, dismissProblem, showBar: state.bar, setShowBar, grouped: state.grouped, setGrouped, reset, isDefault };
 }

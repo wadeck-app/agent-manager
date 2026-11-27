@@ -12,16 +12,17 @@ const strict = ({ children }: { children: ReactNode }) => <StrictMode>{children}
 
 describe('readPrefs', () => {
   it('nothing saved is not a problem', () => {
-    expect(readPrefs()).toEqual({ prefs: { mode: 'summary', order: 'recent' }, problem: '' });
+    expect(readPrefs()).toEqual({ prefs: { mode: 'summary', order: 'recent', keep: '1h' }, problem: '' });
   });
 
-  it.each([['text that is not JSON', '{nope'], ['JSON that is not an object', '[1]'], ['an unknown mode', '{"mode":"groups"}'], ['an unknown order', '{"order":"sideways"}'], ['a collapsed that is not a boolean', '{"collapsed":"yes"}']])('%s: the defaults, a sentence, one console warning', (_name, raw) => {
+  it.each([['text that is not JSON', '{nope'], ['JSON that is not an object', '[1]'], ['an unknown mode', '{"mode":"groups"}'], ['an unknown order', '{"order":"sideways"}'], ['a collapsed that is not a boolean', '{"collapsed":"yes"}'], ['an unknown keep age', '{"keep":"2h"}']])('%s: the defaults, a sentence, one console warning', (_name, raw) => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     window.localStorage.setItem(SUBAGENT_PREFS_KEY, raw);
     const read = readPrefs();
     expect(read.problem).toBe(READ_PROBLEM);
     expect(read.prefs.mode).toBe('summary');
     expect(read.prefs.order).toBe('recent');
+    expect(read.prefs.keep).toBe('1h');
     // Reading it again does not warn again.
     readPrefs();
     expect(warn.mock.calls.filter((call) => String(call[0]).includes('could not be read')).length).toBeLessThanOrEqual(1);

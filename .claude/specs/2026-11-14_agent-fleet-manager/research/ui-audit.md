@@ -365,3 +365,9 @@ Hand-made markup where a base component exists (not fixed here):
 - Batch popup: strip from the menu edge to the window edge, pill centered, no list avoidance (D2026-11-26b). Measured center = content area center (760 at 1280 with menu, 640 menu hidden, 229.95 at 390).
 - Not verifiable headless: Shift+F10 / ContextMenu key through the browser (covered by unit tests only).
 - Screenshots (throwaway): `poc/results/sel/`.
+
+## Decisions of 2026-11-27 (hand-over icon, row separator, header placement)
+
+- ui-row-separator settled on A Colour and space (name in the content colour, folder muted after an 8 px gap, folder cut first); question and variants B to E removed (code: `lists/RowSecondary.tsx`).
+- ui-header-placement: default is now `in-trail` (breadcrumb row, the user's choice); `in-page` stays as the second option.
+- ui-switch-readiness: the five two-arrow looks (corner, dashed, faded, filled, bar) are rejected ("the arrows do not make sense"). New looks, none a pair of arrows: A window (destination host window + small corner arrow, tone on the busy arrow only), B steering wheel, C plug, D split pill, E two slots. Common rule: free = empty drawing, busy = a part filled, unknown = a part dotted. Default A. Contact sheet and judgement: `poc/results/handover2/`, generator `poc/scripts/handover-sheet.mjs`.

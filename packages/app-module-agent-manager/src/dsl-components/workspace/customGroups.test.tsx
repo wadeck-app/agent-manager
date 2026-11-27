@@ -9,6 +9,7 @@ import { stubFetch } from '../owned/testFetch.js';
 import type { CustomGroupDto, SessionRowDto } from '../shared.js';
 import { useCustomGroups, type SendGroupRequest } from './useCustomGroups.js';
 import { expectNoticeDetails } from '../ui/noticeTestKit.js';
+import { TrailSlot } from '../ui/TrailSlot.js';
 import { Workspace } from './Workspace.js';
 
 beforeEach(() => {
@@ -24,7 +25,9 @@ function Page({ sessions, customGroups, mode = '' }: { sessions: SessionRowDto[]
   const service: UrlParamService = { get: (key) => (params[key] === '' ? null : (params[key] ?? null)), set: (key, value) => setParams((current) => ({ ...current, [key]: value })) };
   return (
     <UrlParamContext.Provider value={service}>
-      <Workspace sessions={sessions} customGroups={customGroups} userStateError="" hiddenDead={0} ownedError={null} ownedErrorText="" />
+      <TrailSlot>
+        <Workspace sessions={sessions} customGroups={customGroups} userStateError="" hiddenDead={0} ownedError={null} ownedErrorText="" />
+      </TrailSlot>
     </UrlParamContext.Provider>
   );
 }

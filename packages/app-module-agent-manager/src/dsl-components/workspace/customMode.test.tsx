@@ -8,6 +8,7 @@ import { row } from '../logic/fixtures.js';
 import { stubFetch } from '../owned/testFetch.js';
 import type { CustomGroupDto, SessionRowDto } from '../shared.js';
 import { applyPatch, reflected } from './useOptimisticRows.js';
+import { TrailSlot } from '../ui/TrailSlot.js';
 import { Workspace } from './Workspace.js';
 
 beforeEach(() => {
@@ -23,7 +24,9 @@ function Page({ sessions, customGroups }: { sessions: SessionRowDto[]; customGro
   const service: UrlParamService = { get: (key) => (params[key] === '' ? null : (params[key] ?? null)), set: (key, value) => setParams((current) => ({ ...current, [key]: value })) };
   return (
     <UrlParamContext.Provider value={service}>
-      <Workspace sessions={sessions} customGroups={customGroups} userStateError="" hiddenDead={0} ownedError={null} ownedErrorText="" />
+      <TrailSlot>
+        <Workspace sessions={sessions} customGroups={customGroups} userStateError="" hiddenDead={0} ownedError={null} ownedErrorText="" />
+      </TrailSlot>
     </UrlParamContext.Provider>
   );
 }

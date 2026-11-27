@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ownedDto, ownedRow } from '../logic/fixtures.js';
 import { prose } from '../logic/prose.js';
 import type { AdoptReadinessDto, SessionRowDto } from '../shared.js';
-import { DEFAULT_UI_VARIANTS, type SwitchReadinessVariant } from '../logic/uiVariants.js';
+import { DEFAULT_UI_VARIANTS, SWITCH_READINESS, type SwitchReadinessVariant } from '../logic/uiVariants.js';
 import { UiVariantsContext } from '../ui/UiVariants.js';
 import { DaemonStateProvider } from './DaemonState.js';
 import { OwnedBar } from './OwnedBar.js';
@@ -251,7 +251,7 @@ describe('a draft in the terminal', () => {
 });
 
 describe('the hand-over icon of the one-line header: plain, structured tooltip, state in a part of the glyph', () => {
-  function compactBar(adoptReadiness: AdoptReadinessDto, look: SwitchReadinessVariant = 'corner') {
+  function compactBar(adoptReadiness: AdoptReadinessDto, look: SwitchReadinessVariant = DEFAULT_UI_VARIANTS.switchReadiness) {
     return render(
       <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, switchReadiness: look }}>
         <OwnedBar session={ownedRow({ sessionId: ID, adoptReadiness })} onChange={vi.fn()} onForgotten={vi.fn()} inline={{ slot: document.body }} />
@@ -295,7 +295,7 @@ describe('the hand-over icon of the one-line header: plain, structured tooltip, 
   });
 
   it('a click on a busy session still asks for the confirmation first, whatever the look', async () => {
-    for (const look of ['corner', 'dashed', 'faded', 'filled', 'bar'] as const) {
+    for (const look of SWITCH_READINESS) {
       const { calls } = stubFetch({ ...LIST });
       const { unmount } = compactBar(BUSY, look);
       await screen.findByLabelText('Permission mode');
