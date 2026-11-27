@@ -1,11 +1,11 @@
 import { Tooltip, useDateFormat } from '@wadeck-app/dsl-ui';
 import type { ReactElement } from 'react';
-import { Scope } from '../deps.js';
+import { TipRows } from '../deps.js';
 import { subagentFacts } from './subagentFacts.js';
 import type { SubagentItem } from './subagentModel.js';
 
 /**
- * The hover and focus card of a sub-agent, the dsl-ui Tooltip with labelled rows: name, type, model, status with its reason, times, tokens, cost, context. A row that has
+ * The hover and focus card of a sub-agent, the dsl-ui Tooltip with labelled rows (laid out by TipRows): name, type, model, status with its reason, times, tokens, cost, context. A row that has
  * no value says "Not available" and why. A live value (duration of a running one) is a text node that changes in place: the card is never remounted, so it does not flicker.
  *
  * The card is portaled out of our scope and has a fixed dark surface in both themes, so the values use the white tints of the card (never the page's semantic text colours,
@@ -19,16 +19,16 @@ export function SubagentTip({ item, now, children }: { item: SubagentItem; now: 
   const rows = subagentFacts(item, now, clock).map((fact) => ({
     label: fact.label,
     value: (
-      <Scope>
-        <span data-subagent-fact="" className={`block min-w-0 break-words text-left font-medium tabular-nums ${fact.missing === true ? 'text-white/70' : ''}`}>
+      <>
+        <span data-subagent-fact="" className={`block font-medium tabular-nums ${fact.missing === true ? 'text-white/70' : ''}`}>
           {fact.value}
         </span>
-        {fact.note === undefined ? null : <span className="block min-w-0 break-words text-left font-normal text-white/70">{fact.note}</span>}
-      </Scope>
+        {fact.note === undefined ? null : <span className="block font-normal text-white/70">{fact.note}</span>}
+      </>
     ),
   }));
   return (
-    <Tooltip side="left" rows={rows}>
+    <Tooltip side="left" content={<TipRows rows={rows} />}>
       {children}
     </Tooltip>
   );

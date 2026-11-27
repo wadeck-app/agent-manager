@@ -24,6 +24,7 @@ export { AUTO_ML_FROM_PX } from '../ui/density.js';
 export { Tooltip } from '@wadeck-app/dsl-ui';
 export { TipIconButton } from '../ui/TipIconButton.js';
 export { Scope } from '../ui/Scope.js';
+export { TipRows } from '../ui/TipRows.js';
 export { chipClass } from '../ui/Chip.js';
 export { CountBadge } from '../ui/CountBadge.js';
 export { usePopover } from '../ui/usePopover.js';

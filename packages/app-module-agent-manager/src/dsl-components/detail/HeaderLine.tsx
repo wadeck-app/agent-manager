@@ -6,7 +6,7 @@ import { shortenPath } from '../logic/shortenPath.js';
 import { STATE_MEANING } from '../logic/states.js';
 import { describeTimeInState, timeInState } from '../logic/time.js';
 import { Chip } from '../ui/Chip.js';
-import { PathText } from '../ui/PathText.js';
+import { TipRows } from '../ui/TipRows.js';
 import { STATE_LOOK, STATE_VARIANT } from '../ui/stateLook.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 import { BypassChips } from './status/BypassChips.js';
@@ -128,7 +128,7 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
   const goneEntries = gone.flatMap((item) => usableEntries(item.entries));
   const moreChip =
     gone.length === 0 ? null : (
-      <Tooltip rows={goneEntries.map((entry) => ({ label: rowLabel(entry.label), value: entry.label === 'folder' ? <PathText text={entry.value} /> : entry.value }))} describe={false}>
+      <Tooltip content={<TipRows rows={goneEntries.map((entry) => ({ label: rowLabel(entry.label), value: entry.value }))} />} describe={false}>
         <span tabIndex={0} data-line-more="" aria-label={`${gone.length} more: ${goneEntries.map((entry) => `${entry.label} ${entry.value}`).join(', ')}`} className={`${CHIP} shrink-0 tabular-nums`}>
           +{gone.length}
         </span>
