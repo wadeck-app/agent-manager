@@ -50,6 +50,15 @@ interface Fixture {
   edit: (change: (agents: Agent[]) => Agent[]) => void;
 }
 
+/**
+ * A poll that answers AFTER the test changed the fake supervisor state. pollBg() joins a poll already in flight (one at a time), and an in-flight poll may have
+ * listed the agents before the change (seen once on a slow Windows runner: the session was still idle). The second call always starts a poll that begins after the change.
+ */
+async function freshPoll(host: SessionHost): Promise<void> {
+  await host.pollBg();
+  await host.pollBg();
+}
+
 async function setup(env: Record<string, string> = {}, options: Partial<SessionHostOptions> = {}): Promise<Fixture> {
   const root = mkdtempSync(join(tmpdir(), 'agent-manager-bghost-'));
   dirs.push(root);
@@ -133,7 +142,7 @@ describe('launch (bg)', () => {
     expect(view.jobId).toMatch(/^[0-9a-f]{8}$/);
     expect(view.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(view.attachCommand).toBe(`claude attach ${view.jobId}`);
-    await host.pollBg();
+    await freshPoll(host);
     expect(host.get(view.id)).toMatchObject({ state: 'idle', bgState: 'blocked' });
     const records = await readOwnedState(ownedStatePath(configDir));
     expect(records[0]).toMatchObject({ id: view.id, hostKind: 'bg', jobId: view.jobId, status: 'live' });
@@ -178,20 +187,20 @@ describe('observing (bg)', () => {
     const { host, cwd, edit } = await setup();
     const { id, jobId } = await host.launch({ hostKind: 'bg', cwd });
     edit((agents) => agents.map((agent) => (agent.id === jobId ? { ...agent, state: 'working', status: 'busy' } : agent)));
-    await host.pollBg();
+    await freshPoll(host);
     expect(host.get(id)).toMatchObject({ state: 'running', bgState: 'working' });
     edit((agents) => agents.map((agent) => (agent.id === jobId ? { ...agent, state: 'blocked', status: 'waiting', waitingFor: 'permission prompt' } : agent)));
-    await host.pollBg();
+    await freshPoll(host);
     const waiting = host.get(id);
     expect(waiting).toMatchObject({ state: 'requires_action', waitingFor: 'permission prompt', pendingPermissions: 0, attachCommand: `claude attach ${jobId}` });
     expect(eventsOf(host, 'session.bg_waiting')).toHaveLength(1);
     expect(eventsOf(host, 'session.bg_waiting')[0]?.data).toEqual({ waitingFor: 'permission prompt', attachCommand: `claude attach ${jobId}` });
     // The same state again says nothing more: no event storm.
     const count = eventsOf(host, 'session.state').length;
-    await host.pollBg();
+    await freshPoll(host);
     expect(eventsOf(host, 'session.state')).toHaveLength(count);
     edit((agents) => agents.map((agent) => (agent.id === jobId ? { ...agent, state: 'done', status: 'idle', waitingFor: undefined } : agent)));
-    await host.pollBg();
+    await freshPoll(host);
     expect(host.get(id)).toMatchObject({ state: 'idle', bgState: 'done' });
     expect(host.get(id).waitingFor).toBeUndefined();
     const stateEvents = eventsOf(host, 'session.state').map((event) => event.data['state']);
@@ -202,7 +211,7 @@ describe('observing (bg)', () => {
     const { host, cwd, edit } = await setup();
     const { id, jobId } = await host.launch({ hostKind: 'bg', cwd });
     edit((agents) => agents.map((agent) => (agent.id === jobId ? { id: agent.id, cwd: agent.cwd, kind: agent.kind, sessionId: agent.sessionId, state: 'stopped' } : agent)));
-    await host.pollBg();
+    await freshPoll(host);
     expect(host.get(id)).toMatchObject({ state: 'exited', status: 'exited', resumable: true, exit: { by: 'self', cause: 'closed' } });
     expect(types(host)).toContain('session.exit');
   });
@@ -211,7 +220,7 @@ describe('observing (bg)', () => {
     const { host, cwd, edit } = await setup();
     const { id } = await host.launch({ hostKind: 'bg', cwd });
     edit(() => []);
-    await host.pollBg();
+    await freshPoll(host);
     const view = host.get(id);
     expect(view.state).toBe('exited');
     expect(view.exit?.stderrTail).toMatch(/no longer lists this session/);
@@ -220,7 +229,7 @@ describe('observing (bg)', () => {
   it('keeps the last state, warns once and shows the cause while claude agents fails, then recovers', async () => {
     const { host, cwd, another } = await setup();
     const { id } = await host.launch({ hostKind: 'bg', cwd });
-    await host.pollBg();
+    await freshPoll(host);
     const broken = await another({
       bgLauncher: new BgLauncher({ command: process.execPath, commandArgs: [FAKE_BG], env: { ...process.env, FAKE_BG_STATE: join(tmpdir(), 'x.json'), FAKE_BG_FAIL: 'agents' }, commandTimeoutMs: 2000, listTimeoutMs: 2000 }),
     });
@@ -293,7 +302,7 @@ describe('stop, resume, forget (bg)', () => {
     expect(resumed).toMatchObject({ status: 'live', resumable: false });
     expect(resumed.exit).toBeUndefined();
     expect(calls(logPath)).toContain(`respawn ${jobId}`);
-    await host.pollBg();
+    await freshPoll(host);
     expect(host.get(id).state).toBe('idle');
     expect((await rejection(host.resume(id))).code).toBe('already-live');
   });
@@ -474,10 +483,10 @@ describe('races and failures of the bg host (injected launcher, fake timers, no 
       await host.stop(id);
       // The stub keeps saying "stopped" after the respawn, like a supervisor that has not caught up.
       await host.resume(id);
-      await host.pollBg();
+      await freshPoll(host);
       expect(host.get(id)).toMatchObject({ status: 'live' });
       now += 11_000;
-      await host.pollBg();
+      await freshPoll(host);
       expect(host.get(id)).toMatchObject({ status: 'exited', exit: { by: 'self' } });
     });
   });
@@ -489,7 +498,7 @@ describe('races and failures of the bg host (injected launcher, fake timers, no 
       const { id } = await host.launch({ hostKind: 'bg', cwd });
       await vi.advanceTimersByTimeAsync(0);
       stub.agents = [{ ...stub.agents[0]!, id: 'ABCD1234', state: 'working', status: 'busy' }];
-      await host.pollBg();
+      await freshPoll(host);
       expect(host.get(id).state).toBe('running');
       await host.stop(id);
       stub.agents = [{ ...stub.agents[0]!, id: 'ABCD1234' }];
