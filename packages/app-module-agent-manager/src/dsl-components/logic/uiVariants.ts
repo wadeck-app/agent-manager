@@ -30,7 +30,19 @@ export type ReadinessPreviewValue = (typeof READINESS_PREVIEW)[number];
 export const GROUP_HEADER = ['herdr', 'bar', 'pill'] as const;
 export type GroupHeaderVariant = (typeof GROUP_HEADER)[number];
 
+export const HEADER_PLACEMENT = ['in-page', 'in-trail'] as const;
+export type HeaderPlacementVariant = (typeof HEADER_PLACEMENT)[number];
+
 export const UI_QUESTIONS = {
+  headerPlacement: {
+    id: 'ui-header-placement',
+    label: 'Header placement',
+    initial: 'in-page',
+    options: {
+      'in-page': { label: 'In the page', hint: 'Today: the Agents header (title, selection toggle, count, layout menu, search, filter, text size, shortcuts) is the bordered row at the top of the page, under the shell breadcrumb row. HOW TO SEE IT: nothing to do, this is the default; open the Agents page.' },
+      'in-trail': { label: 'In the breadcrumb row', hint: 'The same header moves into the shell breadcrumb row, to the right of the breadcrumb, and the page gains one line of height; the shell hides its own page crumb, the title Agents stays in our header. Needs a shell with the header slot (app-core-cli 2026.11.26-236 or later), else the header is not shown. HOW TO SEE IT: open the Agents page, then pick this option: the header leaves the page and appears at the top, next to the breadcrumb.' },
+    },
+  },
   switchReadiness: {
     id: 'ui-switch-readiness',
     label: 'Hand-over icon',
@@ -80,6 +92,7 @@ export type UiVariantValues = {
   groupHeader: GroupHeaderVariant;
   readinessPreview: ReadinessPreviewValue;
   rowSeparator: RowSeparatorVariant;
+  headerPlacement: HeaderPlacementVariant;
 };
 
 /** What every question shows when no dock chose (and in a build without the dock). */
@@ -89,4 +102,5 @@ export const DEFAULT_UI_VARIANTS: UiVariantValues = {
   groupHeader: 'herdr',
   readinessPreview: UI_QUESTIONS.readinessPreview.initial,
   rowSeparator: UI_QUESTIONS.rowSeparator.initial,
+  headerPlacement: UI_QUESTIONS.headerPlacement.initial,
 };

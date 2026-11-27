@@ -1,4 +1,4 @@
-import { CompactSelect, HorizontalStack, Tooltip } from '@wadeck-app/dsl-ui';
+import { CompactSelect, HeaderActions, HorizontalStack, Tooltip } from '@wadeck-app/dsl-ui';
 import type { CSSProperties, ReactNode } from 'react';
 import { SelectionEntry } from '../batch/SelectionEntry.js';
 import { useMediaQuery } from '../ui/hooks.js';
@@ -6,8 +6,13 @@ import { SHOW_ALIVE_LABEL, SHOW_ALL_LABEL, type ModeId } from '../shared.js';
 import type { ViewOptions } from '../logic/viewOptions.js';
 import { DensityControl } from '../ui/DensityControl.js';
 import { ShortcutsHelp } from '../ui/ShortcutsHelp.js';
+import { Scope } from '../ui/Scope.js';
+import { TrailRow } from './TrailRow.js';
+import { useUiVariant } from '../ui/UiVariants.js';
 import { ListLayoutMenu } from './ListLayoutMenu.js';
 import { SearchBox, type SearchBoxProps } from './SearchBox.js';
+
+const TRAIL_ROW = 'min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1';
 
 export interface ToolbarProps {
   /** Sessions in the list (before the search). */
@@ -42,8 +47,9 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
   const tight = useMediaQuery('(max-width: 1279px)');
   // The Select all button of the selection mode has a reserved slot next to the toggle (SelectionEntry): turning the mode on moves nothing in the toolbar.
   const shortCount = tight;
-  return (
-    <div data-toolbar="" className={`${detailOpen ? 'hidden lg:flex' : 'flex'} min-h-am-hit flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1`}>
+  const placement = useUiVariant('headerPlacement');
+  const content = (
+    <>
       <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
       {selectableIds === undefined ? null : <SelectionEntry ids={selectableIds} />}
       <Tooltip content={shortCount ? countText : undefined} describe={false}>
@@ -83,6 +89,24 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
           <ShortcutsHelp open={helpOpen} onOpenChange={onHelpOpenChange} />
         </HorizontalStack>
       </div>
+    </>
+  );
+  const visibility = detailOpen ? 'hidden lg:flex' : 'flex';
+  if (placement === 'in-trail') {
+    // In the shell trail row (HeaderActions portals it there, outside our page root: Scope brings back the stylesheet scope and the density variables). A flex row of unknown width: it takes the room that is left (flex-1, min-w-0), wraps whole controls, no border or padding of its own.
+    return (
+      <HeaderActions>
+        <Scope>
+          <TrailRow className={`${visibility} ${TRAIL_ROW}`}>
+            {content}
+          </TrailRow>
+        </Scope>
+      </HeaderActions>
+    );
+  }
+  return (
+    <div data-toolbar="" className={`${visibility} min-h-am-hit flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1`}>
+      {content}
     </div>
   );
 }

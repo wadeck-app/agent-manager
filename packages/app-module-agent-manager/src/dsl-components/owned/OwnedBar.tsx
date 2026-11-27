@@ -25,6 +25,8 @@ const STDERR_TAIL = 'mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words
 
 // The longest mode label ("default: ask before each tool") fits whole; on a phone the select shrinks to the row instead of overflowing.
 const MODE_ROW = 'max-w-full [&_select]:max-w-full';
+// The label is a flex row that may shrink below its content (min-w-0), and so is the span of the select: without it the select keeps its full width and leaves the row.
+const MODE_LABEL = 'flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted [&>span]:min-w-0 [&>span]:shrink';
 // The base select has no size prop: its height is a text-sm line plus 10 px. A line of (hit - 10) px makes it as high as the 36 px icon buttons above it.
 const MODE_ROW_STYLE = { '--am-lh-sm': 'calc(var(--am-hit) - 10px)' } as CSSProperties;
 
@@ -179,7 +181,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
   const unknownMode = mode !== '' && !modeOptions.some((option) => option.value === mode);
 
   const modeSelect = (
-    <label className="flex items-center gap-1.5 text-sm text-muted">
+    <label className={MODE_LABEL}>
       Mode
       <CompactSelect
         ariaLabel="Permission mode"

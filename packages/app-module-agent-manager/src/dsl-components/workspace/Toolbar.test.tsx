@@ -1,9 +1,12 @@
 import { render, screen } from '@testing-library/react';
-import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
+import userEvent from '@testing-library/user-event';
+import { HeaderActionsProvider, HeaderActionsSlot, UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeItem } from '../logic/notices.js';
 import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
 import { NoticesButton } from '../ui/Notices.js';
+import { DEFAULT_UI_VARIANTS } from '../logic/uiVariants.js';
+import { UiVariantsContext } from '../ui/UiVariants.js';
 import { Toolbar, type ToolbarProps } from './Toolbar.js';
 
 const service: UrlParamService = { get: () => null, set: () => undefined };
@@ -85,5 +88,56 @@ describe('Toolbar search box', () => {
     expect(box?.className).toContain('flex');
     expect(box).toContainElement(screen.getByText('0 of 39'));
     expect(box).toContainElement(screen.getByRole('button', { name: 'Clear the search box' }));
+  });
+});
+
+describe('Toolbar header placement (A/B question ui-header-placement)', () => {
+  const inPage = (extra: Partial<ToolbarProps> = {}) => (
+    <UrlParamContext.Provider value={service}>
+      <Toolbar {...props(extra)} />
+    </UrlParamContext.Provider>
+  );
+  const inTrail = (extra: Partial<ToolbarProps> = {}) => (
+    <UrlParamContext.Provider value={service}>
+      <UiVariantsContext.Provider value={{ ...DEFAULT_UI_VARIANTS, headerPlacement: 'in-trail' }}>
+        <HeaderActionsProvider>
+          <header data-testid="trail">
+            <HeaderActionsSlot />
+          </header>
+          <main data-testid="page">
+            <Toolbar {...props(extra)} />
+          </main>
+        </HeaderActionsProvider>
+      </UiVariantsContext.Provider>
+    </UrlParamContext.Provider>
+  );
+
+  it('in-page (the default) renders one h1 and the bordered row in the page', () => {
+    render(inPage());
+    expect(screen.getAllByRole('heading', { level: 1, name: 'Agents' })).toHaveLength(1);
+    const row = document.querySelector('[data-toolbar]') as HTMLElement;
+    expect(row.className).toContain('border-b');
+    expect(row.hasAttribute('data-placement')).toBe(false);
+  });
+
+  it('in-trail renders one h1 through HeaderActions, in the trail slot and not in the page', () => {
+    render(inTrail());
+    const heading = screen.getByRole('heading', { level: 1, name: 'Agents' });
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByTestId('trail')).toContainElement(heading);
+    expect(screen.getByTestId('page')).not.toContainElement(heading);
+    const row = heading.closest('[data-toolbar]') as HTMLElement;
+    expect(row.getAttribute('data-placement')).toBe('in-trail');
+    expect(row.className).not.toContain('border-b');
+    expect(row.className).toContain('min-w-0');
+    expect(row.className).toContain('flex-1');
+    expect(screen.getByRole('textbox', { name: 'Search agents' })).toBeInTheDocument();
+  });
+
+  it('in-trail keeps the controls alive (the search field takes typing)', async () => {
+    const onText = vi.fn();
+    render(inTrail({ search: { text: '', onText, shown: 3, total: 3, problems: [], onMove: vi.fn(), onEnter: vi.fn() } }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Search agents' }), 'a');
+    expect(onText).toHaveBeenCalledWith('a');
   });
 });

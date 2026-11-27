@@ -7,7 +7,7 @@ export function ShieldWithBadge({ count }: { count: number | undefined }) {
     <>
       <ShieldCheck aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
       {count !== undefined && count > 0 ? (
-        <CountBadge data-permissions-badge="" aria-hidden="true" tone="primary" className="absolute -right-0.5 -top-0.5">
+        <CountBadge data-permissions-badge="" aria-hidden="true" tone="primary" className="absolute right-0 -top-0.5">
           {count}
         </CountBadge>
       ) : null}

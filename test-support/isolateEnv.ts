@@ -9,7 +9,8 @@ import { isolateEnvironment } from './isolation.js';
  */
 
 const isolation = await isolateEnvironment();
-afterAll(() => isolation.restore());
+// release, not restore: the real values must never come back in a worker (a request still in flight would write to the real folder, see isolation.ts).
+afterAll(() => isolation.release());
 
 // Tell the guard (main process) which test is running, so that a change of the real folder names its likely author.
 const lastTest = process.env[LAST_TEST_VARIABLE];

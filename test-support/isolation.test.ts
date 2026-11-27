@@ -1,8 +1,9 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { realConfigDir } from './guardRealConfig.js';
 import { REDIRECTED_VARIABLES, isolateEnvironment, unusedPort } from './isolation.js';
 
 const insideTmp = (path: string | undefined): boolean => path !== undefined && !relative(tmpdir(), path).startsWith('..');
@@ -56,6 +57,44 @@ describe('isolateEnvironment', () => {
     expect(env['XDG_CONFIG_HOME']).toBe('/real/xdg');
     expect(env['APP_CORE_PORT']).toBeUndefined();
     expect(existsSync(isolation.dir)).toBe(false);
+  });
+
+  // Regression (2026-11-27): a request still in flight when the test file ended resolved its config folder from process.env AFTER the worker had put the real
+  // values back, and appended its audit line to the REAL ~/.config/agent-manager (after the guard had already compared). The worker now releases, not restores.
+  it('release removes the folder but keeps every variable redirected: a late write resolves into the temp folder, never the real one', async () => {
+    const fakeHome = mkdtempSync(join(tmpdir(), 'agent-manager-late-write-'));
+    try {
+      const env: NodeJS.ProcessEnv = { HOME: fakeHome, USERPROFILE: fakeHome };
+      const realFolder = realConfigDir({}, fakeHome);
+      const isolation = await isolateEnvironment(env);
+      isolation.release();
+      expect(existsSync(isolation.dir)).toBe(false);
+      for (const name of REDIRECTED_VARIABLES.filter((n) => n !== 'APP_CORE_PORT')) {
+        expect(relative(isolation.dir, env[name]!).startsWith('..'), `${name} = ${env[name]} must stay inside ${isolation.dir}`).toBe(false);
+      }
+      // What a late request does: resolve the folder now, create it, append.
+      const late = realConfigDir(env, fakeHome);
+      expect(late).not.toBe(realFolder);
+      expect(insideTmp(late)).toBe(true);
+      mkdirSync(join(late, 'audit'), { recursive: true });
+      writeFileSync(join(late, 'audit', 'late.ndjson'), '{}');
+      expect(existsSync(realFolder)).toBe(false);
+      rmSync(isolation.dir, { recursive: true, force: true });
+    } finally {
+      rmSync(fakeHome, { recursive: true, force: true });
+    }
+  });
+
+  it('restore (not used by the workers) would send the same late write to the real folder: this is the bug release avoids', async () => {
+    const fakeHome = mkdtempSync(join(tmpdir(), 'agent-manager-late-write-'));
+    try {
+      const env: NodeJS.ProcessEnv = { HOME: fakeHome, USERPROFILE: fakeHome };
+      const isolation = await isolateEnvironment(env);
+      isolation.restore();
+      expect(realConfigDir(env, fakeHome)).toBe(realConfigDir({}, fakeHome));
+    } finally {
+      rmSync(fakeHome, { recursive: true, force: true });
+    }
   });
 
   it('two isolations are two different folders', async () => {

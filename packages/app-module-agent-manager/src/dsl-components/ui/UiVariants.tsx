@@ -20,13 +20,15 @@ export function UiVariants({ children }: { children: ReactNode }) {
   const switchReadiness = useQuestion(UI_QUESTIONS.switchReadiness);
   const readinessPreview = useQuestion(UI_QUESTIONS.readinessPreview);
   const rowSeparator = useQuestion(UI_QUESTIONS.rowSeparator);
-  useRegisterAbTests([switchReadiness, readinessPreview, rowSeparator]);
+  const headerPlacement = useQuestion(UI_QUESTIONS.headerPlacement);
+  useRegisterAbTests([switchReadiness, readinessPreview, rowSeparator, headerPlacement]);
   // The preview forces what the header says about an agent: it must never act when the dock is off (the choice stays in localStorage, the dock does not read it then).
   const dockOn = useAbExperiments()?.enabled === true;
   const values: UiVariantValues = {
     ...DEFAULT_UI_VARIANTS,
     switchReadiness: switchReadiness.value,
     rowSeparator: rowSeparator.value,
+    headerPlacement: headerPlacement.value,
     readinessPreview: dockOn ? readinessPreview.value : DEFAULT_UI_VARIANTS.readinessPreview,
   };
   return <Values.Provider value={values}>{children}</Values.Provider>;

@@ -18,8 +18,15 @@ export interface Isolation {
   /** The temp folder everything points into. */
   dir: string;
   port: number;
-  /** Puts the previous values back and removes the folder (retries: Windows can refuse for a moment). */
+  /** Puts the previous values back and removes the folder (retries: Windows can refuse for a moment). Only for code that keeps running with the real environment afterwards. */
   restore: () => void;
+  /**
+   * Removes the folder but LEAVES the variables redirected. This is what a test worker does at the end of a test file: a request still in flight
+   * (a test that failed or was cancelled while a route was running) resolves its config folder from process.env when it finally writes. With the
+   * real values back, that late write landed in the REAL ~/.config/agent-manager (audit line seen on 2026-11-27) and after the guard had looked.
+   * Left redirected, it lands in the (removed) temp folder instead.
+   */
+  release: () => void;
 }
 
 /** A port on which nothing listens. */
@@ -55,9 +62,18 @@ export async function isolateEnvironment(env: NodeJS.ProcessEnv = process.env, p
   // app-core-cli schedules a detached updater from its config folder: without this it could install a real app-core-cli globally.
   mkdirSync(join(dir, 'xdg', 'app-core-cli'), { recursive: true });
   writeFileSync(join(dir, 'xdg', 'app-core-cli', 'config.yml'), 'autoUpdate: false\n');
+  const release = (): void => {
+    try {
+      rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+    } catch (error) {
+      process.stderr.write(`[test-support] could not remove ${dir} (${getErrorMessage(error)}); delete it by hand
+`);
+    }
+  };
   return {
     dir,
     port,
+    release,
     restore() {
       for (const [name, value] of Object.entries(previous)) {
         if (value === undefined) {
@@ -66,11 +82,7 @@ export async function isolateEnvironment(env: NodeJS.ProcessEnv = process.env, p
           env[name] = value;
         }
       }
-      try {
-        rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
-      } catch (error) {
-        process.stderr.write(`[test-support] could not remove ${dir} (${getErrorMessage(error)}); delete it by hand\n`);
-      }
+      release();
     },
   };
 }

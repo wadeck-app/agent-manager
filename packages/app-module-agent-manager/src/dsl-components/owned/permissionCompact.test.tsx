@@ -80,7 +80,7 @@ describe('PermissionRequest: the reason field costs one line', () => {
     stubFetch({ [`GET /owned/${ID}/permissions`]: listed('npm test') });
     render(<PermissionCard session={waiting()} />);
     const input = await screen.findByLabelText(/Reason for the agent if you deny/);
-    expect(input).toHaveAttribute('placeholder', 'Reason for the agent if you deny (optional)');
+    expect(input).toHaveAttribute('placeholder', 'Reason if you deny (optional)');
     // The visible label of the field is replaced by the placeholder: the label stays in the page for the accessible name only.
     expect((input.closest('[data-permission-reason]') as HTMLElement).className).toContain('[&_label]:sr-only');
   });

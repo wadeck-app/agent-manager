@@ -6,6 +6,9 @@ import { Chip } from '../ui/Chip.js';
 import { PermissionInput } from './PermissionInput.js';
 import { inputBlocks } from './permissionBlocks.js';
 
+// Shorter than the label: the full sentence is wider than the field on a phone (about 288 px) and was cut. The label keeps the whole sentence for screen readers.
+export const REASON_PLACEHOLDER = 'Reason if you deny (optional)';
+
 export interface PermissionRequestProps {
   request: OwnedPermissionDto;
   total: number;
@@ -39,9 +42,9 @@ export function PermissionRequest({ request, total, inFlight, onDecide }: Permis
       ))}
       {/* Narrow: the buttons on one row, the reason full width under them (column-reverse of the DOM order). From sm: one row, the reason beside the buttons. */}
       <div data-permission-actions="" className="flex flex-col-reverse gap-1.5 sm:flex-row sm:items-end sm:gap-2">
-        {/* The label stays for screen readers (the accessible name); the sighted user reads the same words as the placeholder, which saves a line. */}
+        {/* The label stays for screen readers (the accessible name); the sighted user reads the placeholder, which saves a line. */}
         <div data-permission-reason="" className="w-full min-w-0 sm:flex-1 [&_label]:sr-only [&_input]:mt-0">
-          <FieldText label="Reason for the agent if you deny (optional)" placeholder="Reason for the agent if you deny (optional)" value={reason} onChange={setReason} disabled={inFlight} autoComplete="off" />
+          <FieldText label="Reason for the agent if you deny (optional)" placeholder={REASON_PLACEHOLDER} value={reason} onChange={setReason} disabled={inFlight} autoComplete="off" />
         </div>
         <div data-permission-buttons="" className="flex flex-nowrap items-center justify-end gap-2">
           <ButtonAction variant="danger-outline" disabled={inFlight} onClick={() => onDecide(request, 'deny', reason)} icon={<X aria-hidden="true" className="h-4 w-4" />} label="Deny" />
