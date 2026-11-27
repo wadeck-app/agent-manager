@@ -11,12 +11,16 @@ import { contextTone, formatTokens } from './format.js';
  */
 export function ContextMeter({ context }: { context: NonNullable<SessionStatusDto['contextUsedPct']> }) {
   const tone = contextTone(context.value);
-  const tip =
-    `${formatTokens(context.usedTokens)} tokens in the context, auto-compact at about ${formatTokens(context.compactAtTokens)} (${context.value}%, ${tone.label}). ` +
-    `Window ${formatTokens(context.windowTokens)}; ${context.note}. Auto-compact is assumed 33k tokens below the window, not read from Claude Code: ` +
-    'a smaller window set with /autocompact or CLAUDE_CODE_AUTO_COMPACT_WINDOW makes it come sooner.';
+  // Labelled rows (the card of a tooltip is read by looking for one figure): tokens used, the point, the window and how each of them was assumed.
+  const rows = [
+    { label: 'In the context', value: `${formatTokens(context.usedTokens)} tokens` },
+    { label: 'Auto-compact at', value: `about ${formatTokens(context.compactAtTokens)} (${context.value}%, ${tone.label})` },
+    { label: 'Window', value: formatTokens(context.windowTokens) },
+    { label: 'Window assumed', value: sentence(context.note), clamp: 3 as const },
+    { label: 'Point assumed', value: '33k tokens below the window, not read from Claude Code. /autocompact or CLAUDE_CODE_AUTO_COMPACT_WINDOW can set a smaller window: it then comes sooner.', clamp: 4 as const },
+  ];
   return (
-    <Tooltip content={tip}>
+    <Tooltip rows={rows} maxWidth="md">
       <span tabIndex={0} role="img" aria-label={`Context ${context.value}% of the way to auto-compact, ${tone.label}`} className={CHIP}>
         <span aria-hidden="true" className={`tabular-nums ${tone.text}`}>
           {context.value}%
@@ -24,4 +28,10 @@ export function ContextMeter({ context }: { context: NonNullable<SessionStatusDt
       </span>
     </Tooltip>
   );
+}
+
+/** A note of the server as a sentence: it starts with a capital and ends with a full stop. */
+function sentence(note: string): string {
+  const text = note.trim();
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}${/[.!?]$/.test(text) ? '' : '.'}`;
 }

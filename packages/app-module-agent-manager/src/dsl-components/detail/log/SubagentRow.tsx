@@ -58,12 +58,12 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
             <span className="min-w-0 flex-1 truncate font-medium text-content">{item.title}</span>
             {elapsed !== undefined ? <span className="shrink-0 text-xs tabular-nums text-muted">{formatElapsed(elapsed)}</span> : null}
           </span>
-          <span className="flex items-center gap-1.5 text-xs text-muted">
+          <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
             <span className={look.text}>{look.label}</span>
-            {item.status === 'active' && dto.lastActivityAt !== undefined ? <span className="truncate">{lastActivityText(dto.lastActivityAt, now)}</span> : null}
-            {item.status === 'unknown' && dto.readError !== undefined ? <span className="truncate">{dto.readError}</span> : null}
-            {item.status === 'failed' && dto.failureReason !== undefined ? <span className="truncate">{dto.failureReason}</span> : null}
-            {detail !== '' ? <span className="truncate">{detail}</span> : null}
+            {item.status === 'active' && dto.lastActivityAt !== undefined ? <span className="whitespace-nowrap">{lastActivityText(dto.lastActivityAt, now)}</span> : null}
+            {item.status === 'unknown' && dto.readError !== undefined ? <span className="min-w-0 break-words">{dto.readError}</span> : null}
+            {item.status === 'failed' && dto.failureReason !== undefined ? <span className="min-w-0 break-words">{dto.failureReason}</span> : null}
+            {detail !== '' ? <span className="min-w-0 break-words">{detail}</span> : null}
           </span>
           {words !== undefined ? (
             <span className={`mt-0.5 flex items-center gap-1 text-xs font-medium ${words.tone}`}>

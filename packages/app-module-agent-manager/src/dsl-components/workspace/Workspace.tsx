@@ -18,7 +18,7 @@ import { agentId } from '../logic/states.js';
 import { RowLookProvider } from '../lists/RowLookContext.js';
 import { readRowLook, rowLookProblemText, saveRowLook, type RowLook } from '../logic/rowLook.js';
 import { readViewOptions, saveViewOptions, type ViewOptions } from '../logic/viewOptions.js';
-import { MODE_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
+import { MODE_LABEL, SHOW_ALL_LABEL, type ApiError, type CustomGroupDto, type ModeId, type OwnedSessionDto, type SessionRowDto } from '../shared.js';
 import { Banner } from '../ui/Banner.js';
 import { NoticesButton } from '../ui/Notices.js';
 import { actionSummary, workspaceNotices, type NoticeItem } from '../logic/notices.js';
@@ -67,6 +67,13 @@ export interface WorkspaceProps {
 }
 
 const NO_GROUPS: readonly CustomGroupDto[] = [];
+
+/** What to do when the registry lists nothing: ended sessions hidden by the filter are named first (they are the likely reason), else how to get one. */
+export function emptyHint(hiddenDead: number): string {
+  return hiddenDead > 0
+    ? `No session is alive. ${hiddenDead} ended ${hiddenDead === 1 ? 'session is' : 'sessions are'} hidden: choose "${SHOW_ALL_LABEL}" in the filter above to see ${hiddenDead === 1 ? 'it' : 'them'}.`
+    : 'Start Claude Code in a terminal and it appears here within 5 seconds.';
+}
 
 const EMPTY_DETAIL_CLASS = 'flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted';
 
@@ -348,6 +355,9 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
         <Skeleton decorative count={6} height="1.5rem" />
       </div>
     );
+  } else if (rows.length === 0) {
+    // One message for an empty registry (the page used to add a blue notice that said the same thing above the workspace).
+    listColumn = <EmptyNote title="No session to show" hint={emptyHint(hiddenDead)} />;
   } else if (searching && shownRows.length === 0 && rows.length > 0) {
     listColumn = (
       <EmptyNote
@@ -390,6 +400,13 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
       <div className="flex flex-1 flex-col items-start gap-3 p-4">
         <Banner tone="warning">The session {selectedId} is not in the list: it may have ended, or the filter above hides the ended sessions.</Banner>
         <ButtonAction variant="secondary" label="Close this session" onClick={() => setSessionParam('')} />
+      </div>
+    );
+  } else if (!loading && rows.length === 0) {
+    detail = (
+      <div className={EMPTY_DETAIL_CLASS}>
+        <p className="font-medium text-content">No agent</p>
+        <p>Its log and a box to reply to it will open here once a session is listed.</p>
       </div>
     );
   } else {

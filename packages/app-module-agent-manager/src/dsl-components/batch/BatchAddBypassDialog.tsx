@@ -1,6 +1,6 @@
 import { ButtonAction, FieldSelect, FieldText, TabButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { CircleAlert, CircleCheck, CircleX, Clock, LoaderCircle, ShieldPlus } from 'lucide-react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
 import { CopyButton } from '../detail/log/CopyButton.js';
@@ -10,6 +10,7 @@ import { Banner } from '../ui/Banner.js';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
 import { grantBlockText, grantConfirmLine, grantResultsText, grantSummaryText, retryableGrantIds, sessionsOf } from './batchBypass.js';
+import { ReadProblems } from './ReadProblems.js';
 import { SessionNames } from './SessionNames.js';
 import { useBatchRules } from './useBatchReads.js';
 
@@ -38,6 +39,7 @@ export interface BatchAddBypassDialogProps {
  */
 export function BatchAddBypassDialog({ rows, onClose }: BatchAddBypassDialogProps) {
   const rules = useBatchRules(rows);
+  const durationLabel = useId();
   const [chosen, setChosen] = useState<string | undefined>(undefined);
   const [mode, setMode] = useState<GrantModeDto>('once');
   const [reason, setReason] = useState('');
@@ -151,11 +153,18 @@ export function BatchAddBypassDialog({ rows, onClose }: BatchAddBypassDialogProp
             Reading the categories from the plugin...
           </p>
         ) : null}
-        {rules.problems.map((item) => (
-          <Banner key={item.names.join('|')} tone="warning">{`The categories could not be read for ${item.names.join(', ')}: ${item.text} They are not part of the list below; the server refuses them one by one if they stay in the batch.`}</Banner>
-        ))}
+        <ReadProblems
+          tone="warning"
+          intro={`The categories could not be read for ${sessionsOf(rules.problems.reduce((total, item) => total + item.names.length, 0))}.`}
+          outro="They are not part of the list below; the server refuses them one by one if they stay in the batch."
+          problems={rules.problems}
+        />
         <FieldSelect label="Category" value={category} onChange={change(setChosen)} options={categoryOptions(rules.categories)} disabled={busy || rules.categories.length === 0} description="Only categories that can be bypassed in every selected folder are listed." />
-        <div role="group" aria-label="Duration" className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-col gap-1">
+          <span id={durationLabel} className="text-sm font-medium text-content">
+            Duration
+          </span>
+          <div role="group" aria-labelledby={durationLabel} className="flex flex-wrap items-center gap-1.5">
           {MODE_CHOICES.map((choice) => (
             <Tooltip key={choice.value} content={choice.meaning}>
               {/* The chosen duration is a filled button: the base tab underline alone is too faint to tell which one is on. */}
@@ -164,6 +173,7 @@ export function BatchAddBypassDialog({ rows, onClose }: BatchAddBypassDialogProp
               </TabButton>
             </Tooltip>
           ))}
+          </div>
         </div>
         <FieldText label="Reason" value={reason} onChange={change(setReason)} disabled={busy} autoComplete="off" required error={problem} description="It is stored as plain text and shown in the plugin journal of every session." />
         {category === '' ? null : <p className="text-sm font-medium text-content">{grantConfirmLine(category, mode, rows.length)}</p>}

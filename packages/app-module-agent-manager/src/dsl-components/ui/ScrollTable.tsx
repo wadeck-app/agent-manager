@@ -64,7 +64,7 @@ export function ScrollTable({ label, children }: { label: string; children: Reac
   return (
     <div className="min-w-0">
       <div className="relative">
-        <div ref={region} role="region" tabIndex={0} aria-label={`${label}, scrolls sideways`} onScroll={measure} className="overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
+        <div ref={region} role="region" tabIndex={0} aria-label={`${label}, scrolls sideways`} onScroll={measure} className="relative overflow-x-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary">
           <table aria-label={label} className="w-full min-w-[40rem] border-collapse">
             {children}
           </table>

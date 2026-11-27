@@ -79,6 +79,26 @@ describe('CustomList', () => {
     expect(within(container.querySelector('[data-custom-section="ungrouped"]') as HTMLElement).getByText('loose-one')).toBeInTheDocument();
   });
 
+  it('the body color tints the whole body of the group (QA3 R11), the ungrouped bucket and a group without one stay plain', () => {
+    const colored = [group('a', 0, { bodyColor: 'cyan' }), group('b', 1)];
+    const { container } = render(<Custom sessions={all} api={fakeApi(colored)} />);
+    const body = (id: string): HTMLElement => container.querySelector(`[data-custom-section="${id}"] [role="group"]`) as HTMLElement;
+    expect(body('a')).toHaveClass('bg-hue-cyan-bg');
+    // The body is an isolated stacking context: the underlay of a state tinted row sits between the body color and the tint.
+    expect(body('a')).toHaveClass('isolate');
+    expect(body('b').className).toBe('');
+    expect(body('ungrouped').className).toBe('');
+  });
+
+  it('a state tinted row on a colored body is drawn over the plain surface (an underlay), a plain row and a row of an uncolored group are not (QA3 R11)', () => {
+    const colored = [group('a', 0, { bodyColor: 'cyan' }), group('b', 1)];
+    const { container } = render(<Custom sessions={[a1, a2, b1]} api={fakeApi(colored)} />);
+    // a2 needs you (tinted), a1 is idle (body color only), b1 is in a group without a body color.
+    expect(rowOf(container, a2).className).toContain('before:bg-surface');
+    expect(rowOf(container, a1).className).not.toContain('before:bg-surface');
+    expect(rowOf(container, b1).className).not.toContain('before:bg-surface');
+  });
+
   it('a folded group shows the most urgent state of its agents; an open one does not repeat it', () => {
     const folded = [group('a', 0, { collapsed: true }), group('b', 1)];
     const { container } = render(<Custom sessions={all} api={fakeApi(folded)} />);

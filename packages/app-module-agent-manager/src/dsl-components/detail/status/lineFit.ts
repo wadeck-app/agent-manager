@@ -68,7 +68,7 @@ export interface FitRows {
 }
 
 /**
- * Two rows instead of a "+N" chip right away: the chips that do not fit next to the name, the state and the age (the actions share that row) go to a second row
+ * Two rows instead of a "+N" chip right away: the chips after the last one that fits next to the name, the state and the age (the actions share that row) go to a second row
  * as wide as the whole header; only what does not fit there either is left to the "+N" chip, which ends the second row. Without a width for the second row
  * (no layout), it is `fitItems` on the first row alone.
  */
@@ -78,14 +78,17 @@ export function fitRows(input: FitRowsInput): FitRows {
   if (secondAvailable <= 0 || (known.length === order.length && known.reduce((sum, key) => sum + gap + (widths[key] ?? 0), 0) <= available)) {
     return { first: fitItems(input), second: new Set() };
   }
+  // The first row takes a PREFIX of the order and stops at the first chip that does not fit: the second row continues from there, so the chips read in the
+  // same order for every session (a narrow chip never jumps ahead of a wider one to the first row).
   let left = available;
   const first = new Set<string>();
   for (const key of known) {
     const cost = gap + (widths[key] ?? 0);
-    if (cost <= left) {
-      first.add(key);
-      left -= cost;
+    if (cost > left) {
+      break;
     }
+    first.add(key);
+    left -= cost;
   }
   const rest = order.filter((key) => !first.has(key));
   // The second row has no leading gap: one gap is given back.

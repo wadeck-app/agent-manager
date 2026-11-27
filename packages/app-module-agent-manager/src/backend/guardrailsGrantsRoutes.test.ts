@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SENSITIVE_ROUTES, isSensitiveRequest } from '../commons/routeClasses.js';
 import { ID, putSession, transcriptFile, useSandbox, userLine } from './apiFixtures.js';
-import { adminOverrideEnv } from './guardrailsAdmin.js';
+import { GuardrailsAdminError, adminOverrideEnv } from './guardrailsAdmin.js';
+import { errorText } from './guardrailsGrantsRoutes.js';
 import { makeModule } from './testKit.js';
 
 const FAKE = fileURLToPath(new URL('./testSupport/fakeAdmin.cjs', import.meta.url));
@@ -279,5 +280,13 @@ describe('POST /guardrails/grants/:id/revoke (T-22)', () => {
     expect(status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.auditError).toMatch(/audit line could not be written/);
+  });
+});
+
+describe('errorText', () => {
+  it('puts one full stop between the message and the hint, even when the plugin message already ends with one (QA3 R16)', () => {
+    const error = new GuardrailsAdminError('plugin-error', 'does not exist. Pass the project directory that contains .claude/.', 'Fix what the message says, then reload this page.');
+    expect(errorText(error)).toBe('does not exist. Pass the project directory that contains .claude/. Fix what the message says, then reload this page.');
+    expect(errorText(new GuardrailsAdminError('plugin-error', 'no dot', ''))).toBe('no dot.');
   });
 });

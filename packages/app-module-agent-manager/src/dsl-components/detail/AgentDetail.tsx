@@ -3,6 +3,8 @@ import { CardsDock } from './CardsDock.js';
 import { Composer } from './composer/Composer.js';
 import { HcPermissionCard } from '../owned/HcPermissionCard.js';
 import { PermissionCard } from '../owned/PermissionCard.js';
+import { BannerStackProvider } from '../ui/BannerStack.js';
+import { BannerStackSlot } from '../ui/BannerStackSlot.js';
 import { LogViewer } from './log/LogViewer.js';
 import type { LogViewerProps } from './log/LogViewer.js';
 
@@ -18,8 +20,12 @@ export interface AgentDetailProps {
   focusMessageId?: string;
 }
 
+/** The one banner of the pane, between the dock of cards and the reply box: it holds at most 35 percent of the pane and scrolls inside beyond. */
+const STACK_SLOT = 'max-h-[35%] shrink-0 overflow-y-auto border-t border-border bg-surface px-3 py-1';
+
 export function AgentDetail({ session, onThreadStarted, focusMessageId }: AgentDetailProps) {
   return (
+    <BannerStackProvider>
     <div data-agent-detail="" className="flex min-h-0 flex-1 flex-col">
       {/* The log keeps a usable minimum height (7rem) whatever the cards below take. */}
       <div data-detail-log="" className="flex min-h-[7rem] flex-1 flex-col">
@@ -29,7 +35,9 @@ export function AgentDetail({ session, onThreadStarted, focusMessageId }: AgentD
         <PermissionCard key={session.sessionId.toLowerCase()} session={session} />
         <HcPermissionCard key={`hc-${session.sessionId.toLowerCase()}`} session={session} />
       </CardsDock>
+      <BannerStackSlot className={STACK_SLOT} />
       <Composer session={session} />
     </div>
+    </BannerStackProvider>
   );
 }

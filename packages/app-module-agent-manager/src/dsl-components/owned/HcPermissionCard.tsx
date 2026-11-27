@@ -4,7 +4,7 @@ import { failureText, requestJson } from '../data/http.js';
 import type { AgentRow } from '../data/types.js';
 import { isBgOwned, isWebOwned } from '../logic/owned.js';
 import type { HcPermissionDecisionResponse, HcPermissionPromptDto } from '../shared.js';
-import { FoldedBanner } from '../ui/FoldedBanner.js';
+import { StackedBanner } from '../ui/StackedBanner.js';
 import { HcPermissionPrompt } from './HcPermissionPrompt.js';
 import { useHcPermission } from './useHcPermission.js';
 
@@ -68,27 +68,26 @@ export function HcPermissionCard({ session }: { session: AgentRow }) {
   }
   const prompt = answer?.state === 'prompt' && !answered.has(answer.prompt.promptId) ? answer.prompt : undefined;
   const unsupported = answer?.state === 'unsupported' ? answer : undefined;
-  if (prompt === undefined && unsupported === undefined && error === '' && failure === '' && feedback === undefined) {
-    return null;
-  }
+  const warned = feedback !== undefined && feedback.warn;
+  // The messages go to the one banner of the detail pane (see ui/BannerStack.tsx); the card itself stays only for the dialog and the answer that went through.
+  const hasBody = prompt !== undefined || (feedback !== undefined && !feedback.warn);
   return (
-    <section aria-label="Permission request in the terminal" data-hc-permission-card="" className={`flex shrink-0 flex-col gap-1.5 border-t px-4 py-2 ${prompt === undefined ? 'border-border bg-surface' : 'border-hue-red bg-hue-red-bg'}`}>
-      {error !== '' ? (
-        <FoldedBanner tone={errorCode === 'request-failed' ? 'error' : 'info'} text={`This session waits for a permission, and it cannot be answered from this page: ${error}`} />
+    <>
+      {error !== '' ? <StackedBanner id="hc-error" tone={errorCode === 'request-failed' ? 'error' : 'info'} text={`This session waits for a permission, and it cannot be answered from this page: ${error}`} /> : null}
+      {unsupported !== undefined ? <StackedBanner id="hc-unsupported" tone="warning" text={`${unsupported.reason}. ${unsupported.fix}`} /> : null}
+      {failure !== '' ? <StackedBanner id="hc-failure" tone="error" text={failure} /> : null}
+      {warned ? <StackedBanner id="hc-feedback" tone="warning" text={feedback.text} /> : null}
+      {hasBody ? (
+        <section aria-label="Permission request in the terminal" data-hc-permission-card="" className={`flex shrink-0 flex-col gap-1.5 border-t px-4 py-2 ${prompt === undefined ? 'border-border bg-surface' : 'border-hue-red bg-hue-red-bg'}`}>
+          {feedback !== undefined && !feedback.warn ? (
+            <p role="status" className="flex items-center gap-1.5 text-sm text-content">
+              <Check aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-hue-green" />
+              {feedback.text}
+            </p>
+          ) : null}
+          {prompt !== undefined ? <HcPermissionPrompt key={prompt.promptId} prompt={prompt} inFlight={inFlight} onDecide={(decision) => void decide(prompt, decision)} /> : null}
+        </section>
       ) : null}
-      {unsupported !== undefined ? <FoldedBanner tone="warning" text={`${unsupported.reason}. ${unsupported.fix}`} /> : null}
-      {failure !== '' ? <FoldedBanner tone="error" text={failure} /> : null}
-      {feedback !== undefined ? (
-        feedback.warn ? (
-          <FoldedBanner tone="warning" text={feedback.text} />
-        ) : (
-          <p role="status" className="flex items-center gap-1.5 text-sm text-content">
-            <Check aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-hue-green" />
-            {feedback.text}
-          </p>
-        )
-      ) : null}
-      {prompt !== undefined ? <HcPermissionPrompt key={prompt.promptId} prompt={prompt} inFlight={inFlight} onDecide={(decision) => void decide(prompt, decision)} /> : null}
-    </section>
+    </>
   );
 }

@@ -65,7 +65,9 @@ describe('the row look: the names of the rows, in every layout', () => {
       });
 
       it('boldActive raises only the open name by one weight step', () => {
+        const boxOf = (root: HTMLElement, session: AgentRow): string | undefined => nameOf(root, session).closest('[data-name-box]')?.className;
         const base = show(List, options, DEFAULT_ROW_LOOK);
+        const boxBefore = boxOf(base.container, open);
         const before = { open: nameOf(base.container, open).className, quiet: nameOf(base.container, quiet).className };
         base.unmount();
         const { container } = show(List, options, { ...DEFAULT_ROW_LOOK, boldActive: true });
@@ -73,6 +75,12 @@ describe('the row look: the names of the rows, in every layout', () => {
         expect(after.open).not.toBe(before.open);
         expect(after.open).toMatch(/font-(semibold|bold)/);
         expect(after.quiet).toBe(before.quiet);
+        // A Herdr row: the bold box takes back the width the weight adds, only for the open name (QA3 R17).
+        if (nameOf(container, open).hasAttribute('data-herdr-name')) {
+          expect(boxOf(container, open)).toContain('-mr-1.5');
+          expect(boxOf(container, quiet)).not.toContain('-mr-1.5');
+          expect(boxBefore).not.toContain('-mr-1.5');
+        }
       });
 
       it('dimIdle greys the name of a quiet agent only (not the open one, not the one marked unread)', () => {

@@ -15,6 +15,7 @@ export { row } from '../logic/fixtures.js';
 export { getErrorMessage } from '../logic/errorText.js';
 export { Banner } from '../ui/Banner.js';
 export { FoldedBanner } from '../ui/FoldedBanner.js';
+export { StackedBanner } from '../ui/StackedBanner.js';
 export { DialogActions } from '../ui/DialogActions.js';
 export { Modal } from '../ui/Modal.js';
 export { FOCUS_RING } from '../ui/focusRing.js';

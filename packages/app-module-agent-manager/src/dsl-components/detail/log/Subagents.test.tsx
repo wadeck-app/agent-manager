@@ -168,7 +168,7 @@ describe('sub-agent contents', () => {
     serve({ tail: answer([assistantText('a', 'text')], { subagents: many }) });
     show();
     const panel = await screen.findByRole('complementary', { name: 'Sub-agents' });
-    fireEvent.click(within(panel).getByRole('button', { name: /^Failed/ }));
+    fireEvent.change(within(panel).getByRole('combobox', { name: 'Show sub-agents' }), { target: { value: 'failed' } });
     expect(within(panel).getByRole('button', { name: /migrator/ })).toBeInTheDocument();
     expect(within(panel).queryByRole('button', { name: /builder/ })).toBeNull();
   });
@@ -304,7 +304,7 @@ describe('an active sub-agent is a guess, said as such', () => {
     focusByKeyboard(row);
     expect(liveTooltip()).toHaveTextContent(/no end marker and written lately: probably running/);
     expect(screen.getByText(/1 active \(no end marker\)/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Active 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Active 1' })).toBeInTheDocument();
   });
 
   it('shows "Status unknown" with the reason for a sub-agent whose transcript could not be read, never as active', async () => {

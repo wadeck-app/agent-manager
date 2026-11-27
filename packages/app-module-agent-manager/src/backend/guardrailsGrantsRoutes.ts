@@ -72,7 +72,8 @@ function toDto(grant: AdminGrant): CliGrantDto {
   };
 }
 
-export const errorText = (failure: GuardrailsAdminError): string => `${getErrorMessage(failure)}.${failure.hint === '' ? '' : ` ${failure.hint}`}`;
+/** The message then the hint, one full stop between them: a plugin message that already ends with one ('contains .claude/.') must not get a second (QA3 R16). */
+export const errorText = (failure: GuardrailsAdminError): string => `${getErrorMessage(failure).replace(/\.+$/, '')}.${failure.hint === '' ? '' : ` ${failure.hint}`}`;
 
 /** HTTP status of a failed revoke by the code of the admin error. */
 export function statusOf(code: AdminErrorCode): number {

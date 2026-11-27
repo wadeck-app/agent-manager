@@ -25,10 +25,7 @@ sections:
     title: Agents
     errorText: $sources.sessions.errorText
   # The unreadable registry files and the unreadable w-guardrails counters are warnings of the workspace itself (props below): a pill above it pushed the whole page down.
-  - $type: Badge
-    $if: $sources.sessions.emptyText
-    label: $sources.sessions.emptyText
-    variant: info
+  # An empty registry is said once, by the workspace list (its empty message names the hidden ended sessions): no pill above it.
   - $type: agent-manager:AgentWorkspace
     $if: $sources.sessions.ok
     sessions: $sources.sessions.sessions

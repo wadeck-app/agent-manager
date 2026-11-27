@@ -95,6 +95,13 @@ export function herdrLook(state: AgentState, flagged: boolean, unread: boolean, 
 export const HERDR_ROW_BOX_MULTILINE = 'mx-2 rounded-lg px-2';
 
 /**
+ * The surface color under a row with a state tint that sits on the colored body of a custom group. The state tints are translucent (a mix of a hue and
+ * transparent): over a cyan body, red turns to a muddy grey. The underlay is a pseudo element behind the row (the group body is an isolated stacking context), so
+ * the tint is drawn over the plain surface, as in the other lists, and the row stands out of the body like a card. Classes written in full (QA3 R11).
+ */
+export const STATE_TINT_UNDERLAY = "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:rounded-lg before:bg-surface before:content-['']";
+
+/**
  * A 1 px outline in the hue of the state tint, for a row that sits on the colored body of a custom group: the group color (cyan) and the unseen tint (blue) are two
  * soft backgrounds that look alike, the outline tells them apart (QA finding Q36). Classes written in full; undefined when the row has no state tint.
  */

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent } fr
 import type { AgentRow } from '../data/types.js';
 import { customSections, UNGROUPED_ID, type DropContext } from '../logic/customMode.js';
 import { stepGroupIds } from '../logic/customGroups.js';
-import { HERDR_ROW_BOX, HERDR_ROW_BOX_STACKED, herdrTint, isHerdrDensity, type HerdrDensity, stateRing, stateTint } from '../logic/herdrRow.js';
+import { HERDR_ROW_BOX, HERDR_ROW_BOX_STACKED, herdrTint, isHerdrDensity, type HerdrDensity, STATE_TINT_UNDERLAY, stateRing, stateTint } from '../logic/herdrRow.js';
 import { isTypingTarget } from '../logic/nav.js';
 import { agentId } from '../logic/states.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
@@ -149,6 +149,8 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
     const open = hasChildren && openAgents[id] === true;
     // The background of an agent: its open look, its state tint (needs you, unseen, flagged), then the body color of its group.
     const base = herdrTint(density, session.state, false, session.flagged, session.unread, rowLook) ?? bodyClass;
+    // A state tint on a colored body is drawn over the plain surface, not over the body color.
+    const underlay = bodyClass !== '' && stateTint(session.state, session.flagged, session.unread, rowLook) !== undefined ? STATE_TINT_UNDERLAY : '';
     return (
       <Fragment key={id}>
           <OptionShell
@@ -158,7 +160,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
             selected={selected}
             tabbable={id === tabbable}
             onSelect={onSelect}
-            look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread, rowLook) === undefined ? bodyClass : ''}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} ${bodyClass === '' ? '' : (stateRing(session.state, session.flagged, session.unread, rowLook) ?? '')} hover:brightness-95` }}
+            look={{ selected: `${tint ?? ''} ${stateTint(session.state, session.flagged, session.unread, rowLook) === undefined ? bodyClass : ''} ${underlay}`, idle: base === '' ? 'hover:bg-muted-bg' : `${base} ${underlay} ${bodyClass === '' ? '' : (stateRing(session.state, session.flagged, session.unread, rowLook) ?? '')} hover:brightness-95` }}
             className={`group relative ${stackedRows ? HERDR_ROW_BOX_STACKED : HERDR_ROW_BOX} ${dragged ? 'opacity-50' : ''}`}
             expanded={hasChildren ? open : undefined}
             rowProps={dnd.row(id, groupId)}

@@ -41,7 +41,8 @@ function setup(scenario: Record<string, unknown>, options: HcLauncherOptions = {
     env: () => ({ ...process.env, FAKE_HC_SCENARIO: scenarioFile, FAKE_HC_LOG: logFile, ...env }),
     sessionsDir,
     pollIntervalMs: 5,
-    registryTimeoutMs: 400,
+    // Only the success paths rely on this default (each polling `hc get` spawns a node process: 400 ms was missed on a busy Windows machine, 631 ms measured); the timeout tests below set their own small value.
+    registryTimeoutMs: 5000,
     ...options,
   });
   return {

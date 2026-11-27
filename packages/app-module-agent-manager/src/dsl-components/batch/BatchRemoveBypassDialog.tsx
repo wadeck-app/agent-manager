@@ -10,6 +10,7 @@ import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
 import { StyledCheckbox } from '../ui/StyledCheckbox.js';
 import { bypassesOf, groupGrants, MAX_BATCH_GRANT_SESSIONS, MAX_BATCH_REVOKE_ITEMS, revokeConfirmLine, revokeResultsText, revokeSummaryText, sessionsOf, type GrantEntry } from './batchBypass.js';
+import { ReadProblems } from './ReadProblems.js';
 import { useBatchGrants } from './useBatchReads.js';
 
 const STATUS_LOOK: Record<BatchRevokeStatus, { icon: typeof CircleCheck; tone: string; words: string }> = {
@@ -146,9 +147,7 @@ export function BatchRemoveBypassDialog({ rows, onClose }: BatchRemoveBypassDial
             {`Reading the bypasses: ${grants.done} of ${grants.total} sessions...`}
           </p>
         ) : null}
-        {grants.problems.map((item) => (
-          <Banner key={item.names.join('|')} tone="error">{`${item.names.join(', ')}: ${item.text} Its bypasses are not listed below.`}</Banner>
-        ))}
+        <ReadProblems tone="error" intro="" outro="The bypasses of these sessions are not listed below." problems={grants.problems} />
         {grants.loading || grants.empty.length === 0 ? null : <p className="text-sm text-muted">{`${grants.empty.join(', ')} ${grants.empty.length === 1 ? 'has' : 'have'} no active bypass.`}</p>}
         {!grants.loading && grants.entries.length === 0 && grants.problems.length === 0 ? <Banner tone="info">None of the selected sessions has an active bypass: there is nothing to remove.</Banner> : null}
         {groups.map((group) => {

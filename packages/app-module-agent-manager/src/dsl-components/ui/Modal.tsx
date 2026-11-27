@@ -16,15 +16,19 @@ export interface ModalProps {
   children: ReactNode;
 }
 
+const FIELD_FOCUSABLE = 'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled])';
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * A modal dialog rendered in a portal on the body (inside its own Scope wrapper, like the tooltips: the Tailwind rules are scoped, and no ancestor can clip it).
- * Focus goes into it when it opens, Tab stays inside, Escape closes, and the focus returns to what had it before.
+ * Focus goes into it when it opens, Tab stays inside, Escape closes, and the focus returns to what had it before. The focus starts on the element marked
+ * `data-autofocus`, else on the first field of the body, else on the first control of the body (a confirmation), and on the Close button only when the body
+ * has nothing to focus: the Close button comes first in the document, and a dialog that opened on it showed its tooltip over the title (QA3 R15).
  */
 export function Modal({ title, onClose, dismissible = true, size = 'wide', children }: ModalProps) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
+  const body = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const dismissibleRef = useRef(dismissible);
@@ -34,7 +38,12 @@ export function Modal({ title, onClose, dismissible = true, size = 'wide', child
     const before = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     // data-autofocus marks the element to focus, or a wrapper of it (the base buttons take no data attribute).
     const marked = panel.current?.querySelector<HTMLElement>('[data-autofocus]');
-    const first = marked === null || marked === undefined ? panel.current?.querySelector<HTMLElement>(FOCUSABLE) : marked.matches(FOCUSABLE) ? marked : marked.querySelector<HTMLElement>(FOCUSABLE);
+    const first =
+      marked === null || marked === undefined
+        ? (body.current?.querySelector<HTMLElement>(FIELD_FOCUSABLE) ?? body.current?.querySelector<HTMLElement>(FOCUSABLE) ?? panel.current?.querySelector<HTMLElement>(FOCUSABLE))
+        : marked.matches(FOCUSABLE)
+          ? marked
+          : marked.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
@@ -92,7 +101,9 @@ export function Modal({ title, onClose, dismissible = true, size = 'wide', child
             </h2>
             <IconButton size="icon-sm" aria-label="Close" disabled={!dismissible} onClick={onClose} icon={<X aria-hidden="true" className="h-4 w-4" />} />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
+          <div ref={body} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {children}
+          </div>
         </div>
       </div>
     </Scope>,

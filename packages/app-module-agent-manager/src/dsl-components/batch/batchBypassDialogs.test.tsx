@@ -79,9 +79,41 @@ describe('BatchAddBypassDialog', () => {
     });
     render(<BatchAddBypassDialog rows={rows} onClose={vi.fn()} />);
     const dialog = await screen.findByRole('dialog');
-    const warning = await within(dialog).findByText(/The categories could not be read for api-owner/);
-    expect(warning).toHaveTextContent(/The plugin did not answer in 10 s/);
-    expect(warning).toHaveTextContent(/refuses them one by one/);
+    const warning = await within(dialog).findByText(/The categories could not be read for 1 session./);
+    const banner = warning.closest('[data-read-problems]') as HTMLElement;
+    expect(banner).toHaveTextContent(/api-owner: The plugin did not answer in 10 s/);
+    expect(banner).toHaveTextContent(/refuses them one by one/);
+  });
+
+  it('several folders that cannot be read make ONE banner: a line per folder, the fix they share once, no double full stop (QA3 R16)', async () => {
+    const fail = (id: string, folder: string) => ({ body: { ...rulesOf(id, folder, []), ok: false, code: 'plugin-error', errorText: `--cwd "${folder}" does not exist. Pass the project directory that contains .claude/. Fix what the message says, then reload this page.` } });
+    stubFetch({ ...CSRF, [RULES(shopA.sessionId)]: fail(shopA.sessionId, '/w/shop'), [RULES(api.sessionId)]: fail(api.sessionId, '/w/api') });
+    render(<BatchAddBypassDialog rows={rows} onClose={vi.fn()} />);
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/The categories could not be read for 3 sessions./);
+    const banners = dialog.querySelectorAll('[data-read-problems]');
+    expect(banners).toHaveLength(1);
+    const banner = banners[0] as HTMLElement;
+    expect(banner.querySelectorAll('li')).toHaveLength(2);
+    expect(banner.textContent?.match(/Fix what the message says/g)).toHaveLength(1);
+    expect(banner.textContent).not.toContain('..');
+  });
+
+  it('labels the duration choices with a visible Duration', async () => {
+    stubFetch({ ...CSRF, ...rulesRoutes() });
+    render(<BatchAddBypassDialog rows={rows} onClose={vi.fn()} />);
+    const dialog = await screen.findByRole('dialog');
+    const group = within(dialog).getByRole('group', { name: 'Duration' });
+    const label = dialog.querySelector(`[id="${group.getAttribute('aria-labelledby')}"]`);
+    expect(label).toHaveTextContent('Duration');
+  });
+
+  it('opens on the first field of the form, not on the Close button (QA3 R15)', async () => {
+    stubFetch({ ...CSRF, ...rulesRoutes() });
+    render(<BatchAddBypassDialog rows={rows} onClose={vi.fn()} />);
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(within(dialog).getByRole('button', { name: 'Close' }));
   });
 
   it('the confirm line follows the choices; the button needs a reason', async () => {

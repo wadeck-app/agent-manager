@@ -78,7 +78,13 @@ describe('the status chips of the one-line header', () => {
     expect(context).toHaveTextContent(/^38%$/);
     expect(context.querySelector('svg')).toBeNull();
     focusByKeyboard(context);
-    expect(liveTooltip()).toHaveTextContent(/367\.8k tokens in the context, auto-compact at about 967\.0k \(38%.*Window 1\.0M.*1000k window assumed.*not read from Claude Code/);
+    const rows = Object.fromEntries([...liveTooltip().querySelectorAll('dt')].map((dt) => [dt.textContent ?? '', dt.nextElementSibling?.textContent ?? '']));
+    expect(Object.keys(rows)).toEqual(['In the context', 'Auto-compact at', 'Window', 'Window assumed', 'Point assumed']);
+    expect(rows['In the context']).toBe('367.8k tokens');
+    expect(rows['Auto-compact at']).toMatch(/^about 967\.0k \(38%/);
+    expect(rows['Window']).toBe('1.0M');
+    expect(rows['Window assumed']).toMatch(/1000k window assumed/);
+    expect(rows['Point assumed']).toMatch(/33k tokens below the window, not read from Claude Code/);
     expect(within(info).getByLabelText('Tokens: 367,800 tokens in the prompt of the last call, 816 tokens in its answer (grows while it streams)')).toHaveTextContent('367.8k816');
     expect(within(info).getByLabelText('Running for 2h22m')).toBeInTheDocument();
     expect(within(info).getByLabelText('Role autonomous-worker')).toBeInTheDocument();

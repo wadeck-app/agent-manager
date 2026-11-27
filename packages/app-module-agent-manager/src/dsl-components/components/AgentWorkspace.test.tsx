@@ -108,6 +108,29 @@ describe('AgentWorkspace', () => {
     expect(mock).not.toHaveBeenCalled();
   });
 
+  it('says an empty registry once: one list message and a right pane that does not talk about selecting an agent (QA3 R6)', () => {
+    stubFetch();
+    render(
+      <Page>
+        <AgentWorkspace sessions={[]} />
+      </Page>,
+    );
+    expect(screen.getAllByRole('status').map((element) => element.textContent)).toEqual(['No session to showStart Claude Code in a terminal and it appears here within 5 seconds.']);
+    expect(screen.getByText('No agent')).toBeInTheDocument();
+    expect(screen.queryByText('Select an agent')).toBeNull();
+    expect(screen.queryByText(/J and K move/)).toBeNull();
+  });
+
+  it('names the ended sessions the filter hides when nothing is alive', () => {
+    stubFetch();
+    render(
+      <Page>
+        <AgentWorkspace sessions={[]} hiddenDead={2} />
+      </Page>,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('No session is alive. 2 ended sessions are hidden: choose "Alive and ended sessions" in the filter above to see them.');
+  });
+
   it('has a slim toolbar: the title, the count, a filter that writes the show URL parameter, and the shortcut help', () => {
     stubFetch();
     render(

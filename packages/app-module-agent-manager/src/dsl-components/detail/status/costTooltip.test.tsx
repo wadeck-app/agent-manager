@@ -60,8 +60,25 @@ describe('sessionCostLines', () => {
       { label: 'Main session', value: 'No transcript yet', missing: true },
       { label: 'Sub-agents', value: 'None', missing: false },
       { label: 'Total', value: 'No price for claude-future-9', missing: true },
-      { label: 'No price for', value: 'claude-future-9 (2 messages)', missing: true },
+      { label: 'Messages without price', value: 'claude-future-9 (2 messages)', missing: true },
     ]);
+  });
+});
+
+describe('sessionCostLines: identical rows without a figure are one row', () => {
+  it('says "No price for X" once when the main session, the sub-agents and the total all lack it', () => {
+    const none = (messages: number) => cost(0, { pricedMessages: 0, unpriced: [{ model: 'claude-fake-1', messages, reason: 'r' }] });
+    const lines = sessionCostLines({ main: none(5), subagents: { ...none(1111), agents: 4, withoutUsage: 0 }, total: none(1116) });
+    expect(lines).toEqual([
+      { label: 'Cost', value: 'No price for claude-fake-1', missing: true },
+      { label: 'Messages without price', value: 'claude-fake-1 (1116 messages)', missing: true },
+    ]);
+  });
+
+  it('merges only the lines that are identical', () => {
+    const none = (messages: number) => cost(0, { pricedMessages: 0, unpriced: [{ model: 'm', messages, reason: 'r' }] });
+    const lines = sessionCostLines({ main: cost(1), subagents: { ...none(2), agents: 1, withoutUsage: 0 }, total: none(2) });
+    expect(lines.map((line) => line.label)).toEqual(['Main session', 'Sub-agents (1), Total', 'Messages without price']);
   });
 });
 

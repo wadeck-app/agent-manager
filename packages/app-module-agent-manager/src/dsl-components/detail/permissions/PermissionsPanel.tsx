@@ -1,7 +1,7 @@
 import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
 import { Plus, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
-import { blockedCountsText, bypassCommand, failureText, MODE_CHOICES, PAGE_BASE, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantAddedDto, type GrantRevokedDto } from '../deps.js';
+import { blockedCountsText, bypassCommand, RECENT_WINDOW_TEXT, failureText, MODE_CHOICES, PAGE_BASE, requestJson, useNow, type AgentRow, type CliGrantDto, type GrantAddedDto, type GrantRevokedDto } from '../deps.js';
 import { CopyButton } from '../log/CopyButton.js';
 import { CliGrantList } from './CliGrantList.js';
 import { AddBypassDialog } from './AddBypassDialog.js';
@@ -11,6 +11,13 @@ import type { SessionGrantsFeed } from './useSessionGrants.js';
 import { useSessionRules } from './useSessionRules.js';
 
 const NOTE = 'text-xs text-muted';
+
+const NO_BREAK_SPACE = String.fromCharCode(160);
+
+/** "30 min" never breaks between the number and the unit (a no-break space): "min" alone on a second line says nothing. */
+function keepMinutesTogether(text: string): string {
+  return text.replaceAll(RECENT_WINDOW_TEXT, RECENT_WINDOW_TEXT.replaceAll(' ', NO_BREAK_SPACE));
+}
 const WARN = 'border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text';
 
 /**
@@ -117,7 +124,7 @@ export function PermissionsPanel({ session, feed }: { session: AgentRow; feed: S
         <h4 className="flex items-center gap-1.5 text-xs font-medium text-content">
           <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm text-muted" />
           Blocked
-          <span className="tabular-nums text-muted">{blockedCountsText(blocks)}</span>
+          <span className="tabular-nums text-muted">{keepMinutesTogether(blockedCountsText(blocks))}</span>
         </h4>
         {blocks === undefined ? (
           <p className={`mt-1 ${NOTE}`}>No guardrail blocked this session (the plugin has no counter for it).</p>

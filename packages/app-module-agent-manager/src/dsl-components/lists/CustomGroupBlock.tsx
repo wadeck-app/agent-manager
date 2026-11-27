@@ -4,7 +4,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { UNGROUPED_ID, type CustomSection } from '../logic/customMode.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
-import { GROUP_LOOK } from '../ui/groupLook.js';
+import { BODY_LOOK, GROUP_LOOK } from '../ui/groupLook.js';
 import { GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { StatusColumn } from '../ui/StatusColumn.js';
 import { useUiVariant } from '../ui/UiVariants.js';
@@ -37,6 +37,8 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
   const look = GROUP_LOOK[group?.color ?? 'none'];
   const headerStyle = useUiVariant('groupHeader');
   const groupId = group?.id ?? null;
+  // The whole body of the group (the rows, the strip under the last one) wears the body color, not only the rows without a state tint of their own.
+  const bodyColor = group?.bodyColor == null ? '' : BODY_LOOK[group.bodyColor];
   const Chevron = open ? ChevronDown : ChevronRight;
   const overHeader = dnd.over?.target.kind === 'header' && dnd.over.target.groupId === groupId;
   const overEnd = dnd.over?.target.kind === 'end' && dnd.over.target.groupId === groupId;
@@ -118,7 +120,7 @@ export function CustomGroupBlock({ section, open, tabbable, dnd, onToggle, onCon
         </span>
       </div>
       {open ? (
-        <div role="group" aria-label={name}>
+        <div role="group" aria-label={name} data-group-body={group?.bodyColor ?? ''} className={bodyColor === '' ? undefined : `isolate ${bodyColor}`}>
           {sessions.length === 0 ? <p className="px-8 py-1.5 text-xs text-muted">{section.id === UNGROUPED_ID ? 'Every agent is in a group.' : 'Empty. Drag an agent here, or press M on an agent.'}</p> : sessions.map((session) => renderRow(session))}
           {/* The strip under the last agent: a drop here puts the agent at the bottom of the group. Its height is a constant (a drag changes no position on the page): the zone that catches the drop is an overlay that only exists while an agent is dragged. */}
           <div data-group-end={section.id} className="relative h-1">

@@ -1,4 +1,4 @@
-import { ChipButton } from '@wadeck-app/dsl-ui';
+import { CompactSelect } from '@wadeck-app/dsl-ui';
 import { useState } from 'react';
 import { useNow } from '../deps.js';
 import { SubagentModeSwitch } from './SubagentModeSwitch.js';
@@ -36,12 +36,9 @@ export function SubagentsView({ items, mode, onMode, order, onOrder, selectedId,
       <div className="px-3">
         <SubagentModeSwitch mode={mode} onMode={onMode} />
       </div>
-      <div role="group" aria-label="Show sub-agents" className="flex flex-wrap gap-1 px-3">
-        {STATUS_FILTERS.map((value) => (
-          <ChipButton key={value} active={filter === value} onClick={() => setFilter(value)} className="gap-1">
-            {FILTER_LABEL[value]} <span className="tabular-nums">{countOf(value)}</span>
-          </ChipButton>
-        ))}
+      {/* A select, not four chips: the chips wrapped on two rows in the narrow rail, the select is one row at every width. */}
+      <div className="px-3">
+        <CompactSelect ariaLabel="Show sub-agents" size="sm" value={filter} onChange={(value) => setFilter(value as StatusFilter)} options={STATUS_FILTERS.map((value) => ({ value, label: `${FILTER_LABEL[value]} ${countOf(value)}` }))} />
       </div>
       {mode === 'summary' ? <SubagentSummary {...props} filtered={filter !== 'all'} /> : <SubagentTimeline {...props} order={order} onOrder={onOrder} />}
     </div>

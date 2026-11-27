@@ -116,3 +116,36 @@ export function revokeSummaryText(results: readonly BatchRevokeResult[]): string
 export function revokeResultsText(results: readonly BatchRevokeResult[]): string {
   return results.map((result) => `${result.name} (${result.sessionId}) ${result.grantId}: ${result.status}${result.text === '' ? '' : `. ${result.text}`}`).join('\n');
 }
+
+/** A read that failed: the sessions it concerns and the server's words. */
+export interface ReadProblemLine {
+  names: readonly string[];
+  text: string;
+}
+
+export interface MergedReadProblems {
+  /** One line per failed read: the sessions, then what is specific to them. */
+  lines: { who: string; text: string }[];
+  /** The closing sentences every failed read ends with (the same fix), said once. Empty with one problem or when they share none. */
+  shared: string;
+}
+
+const sentencesOf = (text: string): string[] => text.split(/(?<=[.!?])\s+/).filter((sentence) => sentence !== '');
+
+/** Several failed reads in one message: the words of each folder, and the fix they all share once (QA3 R16: the same fix was repeated in one banner per folder). */
+export function mergeReadProblems(problems: readonly ReadProblemLine[]): MergedReadProblems {
+  const split = problems.map((problem) => sentencesOf(problem.text));
+  let common = 0;
+  if (problems.length > 1) {
+    const shortest = Math.min(...split.map((sentences) => sentences.length));
+    // At least one sentence stays on each line: the shared tail is never the whole message.
+    while (common < shortest - 1 && split.every((sentences) => sentences[sentences.length - 1 - common] === split[0]?.[(split[0]?.length ?? 0) - 1 - common])) {
+      common += 1;
+    }
+  }
+  const first = split[0] ?? [];
+  return {
+    lines: problems.map((problem, index) => ({ who: problem.names.join(', '), text: (split[index] ?? []).slice(0, (split[index]?.length ?? 0) - common).join(' ') })),
+    shared: first.slice(first.length - common).join(' '),
+  };
+}

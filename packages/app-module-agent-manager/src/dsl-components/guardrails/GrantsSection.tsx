@@ -4,7 +4,7 @@ import { folderName } from '../logic/folderPicker.js';
 import { clockText, remainingText } from '../logic/guardrails.js';
 import type { GrantDto } from '../shared.js';
 import { Empty } from './Empty.js';
-import { TD, TD_SHORT, TH } from './parts.js';
+import { FREE_TEXT_COLUMN, TD, TD_SHORT, TH } from './parts.js';
 import { Section } from './Section.js';
 import { ScrollTable } from '../ui/ScrollTable.js';
 import { SessionCell } from './SessionCell.js';
@@ -49,7 +49,7 @@ export function GrantsSection({ grants, hiddenEntries, now, scanned }: { grants:
                         <span>{folderName(grant.project)}</span>
                       </Tooltip>
                     </td>
-                    <td className={`${TD} max-w-xl break-words`}>{grant.rationale === '' ? <span className="text-muted">none given</span> : grant.rationale}</td>
+                    <td className={`${TD} ${FREE_TEXT_COLUMN} max-w-xl break-words`}>{grant.rationale === '' ? <span className="text-muted">none given</span> : grant.rationale}</td>
                     <td className={`${TD_SHORT} tabular-nums`}>{grant.maxUses === null ? `${grant.used}` : `${grant.used} of ${grant.maxUses}`}</td>
                   </tr>
                 );

@@ -24,6 +24,23 @@ export function costValue(cost: CostDto): { text: string; priced: boolean; parti
   return { text: formatUsd(cost.usd), priced: true, partial: false, note: costEstimateNote(cost) };
 }
 
+/**
+ * Lines without a figure that say the very same thing ("No price for X" three times) become one line, labelled by the lines it stands for ("Cost" when it is
+ * all of them). A line with a figure, or a different reason, stays as it is.
+ */
+function mergeIdentical(lines: CostLine[]): CostLine[] {
+  const out: CostLine[] = [];
+  for (const line of lines) {
+    const same = line.missing ? lines.filter((other) => other.missing && other.value === line.value) : [];
+    if (same.length < 2) {
+      out.push(line);
+    } else if (same[0] === line) {
+      out.push({ label: same.length === lines.length ? 'Cost' : same.map((item) => item.label).join(', '), value: line.value, missing: true });
+    }
+  }
+  return out;
+}
+
 export interface CostLine {
   label: string;
   value: string;
@@ -54,8 +71,9 @@ export function sessionCostLines(cost: SessionCostDto): CostLine[] {
   }
   const total = costValue(cost.total);
   lines.push({ label: 'Total', value: total.text, missing: !total.priced });
+  const merged = mergeIdentical(lines);
   if (cost.total.unpriced.length > 0) {
-    lines.push({ label: 'No price for', value: unpricedList(cost.total), missing: true });
+    merged.push({ label: 'Messages without price', value: unpricedList(cost.total), missing: true });
   }
-  return lines;
+  return merged;
 }

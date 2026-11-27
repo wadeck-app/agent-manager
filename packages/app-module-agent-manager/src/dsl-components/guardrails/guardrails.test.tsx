@@ -129,6 +129,7 @@ describe('GuardrailsPage', () => {
     expect(within(grants).getByText('Once').closest('td')).toHaveClass('whitespace-nowrap');
     expect(within(grants).getByText('29 min').closest('td')).toHaveClass('whitespace-nowrap');
     expect(within(grants).getByText('clean the build folder').closest('td')).not.toHaveClass('whitespace-nowrap');
+    expect(within(grants).getByText('clean the build folder').closest('td')).toHaveClass('min-w-[16rem]');
     const blocked = screen.getByRole('table', { name: 'Blocked sessions' });
     expect(within(blocked).getByText('37')).toBeInTheDocument();
     // The page keeps the full history and says so in the column title.

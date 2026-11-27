@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { folderName } from '../logic/folderPicker.js';
 import { clockText, previewOf, subagentOf } from '../logic/guardrails.js';
 import type { DenialDto } from '../shared.js';
-import { MONO, TD, TD_SHORT } from './parts.js';
+import { LINK_HIT_AREA } from '../ui/hitArea.js';
+import { FREE_TEXT_COLUMN, MONO, TD, TD_SHORT } from './parts.js';
 
 /** One denial or ask of the timeline: time, decision, category, session, tool, project, and the command (when the PIN route gave it, cut with "Show full") or the file. */
 export function DenialRow({ denial, withCommands }: { denial: DenialDto; withCommands: boolean }) {
@@ -39,13 +40,15 @@ export function DenialRow({ denial, withCommands }: { denial: DenialDto; withCom
           <span>{folderName(denial.project)}</span>
         </Tooltip>
       </td>
-      <td className={`${TD} max-w-2xl break-all`}>
+      <td className={`${TD} ${FREE_TEXT_COLUMN} max-w-2xl break-all`}>
         {denial.file !== '' ? <span className={MONO}>{denial.file}</span> : null}
         {detail !== undefined ? (
           <span className="flex flex-wrap items-start gap-2">
             <span className={`${MONO} whitespace-pre-wrap break-all`}>{detail.text}</span>
             {detail.cut || full ? (
-              <ButtonAction variant="link" size="xs" onClick={() => setFull((value) => !value)} label={full ? 'Show less' : 'Show full'} />
+              <span className={LINK_HIT_AREA}>
+                <ButtonAction variant="link" size="xs" onClick={() => setFull((value) => !value)} label={full ? 'Show less' : 'Show full'} />
+              </span>
             ) : null}
           </span>
         ) : denial.file === '' ? (

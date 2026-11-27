@@ -1,7 +1,7 @@
-import { ButtonAction, IconButton } from '@wadeck-app/dsl-ui';
+import { IconButton } from '@wadeck-app/dsl-ui';
 import { Keyboard, Paperclip, SendHorizontal, Zap } from 'lucide-react';
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent, type KeyboardEvent } from 'react';
-import { Banner, CountBadge, FoldedBanner, useMediaQuery } from '../deps.js';
+import { Banner, CountBadge, StackedBanner, useMediaQuery } from '../deps.js';
 import { FOCUS_RING } from '../deps.js';
 import { Tooltip } from '../deps.js';
 import { getPending } from '../pending.js';
@@ -189,14 +189,11 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
   return (
     <div data-composer className="flex shrink-0 flex-col gap-2 border-t border-border bg-surface px-4 py-3">
       {block !== undefined ? (
-        <FoldedBanner
+        <StackedBanner
+          id="composer-block"
           tone={block.kind === 'checking' ? 'info' : 'warning'}
           text={block.text}
-          action={
-            block.kind === 'blocked' && status === undefined ? (
-<ButtonAction variant="secondary" size="sm" label="Retry" onClick={live.refresh} />
-            ) : undefined
-          }
+          action={block.kind === 'blocked' && status === undefined ? { label: 'Retry', onClick: live.refresh } : undefined}
         />
       ) : null}
       {problems.map((problem) => (

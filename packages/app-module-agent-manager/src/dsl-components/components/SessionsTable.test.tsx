@@ -41,11 +41,15 @@ describe('SessionsTable', () => {
     }
   });
 
-  it('keeps words whole: no break-all anywhere, a long name is cut with an ellipsis on one line, never wrapped mid-word', () => {
+  it('keeps words whole: no break-all anywhere, the session and folder cells stay on one line with a generous cap (the table scrolls sideways, QA3 R20), a very long name is cut with an ellipsis', () => {
     const { container } = render(<SessionsTable rows={[row({ displayName: 'agent-manager-owner' })]} />);
     expect(container.innerHTML).not.toMatch(/break-all|break-words/);
-    // The cell holds the name in a truncating link; its full text is the tooltip.
-    expect(screen.getByRole('cell', { name: 'agent-manager-owner' }).querySelector('.truncate')).not.toBeNull();
+    const nameCell = screen.getByRole('cell', { name: 'agent-manager-owner' });
+    // 18 rem for a name (about 30 characters), 12 rem for a folder: the old 10 rem and 6 rem cut ordinary names inside a table that scrolls anyway.
+    expect(nameCell.className).toContain('whitespace-nowrap');
+    expect(nameCell.className).toContain('max-w-72');
+    expect(nameCell.querySelector('.truncate')).not.toBeNull();
+    expect(container.querySelectorAll('td.max-w-40, td.max-w-24')).toHaveLength(0);
     hoverTip(screen.getByRole('cell', { name: 'agent-manager-owner' }).querySelector('a') as HTMLElement);
     expect(liveTooltip().textContent).toContain('agent-manager-owner');
   });

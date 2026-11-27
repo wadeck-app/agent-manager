@@ -38,6 +38,9 @@ export interface HerdrRowBodyProps {
   onMenu?: (anchor: { x: number; y: number }) => void;
 }
 
+/** The box of a bold name grows into the gap on its right by the width the weight adds (classes written in full). */
+export const BOLD_NAME_RESERVE = '-mr-1.5';
+
 /**
  * The content of an agent row in the Herdr variants of the A/B question `ui-tree-density`: program icon, bold name, the folder (its separator is the A/B question `ui-row-separator`), the marks
  * (host, pin, sub-agents) then the age and the state light on the right. 31 px high, one line, like the Herdr panel. The row click and keyboard are the Tree's.
@@ -49,7 +52,12 @@ export function HerdrRowBody({ session, density, hideFolder = false, selected = 
   // Never 'stacked' where it is used (the one-line branch); the narrowing keeps the switch of InlineSecondary exhaustive.
   const separator = variant === 'stacked' ? 'space' : variant;
   // The row look (logic/rowLook.ts): a plain name for every agent by default; the Herdr look (a bold open name, a grey quiet one) is the settings boldActive and dimIdle.
-  const nameClass = nameClasses(useRowLook(), selected, isQuietRow(session, selected), 'regular');
+  const look = useRowLook();
+  // A bold name is wider than the same name in the regular weight (measured: 139.4 px against 133.5 px for "agent-manager-owner"), and the open row would cut a name
+  // that fits when it is not open (QA3 R17): the box of the name takes the 6 px back from the gap on its right (the gap is 9 px), so the weight changes no word on the row.
+  // It is the wrapper that grows: the line inside clips at its parent, a margin on the name itself could not widen it.
+  const reserve = selected && look.boldActive ? BOLD_NAME_RESERVE : '';
+  const nameClass = nameClasses(look, selected, isQuietRow(session, selected), 'regular');
   return (
     <div className="flex h-full items-center gap-[9px] text-[13px] leading-5">
       {/* The slot is on every row of a list that shows sub-agents, with or without any: the state icon and the name start at the same x on every row. A list that does not show them has no slot on any row. It is 20 px wide (the 28 px button overflows it evenly) so that the name keeps the room. */}
@@ -66,6 +74,7 @@ export function HerdrRowBody({ session, density, hideFolder = false, selected = 
       ) : null}
       <HerdrProgramIcon session={session} />
       {/* The name comes first: it takes what it needs up to the whole box. The folder wraps out of the one-line clipped box (never squeezes the name) when less than its minimum is left. */}
+      <span data-name-box="" className={`flex min-w-0 flex-1 ${reserve}`}>
       <RowTip session={session} line={detailLine(session)}>
         {stacked ? (
           <span data-tip-fill="" data-herdr-stack="" className={ROW_STACK}>
@@ -94,6 +103,7 @@ export function HerdrRowBody({ session, density, hideFolder = false, selected = 
           </span>
         )}
       </RowTip>
+      </span>
       {session.flagged ? (
         <span className="inline-flex shrink-0 text-hue-orange">
           <Flag aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />

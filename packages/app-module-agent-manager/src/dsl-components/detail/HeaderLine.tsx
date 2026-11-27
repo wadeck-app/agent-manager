@@ -79,11 +79,11 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
       </span>
     ),
   });
-  if (status.model !== undefined) {
-    droppable.push({ key: 'model', node: <ModelChip model={status.model} previous={status.previousModels} />, entries: [{ label: 'model', value: status.model.displayName }] });
-  }
   if (status.contextUsedPct !== undefined) {
     droppable.push({ key: 'context', node: <ContextMeter context={status.contextUsedPct} />, entries: [{ label: 'context', value: `${status.contextUsedPct.value}% of the way to auto-compact` }] });
+  }
+  if (status.model !== undefined) {
+    droppable.push({ key: 'model', node: <ModelChip model={status.model} previous={status.previousModels} />, entries: [{ label: 'model', value: status.model.displayName }] });
   }
   if (status.role !== undefined || (status.bypasses?.length ?? 0) > 0 || status.bypassError !== undefined) {
     droppable.push({
@@ -101,6 +101,9 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
       ],
     });
   }
+  if (session.harness !== undefined) {
+    droppable.push({ key: 'harness', node: <HarnessChip harness={session.harness} />, entries: [{ label: 'program', value: harnessChip(session.harness).full }] });
+  }
   if (status.tokensIn !== undefined || status.tokensOut !== undefined) {
     const text = [status.tokensIn === undefined ? undefined : `${formatTokens(status.tokensIn)} in`, status.tokensOut === undefined ? undefined : `${formatTokens(status.tokensOut)} out`].filter((part) => part !== undefined).join(' / ');
     droppable.push({ key: 'tokens', node: <TokenCounts tokensIn={status.tokensIn} tokensOut={status.tokensOut} cost={status.cost} />, entries: [{ label: 'tokens', value: text }] });
@@ -108,12 +111,15 @@ export function HeaderLine({ session, status, now }: { session: AgentRow; status
   if (status.durationMs !== undefined) {
     droppable.push({ key: 'duration', node: <DurationChip durationMs={status.durationMs} />, entries: [{ label: 'running for', value: formatSpan(status.durationMs) }] });
   }
-  if (session.harness !== undefined) {
-    droppable.push({ key: 'harness', node: <HarnessChip harness={session.harness} />, entries: [{ label: 'program', value: harnessChip(session.harness).full }] });
-  }
   droppable.push({ key: 'session', node: <SessionIdChip sessionId={session.sessionId} name={session.displayName} />, entries: [{ label: 'session', value: session.sessionId }] });
   if (session.pid > 0) {
-    droppable.push({ key: 'pid', node: <span className="text-xs tabular-nums text-muted">pid {session.pid}</span>, entries: [{ label: 'pid', value: String(session.pid) }] });
+    droppable.push({ key: 'pid', node: (
+        <Tooltip rows={[{ label: 'Process id', value: String(session.pid) }, { label: 'Process', value: 'The Claude Code process of this session, as the registry lists it' }]} maxWidth="sm">
+          <span tabIndex={0} aria-label={`Process id ${session.pid}`} className="text-xs tabular-nums text-muted">
+            pid {session.pid}
+          </span>
+        </Tooltip>
+      ), entries: [{ label: 'pid', value: String(session.pid) }] });
   }
   // Measured on the real row: every chip that fits stays, in the priority of LINE_PRIORITY (a wide one that does not fit never takes the narrow ones with it).
   // `tight` is true when even the bare line (name, state, age) does not fit: the name may then shrink and the state is an icon (the words are the tooltip).

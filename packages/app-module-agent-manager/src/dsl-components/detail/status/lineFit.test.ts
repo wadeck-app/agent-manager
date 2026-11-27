@@ -57,11 +57,17 @@ describe('what the +N tooltip lists', () => {
 });
 
 describe('the second row of the header line', () => {
-  it('keeps what fits next to the name on the first row and puts the rest on a second row, as wide as the header, before any +N chip', () => {
-    // 100 px free next to the name: the context (39) fits, the wide folder (196) does not; the second row (400 px, minus the +N chip) takes the folder and the move chip, in the priority order.
+  it('puts the chips in order: the first row stops at the first chip that does not fit and the second row continues from it, before any +N chip', () => {
+    // 100 px free next to the name: the wide folder (196) does not fit, so nothing narrower jumps ahead of it; the second row (400 px, minus the +N chip) takes the folder and the context, then what still fits (the second row keeps the order too).
     const rows = fitRows({ ...base, available: 100, secondAvailable: 400 });
-    expect([...rows.first]).toEqual(['context']);
-    expect([...rows.second]).toEqual(['folder', 'move']);
+    expect([...rows.first]).toEqual([]);
+    expect([...rows.second]).toEqual(['folder', 'context', 'tokens']);
+  });
+
+  it('reads the same order whatever the widths: the first row is a prefix of the priority order', () => {
+    const rows = fitRows({ ...base, available: 196 + 8 + 39 + 8 + 5, secondAvailable: 400 });
+    expect([...rows.first]).toEqual(['folder', 'context']);
+    expect([...rows.second][0]).toBe('move');
   });
 
   it('leaves only what does not fit on the second row either to the +N chip (the second row reserves its room)', () => {

@@ -37,6 +37,8 @@ describe('ScrollTable', () => {
     expect(region.contains(table)).toBe(true);
     expect(region.getAttribute('tabindex')).toBe('0');
     expect(region.className).toContain('overflow-x-auto');
+    // Measured root cause (QA3 R2): the absolute sr-only spans of the cells (tooltip texts) are not clipped by a static scroller and widen the page.
+    expect(region.className.split(' ')).toContain('relative');
     expect(screen.getByRole('columnheader', { name: 'Name' })).toBeTruthy();
   });
 
