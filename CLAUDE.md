@@ -32,7 +32,7 @@ Config dir: `$AGENT_MANAGER_CONFIG_DIR`, else `$XDG_CONFIG_HOME/agent-manager`, 
 
 ## CLI Development Workflow
 
-1. Verify locally: `npm test`, `npm run build`, `BUNDLE_VERSION=0.0.0-local npm run bundle`, `violations check`.
+1. Verify locally: `npm test`, `npm run build`, `BUNDLE_VERSION=0.0.0-local npm run bundle`, `violations check`. The tags `ts`, `cli`, `react`, `tailwind`, `shared` are all enabled (`.violations/config.ts`): no bare button or text input in product code (use the dsl-ui base components; the bare cases go through `ui/RowButton.tsx` and `ui/BareInput.tsx`, the only exemptions), no static className over 80 characters (named constant). CI runs `violations check` (ubuntu job).
 2. Run the bundle only in an isolated env (temp HOME/USERPROFILE, `AGENT_MANAGER_CONFIG_DIR`, `XDG_CONFIG_HOME`, `autoUpdate: false` in its `config.yml`).
 3. Commit and push to `main`. CI (`.github/workflows/publish.yml`) tests on 3 OS, builds the Go launcher, computes the CalVer version, publishes the platform packages then the main package, then `verify-install` installs the published version on 3 OS.
 4. Wait for CI: `queue wait ci <sha> --name agent-manager.ci-<sha7> --cli-foreground` (run in background, ALONE: never append `; echo $?`, the notification would show the echo's 0; read the printed verdict and cross-check the run with the Actions API, see `.claude/kb/lessons-learned.md`).

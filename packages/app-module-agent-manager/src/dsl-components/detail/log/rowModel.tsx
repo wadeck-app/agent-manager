@@ -1,7 +1,7 @@
 import { ArrowLeftRight, Bell, Bot, Brain, ChevronDown, ChevronRight, CircleHelp, Clock, Cpu, GitFork, Layers, ListOrdered, Terminal, TriangleAlert, User, Users, Webhook, Wrench, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { LogEntry, ReplyMessageDto, ThreadAnchor } from '../deps.js';
-import { threadAnchorOf } from '../deps.js';
+import { RowButton, threadAnchorOf } from '../deps.js';
 import { UNCONFIRMED_AFTER_MS, type PendingMessage } from '../pending.js';
 import { DeliveryMark, type MarkState } from './DeliveryMark.js';
 import { PendingActions } from './PendingActions.js';
@@ -14,6 +14,8 @@ import { Markdown } from './markdown.js';
 import { LOG_ICON, LOG_META, LOG_MONO } from './sizes.js';
 import { ToolBody, durationText } from './ToolBody.js';
 import { ToolStatusIcon } from './ToolStatusIcon.js';
+
+const TOOL_LINE_BUTTON = 'flex w-full items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-muted-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
 /** What a row needs from its container to open nested lines (the calls of a group). */
 export interface OpenContext {
@@ -336,12 +338,12 @@ function ToolLine({ call, context }: { call: ToolCall; context: OpenContext }) {
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
     <div className="flex flex-col">
-      <button type="button" aria-expanded={open} onClick={() => context.toggle(call.key)} className="flex w-full items-center gap-2 rounded px-1 py-0.5 text-left hover:bg-muted-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <RowButton type="button" aria-expanded={open} onClick={() => context.toggle(call.key)} className={TOOL_LINE_BUTTON}>
         <Chevron aria-hidden="true" className={`${LOG_ICON} text-muted`} />
         <span className="shrink-0 text-sm font-medium">{model.label}</span>
         <span className={`min-w-0 flex-1 truncate ${LOG_MONO} text-muted`}>{model.summary}</span>
         {model.trailing}
-      </button>
+      </RowButton>
       {open ? <div className="ml-6 mt-1 mb-1">{model.body?.(context)}</div> : null}
     </div>
   );

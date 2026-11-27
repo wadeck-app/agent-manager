@@ -1,5 +1,5 @@
 import { CircleAlert, LoaderCircle, Target } from 'lucide-react';
-import { FOCUS_RING } from '../deps.js';
+import { RowButton, FOCUS_RING } from '../deps.js';
 import { SubagentTip } from './SubagentTip.js';
 import type { LocatePhase } from './useLocateCall.js';
 import { elapsedMs, formatElapsed, lastActivityText, STATUS_LOOK, type SubagentItem } from './subagentModel.js';
@@ -45,7 +45,7 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
   return (
     <li>
       <SubagentTip item={item} now={now}>
-      <button
+      <RowButton
         type="button"
         data-tip-fill=""
         aria-pressed={selected}
@@ -72,7 +72,7 @@ export function SubagentRow({ item, now, selected, locate, onSelect, nested = fa
             </span>
           ) : null}
         </span>
-      </button>
+      </RowButton>
       </SubagentTip>
     </li>
   );

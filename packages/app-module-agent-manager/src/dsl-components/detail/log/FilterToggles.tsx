@@ -3,10 +3,12 @@ import { hiddenSentence, NAME } from './filterNames.js';
 import { LOG_CATEGORIES, type Filtered, type LogFiltersFeed } from './logFilters.js';
 import { LOG_META } from './sizes.js';
 
+const FILTER_BAR = 'flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-border px-3 py-1 [&>*]:shrink-0';
+
 /** The row of toggles of the bar: one per family with its count among the loaded entries, and the total hidden at the right. */
 export function FilterToggles({ feed, filtered }: { feed: LogFiltersFeed; filtered: Filtered }) {
   return (
-    <div role="group" aria-label="Show in the log" className="flex flex-nowrap items-center gap-1 overflow-x-auto border-b border-border px-3 py-1 [&>*]:shrink-0">
+    <div role="group" aria-label="Show in the log" className={FILTER_BAR}>
       {LOG_CATEGORIES.map((category) => {
         const on = feed.prefs[category];
         const count = filtered.counts[category];

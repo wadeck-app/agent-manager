@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 
+const SCROLL_CUE_START = 'pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-border to-transparent';
+const SCROLL_CUE_END = 'pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-border to-transparent';
+
 /** What the scroll region shows of its content: the edge on each side that hides columns. */
 export interface ScrollCue {
   start: boolean;
@@ -66,8 +69,8 @@ export function ScrollTable({ label, children }: { label: string; children: Reac
             {children}
           </table>
         </div>
-        {cue.start ? <div aria-hidden="true" data-scroll-cue="start" className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-border to-transparent" /> : null}
-        {cue.end ? <div aria-hidden="true" data-scroll-cue="end" className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-border to-transparent" /> : null}
+        {cue.start ? <div aria-hidden="true" data-scroll-cue="start" className={SCROLL_CUE_START} /> : null}
+        {cue.end ? <div aria-hidden="true" data-scroll-cue="end" className={SCROLL_CUE_END} /> : null}
       </div>
       {hidden ? <p className="border-t border-border px-3 py-1 text-xs text-muted-tint">Scroll sideways to see all the columns.</p> : null}
     </div>

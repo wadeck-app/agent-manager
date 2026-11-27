@@ -17,6 +17,7 @@ export { Banner } from '../ui/Banner.js';
 export { DialogActions } from '../ui/DialogActions.js';
 export { Modal } from '../ui/Modal.js';
 export { FOCUS_RING } from '../ui/focusRing.js';
+export { RowButton } from '../ui/RowButton.js';
 export { useMediaQuery, useMinWidth, useNow, WIDE_SCREEN_PX } from '../ui/hooks.js';
 export { AUTO_ML_FROM_PX } from '../ui/density.js';
 export { Tooltip } from '@wadeck-app/dsl-ui';

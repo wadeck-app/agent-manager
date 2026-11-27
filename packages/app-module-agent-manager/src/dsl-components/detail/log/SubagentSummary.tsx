@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { FOCUS_RING } from '../deps.js';
+import { RowButton, FOCUS_RING } from '../deps.js';
 import { CappedRows } from './CappedRows.js';
 import { SubagentProgress } from './SubagentProgress.js';
 import { byAttention, countStatuses, describeCounts } from './subagentModel.js';
@@ -29,10 +29,10 @@ export function SubagentSummary({ items, all, filtered, ...rest }: SubagentConte
         <CappedRows items={attention} {...rest} />
         {finished.length > 0 ? (
           <li>
-            <button type="button" aria-expanded={expanded} onClick={() => setOpen(!open)} className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs font-medium text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}>
+            <RowButton type="button" aria-expanded={expanded} onClick={() => setOpen(!open)} className={`flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-left text-xs font-medium text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}>
               <Chevron aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
               {finished.length} finished
-            </button>
+            </RowButton>
             {expanded ? (
               <ul className="flex flex-col gap-0.5">
                 <CappedRows items={finished} {...rest} />

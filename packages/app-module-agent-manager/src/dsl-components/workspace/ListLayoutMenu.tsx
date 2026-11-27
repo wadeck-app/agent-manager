@@ -3,12 +3,12 @@ import { Check, FolderKanban, Inbox, LayoutList, LayoutPanelLeft, ListTree, type
 import type { KeyboardEvent } from 'react';
 import { MODE_LABEL, MODES, type ModeId } from '../shared.js';
 import type { TreeExpansion, TreeGrouping, ViewOptions } from '../logic/viewOptions.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { POPUP_SECTION, POPUP_SURFACE } from '../ui/popupSurface.js';
 import { usePopover } from '../ui/usePopover.js';
 import { OptionChoice } from './OptionChoice.js';
 import { OptionGroup } from './OptionGroup.js';
 import { OptionToggle } from './OptionToggle.js';
+import { RowButton } from '../ui/RowButton.js';
 
 const MODE_ICON: Record<ModeId, LucideIcon> = { tree: ListTree, groups: LayoutList, inbox: Inbox, custom: FolderKanban };
 
@@ -104,7 +104,7 @@ export function ListLayoutMenu({ mode, onMode, options, onOptions }: ListLayoutM
               const Icon = MODE_ICON[id];
               const active = id === mode;
               return (
-                <button
+                <RowButton
                   key={id}
                   id={`agents-mode-${id}`}
                   type="button"
@@ -113,7 +113,7 @@ export function ListLayoutMenu({ mode, onMode, options, onOptions }: ListLayoutM
                   tabIndex={active ? 0 : -1}
                   onClick={() => pick(id)}
                   onKeyDown={(event) => onItemKeyDown(event, id)}
-                  className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted-bg ${active ? 'bg-muted-bg' : ''} ${FOCUS_RING}`}
+                  className={`flex w-full items-start gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted-bg ${active ? 'bg-muted-bg' : ''}`}
                 >
                   <Icon aria-hidden="true" className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0" />
                   <span className="min-w-0 flex-1">
@@ -125,7 +125,7 @@ export function ListLayoutMenu({ mode, onMode, options, onOptions }: ListLayoutM
                     </span>
                   </span>
                   {active ? <Check aria-hidden="true" className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0 text-primary" /> : null}
-                </button>
+                </RowButton>
               );
             })}
           </div>

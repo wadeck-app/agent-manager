@@ -3,12 +3,12 @@ import { Check, FolderPlus, FolderX } from 'lucide-react';
 import { useState } from 'react';
 import type { AgentRow } from '../data/types.js';
 import { checkGroupName } from '../shared.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { Modal } from '../ui/Modal.js';
 import type { GroupsApi } from './common.js';
 import { GroupDot } from './GroupDot.js';
+import { RowButton } from '../ui/RowButton.js';
 
-const OPTION = `flex min-h-am-hit w-full items-center gap-2 rounded border border-border px-3 py-1.5 text-left text-sm text-content hover:bg-muted-bg disabled:cursor-default disabled:opacity-60 ${FOCUS_RING}`;
+const OPTION = `flex min-h-am-hit w-full items-center gap-2 rounded border border-border px-3 py-1.5 text-left text-sm text-content hover:bg-muted-bg disabled:cursor-default disabled:opacity-60`;
 
 /**
  * The keyboard (and pointer) alternative to dragging an agent: a list of the groups, a way out of the current one, and a field to make a new group and
@@ -58,7 +58,7 @@ export function MoveToGroupDialog({ session, groups, onClose }: { session: Agent
         {groups.groups.map((group) => {
           const here = group.id === current;
           return (
-            <button key={group.id} type="button" disabled={here} aria-current={here ? 'true' : undefined} onClick={() => choose(group.id)} className={OPTION} {...autofocus(here)}>
+            <RowButton key={group.id} type="button" disabled={here} aria-current={here ? 'true' : undefined} onClick={() => choose(group.id)} className={OPTION} {...autofocus(here)}>
               <GroupDot color={group.color} />
               <span className="min-w-0 flex-1 truncate">{group.name}</span>
               {here ? (
@@ -67,13 +67,13 @@ export function MoveToGroupDialog({ session, groups, onClose }: { session: Agent
                   <span className="text-xs text-muted">Current group</span>
                 </>
               ) : null}
-            </button>
+            </RowButton>
           );
         })}
-        <button type="button" disabled={current === null} onClick={() => choose(null)} className={OPTION} {...autofocus(current === null)}>
+        <RowButton type="button" disabled={current === null} onClick={() => choose(null)} className={OPTION} {...autofocus(current === null)}>
           <FolderX aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
           <span className="flex-1">{current === null ? 'Ungrouped (current)' : 'Ungrouped: take it out of its group'}</span>
-        </button>
+        </RowButton>
         <form
           className="mt-2 flex flex-col gap-1.5 border-t border-border pt-3"
           onSubmit={(event) => {

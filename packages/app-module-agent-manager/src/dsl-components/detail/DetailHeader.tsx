@@ -16,6 +16,11 @@ import type { OwnedChange } from '../workspace/useOwnedRows.js';
 import { HeaderActions } from './HeaderActions.js';
 import { HeaderLine } from './HeaderLine.js';
 import { useSessionStatus } from './status/useSessionStatus.js';
+import { RowButton } from '../ui/RowButton.js';
+
+const LOCATE_LINK = 'shrink-0 text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+const SOURCE_LINK = 'text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+const HEADER_BOX = 'flex max-h-[50vh] shrink-0 flex-col gap-1 overflow-x-hidden overflow-y-auto border-b border-border px-4 py-2';
 
 export interface DetailHeaderProps {
   session: AgentRow;
@@ -65,9 +70,9 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
               {threadChipText(forkedFrom?.name, session.threadOf.quote, session.threadOf.messageId)}
             </span>
             {onLocateAnchor !== undefined ? (
-              <button type="button" aria-label="Go to the message in the original" onClick={() => onLocateAnchor(session.threadOf!.sessionId, session.threadOf!.messageId)} className="shrink-0 text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <RowButton type="button" aria-label="Go to the message in the original" onClick={() => onLocateAnchor(session.threadOf!.sessionId, session.threadOf!.messageId)} className={LOCATE_LINK}>
                 Go to the message
-              </button>
+              </RowButton>
             ) : null}
           </p>
         ) : forkedFrom === undefined ? null : (
@@ -79,9 +84,9 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
                 <span>{`${forkedFrom.id.slice(0, 8)} (not in the list)`}</span>
               </Tooltip>
             ) : (
-              <button type="button" onClick={() => onOpenSource(forkedFrom.id)} className="text-primary underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <RowButton type="button" onClick={() => onOpenSource(forkedFrom.id)} className={SOURCE_LINK}>
                 {forkedFrom.name}
-              </button>
+              </RowButton>
             )}
           </p>
         );
@@ -89,7 +94,7 @@ export function DetailHeader({ session, now, busy, onBack, onTogglePin, onMarkSe
   const forkDialog = forkFor === forkId ? <ForkDialog key={`fork-${forkId}`}session={session} onClose={() => setForkFor(undefined)} onForked={onForked} /> : null;
   // The one-line header: everything on one line, the actions at its right; only what has something to say gets a line under it (a fork or thread origin, a warning, a reason).
   return (
-    <header data-header-layout="line" className="flex max-h-[50vh] shrink-0 flex-col gap-1 overflow-x-hidden overflow-y-auto border-b border-border px-4 py-2">
+    <header data-header-layout="line" className={HEADER_BOX}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="lg:hidden">
           <IconButton icon={<ArrowLeft aria-hidden="true" className="h-4 w-4" />} aria-label="Back to the list" onClick={onBack} />

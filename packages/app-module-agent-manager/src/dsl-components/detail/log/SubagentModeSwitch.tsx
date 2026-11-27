@@ -1,5 +1,5 @@
 import { ChartGantt, ListChecks, type LucideIcon } from 'lucide-react';
-import { FOCUS_RING, Tooltip } from '../deps.js';
+import { RowButton, FOCUS_RING, Tooltip } from '../deps.js';
 import { SUBAGENTS_MODES, type SubagentsMode } from './subagentTypes.js';
 
 const MODES: Record<SubagentsMode, { label: string; icon: LucideIcon; hint: string }> = {
@@ -16,7 +16,7 @@ export function SubagentModeSwitch({ mode, onMode }: { mode: SubagentsMode; onMo
         const pressed = mode === value;
         return (
           <Tooltip key={value} content={hint}>
-            <button
+            <RowButton
               type="button"
               aria-pressed={pressed}
               onClick={() => onMode(value)}
@@ -24,7 +24,7 @@ export function SubagentModeSwitch({ mode, onMode }: { mode: SubagentsMode; onMo
             >
               <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0" />
               {label}
-            </button>
+            </RowButton>
           </Tooltip>
         );
       })}

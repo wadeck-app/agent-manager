@@ -22,6 +22,8 @@ import { useSyncDelivery } from './useSyncDelivery.js';
 import type { ReplyMarkerMode } from '../deps.js';
 import type { ComposerProps } from './types.js';
 
+const COMPOSER_TEXTAREA = 'max-h-64 min-h-am-hit min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60';
+
 /** Height of the field in pixels: 8 lines of 20 px plus padding. Beyond it the field scrolls. */
 const MAX_FIELD_PX = 172;
 
@@ -258,7 +260,7 @@ export function ComposerBody({ session, reencode }: ComposerProps) {
           onChange={(event) => change(event.target.value, current.current.images)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
-          className="max-h-64 min-h-am-hit min-w-0 flex-1 resize-none bg-transparent px-1 py-1.5 text-base text-content placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          className={COMPOSER_TEXTAREA}
         />
         {typed ? (
           <Tooltip content={`Sends as typed by you. ${typedWarning(selectedTransport?.transportId ?? '')}`}>

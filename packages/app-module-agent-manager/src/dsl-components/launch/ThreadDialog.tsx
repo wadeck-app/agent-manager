@@ -17,6 +17,7 @@ import { ButtonAction, FieldText, Tooltip } from '@wadeck-app/dsl-ui';
 import { DialogActions } from '../ui/DialogActions.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { Modal } from '../ui/Modal.js';
+import { RowButton } from '../ui/RowButton.js';
 
 export interface ThreadDialogProps {
   /** The session the thread branches from (owned or discovered). */
@@ -90,9 +91,9 @@ export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDial
             {anchor.text.trim()}
           </blockquote>
           {long ? (
-            <button type="button" aria-expanded={full} onClick={() => setFull(!full)} className={`mt-1 rounded text-xs text-primary underline hover:no-underline ${FOCUS_RING}`}>
+            <RowButton type="button" aria-expanded={full} onClick={() => setFull(!full)} className={`mt-1 rounded text-xs text-primary underline hover:no-underline ${FOCUS_RING}`}>
               {full ? 'Show less' : 'Show full'}
-            </button>
+            </RowButton>
           ) : null}
         </div>
         {daemonDown ? <DaemonNotRunning what="start a thread" enables="Start thread" /> : null}

@@ -17,6 +17,7 @@ import { ReasonList } from './ReasonList.js';
 
 import { useUiVariant } from '../ui/UiVariants.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
+import { RowButton } from '../ui/RowButton.js';
 
 const DAEMON_DOWN_TITLE = 'The agent-manager daemon is not running, so the session cannot move. Start it in a terminal: agent-manager start --detach';
 
@@ -143,10 +144,10 @@ export function SwitchAction({ session, disabled, onChange, onNote, onError, com
         <span data-adopt-button="" data-readiness={view.readiness} data-tone={coloured ? view.tone : 'neutral'} className="relative inline-flex shrink-0">
           {coloured ? (
             <Tooltip content={title}>
-            <button type="button" aria-label={view.label} disabled={off} onClick={click} className={`${chipClass(view.tone === 'warning' ? 'warning' : 'success')} cursor-pointer hover:brightness-95 ${FOCUS_RING}${off ? ' cursor-not-allowed opacity-50' : ''}`}>
+            <RowButton type="button" aria-label={view.label} disabled={off} onClick={click} className={`${chipClass(view.tone === 'warning' ? 'warning' : 'success')} cursor-pointer hover:brightness-95 ${FOCUS_RING}${off ? ' cursor-not-allowed opacity-50' : ''}`}>
               <Icon aria-hidden="true" className="h-3.5 w-3.5" />
               {words}
-            </button>
+            </RowButton>
             </Tooltip>
           ) : readinessStyle === 'badge' ? (
             // Look A: the icon is coloured and sits in a tinted rounded square (green free, amber busy or unknown), so the readiness shows even when the badge of the line has no room (the words are the accessible name).

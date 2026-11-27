@@ -7,6 +7,9 @@ import { TipIconButton } from './TipIconButton.js';
 import { FOCUS_RING } from './focusRing.js';
 import { usePopover } from './usePopover.js';
 import { POPUP_SURFACE } from './popupSurface.js';
+import { RowButton } from './RowButton.js';
+
+const DENSITY_ALERT = 'mb-2 flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-text';
 
 const CHECKED_RADIO = '[role="radio"][aria-checked="true"]';
 
@@ -54,14 +57,14 @@ export function DensityControl() {
       {open ? (
         <div id={panelId} role="dialog" aria-label="Text size" className={`absolute right-0 top-full z-30 mt-1 w-72 ${POPUP_SURFACE} p-2`}>
           {problem !== '' ? (
-            <div role="alert" className="mb-2 flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-text">
+            <div role="alert" className={DENSITY_ALERT}>
               <p className="min-w-0 flex-1">{problem}</p>
 <IconButton size="icon-xs" aria-label="Dismiss the note about the text size" onClick={dismissDensityProblem} icon={<X aria-hidden="true" className="h-3 w-3" />} />
             </div>
           ) : null}
           <div role="radiogroup" aria-label="Text size" onKeyDown={onRadioKeyDown} className="flex flex-col gap-1">
             {DENSITY_SETTINGS.map((value) => (
-              <button
+              <RowButton
                 key={value}
                 type="button"
                 role="radio"
@@ -72,7 +75,7 @@ export function DensityControl() {
               >
                 <span className="font-medium">{choiceLabel(value, resolved)}</span>
                 <span className="text-xs text-muted">{value === 'auto' ? autoHint() : densityHint(value)}</span>
-              </button>
+              </RowButton>
             ))}
           </div>
         </div>

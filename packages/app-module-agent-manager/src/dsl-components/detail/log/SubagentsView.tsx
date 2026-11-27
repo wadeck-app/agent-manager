@@ -1,5 +1,6 @@
+import { ChipButton } from '@wadeck-app/dsl-ui';
 import { useState } from 'react';
-import { FOCUS_RING, useNow } from '../deps.js';
+import { useNow } from '../deps.js';
 import { SubagentModeSwitch } from './SubagentModeSwitch.js';
 import { SubagentSummary } from './SubagentSummary.js';
 import { SubagentTimeline } from './SubagentTimeline.js';
@@ -37,15 +38,9 @@ export function SubagentsView({ items, mode, onMode, order, onOrder, selectedId,
       </div>
       <div role="group" aria-label="Show sub-agents" className="flex flex-wrap gap-1 px-3">
         {STATUS_FILTERS.map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-            className={`rounded-full border px-2.5 py-0.5 text-xs ${filter === value ? 'border-primary bg-primary-light text-content' : 'border-border text-muted hover:bg-muted-bg hover:text-content'} ${FOCUS_RING}`}
-          >
+          <ChipButton key={value} active={filter === value} onClick={() => setFilter(value)} className="gap-1">
             {FILTER_LABEL[value]} <span className="tabular-nums">{countOf(value)}</span>
-          </button>
+          </ChipButton>
         ))}
       </div>
       {mode === 'summary' ? <SubagentSummary {...props} filtered={filter !== 'all'} /> : <SubagentTimeline {...props} order={order} onOrder={onOrder} />}

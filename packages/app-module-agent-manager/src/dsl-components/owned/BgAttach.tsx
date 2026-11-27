@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { getErrorMessage } from '../logic/errorText.js';
 import { BgLimits } from './BgLimits.js';
 
+const ATTACH_COMMAND = 'min-w-0 flex-1 truncate rounded bg-muted-bg px-1.5 py-0.5 font-mono text-am-mono text-content';
+
 export interface BgAttachProps {
   /** `claude attach <id>`, as the daemon gives it. Undefined while the daemon record is not read yet: the panel then says so. */
   command: string | undefined;
@@ -60,7 +62,7 @@ export function BgAttach({ command, waitingFor, permissionMode, compact = false 
           {command === undefined ? (
             <span className="min-w-0 flex-1 truncate text-muted">The attach command is not known yet.</span>
           ) : (
-            <code data-bg-attach-command="" className="min-w-0 flex-1 truncate rounded bg-muted-bg px-1.5 py-0.5 font-mono text-am-mono text-content">
+            <code data-bg-attach-command="" className={ATTACH_COMMAND}>
               {command}
             </code>
           )}

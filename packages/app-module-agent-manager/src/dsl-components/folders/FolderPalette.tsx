@@ -11,6 +11,7 @@ import { FolderGlyph } from './FolderGlyph.js';
 import { ListCaption } from './ListCaption.js';
 import { LoadingLine } from './LoadingLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
+import { BareInput } from '../ui/BareInput.js';
 
 export interface PaletteProps {
   inputId: string;
@@ -148,7 +149,7 @@ export function FolderPalette({ inputId, value, onChange, onPick, onKnow, disabl
 
   return (
     <div className="flex flex-col gap-1.5" data-folder-picker="palette">
-      <input
+      <BareInput
         id={inputId}
         data-autofocus=""
         type="text"

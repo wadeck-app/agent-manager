@@ -66,6 +66,8 @@ export interface WorkspaceProps {
 
 const NO_GROUPS: readonly CustomGroupDto[] = [];
 
+const EMPTY_DETAIL_CLASS = 'flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted';
+
 export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, hiddenDead, ownedError, ownedErrorText, unreadableText = '', guardrailsErrorText = '', ownedDownText = '', ownedStateErrorText = '' }:WorkspaceProps) {
   const root = useRef<HTMLDivElement>(null);
   useFillContentArea(root, 360);
@@ -381,7 +383,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     );
   } else {
     detail = (
-      <div className="flex flex-1 flex-col items-center justify-center gap-1 p-6 text-center text-sm text-muted">
+      <div className={EMPTY_DETAIL_CLASS}>
         <p className="font-medium text-content">Select an agent</p>
         <p>Its log and a box to reply to it open here. J and K move in the list, Enter goes to the reply box, ? lists the shortcuts.</p>
       </div>
@@ -393,8 +395,7 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
     <SelectionKeys />
     <DaemonStateProvider down={ownedError?.code === 'daemon-not-running'}>
     <LiveThreadsProvider count={liveThreads}>
-    {/* The reply box stays above the floating batch popup while sessions are selected (BatchPopup publishes the room). */}
-    <div ref={root} data-agent-workspace="" style={{ paddingBottom: 'var(--batch-popup-reserve, 0px)' }} className="flex min-h-0 flex-col bg-surface">
+    <div ref={root} data-agent-workspace="" className="flex min-h-0 flex-col bg-surface">
       <Toolbar
         count={rows.length}
         hiddenDead={hiddenDead}
@@ -421,7 +422,11 @@ export function Workspace({ sessions, userStateError, customGroups = NO_GROUPS, 
               <ListFooter onNewSession={() => setLaunchOpen(true)} {...(mode === 'tree' || mode === 'custom' ? { onNewGroup: async (name: string) => (await grouped.api.create(name)) !== undefined } : {})} />
             </>
           }
-          detail={detail} detailOpen={selectedId !== undefined} />
+          detail={
+            // The reply box stays above the floating batch popup while sessions are selected (BatchPopup publishes the room). Only the detail pane: the list footer never moves.
+            <div data-detail-reserve="" style={{ paddingBottom: 'var(--batch-popup-reserve, 0px)' }} className="flex min-h-0 flex-1 flex-col">{detail}</div>
+          }
+          detailOpen={selectedId !== undefined} />
       </div>
     </div>
     </LiveThreadsProvider>

@@ -56,6 +56,17 @@ jobs:
             - name: Check the app-core module
               run: npm run check
 
+            # The source rules (.violations/config.ts: ts, cli, react, tailwind, shared). The tool is not a dependency of the repo: installed globally, on one OS (the rules do not depend on it)
+            - name: Install the violations CLI
+              if: matrix.os == 'ubuntu-latest'
+              run: npm install -g @wadeck-app/violations-cli @wadeck-app/violations-rules
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Violations
+              if: matrix.os == 'ubuntu-latest'
+              run: violations check
+
             # The log is kept to put its end in an annotation: the job logs are not readable without admin rights
             - name: Run tests
               shell: bash

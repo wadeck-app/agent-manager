@@ -1,6 +1,6 @@
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { Bot, PanelRightClose, PanelRightOpen, ShieldCheck, TriangleAlert, X } from 'lucide-react';
-import { AUTO_ML_FROM_PX, FOCUS_RING, Tooltip, useMediaQuery, useMinWidth, type AgentRow } from '../deps.js';
+import { AUTO_ML_FROM_PX, Tooltip, useMediaQuery, useMinWidth, type AgentRow } from '../deps.js';
 import { PermissionsPanel } from '../permissions/PermissionsPanel.js';
 import type { SessionGrantsFeed } from '../permissions/useSessionGrants.js';
 import { CountChips } from './CountChips.js';
@@ -10,6 +10,9 @@ import { countStatuses, STATUS_LOOK } from './subagentModel.js';
 import { SubagentsTitle } from './SubagentsTitle.js';
 import { SubagentsView, type SubagentsViewProps } from './SubagentsView.js';
 import type { LocatePhase } from './useLocateCall.js';
+
+const COLLAPSED_ASIDE = 'flex min-h-0 w-am-hit shrink-0 flex-col items-center gap-2 border-l border-border py-1';
+const PROBLEM_ALERT = 'flex items-start gap-1.5 border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text';
 
 /** The two tabs of the right rail. */
 export type RailTab = 'subagents' | 'permissions';
@@ -71,7 +74,7 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
     const SelectedIcon = look?.icon;
     const selectedName = selected === undefined ? '' : `Selected: ${selected.title}, ${look?.label.toLowerCase() ?? ''}, ${phaseWords(view.phase)}`;
     return (
-      <aside aria-label={ariaLabel} className="flex min-h-0 w-am-hit shrink-0 flex-col items-center gap-2 border-l border-border py-1">
+      <aside aria-label={ariaLabel} className={COLLAPSED_ASIDE}>
         <IconButton aria-label={tab === 'permissions' ? `Show the permissions panel (${permissionsLabel})` : `Show the sub-agents panel (${total})`} aria-expanded={false} onClick={() => onCollapsed(false)} icon={<PanelRightOpen aria-hidden="true" className="h-4 w-4" />} />
         <span aria-hidden="true" className="flex flex-col items-center gap-1 text-xs text-muted">
           <Bot className="h-am-icon-sm w-am-icon-sm" />
@@ -85,19 +88,15 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
             </span>
           </Tooltip>
         ) : null}
-        <Tooltip content={permissionsLabel} side="left" describe={false}>
-          <button
-            type="button"
-            aria-label={permissionsLabel}
-            onClick={() => {
-              onTab('permissions');
-              onCollapsed(false);
-            }}
-            className={`relative inline-flex h-am-hit w-8 items-center justify-center rounded text-muted hover:bg-muted-bg hover:text-content ${FOCUS_RING}`}
-          >
-            <ShieldWithBadge count={bypasses} />
-          </button>
-        </Tooltip>
+        <IconButton
+          aria-label={permissionsLabel}
+          onClick={() => {
+            onTab('permissions');
+            onCollapsed(false);
+          }}
+          className="relative"
+          icon={<ShieldWithBadge count={bypasses} />}
+        />
         {problem !== '' ? (
           <Tooltip content={problem} side="left" describe={false}>
             <span role="img" aria-label={problem} className="text-warning-text">
@@ -132,7 +131,7 @@ export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProble
         <IconButton aria-label={tab === 'permissions' ? 'Collapse the permissions panel' : 'Collapse the sub-agents panel'} aria-expanded onClick={() => onCollapsed(true)} icon={<PanelRightClose aria-hidden="true" className="h-4 w-4" />} />
       </div>
       {problem !== '' ? (
-        <div role="alert" className="flex items-start gap-1.5 border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text">
+        <div role="alert" className={PROBLEM_ALERT}>
           <p className="min-w-0 flex-1">{problem}</p>
           <IconButton size="icon-xs" aria-label="Dismiss the note about the panel settings" onClick={onDismissProblem} icon={<X aria-hidden="true" className="h-3 w-3" />} />
         </div>

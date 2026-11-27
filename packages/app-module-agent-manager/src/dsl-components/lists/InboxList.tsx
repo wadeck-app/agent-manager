@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Tooltip, useUrlParam } from '@wadeck-app/dsl-ui';
 import { firstNonEmptyTab, INBOX_TABS, nextNeedingYou, parseTab, tabCounts, tabSessions, type InboxTab } from '../logic/inbox.js';
 import { agentId } from '../logic/states.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
+import { RowButton } from '../ui/RowButton.js';
 import { detailLine, type ListProps } from './common.js';
 import { EmptyNote } from './EmptyNote.js';
 import { Highlight } from './Highlight.js';
@@ -15,6 +15,7 @@ import { StateIconTip } from './StateIconTip.js';
 import { TimeInState } from './TimeInState.js';
 import { RowMenuButton } from './RowMenuButton.js';
 import { useRowMenu } from './useRowMenu.js';
+
 
 const EMPTY_TEXT: Record<InboxTab, { title: string; hint: string }> = {
   'needs-you': { title: 'Nothing needs you', hint: 'No agent is waiting for a permission or an answer.' },
@@ -79,20 +80,19 @@ export function InboxList({ sessions, selectedId, onSelect, now, query, searchin
           {INBOX_TABS.map((entry) => {
             const active = entry.id === tab;
             return (
-              <button
+              <RowButton
                 key={entry.id}
-                type="button"
                 role="tab"
                 id={`inbox-tab-${entry.id}`}
                 aria-selected={active}
                 aria-controls="inbox-panel"
                 tabIndex={active ? 0 : -1}
                 onClick={() => setTabParam(entry.id)}
-                className={`flex shrink-0 items-center gap-1 whitespace-nowrap border-b-2 px-2 py-2 text-sm ${active ? 'border-primary font-medium text-content' : 'border-transparent text-muted hover:text-content'} ${FOCUS_RING}`}
+                className={`flex shrink-0 items-center gap-1 whitespace-nowrap border-b-2 px-2 py-2 text-sm ${active ? 'border-primary font-medium text-content' : 'border-transparent text-muted hover:text-content'}`}
               >
                 {entry.label}
                 <span className={`tabular-nums text-xs ${entry.id === 'needs-you' && counts['needs-you'] > 0 ? 'rounded-full bg-hue-red-bg px-1.5 text-hue-red' : counts[entry.id] === 0 ? 'text-muted opacity-60' : 'text-muted'}`}>{counts[entry.id]}</span>
-              </button>
+              </RowButton>
             );
           })}
         </div>

@@ -2,20 +2,20 @@ import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BatchPopup, DOCK_GAP, DOCK_TAB } from './BatchPopup.js';
 
-let observers: { cb: () => void; target: Element | undefined }[];
+let observers: { cb: () => void; targets: Element[] }[];
 
 beforeEach(() => {
   observers = [];
   vi.stubGlobal(
     'ResizeObserver',
     class {
-      private readonly entry: { cb: () => void; target: Element | undefined };
+      private readonly entry: { cb: () => void; targets: Element[] };
       constructor(cb: () => void) {
-        this.entry = { cb, target: undefined };
+        this.entry = { cb, targets: [] };
         observers.push(this.entry);
       }
       observe(target: Element) {
-        this.entry.target = target;
+        this.entry.targets.push(target);
       }
       disconnect() {}
       unobserve() {}
@@ -102,7 +102,7 @@ describe('the batch popup', () => {
     render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
     expect(bottomOf()).toBe('68px');
     top.value = 600;
-    const observer = observers.find((o) => o.target === frame);
+    const observer = observers.find((o) => o.targets.includes(frame));
     expect(observer).toBeDefined();
     act(() => observer?.cb());
     expect(bottomOf()).toBe('208px');
@@ -207,5 +207,46 @@ describe('the batch popup is centered on the content area, not next to the list 
     const { unmount } = render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
     expect(screen.getByTestId('batch-popup-strip').style.left).toBe('var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px))');
     unmount();
+  });
+});
+
+describe('the popup and the list footer (the footer never moves)', () => {
+  afterEach(() => {
+    document.querySelectorAll('[data-list-footer]').forEach((footer) => footer.remove());
+    vi.restoreAllMocks();
+  });
+
+  /** A footer at the given rectangle, and a popup bar of the given width and height centred in a window of 800 px high. */
+  function setup(footer: { left: number; right: number; top: number; bottom: number }, bar: { left: number; right: number; height: number }): void {
+    const element = document.createElement('div');
+    element.setAttribute('data-list-footer', '');
+    document.body.appendChild(element);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      if (this.hasAttribute('data-list-footer')) {
+        return { ...footer, width: footer.right - footer.left, height: footer.bottom - footer.top, x: footer.left, y: footer.top, toJSON: () => ({}) };
+      }
+      const isBar = this.hasAttribute('data-batch-bar');
+      return { top: 0, bottom: isBar ? bar.height : 0, height: isBar ? bar.height : 0, left: isBar ? bar.left : 0, right: isBar ? bar.right : 0, width: isBar ? bar.right - bar.left : 0, x: 0, y: 0, toJSON: () => ({}) };
+    });
+  }
+
+  it('no overlap (1280: popup 560..1012 clear of the list pane, footer under the list 240..540): the popup keeps its own place and the page publishes no room for the footer', () => {
+    setup({ left: 240, right: 540, top: 759, bottom: 800 }, { left: 560, right: 1012, height: 40 });
+    render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
+    expect(bottomOf()).toBe('24px');
+  });
+
+  it('overlap (390: popup spans the window above the footer zone it would cover): popup bottom = footer top', () => {
+    setup({ left: 0, right: 390, top: 759, bottom: 800 }, { left: 8, right: 382, height: 60 });
+    render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
+    // The popup at the floor would span y 716..776 and cover the footer (759..800): raised to 800 - 759 = 41.
+    expect(bottomOf()).toBe('41px');
+  });
+
+  it('overlap above a folded dock: never lower than the dock placement', () => {
+    addDock({ value: 746 }, false);
+    setup({ left: 0, right: 390, top: 759, bottom: 800 }, { left: 8, right: 382, height: 60 });
+    render(<BatchPopup count={1} onClear={vi.fn()}>x</BatchPopup>);
+    expect(bottomOf()).toBe('62px');
   });
 });

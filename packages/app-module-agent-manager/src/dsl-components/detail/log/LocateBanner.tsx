@@ -4,6 +4,10 @@ import { Banner } from '../deps.js';
 import { CopyButton } from './CopyButton.js';
 import type { LocateFeed } from './useLocateCall.js';
 
+const LOCATE_BANNER = 'flex shrink-0 flex-col gap-1.5 border-b border-border bg-primary-light px-3 py-2 text-sm text-content';
+const LOCATE_SPINNER = 'h-am-icon-sm w-am-icon-sm shrink-0 animate-spin text-primary motion-reduce:animate-none';
+const LOCATE_BANNER_LINE = 'flex shrink-0 items-center gap-2 border-b border-border bg-primary-light px-3 py-1.5 text-sm text-content';
+
 /**
  * What the click on a sub-agent did, above the log where the eye is: the search in progress (with a progress bar and Cancel), the call being shown (a slim
  * persistent line with Clear), or why the call cannot be shown (a banner with what happened and what can be done). Nothing here is a toast that disappears.
@@ -16,9 +20,9 @@ export function LocateBanner({ feed }: { feed: LocateFeed }) {
       return null;
     case 'searching':
       return (
-        <div role="status" className="flex shrink-0 flex-col gap-1.5 border-b border-border bg-primary-light px-3 py-2 text-sm text-content">
+        <div role="status" className={LOCATE_BANNER}>
           <div className="flex items-center gap-2">
-            <LoaderCircle aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 animate-spin text-primary motion-reduce:animate-none" />
+            <LoaderCircle aria-hidden="true" className={LOCATE_SPINNER} />
             <span className="min-w-0 flex-1 truncate">
               Looking for the call that started "{state.label}"...{state.page > 0 ? ` (${state.page} ${state.page === 1 ? 'page' : 'pages'} of older entries loaded)` : ''}
             </span>
@@ -31,7 +35,7 @@ export function LocateBanner({ feed }: { feed: LocateFeed }) {
       );
     case 'found':
       return (
-        <div role="status" className="flex shrink-0 items-center gap-2 border-b border-border bg-primary-light px-3 py-1.5 text-sm text-content">
+        <div role="status" className={LOCATE_BANNER_LINE}>
           <Target aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-primary" />
           <span className="min-w-0 flex-1 truncate">Showing the call that started "{state.label}"</span>
 <ButtonAction variant="secondary" size="sm" icon={<X aria-hidden="true" className="h-3.5 w-3.5" />} label="Clear" onClick={feed.clear} />

@@ -13,6 +13,9 @@ import { LoadingLine } from './LoadingLine.js';
 import { RootsNote } from './RootsNote.js';
 import { TruncatedLine } from './TruncatedLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
+import { RowButton } from '../ui/RowButton.js';
+
+const PATH_NAV = 'flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded border border-border bg-surface px-1.5 py-0.5';
 
 export interface ExplorerProps {
   value: string;
@@ -123,7 +126,7 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
             </select>
           </>
         ) : null}
-        <nav aria-label="Path" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto rounded border border-border bg-surface px-1.5 py-0.5">
+        <nav aria-label="Path" className={PATH_NAV}>
           {here === undefined ? <span className="py-0.5 text-sm text-muted">{dir === undefined ? 'No folder open' : dir}</span> : null}
           {here?.breadcrumbs.map((crumb, index) => {
             const last = index === here.breadcrumbs.length - 1;
@@ -131,7 +134,7 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
               <span key={crumb.path} className="flex shrink-0 items-center gap-0.5">
                 {index > 0 ? <ChevronRight aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" /> : null}
                 <Tooltip content={crumb.path}>
-                  <button
+                  <RowButton
                     type="button"
                     disabled={disabled}
                     aria-current={last ? 'page' : undefined}
@@ -139,10 +142,10 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
                       onPick({ path: crumb.path, name: index === 0 ? here.breadcrumbs[0]!.name : crumb.name });
                       go(crumb.path);
                     }}
-                    className={`rounded px-1 py-0.5 text-sm hover:bg-muted-bg ${last ? 'font-medium text-content' : 'text-muted'} ${FOCUS_RING}`}
+                    className={`rounded px-1 py-0.5 text-sm hover:bg-muted-bg ${last ? 'font-medium text-content' : 'text-muted'}`}
                   >
                     {index === 0 ? folderName(crumb.path) : crumb.name}
-                  </button>
+                  </RowButton>
                 </Tooltip>
               </span>
             );
@@ -160,7 +163,7 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
             {here.entries.map((entry, index) => (
               <li key={entry.path} className="flex items-center pr-1">
                 <Tooltip content={entry.path}>
-                  <button
+                  <RowButton
                     type="button"
                     data-tip-fill=""
                     data-explorer-row=""
@@ -173,7 +176,7 @@ export function FolderExplorer({ value, onPick, disabled }: ExplorerProps) {
                     <FolderGlyph entry={entry} />
                     <span className="min-w-0 truncate">{entry.name}</span>
                     <BranchBadge branch={entry.branch} />
-                  </button>
+                  </RowButton>
                 </Tooltip>
                 {/* Not a tab stop: with a few hundred folders it would be as many; the keyboard opens a row with Enter or Right. */}
                 <IconButton size="icon-sm" tabIndex={-1} aria-label={`Open ${entry.name}`} disabled={disabled} onClick={() => enter(entry)} icon={<ChevronRight aria-hidden="true" className="h-4 w-4" />} />

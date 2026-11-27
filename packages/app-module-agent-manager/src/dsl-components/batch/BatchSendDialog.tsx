@@ -12,6 +12,8 @@ import { Modal } from '../ui/Modal.js';
 import { MAX_BATCH_RECIPIENTS, previewText, resultsText, retryableIds, sendBlockText, STATE_WORDS, summaryText } from './batchModel.js';
 import { useRecipientChecks } from './useRecipientChecks.js';
 
+const RECIPIENTS_LIST = 'flex max-h-64 flex-col divide-y divide-border overflow-y-auto rounded border border-border';
+
 const STATE_ICON: Record<BatchRecipientState, { icon: typeof CircleCheck; tone: string }> = {
   sent: { icon: CircleCheck, tone: 'text-success-text' },
   queued: { icon: Clock, tone: 'text-success-text' },
@@ -135,7 +137,7 @@ export function BatchSendDialog({ rows, onClose }: BatchSendDialogProps) {
         <FieldTextarea label="Message" value={text} onChange={changeText} rows={5} placeholder="The same text is sent to every ticked session" disabled={sending} />
         <div>
           <p className="mb-1 text-sm font-medium text-content">Recipients</p>
-          <ul aria-label="Recipients" className="flex max-h-64 flex-col divide-y divide-border overflow-y-auto rounded border border-border">
+          <ul aria-label="Recipients" className={RECIPIENTS_LIST}>
             {rows.map((row) => {
               const id = agentId(row);
               const eligibility = checks.get(id) ?? { state: 'checking' as const };

@@ -2,6 +2,8 @@ import { ImageOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { AttachedImage } from './types.js';
 
+const THUMB_PLACEHOLDER = 'flex h-14 w-20 items-center justify-center rounded border border-border bg-muted-bg text-muted';
+
 const WIDTH = 80;
 const HEIGHT = 56;
 
@@ -55,7 +57,7 @@ export function Thumb({ image }: { image: AttachedImage }) {
 
   if (failed) {
     return (
-      <span role="img" aria-label={image.name} className="flex h-14 w-20 items-center justify-center rounded border border-border bg-muted-bg text-muted">
+      <span role="img" aria-label={image.name} className={THUMB_PLACEHOLDER}>
         <ImageOff aria-hidden="true" className="h-am-icon w-am-icon" />
       </span>
     );

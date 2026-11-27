@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { RowButton } from '../deps.js';
 import { CopyButton } from './CopyButton.js';
 import { capOutput, formatBytes } from './format.js';
 import { LOG_META, LOG_MONO, OUTPUT_CAP_CHARS, OUTPUT_CAP_LINES } from './sizes.js';
@@ -15,9 +16,9 @@ export function ToolOutput({ text, truncatedByServer, bytes }: { text: string; t
       </div>
       <pre className={`max-h-96 overflow-auto whitespace-pre-wrap break-words rounded bg-muted-bg p-2 ${LOG_MONO}`}>{shown}</pre>
       {capped.cut ? (
-        <button type="button" onClick={() => setAll(!all)} className={`self-start ${LOG_META} text-primary hover:underline`}>
+        <RowButton type="button" onClick={() => setAll(!all)} className={`self-start ${LOG_META} text-primary hover:underline`}>
           {all ? 'Show less' : `Show more (${capped.hiddenChars} more characters)`}
-        </button>
+        </RowButton>
       ) : null}
       {truncatedByServer ? (
         <p className={`${LOG_META} text-muted`}>

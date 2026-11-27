@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { checkGroupName, GROUP_COLORS, type CustomGroupDto, type GroupColor } from '../shared.js';
 import { stepGroupIds } from '../logic/customGroups.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
 import type { GroupsApi } from './common.js';
+import { RowButton } from '../ui/RowButton.js';
 
 /**
  * The actions of a group, all reachable with the keyboard: rename, color, move up or down among the groups, delete (two steps: it says what happens to the
@@ -59,11 +59,11 @@ export function GroupDialog({ group, memberCount, groups, onClose }: { group: Cu
               const look = GROUP_LOOK[option ?? 'none'];
               const selected = option === color;
               return (
-                <button key={option ?? 'none'} type="button" role="radio" aria-checked={selected} onClick={() => setColor(option)} className={`inline-flex h-am-hit items-center gap-1.5 rounded border px-2 text-sm text-content ${selected ? 'border-primary bg-primary-light' : 'border-border hover:bg-muted-bg'} ${FOCUS_RING}`}>
+                <RowButton key={option ?? 'none'} type="button" role="radio" aria-checked={selected} onClick={() => setColor(option)} className={`inline-flex h-am-hit items-center gap-1.5 rounded border px-2 text-sm text-content ${selected ? 'border-primary bg-primary-light' : 'border-border hover:bg-muted-bg'}`}>
                   <span aria-hidden="true" className={`inline-block h-am-dot w-am-dot rounded-full ${look.dot}`} />
                   {look.label}
                   {selected ? <Check aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" /> : null}
-                </button>
+                </RowButton>
               );
             })}
           </div>

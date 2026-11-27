@@ -1,7 +1,7 @@
 import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { Keyboard, Plug } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { FOCUS_RING, Tooltip, failureText, requestJson } from '../deps.js';
+import { RowButton, FOCUS_RING, Tooltip, failureText, requestJson } from '../deps.js';
 import type { ReplyDefaultTransportSetResponse, ReplyStatusOk, ReplyTransportSetResponse } from '../deps.js';
 import { POPUP_SURFACE, usePopover } from '../deps.js';
 import { TransportRow } from './TransportRow.js';
@@ -66,7 +66,7 @@ export function TransportPicker({ sessionId, status, onChanged, onOpenChange }: 
     });
 
   const trigger = (
-    <button
+    <RowButton
       type="button"
       aria-label={`Transport: ${selected.transportId}`}
       aria-expanded={open}
@@ -76,7 +76,7 @@ export function TransportPicker({ sessionId, status, onChanged, onOpenChange }: 
     >
       <Icon aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
       {selected.transportId}
-    </button>
+    </RowButton>
   );
 
   return (

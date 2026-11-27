@@ -6,7 +6,6 @@ import { groupText } from '../ui/stateLook.js';
 import { GROUP_STATE_EDGE, GroupHeaderName, groupHeaderBox, groupHeaderCount } from '../ui/groupHeaderLook.js';
 import { useUiVariant } from '../ui/UiVariants.js';
 import { tabbableId, useListKeys } from '../ui/hooks.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { useCollapsed } from '../ui/useCollapsed.js';
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react';
 import { detailLine, type ListProps } from './common.js';
@@ -21,6 +20,7 @@ import { StateIconTip } from './StateIconTip.js';
 import { TimeInState } from './TimeInState.js';
 import { RowMenuButton } from './RowMenuButton.js';
 import { useRowMenu } from './useRowMenu.js';
+import { RowButton } from '../ui/RowButton.js';
 
 /**
  * Herdr-style groups: Pinned, Needs you, Done, Working, Idle (then Other and Ended when they exist), each with its count; a group without a row is not shown
@@ -60,12 +60,12 @@ export function GroupsList({ sessions, selectedId, onSelect, now, query, searchi
             <div id={headingId} className={`sticky top-0 z-10 flex items-center bg-surface ${groupText(group.id)}`}>
               {/* Selection mode only: before the button (a box inside a button is invalid), at the x of the boxes of the rows (14 px). */}
               <GroupSelectBox ids={group.sessions.map(agentId)} name={group.label} className="pl-3.5" />
-              <button type="button" aria-expanded={!collapsed} aria-label={`${group.label}, ${group.sessions.length}`} onClick={() => toggle(group.id)} className={`flex min-w-0 flex-1 items-center gap-1.5 text-left ${groupHeaderBox(headerStyle, GROUP_STATE_EDGE[group.id])} ${FOCUS_RING} focus-visible:ring-inset`}>
+              <RowButton type="button" aria-expanded={!collapsed} aria-label={`${group.label}, ${group.sessions.length}`} onClick={() => toggle(group.id)} className={`flex min-w-0 flex-1 items-center gap-1.5 text-left ${groupHeaderBox(headerStyle, GROUP_STATE_EDGE[group.id])} focus-visible:ring-inset`}>
                 <Chevron aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
                 {group.id === 'pinned' ? <Pin aria-hidden="true" className="h-3.5 w-3.5" /> : null}
                 <GroupHeaderName variant={headerStyle} text={group.label} textClass={groupText(group.id)} />
                 <span className={groupHeaderCount(headerStyle)}>{group.sessions.length}</span>
-              </button>
+              </RowButton>
             </div>
             {(collapsed ? [] : group.sessions).map((session) => {
               const id = agentId(session);

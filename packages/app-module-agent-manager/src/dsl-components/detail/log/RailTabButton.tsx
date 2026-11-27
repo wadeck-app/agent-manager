@@ -1,14 +1,11 @@
+import { IconButton } from '@wadeck-app/dsl-ui';
 import type { ReactNode } from 'react';
-import { FOCUS_RING, Tooltip } from '../deps.js';
+
+/** The look of a tab of the open rail: the tint of the pressed one, the quiet ghost otherwise (the base IconButton owns size, focus ring and tooltip). */
+const ACTIVE_TAB = 'relative bg-primary-light text-content';
+const IDLE_TAB = 'relative';
 
 /** A tab of the open rail: an icon button, pressed when its panel is the one shown. */
 export function RailTabButton({ active, label, onClick, children }: { active: boolean; label: string; onClick: () => void; children: ReactNode }) {
-  return (
-    <Tooltip content={label} describe={false}>
-      <button type="button" aria-label={label} aria-pressed={active} onClick={onClick} className={`relative inline-flex h-am-hit w-8 items-center justify-center rounded ${active ? 'bg-primary-light text-content' : 'text-muted hover:bg-muted-bg hover:text-content'} ${FOCUS_RING}`}>
-        {children}
-      </button>
-    </Tooltip>
-  );
+  return <IconButton aria-label={label} aria-pressed={active} onClick={onClick} className={active ? ACTIVE_TAB : IDLE_TAB} icon={children} />;
 }
-

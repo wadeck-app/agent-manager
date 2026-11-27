@@ -4,6 +4,9 @@ import type { HcPermissionPromptDto } from '../shared.js';
 import { Chip } from '../ui/Chip.js';
 import { PermissionInput } from './PermissionInput.js';
 
+const HC_WARNING = 'flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text';
+const HC_NOTICE = 'whitespace-pre-wrap break-words rounded border border-border bg-surface px-2 py-1.5 text-sm text-content';
+
 /** The dialog the terminal shows: what it asks, the command in full (folded when large), the warning that a click types a key, and the two buttons. */
 export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcPermissionPromptDto; inFlight: boolean; onDecide: (decision: 'allow' | 'deny') => void }) {
   const title = prompt.tool === undefined ? prompt.header : `${prompt.tool}: ${prompt.header}`;
@@ -15,7 +18,7 @@ export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcP
         <Chip variant="neutral">{`terminal ${prompt.terminal}`}</Chip>
       </div>
       {/* The warning of the header: what a click does is a key typed into a real terminal. */}
-      <p data-hc-warning="" className="flex items-start gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text">
+      <p data-hc-warning="" className={HC_WARNING}>
         <Keyboard aria-hidden="true" className="mt-0.5 h-am-icon-sm w-am-icon-sm shrink-0" />
         <span>
           This answers the dialog in the terminal by typing the key there: <strong>Allow once</strong> types Enter (option 1, Yes), <strong>Deny</strong> types Esc (cancel). The terminal is not checked again after the key, only before it. &quot;Always allow&quot; is never selected from this page.
@@ -27,7 +30,7 @@ export function HcPermissionPrompt({ prompt, inFlight, onDecide }: { prompt: HcP
       {prompt.notice !== '' ? (
         <div data-hc-notice="" className="flex flex-col gap-1">
           <p className="text-xs text-muted-tint">Shown by the terminal below the command:</p>
-          <pre className="whitespace-pre-wrap break-words rounded border border-border bg-surface px-2 py-1.5 text-sm text-content">{prompt.notice}</pre>
+          <pre className={HC_NOTICE}>{prompt.notice}</pre>
         </div>
       ) : null}
       <p className="text-xs text-muted-tint">{`The terminal asks: ${prompt.question}`}</p>

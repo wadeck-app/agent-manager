@@ -3,6 +3,8 @@ import { Info, TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
 import type { NoticeItem, NoticeTone } from '../logic/notices.js';
 
+const FIX_COMMAND = 'min-w-0 break-all rounded bg-muted-bg px-1.5 py-0.5 font-mono text-am-mono text-content';
+
 /** The severity icon colour (the row itself is flat, the tone is carried by the icon and the left edge). */
 export const ICON_CLASS: Record<NoticeTone, string> = {
   error: 'text-danger-text',
@@ -47,7 +49,7 @@ export function NoticeRow({ item, onDismiss }: { item: NoticeItem; onDismiss: (i
       </div>
       {item.fix !== undefined || item.action !== undefined ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-2 pl-6">
-          {item.fix !== undefined ? <code className="min-w-0 break-all rounded bg-muted-bg px-1.5 py-0.5 font-mono text-am-mono text-content">{item.fix}</code> : null}
+          {item.fix !== undefined ? <code className={FIX_COMMAND}>{item.fix}</code> : null}
           {item.fix !== undefined ? <ButtonAction variant="secondary" size="sm" label="Copy fix" onClick={copyFix} /> : null}
           {item.action !== undefined ? <ButtonAction variant="secondary" size="sm" label={item.action.label} onClick={item.action.run} /> : null}
         </div>

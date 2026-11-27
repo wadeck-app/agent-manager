@@ -1,6 +1,6 @@
 import { useDateFormat } from '@wadeck-app/dsl-ui';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
-import { FOCUS_RING, Tooltip } from '../deps.js';
+import { RowButton, FOCUS_RING, Tooltip } from '../deps.js';
 import { SubagentTip } from './SubagentTip.js';
 import { MoreButtons } from './MoreButtons.js';
 import { buildTimeline, elapsedMs, formatElapsed, STATUS_LOOK } from './subagentModel.js';
@@ -31,7 +31,7 @@ export function SubagentTimeline({ items, now, selectedId, onSelect, order, onOr
     <div className={`sticky z-10 flex items-center justify-between gap-2 bg-surface px-1 py-1 text-xs text-muted ${recentFirst ? 'top-0' : 'bottom-0'}`}>
       <span className="tabular-nums">{clock(timeline.from)}</span>
       <Tooltip content={`${recentFirst ? 'Most recent first' : 'Oldest first'}, by last activity (end time, else last write, else start), like the Summary. Click to reverse the order.`} side="left">
-        <button
+        <RowButton
           type="button"
           aria-label={label}
           onClick={() => onOrder(recentFirst ? 'oldest' : 'recent')}
@@ -39,7 +39,7 @@ export function SubagentTimeline({ items, now, selectedId, onSelect, order, onOr
         >
           {items.some((item) => item.status === 'active') ? 'now' : clock(timeline.to)}
           <Sort aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
-        </button>
+        </RowButton>
       </Tooltip>
     </div>
   );
@@ -58,7 +58,7 @@ export function SubagentTimeline({ items, now, selectedId, onSelect, order, onOr
           return (
             <li key={item.dto.agentId}>
               <SubagentTip item={item} now={now}>
-              <button
+              <RowButton
                 type="button"
                 data-tip-fill=""
                 aria-pressed={selected}
@@ -72,7 +72,7 @@ export function SubagentTimeline({ items, now, selectedId, onSelect, order, onOr
                 </span>
                 <span className="w-16 shrink-0 text-right tabular-nums text-muted">{elapsed === undefined ? '' : formatElapsed(elapsed)}</span>
                 <span className="sr-only">{look.label}</span>
-              </button>
+              </RowButton>
               </SubagentTip>
             </li>
           );

@@ -13,6 +13,8 @@ import { FolderGlyph } from './FolderGlyph.js';
 import { ListCaption } from './ListCaption.js';
 import { LoadingLine } from './LoadingLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
+import { BareInput, SEARCH_ICON } from '../ui/BareInput.js';
+import { RowButton } from '../ui/RowButton.js';
 
 export interface SmartListProps {
   value: string;
@@ -136,7 +138,7 @@ export function FolderSmartList({ value, onPick, disabled }: SmartListProps) {
     return (
       <li key={item.path} className="flex items-center gap-0.5 pr-1">
         <Tooltip content={item.missing ? `${item.path} no longer exists` : item.path}>
-          <button
+          <RowButton
             data-tip-fill=""
             type="button"
             data-smart-row=""
@@ -150,7 +152,7 @@ export function FolderSmartList({ value, onPick, disabled }: SmartListProps) {
             </span>
             <BranchBadge branch={item.branch} />
             <span className="min-w-0 truncate text-xs text-muted">{item.missing ? 'no longer exists' : dir}</span>
-          </button>
+          </RowButton>
         </Tooltip>
         <IconButton size="icon-sm" variant={isPinned ? 'neutral' : 'ghost'} icon={isPinned ? <PinOff aria-hidden="true" className="h-4 w-4" /> : <Pin aria-hidden="true" className="h-4 w-4" />} aria-label={isPinned ? `Unpin ${item.name}` : `Pin ${item.name}`} aria-pressed={isPinned} disabled={disabled} onClick={() => pin(item.path)} />
       </li>
@@ -169,8 +171,8 @@ export function FolderSmartList({ value, onPick, disabled }: SmartListProps) {
         <label htmlFor={searchId} className="sr-only">
           Search the known projects
         </label>
-        <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
-        <input
+        <Search aria-hidden="true" className={SEARCH_ICON} />
+        <BareInput
           id={searchId}
           type="text"
           value={query}

@@ -1,7 +1,7 @@
 import type { ViolationsConfig } from '@wadeck-app/violations-rules'
 
 export default {
-  projectTags: ['ts', 'cli'],
+  projectTags: ['ts', 'cli', 'react', 'tailwind', 'shared'],
   globalExclude: [
     '**/node_modules/**',
     '**/dist/**',
@@ -18,6 +18,11 @@ export default {
   rules: {
     // src/dsl-components/index.ts is the dsl-lib entry the app-core SDK requires by name (module-authoring.md, "dsl-lib"): it cannot be renamed
     'ts/no-barrel-index': { $exclude: ['**/src/dsl-components/index.ts'] },
+    // test fixtures render a bare button or input to drive a component under test (a click target, a text box): they are not product UI, the rule is about what ships
+    'react/no-raw-button': { $exclude: ['**/*.test.tsx'] },
+    'react/no-raw-input': { $exclude: ['**/*.test.tsx'] },
+    // the module is a React app module, not a pure dsl-renderer: DaemonState is its one context (is the daemon down), provided by the workspace and read by Fork, Thread and Move
+    'react/no-context-in-renderer': { $exclude: ['**/dsl-components/owned/DaemonState.tsx'] },
     // the session host sits one folder deeper (launch/host/) and the core package has no path alias: its imports of ../../errors.js and ../../reply/* stay relative
     'ts/no-deep-relative': { $exclude: ['packages/agent-manager-core/src/launch/host/**'] },
   },

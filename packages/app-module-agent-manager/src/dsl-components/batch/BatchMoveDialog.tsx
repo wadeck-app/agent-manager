@@ -5,6 +5,7 @@ import type { GroupsApi } from '../lists/common.js';
 import { GroupDot } from '../lists/GroupDot.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { Modal } from '../ui/Modal.js';
+import { RowButton } from '../ui/RowButton.js';
 
 const OPTION = `flex min-h-am-hit w-full items-center gap-2 rounded border border-border px-3 py-1.5 text-left text-sm text-content hover:bg-muted-bg ${FOCUS_RING}`;
 
@@ -26,15 +27,15 @@ export function BatchMoveDialog({ rows, groups, onClose, onMoved }: { rows: read
       <div className="flex flex-col gap-2">
         {groups.groups.length === 0 ? <p className="text-sm text-muted">There is no group yet: create one with New group in the toolbar, then move the selection.</p> : null}
         {groups.groups.map((group, index) => (
-          <button key={group.id} type="button" onClick={() => choose(group.id)} className={OPTION} {...(index === 0 ? { 'data-autofocus': '' } : {})}>
+          <RowButton key={group.id} type="button" onClick={() => choose(group.id)} className={OPTION} {...(index === 0 ? { 'data-autofocus': '' } : {})}>
             <GroupDot color={group.color} />
             <span className="min-w-0 flex-1 truncate">{group.name}</span>
-          </button>
+          </RowButton>
         ))}
-        <button type="button" onClick={() => choose(null)} className={OPTION} {...(groups.groups.length === 0 ? { 'data-autofocus': '' } : {})}>
+        <RowButton type="button" onClick={() => choose(null)} className={OPTION} {...(groups.groups.length === 0 ? { 'data-autofocus': '' } : {})}>
           <FolderX aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-muted" />
           <span className="flex-1">Ungrouped: take them out of their group</span>
-        </button>
+        </RowButton>
       </div>
     </Modal>
   );

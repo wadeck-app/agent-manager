@@ -7,6 +7,8 @@ import { FloatingPanel } from '../ui/FloatingPanel.js';
 import type { GroupsApi } from './common.js';
 import { GroupSwatches } from './GroupSwatches.js';
 
+const SORT_OPTION = 'flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-content hover:bg-muted-bg';
+
 /**
  * The settings of one group of the Custom mode (the folder-cog button of its header): rename, the order of its agents, the header color and the body color.
  * Every choice applies at once, like the Herdr popover; the name applies with Enter or the Rename button. The dialog of the group (position, delete) is one
@@ -38,7 +40,7 @@ export function GroupConfigPanel({ group, anchor, groups, onClose, onMore }: { g
         <fieldset className="flex flex-col gap-0.5">
           <legend className="text-xs font-medium text-muted">Order of the agents</legend>
           {GROUP_SORTS.map((sort) => (
-            <label key={sort} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-sm text-content hover:bg-muted-bg">
+            <label key={sort} className={SORT_OPTION}>
               <Radio name={`group-sort-${group.id}`} checked={group.sort === sort} onChange={() => groups.update(group.id, { sort })} />
               {SORT_LABEL[sort]}
             </label>

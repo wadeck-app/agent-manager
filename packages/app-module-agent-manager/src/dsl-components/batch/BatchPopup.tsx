@@ -1,7 +1,8 @@
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { X } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { footerClearance } from './footerClearance.js';
 import { selectedText } from '../logic/selection.js';
 import { Scope } from '../ui/Scope.js';
 import { POPUP_SURFACE } from '../ui/popupSurface.js';
@@ -12,49 +13,64 @@ export const DOCK_GAP = 8;
 export const DOCK_TAB = 12;
 /** Distance from the window bottom with no dock: the dock's own `bottom-6`. */
 const FLOOR = 24;
-/** The page lifts its bottom row (the reply box) by this much while the popup is shown: `Workspace` pads its bottom with it. */
+/** The detail pane lifts its bottom row (the reply box) by this much while the popup is shown: `Workspace` pads the detail pane with it (never the list footer). */
 export const RESERVE_VAR = '--batch-popup-reserve';
 /** Left edge of the content area: the same inset the A/B dock uses, so the popup is never centred under the side menu. */
 const INSET_LEFT = 'var(--ab-dock-inset-left, var(--app-shell-menu-width, 0px))';
 /** AbDock publishes no height or variable: its frame is found by this test id (dsl-ui `AbDock`); it is absent outside the dev server, which is normal. */
 const DOCK_FRAME = '[data-testid="ab-dock-frame"]';
+/** The action bar of the list pane (ListFooter): fixed, the popup stacks above it when their rectangles overlap and never otherwise. */
+const LIST_FOOTER = '[data-list-footer]';
 const DOCK_OPEN = '[data-testid="ab-dock"]:not([hidden])';
 
 /** Distance from the window bottom to the popup (above the dock, open or folded, when there is one, the floor otherwise), and whether the dock is folded. */
-function measureBottom(): { bottom: number; folded: boolean } {
+function measureBottom(bar: HTMLElement | null): { bottom: number; folded: boolean } {
   const frame = document.querySelector(DOCK_FRAME);
-  if (frame === null) {
-    return { bottom: FLOOR, folded: false };
-  }
-  const folded = frame.querySelector(DOCK_OPEN) === null;
+  const folded = frame !== null && frame.querySelector(DOCK_OPEN) === null;
   const tab = folded ? 0 : DOCK_TAB;
-  return { bottom: Math.max(FLOOR, Math.round(window.innerHeight - frame.getBoundingClientRect().top + tab + DOCK_GAP)), folded };
+  const base = frame === null ? FLOOR : Math.max(FLOOR, Math.round(window.innerHeight - frame.getBoundingClientRect().top + tab + DOCK_GAP));
+  return { bottom: clearFooter(bar, base), folded };
+}
+
+/** The footer never moves: the popup is raised to its top edge only when, at its own place (`base`), it would cover the footer (a narrow window). */
+function clearFooter(bar: HTMLElement | null, base: number): number {
+  const footer = document.querySelector(LIST_FOOTER);
+  if (bar === null || footer === null) {
+    return base;
+  }
+  const rect = bar.getBoundingClientRect();
+  const bottom = window.innerHeight - base;
+  const clearance = footerClearance({ left: rect.left, right: rect.right, top: bottom - rect.height, bottom }, footer.getBoundingClientRect(), window.innerHeight);
+  return clearance === undefined ? base : Math.max(base, clearance);
 }
 
 /** Follows the dock: re-measured when it resizes (rows added, folded) and when the window resizes. */
-function useBottom(active: boolean): { bottom: number; folded: boolean } {
+function useBottom(active: boolean, bar: RefObject<HTMLDivElement | null>): { bottom: number; folded: boolean } {
   const [bottom, setBottom] = useState({ bottom: FLOOR, folded: false });
   useLayoutEffect(() => {
     if (!active) {
       return;
     }
     const update = (): void => {
-      const next = measureBottom();
+      const next = measureBottom(bar.current);
       setBottom((previous) => (previous.bottom === next.bottom && previous.folded === next.folded ? previous : next));
     };
     update();
     window.addEventListener('resize', update);
     const frame = document.querySelector(DOCK_FRAME);
     // Where there is no ResizeObserver (very old engines) the window resize is the only trigger.
-    const observer = frame !== null && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : undefined;
-    if (frame !== null) {
-      observer?.observe(frame);
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : undefined;
+    // The dock, the popup (its actions wrap) and the list footer all change what the popup may cover.
+    for (const watched of [frame, bar.current, document.querySelector(LIST_FOOTER)]) {
+      if (watched !== null) {
+        observer?.observe(watched);
+      }
     }
     return () => {
       window.removeEventListener('resize', update);
       observer?.disconnect();
     };
-  }, [active]);
+  }, [active, bar]);
   return bottom;
 }
 export interface BatchPopupProps {
@@ -71,10 +87,10 @@ export interface BatchPopupProps {
  */
 export function BatchPopup({ count, onClear, children }: BatchPopupProps) {
   const active = count > 0;
-  const { bottom, folded } = useBottom(active);
+  const bar = useRef<HTMLDivElement>(null);
+  const { bottom, folded } = useBottom(active, bar);
   // Room below the popup that the page must clear: the floor, or (folded dock, a pill that does not hide the reply box) the folded dock height as well.
   const below = folded ? bottom : FLOOR;
-  const bar = useRef<HTMLDivElement>(null);
   // The footprint is measured from the window bottom: an open dock is ignored (it already hides the reply box), a folded one counts: below + height + gap.
   useLayoutEffect(() => {
     if (!active) {

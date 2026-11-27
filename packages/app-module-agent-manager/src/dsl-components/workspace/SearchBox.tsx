@@ -2,6 +2,9 @@ import { Search, X } from 'lucide-react';
 import { useId, type KeyboardEvent } from 'react';
 import { IconButton, Tooltip } from '@wadeck-app/dsl-ui';
 import { FOCUS_RING } from '../ui/focusRing.js';
+import { BareInput, SEARCH_ICON } from '../ui/BareInput.js';
+
+const PROBLEMS_NOTE = 'absolute left-0 top-full z-20 mt-1 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text shadow';
 
 export interface SearchBoxProps {
   text: string;
@@ -42,9 +45,9 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
   };
   return (
     <div className="relative min-w-40 max-w-lg flex-1">
-      <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
+      <Search aria-hidden="true" className={SEARCH_ICON} />
       <Tooltip content="Search by name, folder, path or last activity. Filters: state:done, project:shop, !state:idle. Press / to focus." describe={false}>
-      <input
+      <BareInput
         data-tip-fill=""
         data-agent-search=""
         type="text"
@@ -69,7 +72,7 @@ export function SearchBox({ text, onText, shown, total, problems, onMove, onEnte
         </span>
       ) : null}
       {problems.length > 0 ? (
-        <p id={problemsId} role="status" className="absolute left-0 top-full z-20 mt-1 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text shadow">
+        <p id={problemsId} role="status" className={PROBLEMS_NOTE}>
           {problems.join('. ')}
         </p>
       ) : null}

@@ -1,7 +1,7 @@
 import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { ChevronDown, ChevronRight, CircleCheck, LoaderCircle, TriangleAlert } from 'lucide-react';
 import { useId, useState } from 'react';
-import { FOCUS_RING } from '../deps.js';
+import { RowButton, FOCUS_RING } from '../deps.js';
 import type { TransportStatusDto } from '../deps.js';
 import { CopyButton } from '../log/CopyButton.js';
 import { firstCommand, shortText } from './transportText.js';
@@ -80,10 +80,10 @@ export function TransportRow({ transport, busy, onSession, onDefault }: Transpor
           )}
         </p>
       ) : null}
-      <button type="button" aria-expanded={open} aria-controls={open ? detailsId : undefined} onClick={() => setOpen(!open)} className={`ml-5 inline-flex items-center gap-0.5 self-start rounded text-xs text-muted hover:text-content ${FOCUS_RING}`}>
+      <RowButton type="button" aria-expanded={open} aria-controls={open ? detailsId : undefined} onClick={() => setOpen(!open)} className={`ml-5 inline-flex items-center gap-0.5 self-start rounded text-xs text-muted hover:text-content ${FOCUS_RING}`}>
         {open ? <ChevronDown aria-hidden="true" className={ICON} /> : <ChevronRight aria-hidden="true" className={ICON} />}
         Details
-      </button>
+      </RowButton>
       {open ? (
         <dl id={detailsId} className="ml-5 flex flex-col gap-1 text-xs text-muted">
           <div>

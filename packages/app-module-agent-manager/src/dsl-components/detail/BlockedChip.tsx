@@ -4,6 +4,7 @@ import { recentChipLabel, recentChipRows, recentChipTooltip } from '../logic/gua
 import { chipClass } from '../ui/Chip.js';
 import { FOCUS_RING, Tooltip } from './deps.js';
 import { requestRailTab } from './railRequest.js';
+import { RowButton } from '../ui/RowButton.js';
 
 /**
  * ONE small counter in the header of the open agent: "3 blocked" by a guardrail in the LAST 30 MINUTES, with the categories in its tooltip. Nothing when there is
@@ -17,10 +18,10 @@ export function BlockedChip({ sessionId, blocks }: { sessionId: string; blocks: 
   }
   return (
     <Tooltip side="bottom" content={recentChipTooltip(blocks)} rows={recentChipRows(blocks)}>
-      <button type="button" data-blocked-chip="" aria-label={`${label} in the last 30 min. Open the Permissions tab`} onClick={() => requestRailTab(sessionId, 'permissions')} className={`${chipClass('neutral')} cursor-pointer hover:bg-border ${FOCUS_RING}`}>
+      <RowButton type="button" data-blocked-chip="" aria-label={`${label} in the last 30 min. Open the Permissions tab`} onClick={() => requestRailTab(sessionId, 'permissions')} className={`${chipClass('neutral')} cursor-pointer hover:bg-border ${FOCUS_RING}`}>
         <ShieldAlert aria-hidden="true" className="h-am-icon-sm w-am-icon-sm" />
         {label}
-      </button>
+      </RowButton>
     </Tooltip>
   );
 }

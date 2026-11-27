@@ -9,6 +9,7 @@ import { FolderPalette } from './FolderPalette.js';
 import { PickedLine } from './PickedLine.js';
 import { FolderSmartList } from './FolderSmartList.js';
 import { FolderTree } from './FolderTree.js';
+import { BareInput } from '../ui/BareInput.js';
 
 export const FOLDER_FIELD = `w-full rounded border border-border bg-surface px-2.5 py-1.5 text-base text-content placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-60 ${FOCUS_RING}`;
 
@@ -66,7 +67,7 @@ export function FolderPicker({ inputId, value, onChange, onPick, onKnow, picked,
   const helper = helpers[variant];
   return (
     <div className="flex flex-col gap-1.5">
-      <input
+      <BareInput
         id={inputId}
         data-autofocus=""
         type="text"

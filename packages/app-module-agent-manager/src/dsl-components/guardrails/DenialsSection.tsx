@@ -2,6 +2,7 @@ import { History, Lock, LockOpen, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { DenialRow } from './DenialRow.js';
 import { Banner } from '../ui/Banner.js';
+import { BareInput } from '../ui/BareInput.js';
 import { CompactSelect, IconButton, TabButton } from '@wadeck-app/dsl-ui';
 import { Empty } from './Empty.js';
 import { FIELD, MONO, TH } from './parts.js';
@@ -62,7 +63,7 @@ export function DenialsSection() {
         </label>
         <label className="flex flex-col gap-0.5 text-xs text-muted">
           Session (first characters of its id)
-          <input
+          <BareInput
             aria-label="Session prefix"
             value={filter.session}
             placeholder="287760ca"

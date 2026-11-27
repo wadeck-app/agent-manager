@@ -5,6 +5,7 @@ import { folderName } from '../logic/folderPicker.js';
 import { clockText, previewOf, subagentOf } from '../logic/guardrails.js';
 import type { DenialDto } from '../shared.js';
 import { MONO, TD } from './parts.js';
+import { RowButton } from '../ui/RowButton.js';
 
 /** One denial or ask of the timeline: time, decision, category, session, tool, project, and the command (when the PIN route gave it, cut with "Show full") or the file. */
 export function DenialRow({ denial, withCommands }: { denial: DenialDto; withCommands: boolean }) {
@@ -45,9 +46,9 @@ export function DenialRow({ denial, withCommands }: { denial: DenialDto; withCom
           <span className="flex flex-wrap items-start gap-2">
             <span className={`${MONO} whitespace-pre-wrap break-all`}>{detail.text}</span>
             {detail.cut || full ? (
-              <button type="button" onClick={() => setFull((value) => !value)} className="text-xs text-primary underline">
+              <RowButton type="button" onClick={() => setFull((value) => !value)} className="text-xs text-primary underline">
                 {full ? 'Show less' : 'Show full'}
-              </button>
+              </RowButton>
             ) : null}
           </span>
         ) : denial.file === '' ? (

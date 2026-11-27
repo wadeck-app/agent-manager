@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { checkGroupName } from '../shared.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
 import { POPUP_SURFACE } from '../ui/popupSurface.js';
+import { BareInput } from '../ui/BareInput.js';
 
 /**
  * The "New group" button of the list footer. It opens a small popup ABOVE the footer (an overlay anchored to the footer, so it never pushes the list and fits the
@@ -91,7 +92,7 @@ export function NewGroupControl({ onCreate }: { onCreate: (name: string) => Prom
           <label className="sr-only" htmlFor="new-group-name">
             Name of the new group
           </label>
-          <input
+          <BareInput
             ref={input}
             id="new-group-name"
             value={name}

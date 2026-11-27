@@ -23,6 +23,8 @@ import { SwitchAction } from './SwitchAction.js';
 import { useOwnedSession } from './useOwnedSession.js';
 import type { OwnedChange } from '../workspace/useOwnedRows.js';
 
+const STDERR_TAIL = 'mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-am-mono';
+
 export interface OwnedBarProps {
   session: AgentRow;
   /** A change the daemon confirmed: the list shows it before the next poll. */
@@ -221,7 +223,7 @@ export function OwnedBar({ session, onChange, onForgotten, inline }: OwnedBarPro
       {session.ownedState === 'exited' && dto?.exit !== undefined ? (
         <Banner tone="info">
           <p>{`The claude process ended (${dto.exit.cause}${dto.exit.code === null ? '' : `, exit code ${dto.exit.code}`}).`}</p>
-          {dto.exit.stderrTail !== '' ? <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-am-mono">{dto.exit.stderrTail}</pre> : null}
+          {dto.exit.stderrTail !== '' ? <pre className={STDERR_TAIL}>{dto.exit.stderrTail}</pre> : null}
         </Banner>
       ) : null}
       {session.ownedState === 'exited' && dto !== undefined && !resumable && dto.note !== undefined && dto.note !== '' ? <Banner tone="info">{dto.note}</Banner> : null}

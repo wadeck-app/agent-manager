@@ -1,5 +1,5 @@
 import type { ButtonHTMLAttributes, MouseEvent, ReactNode } from 'react';
-import { FOCUS_RING } from '../ui/focusRing.js';
+import { RowButton } from '../ui/RowButton.js';
 
 /** The two sizes of an icon button: 28 px and 36 px, the `icon-sm` and `icon` sizes of the dsl-ui IconButton. */
 const SIZE = { sm: 'h-7 w-7', md: 'h-9 w-9' } as const;
@@ -20,7 +20,7 @@ export interface RowIconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButton
  */
 export function RowIconButton({ label, icon, size = 'sm', onClick, className, ...rest }: RowIconButtonProps) {
   return (
-    <button
+    <RowButton
       {...rest}
       type="button"
       tabIndex={-1}
@@ -30,9 +30,9 @@ export function RowIconButton({ label, icon, size = 'sm', onClick, className, ..
         event.stopPropagation();
         onClick(event);
       }}
-      className={`inline-flex ${SIZE[size]} shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content ${FOCUS_RING}${className === undefined ? '' : ` ${className}`}`}
+      className={`inline-flex ${SIZE[size]} shrink-0 items-center justify-center rounded text-muted-tint hover:bg-muted-bg hover:text-content${className === undefined ? '' : ` ${className}`}`}
     >
       {icon}
-    </button>
+    </RowButton>
   );
 }

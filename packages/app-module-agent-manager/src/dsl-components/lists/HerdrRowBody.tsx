@@ -11,6 +11,8 @@ import { TimeInState } from './TimeInState.js';
 import { RowIconButton } from './RowIconButton.js';
 import { RowMenuButton } from './RowMenuButton.js';
 
+const ROW_LINE = 'flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 overflow-hidden leading-5';
+
 /** The separator between the name and the folder (U+00B7), built from its code so that the source stays ASCII. */
 const MIDDLE_DOT = String.fromCharCode(0xb7);
 
@@ -54,7 +56,7 @@ export function HerdrRowBody({ session, density, selected = false, now, terms, s
       <HerdrProgramIcon session={session} />
       {/* The name comes first: it takes what it needs up to the whole box. The folder wraps out of the one-line clipped box (never squeezes the name) when less than its minimum is left. */}
       <RowTip session={session} line={detailLine(session)}>
-        <span data-tip-fill="" className="flex h-5 min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5 overflow-hidden leading-5">
+        <span data-tip-fill="" className={ROW_LINE}>
           <span data-herdr-name="" className={`min-w-0 max-w-full truncate ${selected ? 'font-semibold text-content' : 'font-normal'} ${quiet ? 'text-muted-tint' : 'text-content'}`}>
             <Highlight text={session.displayName} terms={terms} />
           </span>

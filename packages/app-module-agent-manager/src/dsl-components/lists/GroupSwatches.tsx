@@ -1,8 +1,8 @@
 import { Tooltip } from '@wadeck-app/dsl-ui';
 import { Check } from 'lucide-react';
 import { GROUP_COLORS, type GroupColor } from '../shared.js';
-import { FOCUS_RING } from '../ui/focusRing.js';
 import { GROUP_LOOK } from '../ui/groupLook.js';
+import { RowButton } from '../ui/RowButton.js';
 
 /** A row of color choices (a radio group) with a "no color" first. */
 export function GroupSwatches({ label, value, onPick }: { label: string; value: GroupColor | null; onPick: (color: GroupColor | null) => void }) {
@@ -17,11 +17,11 @@ export function GroupSwatches({ label, value, onPick }: { label: string; value: 
           const selected = option === value;
           return (
           <Tooltip key={option ?? 'none'} content={look.label} describe={false}>
-            <button type="button" role="radio" aria-checked={selected} aria-label={look.label} onClick={() => onPick(option)} className={`inline-flex h-6 w-6 items-center justify-center rounded border ${selected ? 'border-primary ring-1 ring-primary' : 'border-border hover:bg-muted-bg'} ${FOCUS_RING}`}>
+            <RowButton type="button" role="radio" aria-checked={selected} aria-label={look.label} onClick={() => onPick(option)} className={`inline-flex h-6 w-6 items-center justify-center rounded border ${selected ? 'border-primary ring-1 ring-primary' : 'border-border hover:bg-muted-bg'}`}>
               <span aria-hidden="true" className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full ${look.dot}`}>
                 {selected ? <Check aria-hidden="true" className="h-2.5 w-2.5 text-surface" /> : null}
               </span>
-            </button>
+            </RowButton>
           </Tooltip>
           );
         })}

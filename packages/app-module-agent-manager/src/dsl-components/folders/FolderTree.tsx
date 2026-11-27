@@ -14,6 +14,7 @@ import { LoadingLine } from './LoadingLine.js';
 import { RootsNote } from './RootsNote.js';
 import { TruncatedLine } from './TruncatedLine.js';
 import { PICKER_PANEL, PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
+import { BareInput, SEARCH_ICON } from '../ui/BareInput.js';
 
 export interface TreeProps {
   /** The text of the Folder field: the row of that folder is highlighted. */
@@ -179,8 +180,8 @@ export function FolderTree({ value, onPick, disabled }: TreeProps) {
         <label htmlFor={filterId} className="sr-only">
           Filter the folders
         </label>
-        <Search aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 h-am-icon-sm w-am-icon-sm -translate-y-1/2 text-muted" />
-        <input
+        <Search aria-hidden="true" className={SEARCH_ICON} />
+        <BareInput
           id={filterId}
           type="text"
           value={filter}

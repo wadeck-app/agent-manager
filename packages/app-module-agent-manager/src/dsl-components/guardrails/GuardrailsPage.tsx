@@ -7,6 +7,8 @@ import { RulesSection } from './RulesSection.js';
 import { ScanSection } from './ScanSection.js';
 import type { GuardrailsOverviewDto } from '../shared.js';
 
+const PAGE_ERROR = 'flex items-start gap-2 rounded border border-danger bg-danger-bg px-3 py-2 text-sm text-danger-text';
+
 /**
  * The Guardrails page (phase 1, read-only): what the w-guardrails plugin granted, blocked and is configured to do, for the projects of this machine.
  * Everything is read from the plugin's files; nothing here can change them. A file it cannot read or whose shape it does not know is a banner naming the
@@ -24,7 +26,7 @@ export function GuardrailsPage({ overview, failed = false }: { overview: Guardra
         </div>
       ) : null}
       {data?.killSwitch.active ? (
-        <div role="alert" className="flex items-start gap-2 rounded border border-danger bg-danger-bg px-3 py-2 text-sm text-danger-text">
+        <div role="alert" className={PAGE_ERROR}>
           <ShieldOff aria-hidden="true" className="mt-0.5 h-am-icon w-am-icon shrink-0" />
           <div>
             <p className="font-semibold">The guardrails kill switch is ON: every protection is off.</p>

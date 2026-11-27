@@ -7,6 +7,8 @@ import { NoticeRow } from './NoticeRow.js';
 import { usePopover } from './usePopover.js';
 import { POPUP_SURFACE } from './popupSurface.js';
 
+const NOTICES_ALERT = 'm-2 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text';
+
 const plural = (count: number, one: string, many: string): string => `${count} ${count === 1 ? one : many}`;
 
 /** Colour of the icon and of the count badge, by the worst severity of the active notices. */
@@ -126,7 +128,7 @@ export function NoticesButton({ items }: { items: readonly NoticeItem[] }) {
           style={{ left: offset }}
         >
           {problem !== '' ? (
-            <p role="alert" className="m-2 rounded border border-warning bg-warning-bg px-2 py-1 text-xs text-warning-text">
+            <p role="alert" className={NOTICES_ALERT}>
               {`Not remembered: this browser refuses to store the dismissal (${problem}). The notice comes back after a reload.`}
             </p>
           ) : null}

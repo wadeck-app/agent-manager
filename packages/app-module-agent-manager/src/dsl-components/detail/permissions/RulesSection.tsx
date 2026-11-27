@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronRight, ListChecks } from 'lucide-react';
 import { useState } from 'react';
-import { decisionWords, sourceWords, FOCUS_RING } from '../deps.js';
+import { RowButton, decisionWords, sourceWords, FOCUS_RING } from '../deps.js';
 import type { RulesState } from './useSessionRules.js';
 
 const NOTE = 'text-xs text-muted';
@@ -23,12 +23,12 @@ export function RulesSection({ rules }: { rules: RulesState }) {
           {`The guardrails configuration of this folder has an error: ${rules.data.configError}${rules.data.configPath === '' ? '' : ` (file: ${rules.data.configPath})`}. Fix the file, then refresh: the rules below may not be what you wrote.`}
         </p>
       ) : null}
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium text-content ${FOCUS_RING}`}>
+      <RowButton type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`flex w-full items-center gap-1.5 px-3 py-2 text-left text-xs font-medium text-content ${FOCUS_RING}`}>
         <Chevron aria-hidden="true" className="h-3.5 w-3.5 text-muted" />
         <ListChecks aria-hidden="true" className="h-am-icon-sm w-am-icon-sm text-muted" />
         Rules
         <span className="tabular-nums text-muted">{summary}</span>
-      </button>
+      </RowButton>
       {open ? (
         <div className="px-3 pb-2">
           {rules.kind === 'loading' ? <p className={NOTE}>Reading the rules from the plugin...</p> : null}

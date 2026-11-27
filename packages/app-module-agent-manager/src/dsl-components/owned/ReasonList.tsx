@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { groupReasons } from '../logic/adoptSwitch.js';
 import { FOCUS_RING } from '../ui/focusRing.js';
+import { RowButton } from '../ui/RowButton.js';
 
 /** How many reasons are listed before "Show N more": the first ones are the ones to read, the rest is one click away. */
 export const VISIBLE_REASONS = 3;
@@ -34,9 +35,9 @@ export function ReasonList({ reasons }: { reasons: readonly string[] }) {
         );
       })}
       {hidden > 0 ? (
-        <button type="button" aria-expanded={all} onClick={() => setAll(!all)} className={`self-start rounded text-sm text-primary underline hover:no-underline ${FOCUS_RING}`}>
+        <RowButton type="button" aria-expanded={all} onClick={() => setAll(!all)} className={`self-start rounded text-sm text-primary underline hover:no-underline ${FOCUS_RING}`}>
           {all ? 'Show fewer details' : `Show ${hidden} more`}
-        </button>
+        </RowButton>
       ) : null}
     </div>
   );

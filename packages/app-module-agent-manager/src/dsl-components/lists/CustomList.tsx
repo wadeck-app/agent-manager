@@ -22,6 +22,8 @@ import { useRowMenu } from './useRowMenu.js';
 import { SubagentRows } from './SubagentRows.js';
 import { useCustomDnd } from './useCustomDnd.js';
 
+const DROP_HINT = 'absolute inset-x-0 top-0 z-20 border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text shadow-md';
+
 type Anchor = { x: number; y: number };
 
 /**
@@ -177,7 +179,7 @@ export function CustomList({ sessions: shown, selectedId, onSelect, now, query, 
       {/* The hint floats over the top of the list: put in the flow it pushed every row down while it showed (a drag moves nothing on the page). */}
       <div className="relative flex min-h-0 flex-1 flex-col">
       {dnd.hint !== '' ? (
-        <p role="status" data-drop-hint="" className="absolute inset-x-0 top-0 z-20 border-b border-warning bg-warning-bg px-3 py-1.5 text-xs text-warning-text shadow-md">
+        <p role="status" data-drop-hint="" className={DROP_HINT}>
           {dnd.hint}
         </p>
       ) : null}

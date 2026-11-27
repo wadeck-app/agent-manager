@@ -13,6 +13,9 @@ import { RootsNote } from './RootsNote.js';
 import { TruncatedLine } from './TruncatedLine.js';
 import { PICKER_ROW, PICKER_ROW_SELECTED } from './folderParts.js';
 
+const COLUMNS_SCROLLER = 'flex h-72 overflow-x-auto overflow-y-hidden rounded border border-border bg-surface';
+const COLUMN = 'flex w-60 shrink-0 flex-col overflow-y-auto border-r border-border last:border-r-0';
+
 export interface ColumnsProps {
   value: string;
   onPick: (pick: FolderPick) => void;
@@ -133,14 +136,14 @@ export function FolderColumns({ value, onPick, disabled }: ColumnsProps) {
   return (
     <div className="flex flex-col gap-1.5" data-folder-picker="columns">
       <RootsNote note={roots.state.status === 'ready' ? roots.state.value.note : ''} />
-      <div ref={scroller} className="flex h-72 overflow-x-auto overflow-y-hidden rounded border border-border bg-surface">
+      <div ref={scroller} className={COLUMNS_SCROLLER}>
         {columns.map((column, index) => {
           const state = entriesOf(column);
           const entries = state.status === 'ready' ? state.value.entries : [];
           const entryPointPath = column.selected ?? entries[0]?.path;
           const label = column.parent === undefined ? 'Roots' : `Folders in ${column.parent}`;
           return (
-            <div key={column.parent ?? 'roots'} data-column={index} className="flex w-60 shrink-0 flex-col overflow-y-auto border-r border-border last:border-r-0">
+            <div key={column.parent ?? 'roots'} data-column={index} className={COLUMN}>
               {state.status === 'loading' ? <LoadingLine what={column.parent === undefined ? 'Reading the folders you can browse...' : 'Reading the folder...'} /> : null}
               {state.status === 'failed' ? <FailedLine text={state.text} onRetry={column.parent === undefined ? roots.retry : () => reload(column.parent!)} /> : null}
               {state.status === 'ready' && entries.length === 0 ? (

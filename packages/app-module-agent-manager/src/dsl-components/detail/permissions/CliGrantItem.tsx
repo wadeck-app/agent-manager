@@ -3,6 +3,8 @@ import { KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { clockText, GUARDRAILS_REVOKE_ENABLED, remainingText, type CliGrantDto } from '../deps.js';
 
+const GRANT_WARNING = 'flex flex-col gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-text';
+
 /**
  * One bypass of the session as the plugin's admin CLI lists it. The time left counts down from the expiry (`now` ticks every second in the list), and
  * Revoke asks first: the confirmation names the category and the time left, then the caller sends the PIN-gated request.
@@ -47,7 +49,7 @@ export function CliGrantItem({ grant, now, busy, onRevoke }: { grant: CliGrantDt
         </div>
       ) : null}
       {confirming ? (
-        <div className="flex flex-col gap-1.5 rounded border border-warning bg-warning-bg px-2 py-1.5 text-xs text-warning-text">
+        <div className={GRANT_WARNING}>
           <p>{`Revoke the ${grant.category} bypass (${remainingText(left)} left)? The guardrail applies again to this session at once.`}</p>
           <div className="flex gap-1.5">
             <ButtonAction

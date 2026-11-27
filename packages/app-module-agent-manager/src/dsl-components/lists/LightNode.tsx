@@ -3,6 +3,8 @@ import { herdrLight } from '../logic/herdrRow.js';
 import type { AgentState } from '../logic/states.js';
 import { StatusIcon } from '../ui/StatusIcon.js';
 
+const NEEDS_YOU_LIGHT = 'inline-flex h-3.5 w-3.5 items-center justify-center rounded bg-hue-red-bg text-[10.5px] font-bold leading-none text-hue-red';
+
 /**
  * The mark of a state in the Herdr values: a 7 px dot, a 12 px spinner, a 7 px ring, a 14 px red "!" box for Needs you (no pill with words: the names keep that room, D2026-11-26k), or the
  * page's own icon.
@@ -20,7 +22,7 @@ export function LightNode({ state }: { state: AgentState }): ReactNode {
   }
   if (light.kind === 'pill') {
     return (
-      <span aria-hidden="true" className="inline-flex h-3.5 w-3.5 items-center justify-center rounded bg-hue-red-bg text-[10.5px] font-bold leading-none text-hue-red">
+      <span aria-hidden="true" className={NEEDS_YOU_LIGHT}>
         !
       </span>
     );
