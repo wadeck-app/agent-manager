@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isPidAlive } from '../../pidAlive.js';
 import type { Session } from '../../session.js';
 import { removeDir } from '../../testFixtures.js';
@@ -628,7 +628,8 @@ describe('review fixes (#71): a shutdown during a switch', () => {
       () => 'switched',
       (error: unknown) => (error instanceof LaunchError ? error.code : 'other'),
     );
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    // Wait until the switch really reached the held launch (a fixed sleep was too short on a slow macOS runner, CI run 69).
+    await vi.waitFor(() => expect(f.world.hcCalls.some((call) => call.startsWith('run '))).toBe(true), { timeout: 5000 });
     let shutdownDone = false;
     const shutdown = f.host.shutdown().then(() => {
       shutdownDone = true;
