@@ -1,11 +1,9 @@
 import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { prose } from '../logic/prose.js';
-import { FOCUS_RING } from './focusRing.js';
 import { Banner } from './Banner.js';
 import { headlineOf, type StackedItem } from './bannerStackKit.js';
-import { RowButton } from './RowButton.js';
 
-const TOGGLE = `shrink-0 self-start rounded text-xs text-primary underline hover:no-underline ${FOCUS_RING}`;
+const TOGGLE = 'shrink-0 self-start';
 
 /** The one banner: the worst tone, the title of the first message and the count of the others, or every message whole when it is open. */
 export function BannerStackBody({ entries, first, open, onToggle, run }: { entries: [string, StackedItem][]; first: [string, StackedItem]; open: boolean; onToggle: () => void; run: (id: string) => void }) {
@@ -22,9 +20,9 @@ export function BannerStackBody({ entries, first, open, onToggle, run }: { entri
       action={
         <>
           {foldable ? (
-            <RowButton type="button" aria-expanded={open} onClick={onToggle} className={TOGGLE}>
-              {open ? 'Show less' : more > 0 ? `Show all ${entries.length}` : 'Show more'}
-            </RowButton>
+            <span className={TOGGLE}>
+              <ButtonAction variant="link" underline="always" size="xs" ariaExpanded={open} onClick={onToggle} label={open ? 'Show less' : more > 0 ? `Show all ${entries.length}` : 'Show more'} />
+            </span>
           ) : null}
           {open ? null : action(firstId, firstItem)}
         </>

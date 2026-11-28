@@ -1,13 +1,12 @@
+import { ButtonAction } from '@wadeck-app/dsl-ui';
 import { useState, type ReactNode } from 'react';
 import { prose } from '../logic/prose.js';
-import { FOCUS_RING } from './focusRing.js';
 import { Banner, type BannerTone } from './Banner.js';
-import { RowButton } from './RowButton.js';
 
 /** A text longer than this is folded to two lines behind "Show more". */
 export const FOLD_AT = 150;
 
-const TOGGLE = `shrink-0 self-start rounded text-xs text-primary underline hover:no-underline ${FOCUS_RING}`;
+const TOGGLE = 'shrink-0 self-start';
 
 export interface FoldedBannerProps {
   tone: BannerTone;
@@ -30,9 +29,9 @@ export function FoldedBanner({ tone, text, action }: FoldedBannerProps) {
       action={
         <>
           {long ? (
-            <RowButton type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={TOGGLE}>
-              {open ? 'Show less' : 'Show more'}
-            </RowButton>
+            <span className={TOGGLE}>
+              <ButtonAction variant="link" underline="always" size="xs" ariaExpanded={open} onClick={() => setOpen(!open)} label={open ? 'Show less' : 'Show more'} />
+            </span>
           ) : null}
           {action}
         </>
