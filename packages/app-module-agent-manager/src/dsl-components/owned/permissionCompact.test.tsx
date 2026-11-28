@@ -63,7 +63,7 @@ describe('PermissionRequest: compact layout', () => {
 });
 
 describe('CardsDock: the cards never take the log', () => {
-  it('holds at most 35 percent of the panel, scrolls inside beyond, and shrinks before the log', () => {
+  it('holds at most half of the panel, scrolls inside beyond, and shrinks before the log', () => {
     render(
       <CardsDock>
         <p>card</p>
@@ -71,7 +71,7 @@ describe('CardsDock: the cards never take the log', () => {
     );
     const dock = screen.getByText('card').parentElement as HTMLElement;
     expect(dock).toHaveAttribute('data-cards-dock');
-    expect(dock).toHaveClass('max-h-[35%]', 'overflow-y-auto', 'min-h-0', 'shrink');
+    expect(dock).toHaveClass('max-h-[50%]', 'overflow-y-auto', 'min-h-0', 'shrink');
   });
 });
 

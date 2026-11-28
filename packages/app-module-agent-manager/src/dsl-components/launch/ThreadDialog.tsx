@@ -18,6 +18,8 @@ import { DialogActions } from '../ui/DialogActions.js';
 import { Modal } from '../ui/Modal.js';
 import { TIP_FIT } from '../ui/tipWrap.js';
 
+const QUOTE_BOX = 'rounded border-l-2 border-primary bg-muted-bg px-2.5 py-1.5 text-sm text-content';
+
 export interface ThreadDialogProps {
   /** The session the thread branches from (owned or discovered). */
   session: AgentRow;
@@ -86,8 +88,11 @@ export function ThreadDialog({ session, anchor, onClose, onStarted }: ThreadDial
       >
         <p className="text-sm text-content">{THREAD_MEANING}</p>
         <div>
-          <blockquote data-thread-quote="" className={`whitespace-pre-wrap break-words rounded border-l-2 border-primary bg-muted-bg px-2.5 py-1.5 text-sm text-content ${full ? '' : 'line-clamp-3'}`}>
-            {anchor.text.trim()}
+          {/* The padding is on the blockquote and the clamp on the text inside it: a clamp on the padded box shows a sliver of the 4th line under the 3rd. */}
+          <blockquote className={QUOTE_BOX}>
+            <div data-thread-quote="" className={`whitespace-pre-wrap break-words ${full ? '' : 'line-clamp-3'}`}>
+              {anchor.text.trim()}
+            </div>
           </blockquote>
           {long ? (
             <div className="mt-1">

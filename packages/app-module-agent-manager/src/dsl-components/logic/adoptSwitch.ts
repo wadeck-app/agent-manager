@@ -112,6 +112,23 @@ export function groupReasons(reasons: readonly string[]): ReasonGroup[] {
   return [...groups.values()];
 }
 
+/**
+ * The groups with the reasons to list under them when at most `limit` reasons are listed in all (in group order). A group none of whose reasons fit is left out, so no
+ * heading stands alone without a bullet; the group keeps its whole `reasons` (the heading counts its total), `shown` is the part listed.
+ */
+export function visibleReasonGroups(groups: readonly ReasonGroup[], limit: number): { group: ReasonGroup; shown: string[] }[] {
+  let budget = Math.max(0, limit);
+  const out: { group: ReasonGroup; shown: string[] }[] = [];
+  for (const group of groups) {
+    const shown = group.reasons.slice(0, budget);
+    budget -= shown.length;
+    if (shown.length > 0) {
+      out.push({ group, shown });
+    }
+  }
+  return out;
+}
+
 export const MOVE_DAEMON_DOWN = 'Daemon not running: agent-manager start --detach';
 
 /** One short row per kind of thing a hand-over would interrupt (the title of the kind and how many), for a tooltip: the whole reasons are in the confirmation dialog, not in a hover card. */

@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { groupReasons } from '../logic/adoptSwitch.js';
+import { groupReasons, visibleReasonGroups } from '../logic/adoptSwitch.js';
 import { ReasonList, VISIBLE_REASONS } from '../owned/ReasonList.js';
 import { ConfirmDialog } from './ConfirmDialog.js';
 
@@ -34,18 +34,39 @@ describe('the reasons of a Move that is not free', () => {
     expect(groups.every((group) => group.consequence !== '')).toBe(true);
   });
 
+  it('lists the groups that have a reason within the limit, whole groups of reasons kept for the count', () => {
+    const groups = groupReasons(REASONS);
+    const listed = visibleReasonGroups(groups, 3);
+    expect(listed.map((entry) => [entry.group.kind, entry.group.reasons.length, entry.shown.length])).toEqual([
+      ['waiting', 2, 2],
+      ['subagent', 2, 1],
+    ]);
+    expect(visibleReasonGroups(groups, 0)).toEqual([]);
+    expect(visibleReasonGroups(groups, Number.POSITIVE_INFINITY)).toHaveLength(groups.length);
+  });
+
   it('shows at most 3 details, then "Show N more" reveals the rest and "Show fewer details" folds them again', async () => {
     render(<ReasonList reasons={REASONS} />);
     expect(screen.getAllByRole('listitem')).toHaveLength(VISIBLE_REASONS);
-    // Every group still names itself and says what the move does to it.
+    // A group with a listed reason names itself (with its total) and says what the move does to it; a group with none listed yet has no heading.
     expect(screen.getByRole('heading', { name: 'Waiting for an answer (2)' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Cannot tell what runs (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sub-agents (2)' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Cannot tell what runs (1)' })).toBeNull();
     const more = screen.getByRole('button', { name: `Show ${REASONS.length - VISIBLE_REASONS} more` });
     expect(more).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(more);
     expect(screen.getAllByRole('listitem')).toHaveLength(REASONS.length);
+    expect(screen.getAllByRole('heading')).toHaveLength(5);
+    expect(screen.getByRole('heading', { name: 'Cannot tell what runs (1)' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Show fewer details' }));
     expect(screen.getAllByRole('listitem')).toHaveLength(VISIBLE_REASONS);
+  });
+
+  it('never shows a heading without a bullet under it, collapsed or not', () => {
+    const { container } = render(<ReasonList reasons={REASONS} />);
+    for (const section of container.querySelectorAll('section')) {
+      expect(section.querySelectorAll('li').length).toBeGreaterThan(0);
+    }
   });
 
   it('has no "Show more" when everything fits', () => {

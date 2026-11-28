@@ -8,6 +8,9 @@ import { StackedBanner } from '../ui/StackedBanner.js';
 import { HcPermissionPrompt } from './HcPermissionPrompt.js';
 import { useHcPermission } from './useHcPermission.js';
 
+/** The card fits the dock (min-h-0, shrink) instead of overflowing it: its dialog scrolls in the middle, so the header and the buttons stay in view. */
+const CARD_BOX = 'flex min-h-0 shrink flex-col gap-1.5 border-t px-4 py-2';
+
 /** How long the answer of the last decision stays on screen. */
 export const HC_FEEDBACK_MS = 8000;
 
@@ -78,7 +81,7 @@ export function HcPermissionCard({ session }: { session: AgentRow }) {
       {failure !== '' ? <StackedBanner id="hc-failure" tone="error" text={failure} /> : null}
       {warned ? <StackedBanner id="hc-feedback" tone="warning" text={feedback.text} /> : null}
       {hasBody ? (
-        <section aria-label="Permission request in the terminal" data-hc-permission-card="" className={`flex shrink-0 flex-col gap-1.5 border-t px-4 py-2 ${prompt === undefined ? 'border-border bg-surface' : 'border-hue-red bg-hue-red-bg'}`}>
+        <section aria-label="Permission request in the terminal" data-hc-permission-card="" className={`${CARD_BOX} ${prompt === undefined ? 'border-border bg-surface' : 'border-hue-red bg-hue-red-bg'}`}>
           {feedback !== undefined && !feedback.warn ? (
             <p role="status" className="flex items-center gap-1.5 text-sm text-content">
               <Check aria-hidden="true" className="h-am-icon-sm w-am-icon-sm shrink-0 text-hue-green" />
