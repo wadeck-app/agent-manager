@@ -112,6 +112,14 @@ export function isStale(item: SubagentItem, now: number, keep: KeepAge): boolean
   return at !== undefined && now - at > KEEP_MS[keep];
 }
 
+/**
+ * The counts of the chips (what needs the eye now): like countStatuses, but a failed or idle sub-agent that is stale (folded in the Summary) is not counted as
+ * failed or idle; it stays in `total` and in the headline of the Summary, which keeps every count.
+ */
+export function countNeedingEye(items: readonly SubagentItem[], now: number, keep: KeepAge): SubagentCounts {
+  return { ...countStatuses(items.filter((item) => !isStale(item, now, keep))), total: items.length };
+}
+
 export function filterItems(items: readonly SubagentItem[], filter: StatusFilter): SubagentItem[] {
   return filter === 'all' ? [...items] : items.filter((item) => item.status === filter);
 }

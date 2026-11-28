@@ -77,7 +77,17 @@ assert_file "the staged copy of the app-module" "$XDG_CONFIG_HOME/agent-manager/
 assert_file "the pending registration for app-core" "$APP_CORE_CONFIG_DIR/modules/agent-manager.json"
 
 step "(e3) agent-manager cli rollback puts $PREVIOUS back"
-run_cli cli rollback || fail "agent-manager cli rollback exited with status $?"
+if ! run_cli cli rollback; then
+  rollback_status=$?
+  # A rollback refusal ("Invalid or missing previousVersion") was seen once on Windows (run 72) with no way to tell who rewrote the state: show the file
+  # and the log of the updater (what ran after the update) so the next occurrence is explained by the CI log alone.
+  echo "--- update-state.json ($XDG_CONFIG_HOME/agent-manager/update-state.json):"
+  cat "$XDG_CONFIG_HOME/agent-manager/update-state.json" 2>&1 || echo "(unreadable)"
+  echo
+  echo "--- updater log (last 40 lines):"
+  cat "$XDG_CONFIG_HOME"/agent-manager/logs/*.ndjson 2>&1 | tail -n 40 || echo "(no log)"
+  fail "agent-manager cli rollback exited with status $rollback_status"
+fi
 ACTUAL="$(installed_version)"
 assert_equals "installed version after the rollback" "$PREVIOUS" "$ACTUAL"
 

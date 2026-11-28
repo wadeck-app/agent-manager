@@ -1,7 +1,7 @@
 import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { subagent } from './entryFixtures.js';
-import { flattenSubagents, formatAge, isStale, type KeepAge } from './subagentModel.js';
+import { countNeedingEye, flattenSubagents, formatAge, isStale, type KeepAge } from './subagentModel.js';
 import { SubagentRow } from './SubagentRow.js';
 import { SubagentsView } from './SubagentsView.js';
 import { SUBAGENT_PREFS_KEY, readPrefs, useSubagentPrefs } from './subagentPrefs.js';
@@ -51,6 +51,18 @@ describe('isStale: only a failed or idle one, only after the chosen age', () => 
   it('a failed or idle one with no known time is never stale (nothing says it is old)', () => {
     const [undated] = flattenSubagents([subagent({ agentId: 'u0000001', status: 'failed' })]);
     expect(isStale(undated!, NOW, '10m')).toBe(false);
+  });
+});
+
+describe('countNeedingEye: the chips leave out stale failed and idle ones, the total stays', () => {
+  it('1 h: the 48 h failure and the 3 h idle are not counted, the fresh ones are', () => {
+    const items = [freshFailed!, oldFailed!, freshIdle!, oldIdle!, finished!];
+    expect(countNeedingEye(items, NOW, '1h')).toMatchObject({ total: 5, failed: 1, idle: 1, finished: 1 });
+  });
+
+  it('always: nothing is left out', () => {
+    const items = [freshFailed!, oldFailed!, freshIdle!, oldIdle!, finished!];
+    expect(countNeedingEye(items, NOW, 'always')).toMatchObject({ total: 5, failed: 2, idle: 2 });
   });
 });
 

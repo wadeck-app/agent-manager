@@ -1,12 +1,12 @@
 import { IconButton } from '@wadeck-app/dsl-ui';
 import { Bot, PanelRightClose, PanelRightOpen, ShieldCheck, TriangleAlert, X } from 'lucide-react';
-import { AUTO_ML_FROM_PX, Tooltip, useMediaQuery, useMinWidth, type AgentRow } from '../deps.js';
+import { AUTO_ML_FROM_PX, Tooltip, useMediaQuery, useMinWidth, useNow, type AgentRow } from '../deps.js';
 import { PermissionsPanel } from '../permissions/PermissionsPanel.js';
 import type { SessionGrantsFeed } from '../permissions/useSessionGrants.js';
 import { CountChips } from './CountChips.js';
 import { RailTabButton } from './RailTabButton.js';
 import { ShieldWithBadge } from './ShieldWithBadge.js';
-import { countStatuses, STATUS_LOOK } from './subagentModel.js';
+import { countNeedingEye, STATUS_LOOK } from './subagentModel.js';
 import { SubagentsTitle } from './SubagentsTitle.js';
 import { SubagentsView, type SubagentsViewProps } from './SubagentsView.js';
 import type { LocatePhase } from './useLocateCall.js';
@@ -59,7 +59,9 @@ function phaseWords(phase: LocatePhase): string {
  * never invisible, and a button that opens it. The choice is remembered by the caller.
  */
 export function SubagentAside({ collapsed, onCollapsed, problem, onDismissProblem, session, grants, tab, onTab, ...view }: SubagentAsideProps) {
-  const counts = countStatuses(view.items);
+  // The chips say what needs the eye now: a failed or idle one older than the kept age is folded in the Summary and no longer counted here (the total stays).
+  const now = useNow(15_000);
+  const counts = countNeedingEye(view.items, now, view.keep);
   const wide = useMinWidth(ASIDE_WIDE_MIN_PX);
   // On a phone the open rail floats over the log (it would leave the log a sliver beside it).
   const phone = useMediaQuery('(max-width: 599px)');
