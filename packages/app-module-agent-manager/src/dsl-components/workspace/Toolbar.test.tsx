@@ -133,12 +133,44 @@ describe('Toolbar search box on a narrow screen', () => {
     expect(screen.getByRole('textbox', { name: 'Search agents' })).toHaveFocus();
   });
 
-  it('keeps the title for screen readers and the other controls reachable by name', () => {
-    show(NARROW);
+  it('keeps the title for screen readers and shows only icon buttons (the selection toggle too, with a selection), the rest being in ONE overflow menu', () => {
+    show({ ...NARROW, notices: <NoticesButton items={[WARN]} /> });
     expect(screen.getByRole('heading', { name: 'Agents' })).toHaveClass('sr-only');
-    expect(screen.getByRole('button', { name: 'Text size' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Sessions to show' })).toBeInTheDocument();
+    const row = document.querySelector('[data-toolbar]') as HTMLElement;
+    expect(row.className).toContain('gap-x-1');
+    for (const name of ['List layout and view options', 'Search agents', '1 notice', 'More options']) {
+      expect(screen.getByRole('button', { name }), name).toBeInTheDocument();
+    }
+    expect(row.querySelectorAll('button')).toHaveLength(4);
+    expect(screen.queryByRole('button', { name: 'Text size' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Sessions to show' })).toBeNull();
+  });
+
+  it('the overflow menu holds the count, which sessions to show, the text size and the shortcuts, and closes on Escape', async () => {
+    const user = userEvent.setup();
+    const onShow = vi.fn();
+    const onHelpOpenChange = vi.fn();
+    show({ ...NARROW, count: 14, hiddenDead: 1, onShow, onHelpOpenChange });
+    await user.click(screen.getByRole('button', { name: 'More options' }));
+    const menu = screen.getByRole('dialog', { name: 'More options' });
+    expect(menu).toHaveTextContent('14 sessions, 1 ended hidden');
+    expect(screen.getByRole('radiogroup', { name: 'Text size' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sessions to show' }), 'all');
+    expect(onShow).toHaveBeenCalledWith('all');
+    await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
+    expect(onHelpOpenChange).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole('dialog', { name: 'More options' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'More options' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'More options' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'More options' })).toHaveFocus();
+  });
+
+  it('the open search field goes last so the buttons stay together on the row above it', async () => {
+    const user = userEvent.setup();
+    show(NARROW);
+    await user.click(screen.getByRole('button', { name: 'Search agents' }));
+    expect(screen.getByRole('textbox', { name: 'Search agents' }).closest('.relative')).toHaveClass('order-last');
   });
 });
 

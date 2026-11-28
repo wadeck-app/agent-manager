@@ -14,10 +14,12 @@ export interface ShortcutsHelpProps {
   /** Controlled by the page: the `?` key opens it. */
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Narrow screen: the button lives in the overflow menu (MoreMenu), only the panel stays here, hanging from the right edge of this spot. */
+  hideButton?: boolean;
 }
 
 /** The icon button and the small panel that lists the keyboard shortcuts. Escape or a click outside closes it; focus returns to the button. */
-export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
+export function ShortcutsHelp({ open, onOpenChange, hideButton = false }: ShortcutsHelpProps) {
   const panelId = useId();
   const box = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false);
@@ -25,7 +27,8 @@ export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
   useEffect(() => {
     if (!open) {
       if (wasOpen.current) {
-        box.current?.querySelector<HTMLElement>('button')?.focus();
+        // Without its own button the focus goes back to the button of the wrapper around (the overflow menu).
+        (box.current?.querySelector<HTMLElement>('button') ?? box.current?.parentElement?.querySelector<HTMLElement>('button[aria-expanded]'))?.focus();
       }
       wasOpen.current = false;
       return;
@@ -52,8 +55,8 @@ export function ShortcutsHelp({ open, onOpenChange }: ShortcutsHelpProps) {
   }, [open, onOpenChange]);
 
   return (
-    <div ref={box} className="relative">
-      <IconButton size="icon-sm" variant={open ? 'neutral' : 'ghost'} aria-label="Keyboard shortcuts" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)} icon={<Keyboard aria-hidden="true" className="h-4 w-4" />} />
+    <div ref={box} className={hideButton ? 'absolute right-0 top-full' : 'relative'}>
+      {hideButton ? null : <IconButton size="icon-sm" variant={open ? 'neutral' : 'ghost'} aria-label="Keyboard shortcuts" aria-expanded={open} aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)} icon={<Keyboard aria-hidden="true" className="h-4 w-4" />} />}
       {open ? (
         <div id={panelId} role="dialog" aria-label="Keyboard shortcuts" className={`${PANEL} ${POPUP_SURFACE}`}>
           <p className="mb-2 text-sm font-medium text-content">Keyboard shortcuts</p>

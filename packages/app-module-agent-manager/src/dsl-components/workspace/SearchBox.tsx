@@ -10,8 +10,8 @@ const PROBLEMS_NOTE = 'absolute left-0 top-full z-20 mt-1 rounded border border-
 
 const SEARCH_BOX = 'relative flex min-w-40 max-w-lg flex-1';
 
-// Narrow screen, field open: it takes a whole row of the toolbar, whatever the room.
-const SEARCH_BOX_COMPACT = 'relative flex min-w-0 basis-full';
+// Narrow screen, field open: it takes a whole row of the toolbar, whatever the room, and goes last (order-last) so the buttons stay together on the row above it.
+const SEARCH_BOX_COMPACT = 'relative order-last flex min-w-0 basis-full';
 
 export interface SearchBoxProps {
   text: string;
