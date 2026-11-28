@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UrlParamContext, type UrlParamService } from '@wadeck-app/dsl-ui';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NoticeItem } from '../logic/notices.js';
 import { DEFAULT_VIEW_OPTIONS } from '../logic/viewOptions.js';
+import { focusSearch } from '../ui/hooks.js';
 import { NoticesButton } from '../ui/Notices.js';
 import { DEFAULT_UI_VARIANTS, UI_QUESTIONS } from '../logic/uiVariants.js';
 import { TrailSlot } from '../ui/TrailSlot.js';
@@ -91,6 +92,53 @@ describe('Toolbar search box', () => {
     expect(box?.className).toContain('flex');
     expect(box).toContainElement(screen.getByText('0 of 39'));
     expect(box).toContainElement(screen.getByRole('button', { name: 'Clear the search box' }));
+  });
+});
+
+describe('Toolbar search box on a narrow screen', () => {
+  const NARROW = { search: { text: '', onText: vi.fn(), shown: 3, total: 3, problems: [], onMove: vi.fn(), onEnter: vi.fn() } };
+  const narrow = (query: string): MediaQueryList => ({ matches: query.includes('max-width: 639px'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() }) as unknown as MediaQueryList;
+
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', narrow);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('hides the field behind one icon button that opens it, focused, and folds it back on Escape', async () => {
+    const user = userEvent.setup();
+    show(NARROW);
+    expect(screen.queryByRole('textbox', { name: 'Search agents' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Search agents' }));
+    const field = screen.getByRole('textbox', { name: 'Search agents' });
+    expect(field).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('textbox', { name: 'Search agents' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Search agents' })).toBeInTheDocument();
+  });
+
+  it('keeps the field visible while a text is typed, so a filter never hides', () => {
+    show({ search: { ...NARROW.search, text: 'zz' } });
+    expect(screen.getByRole('textbox', { name: 'Search agents' })).toHaveValue('zz');
+  });
+
+  it('opens from the / shortcut (focusSearch) and reports that it handled it', () => {
+    show(NARROW);
+    let handled = false;
+    act(() => {
+      handled = focusSearch();
+    });
+    expect(handled).toBe(true);
+    expect(screen.getByRole('textbox', { name: 'Search agents' })).toHaveFocus();
+  });
+
+  it('keeps the title for screen readers and the other controls reachable by name', () => {
+    show(NARROW);
+    expect(screen.getByRole('heading', { name: 'Agents' })).toHaveClass('sr-only');
+    expect(screen.getByRole('button', { name: 'Text size' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Sessions to show' })).toBeInTheDocument();
   });
 });
 

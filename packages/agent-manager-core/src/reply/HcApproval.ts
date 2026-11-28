@@ -283,7 +283,7 @@ export function assertAnswerable(dialog: Extract<ParsedDialog, { ok: true }>): {
 
 /** A one-line preview of at most `max` characters. */
 function cut(text: string, max: number): string {
-  const flat = text.replace(/s+/g, ' ').trim();
+  const flat = text.replace(/\s+/g, ' ').trim();
   return flat.length > max ? `${flat.slice(0, max)}...` : flat;
 }
 

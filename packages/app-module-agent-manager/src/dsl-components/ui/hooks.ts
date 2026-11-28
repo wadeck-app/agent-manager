@@ -18,11 +18,20 @@ export function focusComposer(): boolean {
   return composer !== null;
 }
 
-/** Moves the focus to the search field of the list (the one that marks itself with data-agent-search), if the variant has one. */
+/** Asks a collapsed search field (narrow screen: only its icon shows) to open and take the focus; the field marks the event as handled. */
+export const OPEN_SEARCH_EVENT = 'agent-manager:open-search';
+export type OpenSearchEvent = CustomEvent<{ handled: boolean }>;
+
+/** Moves the focus to the search field of the list (the one that marks itself with data-agent-search), if the variant has one; a collapsed field is asked to open. */
 export function focusSearch(): boolean {
   const search = document.querySelector<HTMLElement>('[data-agent-search]');
-  search?.focus();
-  return search !== null;
+  if (search !== null) {
+    search.focus();
+    return true;
+  }
+  const request: OpenSearchEvent = new CustomEvent(OPEN_SEARCH_EVENT, { detail: { handled: false } });
+  window.dispatchEvent(request);
+  return request.detail.handled;
 }
 
 export interface ListKeysOptions {

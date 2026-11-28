@@ -15,8 +15,8 @@ export interface RowIconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButton
 }
 
 /**
- * A small button on a list row or a group header (move, menu, settings, sub-agents). It is not a tab stop (the row is: its own keys do the same), and its click
- * never selects the row. One component, so every row button has the same size, hover and focus ring.
+ * The icon button of a row: not a tab stop (the row is), no tooltip of its own, and a click that never reaches the row under it. Moving it to the dsl-ui IconButton
+ * (`tooltip={false}`, dsl-ui 407) is possible but changes hover, focus and colour classes of every row: to do with a visual check of every list layout.
  */
 export function RowIconButton({ label, icon, size = 'sm', onClick, className, ...rest }: RowIconButtonProps) {
   return (

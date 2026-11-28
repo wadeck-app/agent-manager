@@ -358,7 +358,7 @@ export function LogViewerBody({ session, onThreadStarted, focusMessageId }: LogV
             {cut !== undefined && (cut.fieldsCut > 0 || cut.bodyCapped || cut.unreadableLines > 0) ? (
               <p className={`mt-2 ${LOG_META} text-muted`}>
                 {[
-                  cut.fieldsCut > 0 ? `${cut.fieldsCut} entries were shortened by the server` : '',
+                  cut.fieldsCut > 0 ? `${cut.fieldsCut} ${cut.fieldsCut === 1 ? 'entry was' : 'entries were'} shortened by the server` : '',
                   cut.bodyCapped ? 'the answer was cut at its size limit, older entries load with the button above' : '',
                   cut.unreadableLines > 0 ? `${cut.unreadableLines} lines of the transcript could not be read (shown as unrecognised entries)` : '',
                 ]

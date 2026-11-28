@@ -14,7 +14,7 @@ const SELECT_ALL_SLOT = 'inline-flex min-w-[calc(var(--am-fs-xs)*9.5)]';
  * The "Select all" button appears to its right, in a slot that is reserved while the mode is off, so nothing else in the toolbar shifts. The toggle, the Escape key
  * and the clear button are the ways out.
  */
-export function SelectionEntry({ ids }: { ids: readonly string[] }) {
+export function SelectionEntry({ ids, reserveSlot = true }: { ids: readonly string[]; /** False on a narrow screen: the room is not worth reserving, the button takes it when the mode is on. */ reserveSlot?: boolean }) {
   const selection = useSelection();
   if (selection === null) {
     return null;
@@ -27,7 +27,7 @@ export function SelectionEntry({ ids }: { ids: readonly string[] }) {
           <IconButton size="icon-sm" variant={on ? 'primary' : 'ghost'} aria-label={MODE_NAME} aria-pressed={on} onClick={() => selection.setMode(!on)} icon={<ListChecks aria-hidden="true" className="h-4 w-4" />} />
         </span>
       </Tooltip>
-      <span data-select-all-slot="" className={SELECT_ALL_SLOT}>
+      <span data-select-all-slot="" className={reserveSlot ? SELECT_ALL_SLOT : 'inline-flex empty:hidden'}>
         {on ? <SelectAllBox ids={ids} /> : null}
       </span>
     </span>

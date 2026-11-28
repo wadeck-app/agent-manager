@@ -200,4 +200,13 @@ describe('LogViewer', () => {
     render(<LogViewer session={session} />);
     expect(await screen.findByText('No transcript yet for this session.')).toBeInTheDocument();
   });
+
+  it.each([
+    [1, '1 entry was shortened by the server.'],
+    [3, '3 entries were shortened by the server.'],
+  ])('words %i shortened entries in the right number', async (fieldsCut, text) => {
+    queue = [() => respond(answer([userPrompt('u', 'hello')], { truncated: { fieldsCut, bodyCapped: false, unreadableLines: 0 } }))];
+    render(<LogViewer session={session} />);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+  });
 });

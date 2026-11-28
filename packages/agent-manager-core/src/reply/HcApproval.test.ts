@@ -297,6 +297,12 @@ describe('read', () => {
     expect(await approval.read(session())).toMatchObject({ kind: 'unsupported', code: 'dialog-not-recognized', fix: expect.stringMatching(/answer it in its terminal/) });
   });
 
+  it('quotes what hc says whole in the reason (the letter s is not a separator)', async () => {
+    const { approval } = setup({ ...BASE, get: { t2: blocked(1000, 'trust this folder') }, read: { t2: TRUST_SCREEN } });
+    const state = await approval.read(session());
+    expect(state).toMatchObject({ kind: 'unsupported', reason: expect.stringContaining('(trust this folder)') });
+  });
+
   it('offers the dialog of a hook ask (multi-line command, extra text above the question) with the notice, and types enter for allow', async () => {
     const screen = dialogScreen({ command: 'node grant.js \\\n  --category git-commit-push \\\n  --mode 30m', between: [' HOOK REQUEST for THIS agent', '   Category  git-commit-push', ''] });
     const { approval, keyCalls } = setup({ ...BASE, read: { t2: screen } });

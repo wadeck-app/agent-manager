@@ -11,6 +11,7 @@ import { TrailRow } from './TrailRow.js';
 import { ListLayoutMenu } from './ListLayoutMenu.js';
 import { SearchBox, type SearchBoxProps } from './SearchBox.js';
 
+const TITLE = 'text-base font-semibold leading-none text-content';
 const TRAIL_ROW = 'min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1';
 
 export interface ToolbarProps {
@@ -44,12 +45,14 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
   // Under 1280 px (the shell menu takes 240 px of it) the toolbar keeps one row: a number for the count, short labels.
   const countText = `${count} ${count === 1 ? 'session' : 'sessions'}${show === 'alive' && hiddenDead > 0 ? `, ${hiddenDead} ended hidden` : ''}`;
   const tight = useMediaQuery('(max-width: 1279px)');
+  // Under 640 px the trail slot is about 190 px wide: the title (the crumb already says it) is for screen readers only, the search folds to an icon and the secondary controls take their own row.
+  const compact = useMediaQuery('(max-width: 639px)');
   // The Select all button of the selection mode has a reserved slot next to the toggle (SelectionEntry): turning the mode on moves nothing in the toolbar.
   const shortCount = tight;
   const content = (
     <>
-      <h1 className="text-base font-semibold leading-none text-content">Agents</h1>
-      {selectableIds === undefined ? null : <SelectionEntry ids={selectableIds} />}
+      <h1 className={compact ? 'sr-only' : TITLE}>Agents</h1>
+      {selectableIds === undefined ? null : <SelectionEntry ids={selectableIds} reserveSlot={!compact} />}
       <Tooltip content={shortCount ? countText : undefined} describe={false}>
         <span className="text-sm text-muted">
           {shortCount ? (
@@ -63,7 +66,7 @@ export function Toolbar({ count, hiddenDead, show, onShow, mode, onMode, options
         </span>
       </Tooltip>
       <ListLayoutMenu mode={mode} onMode={onMode} options={options} onOptions={onOptions} />
-      <SearchBox {...search} />
+      <SearchBox {...search} compact={compact} />
       {/* The actions sit in the library row (one gap for all of them, wrapping whole on a narrow screen); ml-auto pushes the row to the right edge. */}
       <div className="ml-auto flex min-w-0 max-w-full justify-end">
         <HorizontalStack gap="gap-2" justify="justify-end" wrap>
